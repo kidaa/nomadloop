@@ -1,0 +1,46 @@
+*** 2010-01-09
+==============
+- added XYDragger control component
+
+*** 2009-12-22
+==============
+- added MIDI looper node
+
+*** 2009-12-19
+==============
+- added SubviewComponent
+- gave presentation at dorkbot lexington
+
+*** 2009-12-15
+==============
+- Chained graphPlayer to receive Midi from the MidiRemoteControlDispatcher, since only a single MIDI callback can be registered
+
+*** 2009-12-06
+==============
+- added MIDI learn to context menu
+- upgraded bzr repository
+- changed Looper store from vector to deque, to eliminate allocation dropouts
+- tested looping under Linux
+
+*** 2009-11-28
+==============
+- created MidiRemoteControlDispatcher to manage MIDI-mapped controls
+
+*** 2009-11-25
+==============
+- replaced popup menu for ControlAction assignment to a modal dialog around ControlAssignmentDialogComponent
+
+*** 2009-11-22
+==============
+- copied AudioDeviceSelectorComponent to AudioSetupComponent for customization purposes
+
+*** 2009-11-17
+==============
+- moved boundNode and boundNodeParameter out of ControlSurfaceMappableComponents and into PluginParameterControlAction
+
+*** 2009-11-15
+==============
+- modified LoopProcessor to set channel count at construction, so that restoring connections works
+- updated SyncPlayHead to give proper ppqn count, relative to one loop cycle being one 4/4 measure
+- created ControlAction for mapping among external inputs, touch controls, and external outputs
+
