@@ -65,6 +65,7 @@ BEGIN_JUCE_NAMESPACE
 #include "../../text/juce_LocalisedStrings.h"
 #include "../../threads/juce_Thread.h"
 #include "../../io/network/juce_URL.h"
+#include "../../containers/juce_ScopedPointer.h"
 
 bool juce_OpenQuickTimeMovieFromStream (InputStream* input, Movie& movie, Handle& dataHandle);
 
@@ -80,9 +81,9 @@ public:
           ok (false),
           movie (0),
           trackNum (trackNum_),
-          extractor (0),
           lastSampleRead (0),
           lastThreadId (0),
+          extractor (0),
           dataHandle (0)
     {
         bufferList.calloc (256, 1);

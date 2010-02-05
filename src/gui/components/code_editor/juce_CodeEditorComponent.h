@@ -30,7 +30,6 @@
 #include "../layout/juce_ScrollBar.h"
 #include "juce_CodeDocument.h"
 #include "juce_CodeTokeniser.h"
-class CodeEditorLine;
 
 
 //==============================================================================
@@ -248,7 +247,7 @@ private:
     int firstLineOnScreen, gutter, spacesPerTab;
     float charWidth;
     int lineHeight, linesOnScreen, columnsOnScreen;
-    int scrollbarThickness;
+    int scrollbarThickness, columnToTryToMaintain;
     bool useSpacesForTabs;
     double xOffset;
 
@@ -271,6 +270,7 @@ private:
     CodeTokeniser* codeTokeniser;
     Array <Colour> coloursForTokenCategories;
 
+    class CodeEditorLine;
     OwnedArray <CodeEditorLine> lines;
     void rebuildLineTokens();
 
@@ -278,6 +278,7 @@ private:
     void clearCachedIterators (const int firstLineToBeInvalid) throw();
     void updateCachedIterators (int maxLineNum);
     void getIteratorForPosition (int position, CodeDocument::Iterator& result);
+    void moveLineDelta (const int delta, const bool selecting);
 
     //==============================================================================
     void updateScrollBars();

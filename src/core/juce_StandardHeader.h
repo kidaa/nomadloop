@@ -32,7 +32,7 @@
     See also SystemStats::getJUCEVersion() for a string version.
 */
 #define JUCE_MAJOR_VERSION      1
-#define JUCE_MINOR_VERSION      50
+#define JUCE_MINOR_VERSION      51
 
 /** Current Juce version number.
 
@@ -71,18 +71,20 @@
 #include <cstdlib>
 #include <cstdarg>
 #include <climits>
+#include <limits>
 #include <cmath>
 #include <cwchar>
 #include <stdexcept>
 #include <typeinfo>
 #include <cstring>
 #include <cstdio>
+#include <iostream>
 
 #if JUCE_USE_INTRINSICS
   #include <intrin.h>
 #endif
 
-#if JUCE_MAC
+#if JUCE_MAC || JUCE_IPHONE
   #include <libkern/OSAtomic.h>
 #endif
 
@@ -97,6 +99,10 @@
 #if JUCE_MSVC
   #include <malloc.h>
   #pragma warning (pop)
+
+  #if ! JUCE_PUBLIC_INCLUDES
+    #pragma warning (4: 4511 4512 4100)  // (enable some warnings that are turned off in VC8)
+  #endif
 #endif
 
 //==============================================================================

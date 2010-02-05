@@ -68,7 +68,7 @@ public:
 
         This block will be resized and copied to exactly match the other one.
     */
-    const MemoryBlock& operator= (const MemoryBlock& other) throw();
+    MemoryBlock& operator= (const MemoryBlock& other) throw();
 
     //==============================================================================
     /** Compares two memory blocks.
@@ -82,6 +82,10 @@ public:
         @returns true if the two blocks are different sizes or have different contents.
     */
     bool operator!= (const MemoryBlock& other) const throw();
+
+    /** Returns true if the data in this MemoryBlock matches the raw bytes passed-in.
+    */
+    bool matches (const void* data, size_t dataSize) const throw();
 
     //==============================================================================
     /** Returns a pointer to the data, casting it to any type of primitive data required.

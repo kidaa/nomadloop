@@ -435,6 +435,16 @@ void EdgeTable::intersectWithEdgeTableLine (const int y, const int* otherLine) t
         return;
     }
 
+    const int right = bounds.getRight() << 8;
+
+    // optimise for the common case where our line lies entirely within a
+    // single pair of points, as happens when clipping to a simple rect.
+    if (otherNumPoints == 2 && otherLine[2] >= 255)
+    {
+        clipEdgeTableLineToRange (dest, otherLine[1], jmin (right, otherLine[3]));
+        return;
+    }
+
     ++otherLine;
     const size_t lineSizeBytes = (dest[0] * 2 + 1) * sizeof (int);
     int* temp = (int*) alloca (lineSizeBytes);
@@ -450,8 +460,7 @@ void EdgeTable::intersectWithEdgeTableLine (const int y, const int* otherLine) t
 
     int destIndex = 0, destTotal = 0;
     int level1 = 0, level2 = 0;
-    int lastX = INT_MIN, lastLevel = 0;
-    const int right = bounds.getRight() << 8;
+    int lastX = std::numeric_limits<int>::min(), lastLevel = 0;
 
     while (srcNum1 > 0 && srcNum2 > 0)
     {
@@ -526,7 +535,7 @@ void EdgeTable::intersectWithEdgeTableLine (const int y, const int* otherLine) t
     dest[0] = destTotal;
 
 #if JUCE_DEBUG
-    int last = INT_MIN;
+    int last = std::numeric_limits<int>::min();
     for (int i = 0; i < dest[0]; ++i)
     {
         jassert (dest[i * 2 + 1] > last);
@@ -536,6 +545,46 @@ void EdgeTable::intersectWithEdgeTableLine (const int y, const int* otherLine) t
     jassert (dest [dest[0] * 2] == 0);
 #endif
 }
+
+void EdgeTable::clipEdgeTableLineToRange (int* dest, const int x1, const int x2) throw()
+{
+    int* lastItem = dest + (dest[0] * 2 - 1);
+
+    if (x2 < lastItem[0])
+    {
+        if (x2 <= dest[1])
+        {
+            dest[0] = 0;
+            return;
+        }
+
+        while (x2 < lastItem[-2])
+        {
+            --(dest[0]);
+            lastItem -= 2;
+        }
+
+        lastItem[0] = x2;
+        lastItem[1] = 0;
+    }
+
+    if (x1 > dest[1])
+    {
+        while (lastItem[0] > x1)
+            lastItem -= 2;
+
+        const int itemsRemoved = (int) (lastItem - (dest + 1)) / 2;
+
+        if (itemsRemoved > 0)
+        {
+            dest[0] -= itemsRemoved;
+            memmove (dest + 1, lastItem, dest[0] * (sizeof (int) * 2));
+        }
+
+        dest[1] = x1;
+    }
+}
+
 
 //==============================================================================
 void EdgeTable::clipToRectangle (const Rectangle& r) throw()
@@ -563,10 +612,17 @@ void EdgeTable::clipToRectangle (const Rectangle& r) throw()
 
         if (clipped.getX() > bounds.getX())
         {
-            const int rectLine[] = { 2, clipped.getX() << 8, 255, clipped.getRight() << 8, 0 };
+            const int x1 = clipped.getX() << 8;
+            const int x2 = jmin (bounds.getRight(), clipped.getRight()) << 8;
+            int* line = table + lineStrideElements * top;
 
-            for (int i = top; i < bottom; ++i)
-                intersectWithEdgeTableLine (i, rectLine);
+            for (int i = bottom - top; --i >= 0;)
+            {
+                if (line[0] != 0)
+                    clipEdgeTableLineToRange (line, x1, x2);
+
+                line += lineStrideElements;
+            }
         }
 
         needToCheckEmptinesss = true;
@@ -584,7 +640,10 @@ void EdgeTable::excludeRectangle (const Rectangle& r) throw()
 
         //XXX optimise here by shortening the table if it fills top or bottom
 
-        const int rectLine[] = { 4, INT_MIN, 255, clipped.getX() << 8, 0, clipped.getRight() << 8, 255, INT_MAX, 0 };
+        const int rectLine[] = { 4, std::numeric_limits<int>::min(), 255,
+                                 clipped.getX() << 8, 0,
+                                 clipped.getRight() << 8, 255,
+                                 std::numeric_limits<int>::max(), 0 };
 
         for (int i = top; i < bottom; ++i)
             intersectWithEdgeTableLine (i, rectLine);

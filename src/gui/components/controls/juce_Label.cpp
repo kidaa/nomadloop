@@ -40,7 +40,7 @@ Label::Label (const String& componentName,
       font (15.0f),
       justification (Justification::centredLeft),
       ownerComponent (0),
-      horizontalBorderSize (3),
+      horizontalBorderSize (5),
       verticalBorderSize (1),
       minimumHorizontalScale (0.7f),
       editSingleClick (false),
@@ -220,11 +220,11 @@ void Label::showEditor()
     }
 }
 
-void Label::editorShown (TextEditor* editorComponent)
+void Label::editorShown (TextEditor* /*editorComponent*/)
 {
 }
 
-void Label::editorAboutToBeHidden (TextEditor* editorComponent)
+void Label::editorAboutToBeHidden (TextEditor* /*editorComponent*/)
 {
 }
 

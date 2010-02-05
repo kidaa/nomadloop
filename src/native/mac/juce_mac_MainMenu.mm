@@ -155,6 +155,8 @@ public:
 
     static void flashMenuBar (NSMenu* menu)
     {
+        [menu retain];
+
         const unichar f35Key = NSF35FunctionKey;
         NSString* f35String = [NSString stringWithCharacters: &f35Key length: 1];
 
@@ -177,7 +179,11 @@ public:
                                               keyCode: 0];
 
         [menu performKeyEquivalent: f35Event];
-        [menu removeItem: item];
+
+        if ([menu indexOfItem: item] >= 0)
+            [menu removeItem: item]; // (this throws if the item isn't actually in the menu)
+
+        [menu release];
     }
 
     static NSMenuItem* findMenuItem (NSMenu* const menu, const ApplicationCommandTarget::InvocationInfo& info)

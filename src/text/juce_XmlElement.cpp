@@ -30,7 +30,7 @@ BEGIN_JUCE_NAMESPACE
 
 #include "juce_XmlElement.h"
 #include "../io/streams/juce_MemoryOutputStream.h"
-#include "../io/files/juce_FileOutputStream.h"
+#include "../io/files/juce_TemporaryFile.h"
 #include "../threads/juce_Thread.h"
 #include "../containers/juce_ScopedPointer.h"
 
@@ -64,15 +64,6 @@ XmlElement::XmlElement (const String& tagName_) throw()
 
 XmlElement::XmlElement (int /*dummy*/) throw()
     : firstChildElement (0),
-      nextElement (0),
-      attributes (0)
-{
-}
-
-XmlElement::XmlElement (const tchar* const tagName_,
-                        const int nameLen) throw()
-    : tagName (tagName_, nameLen),
-      firstChildElement (0),
       nextElement (0),
       attributes (0)
 {
@@ -383,7 +374,7 @@ void XmlElement::writeElementAsText (OutputStream& outputStream,
 const String XmlElement::createDocument (const String& dtdToUse,
                                          const bool allOnOneLine,
                                          const bool includeXmlHeader,
-                                         const tchar* const encodingType,
+                                         const String& encodingType,
                                          const int lineWrapLength) const throw()
 {
     MemoryOutputStream mem (2048, 4096);
@@ -396,7 +387,7 @@ void XmlElement::writeToStream (OutputStream& output,
                                 const String& dtdToUse,
                                 const bool allOnOneLine,
                                 const bool includeXmlHeader,
-                                const tchar* const encodingType,
+                                const String& encodingType,
                                 const int lineWrapLength) const throw()
 {
     if (includeXmlHeader)
@@ -424,39 +415,20 @@ void XmlElement::writeToStream (OutputStream& output,
 
 bool XmlElement::writeToFile (const File& file,
                               const String& dtdToUse,
-                              const tchar* const encodingType,
+                              const String& encodingType,
                               const int lineWrapLength) const throw()
 {
     if (file.hasWriteAccess())
     {
-        const File tempFile (file.getNonexistentSibling());
-
-        ScopedPointer <FileOutputStream> out (tempFile.createOutputStream());
+        TemporaryFile tempFile (file);
+        ScopedPointer <FileOutputStream> out (tempFile.getFile().createOutputStream());
 
         if (out != 0)
         {
             writeToStream (*out, dtdToUse, false, true, encodingType, lineWrapLength);
             out = 0;
 
-            if (! tempFile.exists())
-                return false;
-
-            int i;
-            for (i = 5; --i >= 0;)
-            {
-                if (tempFile.moveFileTo (file))
-                    return true;
-
-                Thread::sleep (100);
-            }
-
-            for (i = 5; --i >= 0;)
-            {
-                if (tempFile.deleteFile())
-                    break;
-
-                Thread::sleep (100);
-            }
+            return tempFile.overwriteTargetFileWithTemporary();
         }
     }
 
@@ -464,7 +436,7 @@ bool XmlElement::writeToFile (const File& file,
 }
 
 //==============================================================================
-bool XmlElement::hasTagName (const tchar* const tagNameWanted) const throw()
+bool XmlElement::hasTagName (const String& tagNameWanted) const throw()
 {
 #ifdef JUCE_DEBUG
     // if debugging, check that the case is actually the same, because
@@ -484,7 +456,7 @@ bool XmlElement::hasTagName (const tchar* const tagNameWanted) const throw()
 #endif
 }
 
-XmlElement* XmlElement::getNextElementWithTagName (const tchar* const requiredTagName) const
+XmlElement* XmlElement::getNextElementWithTagName (const String& requiredTagName) const
 {
     XmlElement* e = nextElement;
 
@@ -544,7 +516,7 @@ const String& XmlElement::getAttributeValue (const int index) const throw()
     return String::empty;
 }
 
-bool XmlElement::hasAttribute (const tchar* const attributeName) const throw()
+bool XmlElement::hasAttribute (const String& attributeName) const throw()
 {
     const XmlAttributeNode* att = attributes;
 
@@ -560,8 +532,8 @@ bool XmlElement::hasAttribute (const tchar* const attributeName) const throw()
 }
 
 //==============================================================================
-const String XmlElement::getStringAttribute (const tchar* const attributeName,
-                                             const tchar* const defaultReturnValue) const throw()
+const String XmlElement::getStringAttribute (const String& attributeName,
+                                             const String& defaultReturnValue) const throw()
 {
     const XmlAttributeNode* att = attributes;
 
@@ -576,7 +548,7 @@ const String XmlElement::getStringAttribute (const tchar* const attributeName,
     return defaultReturnValue;
 }
 
-int XmlElement::getIntAttribute (const tchar* const attributeName,
+int XmlElement::getIntAttribute (const String& attributeName,
                                  const int defaultReturnValue) const throw()
 {
     const XmlAttributeNode* att = attributes;
@@ -592,7 +564,7 @@ int XmlElement::getIntAttribute (const tchar* const attributeName,
     return defaultReturnValue;
 }
 
-double XmlElement::getDoubleAttribute (const tchar* const attributeName,
+double XmlElement::getDoubleAttribute (const String& attributeName,
                                        const double defaultReturnValue) const throw()
 {
     const XmlAttributeNode* att = attributes;
@@ -608,7 +580,7 @@ double XmlElement::getDoubleAttribute (const tchar* const attributeName,
     return defaultReturnValue;
 }
 
-bool XmlElement::getBoolAttribute (const tchar* const attributeName,
+bool XmlElement::getBoolAttribute (const String& attributeName,
                                    const bool defaultReturnValue) const throw()
 {
     const XmlAttributeNode* att = attributes;
@@ -635,8 +607,8 @@ bool XmlElement::getBoolAttribute (const tchar* const attributeName,
     return defaultReturnValue;
 }
 
-bool XmlElement::compareAttribute (const tchar* const attributeName,
-                                   const tchar* const stringToCompareAgainst,
+bool XmlElement::compareAttribute (const String& attributeName,
+                                   const String& stringToCompareAgainst,
                                    const bool ignoreCase) const throw()
 {
     const XmlAttributeNode* att = attributes;
@@ -658,7 +630,7 @@ bool XmlElement::compareAttribute (const tchar* const attributeName,
 }
 
 //==============================================================================
-void XmlElement::setAttribute (const tchar* const attributeName,
+void XmlElement::setAttribute (const String& attributeName,
                                const String& value) throw()
 {
 #ifdef JUCE_DEBUG
@@ -700,25 +672,19 @@ void XmlElement::setAttribute (const tchar* const attributeName,
     }
 }
 
-void XmlElement::setAttribute (const tchar* const attributeName,
-                               const tchar* const text) throw()
-{
-    setAttribute (attributeName, String (text));
-}
-
-void XmlElement::setAttribute (const tchar* const attributeName,
+void XmlElement::setAttribute (const String& attributeName,
                                const int number) throw()
 {
     setAttribute (attributeName, String (number));
 }
 
-void XmlElement::setAttribute (const tchar* const attributeName,
+void XmlElement::setAttribute (const String& attributeName,
                                const double number) throw()
 {
     setAttribute (attributeName, String (number));
 }
 
-void XmlElement::removeAttribute (const tchar* const attributeName) throw()
+void XmlElement::removeAttribute (const String& attributeName) throw()
 {
     XmlAttributeNode* att = attributes;
     XmlAttributeNode* lastAtt = 0;
@@ -780,7 +746,7 @@ XmlElement* XmlElement::getChildElement (const int index) const throw()
     return child;
 }
 
-XmlElement* XmlElement::getChildByName (const tchar* const childName) const throw()
+XmlElement* XmlElement::getChildByName (const String& childName) const throw()
 {
     XmlElement* child = firstChildElement;
 
@@ -840,7 +806,7 @@ void XmlElement::insertChildElement (XmlElement* const newNode,
             else
             {
                 if (indexToInsertAt < 0)
-                    indexToInsertAt = INT_MAX;
+                    indexToInsertAt = std::numeric_limits<int>::max();
 
                 XmlElement* child = firstChildElement;
 
@@ -1014,7 +980,7 @@ void XmlElement::deleteAllChildElements() throw()
     }
 }
 
-void XmlElement::deleteAllChildElementsWithTagName (const tchar* const name) throw()
+void XmlElement::deleteAllChildElementsWithTagName (const String& name) throw()
 {
     XmlElement* child = firstChildElement;
 
@@ -1141,7 +1107,7 @@ const String XmlElement::getAllSubText() const throw()
     return result;
 }
 
-const String XmlElement::getChildElementAllSubText (const tchar* const childTagName,
+const String XmlElement::getChildElementAllSubText (const String& childTagName,
                                                     const String& defaultReturnValue) const throw()
 {
     const XmlElement* const child = getChildByName (childTagName);

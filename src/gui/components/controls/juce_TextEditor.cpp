@@ -953,13 +953,17 @@ public:
 };
 
 //==============================================================================
-const int flashSpeedIntervalMs = 380;
+namespace TextEditorDefs
+{
+    const int flashSpeedIntervalMs = 380;
 
-const int textChangeMessageId = 0x10003001;
-const int returnKeyMessageId  = 0x10003002;
-const int escapeKeyMessageId  = 0x10003003;
-const int focusLossMessageId  = 0x10003004;
+    const int textChangeMessageId = 0x10003001;
+    const int returnKeyMessageId  = 0x10003002;
+    const int escapeKeyMessageId  = 0x10003003;
+    const int focusLossMessageId  = 0x10003004;
 
+    const int maxActionsPerTransaction = 100;
+}
 
 //==============================================================================
 TextEditor::TextEditor (const String& name,
@@ -1008,6 +1012,7 @@ TextEditor::TextEditor (const String& name,
 
 TextEditor::~TextEditor()
 {
+    textValue.referTo (Value());
     clearInternal (0);
     viewport = 0;
     textHolder = 0;
@@ -1136,7 +1141,7 @@ void TextEditor::setCaretVisible (const bool shouldCaretBeVisible)
     caretVisible = shouldCaretBeVisible;
 
     if (shouldCaretBeVisible)
-        textHolder->startTimer (flashSpeedIntervalMs);
+        textHolder->startTimer (TextEditorDefs::flashSpeedIntervalMs);
 
     setMouseCursor (shouldCaretBeVisible ? MouseCursor::IBeamCursor
                                          : MouseCursor::NormalCursor);
@@ -1238,7 +1243,7 @@ void TextEditor::textWasChangedByValue()
 void TextEditor::textChanged()
 {
     updateTextHolderSize();
-    postCommandMessage (textChangeMessageId);
+    postCommandMessage (TextEditorDefs::textChangeMessageId);
 
     if (textValue.getValueSource().getReferenceCount() > 1)
     {
@@ -1249,12 +1254,12 @@ void TextEditor::textChanged()
 
 void TextEditor::returnPressed()
 {
-    postCommandMessage (returnKeyMessageId);
+    postCommandMessage (TextEditorDefs::returnKeyMessageId);
 }
 
 void TextEditor::escapePressed()
 {
-    postCommandMessage (escapeKeyMessageId);
+    postCommandMessage (TextEditorDefs::escapeKeyMessageId);
 }
 
 void TextEditor::addListener (TextEditorListener* const newListener)
@@ -1350,7 +1355,7 @@ void TextEditor::moveCaret (int newCaretPos)
         repaintCaret();
         caretFlashState = true;
         caretPosition = newCaretPos;
-        textHolder->startTimer (flashSpeedIntervalMs);
+        textHolder->startTimer (TextEditorDefs::flashSpeedIntervalMs);
         scrollToMakeSureCursorIsVisible();
         repaintCaret();
     }
@@ -1809,7 +1814,7 @@ void TextEditor::mouseDrag (const MouseEvent& e)
 void TextEditor::mouseUp (const MouseEvent& e)
 {
     newTransaction();
-    textHolder->startTimer (flashSpeedIntervalMs);
+    textHolder->startTimer (TextEditorDefs::flashSpeedIntervalMs);
 
     if (wasFocused || ! selectAllTextWhenFocused)
     {
@@ -2141,7 +2146,7 @@ void TextEditor::focusGained (FocusChangeType)
     repaint();
 
     if (caretVisible)
-        textHolder->startTimer (flashSpeedIntervalMs);
+        textHolder->startTimer (TextEditorDefs::flashSpeedIntervalMs);
 
     ComponentPeer* const peer = getPeer();
     if (peer != 0 && ! isReadOnly())
@@ -2157,7 +2162,7 @@ void TextEditor::focusLost (FocusChangeType)
     textHolder->stopTimer();
     caretFlashState = false;
 
-    postCommandMessage (focusLossMessageId);
+    postCommandMessage (TextEditorDefs::focusLossMessageId);
     repaint();
 }
 
@@ -2191,19 +2196,19 @@ void TextEditor::handleCommandMessage (const int commandId)
         {
             switch (commandId)
             {
-            case textChangeMessageId:
+            case TextEditorDefs::textChangeMessageId:
                 tl->textEditorTextChanged (*this);
                 break;
 
-            case returnKeyMessageId:
+            case TextEditorDefs::returnKeyMessageId:
                 tl->textEditorReturnKeyPressed (*this);
                 break;
 
-            case escapeKeyMessageId:
+            case TextEditorDefs::escapeKeyMessageId:
                 tl->textEditorEscapeKeyPressed (*this);
                 break;
 
-            case focusLossMessageId:
+            case TextEditorDefs::focusLossMessageId:
                 tl->textEditorFocusLost (*this);
                 break;
 
@@ -2242,6 +2247,9 @@ void TextEditor::insert (const String& text,
     {
         if (um != 0)
         {
+            if (um->getNumActionsInCurrentTransaction() > TextEditorDefs::maxActionsPerTransaction)
+                newTransaction();
+
             um->perform (new TextEditorInsertAction (*this,
                                                      text,
                                                      insertIndex,
@@ -2390,6 +2398,9 @@ void TextEditor::remove (const int startIndex,
 
                 index = nextIndex;
             }
+
+            if (um->getNumActionsInCurrentTransaction() > TextEditorDefs::maxActionsPerTransaction)
+                newTransaction();
 
             um->perform (new TextEditorRemoveAction (*this,
                                                      startIndex,

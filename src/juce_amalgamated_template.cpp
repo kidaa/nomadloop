@@ -55,6 +55,9 @@
 //==============================================================================
 #define DONT_SET_USING_JUCE_NAMESPACE 1
 
+#undef max
+#undef min
+
 #include "../juce_amalgamated.h"
 
 #define NO_DUMMY_DECL
@@ -82,6 +85,8 @@
 #include "containers/juce_MemoryBlock.cpp"
 #include "containers/juce_PropertySet.cpp"
 #include "containers/juce_Variant.cpp"
+#include "containers/juce_NamedValueSet.cpp"
+#include "containers/juce_DynamicObject.cpp"
 #include "cryptography/juce_BlowFish.cpp"
 #include "cryptography/juce_MD5.cpp"
 #include "cryptography/juce_Primes.cpp"
@@ -94,6 +99,7 @@
 #include "io/files/juce_FileOutputStream.cpp"
 #include "io/files/juce_FileSearchPath.cpp"
 #include "io/files/juce_NamedPipe.cpp"
+#include "io/files/juce_TemporaryFile.cpp"
 #include "io/network/juce_Socket.cpp"
 #include "io/network/juce_URL.cpp"
 #include "io/streams/juce_BufferedInputStream.cpp"

@@ -39,8 +39,10 @@ BEGIN_JUCE_NAMESPACE
 
 #include "juce_File.h"
 #include "juce_FileInputStream.h"
-#include "juce_FileOutputStream.h"
+#include "juce_TemporaryFile.h"
 #include "../../core/juce_SystemStats.h"
+#include "../../core/juce_Random.h"
+#include "../../containers/juce_ScopedPointer.h"
 
 #ifdef _MSC_VER
   #pragma warning (pop)
@@ -204,6 +206,11 @@ File::File (const String& path, int)
 {
 }
 
+const File File::createFileWithoutCheckingPath (const String& path)
+{
+    return File (path, 0);
+}
+
 File::File (const File& other)
     : fullPath (other.fullPath)
 {
@@ -291,11 +298,11 @@ bool File::setReadOnly (const bool shouldBeReadOnly,
 
     if (applyRecursively && isDirectory())
     {
-        OwnedArray <File> subFiles;
+        Array <File> subFiles;
         findChildFiles (subFiles, File::findFilesAndDirectories, false);
 
         for (int i = subFiles.size(); --i >= 0;)
-            worked = subFiles[i]->setReadOnly (shouldBeReadOnly, true) && worked;
+            worked = subFiles.getReference(i).setReadOnly (shouldBeReadOnly, true) && worked;
     }
 
     return juce_setFileReadOnly (fullPath, shouldBeReadOnly) && worked;
@@ -313,11 +320,11 @@ bool File::deleteRecursively() const
 
     if (isDirectory())
     {
-        OwnedArray<File> subFiles;
+        Array<File> subFiles;
         findChildFiles (subFiles, File::findFilesAndDirectories, false);
 
         for (int i = subFiles.size(); --i >= 0;)
-            worked = subFiles[i]->deleteRecursively() && worked;
+            worked = subFiles.getReference(i).deleteRecursively() && worked;
     }
 
     return deleteFile() && worked;
@@ -352,19 +359,19 @@ bool File::copyDirectoryTo (const File& newDirectory) const
 {
     if (isDirectory() && newDirectory.createDirectory())
     {
-        OwnedArray<File> subFiles;
+        Array<File> subFiles;
         findChildFiles (subFiles, File::findFiles, false);
 
         int i;
         for (i = 0; i < subFiles.size(); ++i)
-            if (! subFiles[i]->copyFileTo (newDirectory.getChildFile (subFiles[i]->getFileName())))
+            if (! subFiles.getReference(i).copyFileTo (newDirectory.getChildFile (subFiles.getReference(i).getFileName())))
                 return false;
 
         subFiles.clear();
         findChildFiles (subFiles, File::findDirectories, false);
 
         for (i = 0; i < subFiles.size(); ++i)
-            if (! subFiles[i]->copyDirectoryTo (newDirectory.getChildFile (subFiles[i]->getFileName())))
+            if (! subFiles.getReference(i).copyDirectoryTo (newDirectory.getChildFile (subFiles.getReference(i).getFileName())))
                 return false;
 
         return true;
@@ -647,7 +654,7 @@ static inline bool fileTypeMatches (const int whatToLookFor,
                   || (whatToLookFor & File::ignoreHiddenFiles) == 0);
 }
 
-int File::findChildFiles (OwnedArray<File>& results,
+int File::findChildFiles (Array<File>& results,
                           const int whatToLookFor,
                           const bool searchRecursively,
                           const String& wildCardPattern) const
@@ -676,7 +683,7 @@ int File::findChildFiles (OwnedArray<File>& results,
                 if (fileTypeMatches (whatToLookFor, itemIsDirectory, itemIsHidden)
                      && ! filename.containsOnly (T(".")))
                 {
-                    results.add (new File (path + filename, 0));
+                    results.add (File (path + filename, 0));
                     ++total;
                 }
 
@@ -694,16 +701,13 @@ int File::findChildFiles (OwnedArray<File>& results,
     // and recurse down if required.
     if (searchRecursively)
     {
-        OwnedArray <File> subDirectories;
+        Array<File> subDirectories;
         findChildFiles (subDirectories, File::findDirectories, false);
 
         for (int i = 0; i < subDirectories.size(); ++i)
         {
-            total += subDirectories.getUnchecked(i)
-                        ->findChildFiles (results,
-                                          whatToLookFor,
-                                          true,
-                                          wildCardPattern);
+            total += subDirectories.getReference(i).findChildFiles (results, whatToLookFor,
+                                                                    true, wildCardPattern);
         }
     }
 
@@ -958,16 +962,9 @@ bool File::replaceWithData (const void* const dataToWrite,
     if (numberOfBytes <= 0)
         return deleteFile();
 
-    const File tempFile (getSiblingFile (T(".") + getFileName()).getNonexistentSibling (false));
-
-    if (tempFile.appendData (dataToWrite, numberOfBytes)
-         && tempFile.moveFileTo (*this))
-    {
-        return true;
-    }
-
-    tempFile.deleteFile();
-    return false;
+    TemporaryFile tempFile (*this, TemporaryFile::useHiddenFile);
+    tempFile.getFile().appendData (dataToWrite, numberOfBytes);
+    return tempFile.overwriteTargetFileWithTemporary();
 }
 
 bool File::appendText (const String& text,
@@ -989,16 +986,9 @@ bool File::replaceWithText (const String& textToWrite,
                             const bool asUnicode,
                             const bool writeUnicodeHeaderBytes) const
 {
-    const File tempFile (getSiblingFile (T(".") + getFileName()).getNonexistentSibling (false));
-
-    if (tempFile.appendText (textToWrite, asUnicode, writeUnicodeHeaderBytes)
-         && tempFile.moveFileTo (*this))
-    {
-        return true;
-    }
-
-    tempFile.deleteFile();
-    return false;
+    TemporaryFile tempFile (*this, TemporaryFile::useHiddenFile);
+    tempFile.getFile().appendText (textToWrite, asUnicode, writeUnicodeHeaderBytes);
+    return tempFile.overwriteTargetFileWithTemporary();
 }
 
 //==============================================================================
@@ -1105,12 +1095,12 @@ const String File::getRelativePathFrom (const File& dir)  const
 }
 
 //==============================================================================
-void File::findFileSystemRoots (OwnedArray<File>& destArray)
+void File::findFileSystemRoots (Array<File>& destArray)
 {
     const StringArray roots (juce_getFileSystemRoots());
 
     for (int i = 0; i < roots.size(); ++i)
-        destArray.add (new File (roots[i]));
+        destArray.add (File (roots[i]));
 }
 
 const String File::getVolumeLabel() const
@@ -1130,12 +1120,9 @@ int File::getVolumeSerialNumber() const
 //==============================================================================
 const File File::createTempFile (const String& fileNameEnding)
 {
-    String tempName (T("temp"));
-    static int tempNum = 0;
-    tempName << tempNum++ << fileNameEnding;
-
     const File tempFile (getSpecialLocation (tempDirectory)
-                            .getChildFile (tempName));
+                            .getChildFile (T("temp_") + String (Random::getSystemRandom().nextInt()))
+                            .withFileExtension (fileNameEnding));
 
     if (tempFile.exists())
         return createTempFile (fileNameEnding);

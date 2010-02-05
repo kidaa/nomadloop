@@ -53,45 +53,6 @@ static const int customCommandMessage   = 0x7fff0001;
 static const int exitModalStateMessage  = 0x7fff0002;
 
 //==============================================================================
-// these are also used by ComponentPeer
-int64 juce_recentMouseDownTimes [4]             = { 0, 0, 0, 0 };
-int juce_recentMouseDownX [4]                   = { 0, 0, 0, 0 };
-int juce_recentMouseDownY [4]                   = { 0, 0, 0, 0 };
-Component* juce_recentMouseDownComponent [4]    = { 0, 0, 0, 0 };
-int juce_LastMousePosX = 0;
-int juce_LastMousePosY = 0;
-int juce_MouseClickCounter = 0;
-bool juce_MouseHasMovedSignificantlySincePressed = false;
-
-static int countMouseClicks() throw()
-{
-    int numClicks = 0;
-
-    if (juce_recentMouseDownTimes[0] != 0)
-    {
-        if (! juce_MouseHasMovedSignificantlySincePressed)
-            ++numClicks;
-
-        for (int i = 1; i < numElementsInArray (juce_recentMouseDownTimes); ++i)
-        {
-            if (juce_recentMouseDownTimes[0] - juce_recentMouseDownTimes [i]
-                    < (int) (MouseEvent::getDoubleClickTimeout() * (1.0 + 0.25 * (i - 1)))
-                && abs (juce_recentMouseDownX[0] - juce_recentMouseDownX[i]) < 8
-                && abs (juce_recentMouseDownY[0] - juce_recentMouseDownY[i]) < 8
-                && juce_recentMouseDownComponent[0] == juce_recentMouseDownComponent [i])
-            {
-                ++numClicks;
-            }
-            else
-            {
-                break;
-            }
-        }
-    }
-
-    return numClicks;
-}
-
 static int unboundedMouseOffsetX = 0;
 static int unboundedMouseOffsetY = 0;
 static bool isUnboundedMouseModeOn = false;
@@ -114,7 +75,6 @@ Component::Component() throw()
     mouseListeners_ (0),
     keyListeners_ (0),
     componentListeners_ (0),
-    propertySet_ (0),
     componentFlags_ (0)
 {
 }
@@ -130,7 +90,6 @@ Component::Component (const String& name) throw()
     mouseListeners_ (0),
     keyListeners_ (0),
     componentListeners_ (0),
-    propertySet_ (0),
     componentFlags_ (0)
 {
 }
@@ -162,7 +121,6 @@ Component::~Component()
     delete mouseListeners_;
     delete keyListeners_;
     delete componentListeners_;
-    delete propertySet_;
 }
 
 //==============================================================================
@@ -1904,7 +1862,7 @@ void Component::sendLookAndFeelChange()
     }
 }
 
-static const String getColourPropertyName (const int colourId) throw()
+static const var::identifier getColourPropertyId (const int colourId)
 {
     String s;
     s.preallocateStorage (18);
@@ -1914,62 +1872,49 @@ static const String getColourPropertyName (const int colourId) throw()
 
 const Colour Component::findColour (const int colourId, const bool inheritFromParent) const throw()
 {
-    const String customColour (getComponentProperty (getColourPropertyName (colourId),
-                                                     inheritFromParent,
-                                                     String::empty));
+    var* v = properties.getItem (getColourPropertyId (colourId));
 
-    if (customColour.isNotEmpty())
-        return Colour (customColour.getIntValue());
+    if (v != 0)
+        return Colour ((int) *v);
+
+    if (inheritFromParent && parentComponent_ != 0)
+        return parentComponent_->findColour (colourId, true);
 
     return getLookAndFeel().findColour (colourId);
 }
 
 bool Component::isColourSpecified (const int colourId) const throw()
 {
-    return getComponentProperty (getColourPropertyName (colourId),
-                                 false,
-                                 String::empty).isNotEmpty();
+    return properties.contains (getColourPropertyId (colourId));
 }
 
 void Component::removeColour (const int colourId)
 {
-    if (isColourSpecified (colourId))
-    {
-        removeComponentProperty (getColourPropertyName (colourId));
+    if (properties.remove (getColourPropertyId (colourId)))
         colourChanged();
-    }
 }
 
 void Component::setColour (const int colourId, const Colour& colour)
 {
-    const String colourName (getColourPropertyName (colourId));
-    const String customColour (getComponentProperty (colourName, false, String::empty));
-
-    if (customColour.isEmpty() || Colour (customColour.getIntValue()) != colour)
-    {
-        setComponentProperty (colourName, colour);
+    if (properties.set (getColourPropertyId (colourId), (int) colour.getARGB()))
         colourChanged();
-    }
 }
 
 void Component::copyAllExplicitColoursTo (Component& target) const throw()
 {
-    if (propertySet_ != 0)
+    bool changed = false;
+
+    for (int i = properties.size(); --i >= 0;)
     {
-        const StringPairArray& props = propertySet_->getAllProperties();
-        const StringArray& keys = props.getAllKeys();
+        const var::identifier name (properties.getName(i));
 
-        for (int i = 0; i < keys.size(); ++i)
-        {
-            if (keys[i].startsWith (T("jcclr_")))
-            {
-                target.setComponentProperty (keys[i],
-                                             props.getAllValues() [i]);
-            }
-        }
-
-        target.colourChanged();
+        if (name.name.startsWith (T("jcclr_")))
+            if (target.properties.set (name, properties [name]))
+                changed = true;
     }
+
+    if (changed)
+        target.colourChanged();
 }
 
 void Component::colourChanged()
@@ -2297,75 +2242,72 @@ void Component::internalMouseEnter (int x, int y, int64 time)
         return;
     }
 
-    if (! flags.mouseInsideFlag)
+    if (isValidComponent() && ! flags.mouseInsideFlag)
     {
         flags.mouseInsideFlag = true;
         flags.mouseOverFlag = true;
         flags.draggingFlag = false;
 
-        if (isValidComponent())
+        const ComponentDeletionWatcher deletionChecker (this);
+
+        if (flags.repaintOnMouseActivityFlag)
+            repaint();
+
+        const MouseEvent me (x, y,
+                             ModifierKeys::getCurrentModifiers(),
+                             this,
+                             Time (time),
+                             x, y,
+                             Time (time),
+                             0, false);
+
+        mouseEnter (me);
+
+        if (deletionChecker.hasBeenDeleted())
+            return;
+
+        Desktop::getInstance().resetTimer();
+
+        for (int i = Desktop::getInstance().mouseListeners.size(); --i >= 0;)
         {
-            const ComponentDeletionWatcher deletionChecker (this);
-
-            if (flags.repaintOnMouseActivityFlag)
-                repaint();
-
-            const MouseEvent me (x, y,
-                                 ModifierKeys::getCurrentModifiers(),
-                                 this,
-                                 Time (time),
-                                 x, y,
-                                 Time (time),
-                                 0, false);
-
-            mouseEnter (me);
+            ((MouseListener*) Desktop::getInstance().mouseListeners[i])->mouseEnter (me);
 
             if (deletionChecker.hasBeenDeleted())
                 return;
 
-            Desktop::getInstance().resetTimer();
+            i = jmin (i, Desktop::getInstance().mouseListeners.size());
+        }
 
-            for (int i = Desktop::getInstance().mouseListeners.size(); --i >= 0;)
+        if (mouseListeners_ != 0)
+        {
+            for (int i = mouseListeners_->size(); --i >= 0;)
             {
-                ((MouseListener*) Desktop::getInstance().mouseListeners[i])->mouseEnter (me);
+                ((MouseListener*) mouseListeners_->getUnchecked(i))->mouseEnter (me);
 
                 if (deletionChecker.hasBeenDeleted())
                     return;
 
-                i = jmin (i, Desktop::getInstance().mouseListeners.size());
+                i = jmin (i, mouseListeners_->size());
             }
+        }
 
-            if (mouseListeners_ != 0)
+        const Component* p = parentComponent_;
+
+        while (p != 0)
+        {
+            const ComponentDeletionWatcher parentDeletionChecker (p);
+
+            for (int i = p->numDeepMouseListeners; --i >= 0;)
             {
-                for (int i = mouseListeners_->size(); --i >= 0;)
-                {
-                    ((MouseListener*) mouseListeners_->getUnchecked(i))->mouseEnter (me);
+                ((MouseListener*) (p->mouseListeners_->getUnchecked(i)))->mouseEnter (me);
 
-                    if (deletionChecker.hasBeenDeleted())
-                        return;
+                if (deletionChecker.hasBeenDeleted() || parentDeletionChecker.hasBeenDeleted())
+                    return;
 
-                    i = jmin (i, mouseListeners_->size());
-                }
+                i = jmin (i, p->numDeepMouseListeners);
             }
 
-            const Component* p = parentComponent_;
-
-            while (p != 0)
-            {
-                const ComponentDeletionWatcher parentDeletionChecker (p);
-
-                for (int i = p->numDeepMouseListeners; --i >= 0;)
-                {
-                    ((MouseListener*) (p->mouseListeners_->getUnchecked(i)))->mouseEnter (me);
-
-                    if (deletionChecker.hasBeenDeleted() || parentDeletionChecker.hasBeenDeleted())
-                        return;
-
-                    i = jmin (i, p->numDeepMouseListeners);
-                }
-
-                p = p->parentComponent_;
-            }
+            p = p->parentComponent_;
         }
     }
 
@@ -2458,11 +2400,8 @@ void Component::internalMouseExit (int x, int y, int64 time)
 class InternalDragRepeater  : public Timer
 {
 public:
-    InternalDragRepeater()
-    {}
-
-    ~InternalDragRepeater()
-    {}
+    InternalDragRepeater()      {}
+    ~InternalDragRepeater()     {}
 
     void timerCallback()
     {
@@ -2483,6 +2422,10 @@ public:
     }
 
     juce_UseDebuggingNewOperator
+
+private:
+    InternalDragRepeater (const InternalDragRepeater&);
+    InternalDragRepeater& operator= (const InternalDragRepeater&);
 };
 
 static InternalDragRepeater* dragRepeater = 0;
@@ -2504,8 +2447,14 @@ void Component::beginDragAutoRepeat (const int interval)
 }
 
 //==============================================================================
-void Component::internalMouseDown (const int x, const int y)
+void Component::internalMouseDown (const int x, const int y, const int64 time)
 {
+    Desktop& desktop = Desktop::getInstance();
+
+    int gx = x, gy = y;
+    relativePositionToGlobal (gx, gy);
+    desktop.registerMouseDown (gx, gy, time, this);
+
     const ComponentDeletionWatcher deletionChecker (this);
 
     if (isCurrentlyBlockedByAnotherModalComponent())
@@ -2523,22 +2472,22 @@ void Component::internalMouseDown (const int x, const int y)
             const MouseEvent me (x, y,
                                  ModifierKeys::getCurrentModifiers(),
                                  this,
-                                 Time (juce_recentMouseDownTimes[0]),
+                                 Time (time),
                                  x, y,
-                                 Time (juce_recentMouseDownTimes[0]),
-                                 countMouseClicks(),
+                                 desktop.getLastMouseDownTime(),
+                                 desktop.getNumberOfMultipleClicks(),
                                  false);
 
-            Desktop::getInstance().resetTimer();
+            desktop.resetTimer();
 
-            for (int i = Desktop::getInstance().mouseListeners.size(); --i >= 0;)
+            for (int i = desktop.mouseListeners.size(); --i >= 0;)
             {
-                ((MouseListener*) Desktop::getInstance().mouseListeners[i])->mouseDown (me);
+                ((MouseListener*) desktop.mouseListeners[i])->mouseDown (me);
 
                 if (deletionChecker.hasBeenDeleted())
                     return;
 
-                i = jmin (i, Desktop::getInstance().mouseListeners.size());
+                i = jmin (i, desktop.mouseListeners.size());
             }
 
             return;
@@ -2576,26 +2525,26 @@ void Component::internalMouseDown (const int x, const int y)
         const MouseEvent me (x, y,
                              ModifierKeys::getCurrentModifiers(),
                              this,
-                             Time (juce_recentMouseDownTimes[0]),
+                             desktop.getLastMouseDownTime(),
                              x, y,
-                             Time (juce_recentMouseDownTimes[0]),
-                             countMouseClicks(),
+                             desktop.getLastMouseDownTime(),
+                             desktop.getNumberOfMultipleClicks(),
                              false);
         mouseDown (me);
 
         if (deletionChecker.hasBeenDeleted())
             return;
 
-        Desktop::getInstance().resetTimer();
+        desktop.resetTimer();
 
-        for (int i = Desktop::getInstance().mouseListeners.size(); --i >= 0;)
+        for (int i = desktop.mouseListeners.size(); --i >= 0;)
         {
-            ((MouseListener*) Desktop::getInstance().mouseListeners[i])->mouseDown (me);
+            ((MouseListener*) desktop.mouseListeners[i])->mouseDown (me);
 
             if (deletionChecker.hasBeenDeleted())
                 return;
 
-            i = jmin (i, Desktop::getInstance().mouseListeners.size());
+            i = jmin (i, desktop.mouseListeners.size());
         }
 
         if (mouseListeners_ != 0)
@@ -2637,49 +2586,54 @@ void Component::internalMouseUp (const int oldModifiers, int x, int y, const int
 {
     if (isValidComponent() && flags.draggingFlag)
     {
+        Desktop& desktop = Desktop::getInstance();
+
         flags.draggingFlag = false;
         deleteAndZero (dragRepeater);
 
         x += unboundedMouseOffsetX;
         y += unboundedMouseOffsetY;
-        juce_LastMousePosX = x;
-        juce_LastMousePosY = y;
-        relativePositionToGlobal (juce_LastMousePosX, juce_LastMousePosY);
+
+        int gx = x, gy = y;
+        relativePositionToGlobal (gx, gy);
+        desktop.registerMouseDrag (gx, gy);
 
         const ComponentDeletionWatcher deletionChecker (this);
 
         if (flags.repaintOnMouseActivityFlag)
             repaint();
 
-        int mdx = juce_recentMouseDownX[0];
-        int mdy = juce_recentMouseDownY[0];
+        int mdx, mdy;
+        Desktop::getLastMouseDownPosition (mdx, mdy);
         globalPositionToRelative (mdx, mdy);
+
+        const Time lastMouseDownTime (desktop.getLastMouseDownTime());
 
         const MouseEvent me (x, y,
                              oldModifiers,
                              this,
                              Time (time),
                              mdx, mdy,
-                             Time (juce_recentMouseDownTimes [0]),
-                             countMouseClicks(),
-                             juce_MouseHasMovedSignificantlySincePressed
-                               || juce_recentMouseDownTimes[0] + 300 < time);
+                             lastMouseDownTime,
+                             desktop.getNumberOfMultipleClicks(),
+                             desktop.mouseMovedSignificantlySincePressed
+                               || time > lastMouseDownTime.toMilliseconds() + 300);
 
         mouseUp (me);
 
         if (deletionChecker.hasBeenDeleted())
             return;
 
-        Desktop::getInstance().resetTimer();
+        desktop.resetTimer();
 
-        for (int i = Desktop::getInstance().mouseListeners.size(); --i >= 0;)
+        for (int i = desktop.mouseListeners.size(); --i >= 0;)
         {
-            ((MouseListener*) Desktop::getInstance().mouseListeners[i])->mouseUp (me);
+            ((MouseListener*) desktop.mouseListeners[i])->mouseUp (me);
 
             if (deletionChecker.hasBeenDeleted())
                 return;
 
-            i = jmin (i, Desktop::getInstance().mouseListeners.size());
+            i = jmin (i, desktop.mouseListeners.size());
         }
 
         if (mouseListeners_ != 0)
@@ -2724,14 +2678,14 @@ void Component::internalMouseUp (const int oldModifiers, int x, int y, const int
             mouseDoubleClick (me);
 
             int i;
-            for (i = Desktop::getInstance().mouseListeners.size(); --i >= 0;)
+            for (i = desktop.mouseListeners.size(); --i >= 0;)
             {
-                ((MouseListener*) Desktop::getInstance().mouseListeners[i])->mouseDoubleClick (me);
+                ((MouseListener*) desktop.mouseListeners[i])->mouseDoubleClick (me);
 
                 if (deletionChecker.hasBeenDeleted())
                     return;
 
-                i = jmin (i, Desktop::getInstance().mouseListeners.size());
+                i = jmin (i, desktop.mouseListeners.size());
             }
 
             for (i = numListeners; --i >= 0;)
@@ -2775,50 +2729,50 @@ void Component::internalMouseDrag (int x, int y, const int64 time)
 {
     if (isValidComponent() && flags.draggingFlag)
     {
+        Desktop& desktop = Desktop::getInstance();
+
         flags.mouseOverFlag = reallyContains (x, y, false);
 
         x += unboundedMouseOffsetX;
         y += unboundedMouseOffsetY;
-        juce_LastMousePosX = x;
-        juce_LastMousePosY = y;
-        relativePositionToGlobal (juce_LastMousePosX, juce_LastMousePosY);
 
-        juce_MouseHasMovedSignificantlySincePressed
-            = juce_MouseHasMovedSignificantlySincePressed
-               || abs (juce_recentMouseDownX[0] - juce_LastMousePosX) >= 4
-               || abs (juce_recentMouseDownY[0] - juce_LastMousePosY) >= 4;
+        int gx = x, gy = y;
+        relativePositionToGlobal (gx, gy);
+        desktop.registerMouseDrag (gx, gy);
 
         const ComponentDeletionWatcher deletionChecker (this);
 
-        int mdx = juce_recentMouseDownX[0];
-        int mdy = juce_recentMouseDownY[0];
+        int mdx, mdy;
+        Desktop::getLastMouseDownPosition (mdx, mdy);
         globalPositionToRelative (mdx, mdy);
+
+        const Time lastMouseDownTime (desktop.getLastMouseDownTime());
 
         const MouseEvent me (x, y,
                              ModifierKeys::getCurrentModifiers(),
                              this,
                              Time (time),
                              mdx, mdy,
-                             Time (juce_recentMouseDownTimes[0]),
-                             countMouseClicks(),
-                             juce_MouseHasMovedSignificantlySincePressed
-                               || juce_recentMouseDownTimes[0] + 300 < time);
+                             lastMouseDownTime,
+                             desktop.getNumberOfMultipleClicks(),
+                             desktop.mouseMovedSignificantlySincePressed
+                               || time > lastMouseDownTime.toMilliseconds() + 300);
 
         mouseDrag (me);
 
         if (deletionChecker.hasBeenDeleted())
             return;
 
-        Desktop::getInstance().resetTimer();
+        desktop.resetTimer();
 
-        for (int i = Desktop::getInstance().mouseListeners.size(); --i >= 0;)
+        for (int i = desktop.mouseListeners.size(); --i >= 0;)
         {
-            ((MouseListener*) Desktop::getInstance().mouseListeners[i])->mouseDrag (me);
+            ((MouseListener*) desktop.mouseListeners[i])->mouseDrag (me);
 
             if (deletionChecker.hasBeenDeleted())
                 return;
 
-            i = jmin (i, Desktop::getInstance().mouseListeners.size());
+            i = jmin (i, desktop.mouseListeners.size());
         }
 
         if (mouseListeners_ != 0)
@@ -2903,6 +2857,8 @@ void Component::internalMouseMove (const int x, const int y, const int64 time)
 
     if (isValidComponent())
     {
+        Desktop& desktop = Desktop::getInstance();
+
         const MouseEvent me (x, y,
                              ModifierKeys::getCurrentModifiers(),
                              this,
@@ -2914,7 +2870,7 @@ void Component::internalMouseMove (const int x, const int y, const int64 time)
         if (isCurrentlyBlockedByAnotherModalComponent())
         {
             // allow blocked mouse-events to go to global listeners..
-            Desktop::getInstance().sendMouseMove();
+            desktop.sendMouseMove();
         }
         else
         {
@@ -2928,16 +2884,16 @@ void Component::internalMouseMove (const int x, const int y, const int64 time)
             if (deletionChecker.hasBeenDeleted())
                 return;
 
-            Desktop::getInstance().resetTimer();
+            desktop.resetTimer();
 
-            for (int i = Desktop::getInstance().mouseListeners.size(); --i >= 0;)
+            for (int i = desktop.mouseListeners.size(); --i >= 0;)
             {
-                ((MouseListener*) Desktop::getInstance().mouseListeners[i])->mouseMove (me);
+                ((MouseListener*) desktop.mouseListeners[i])->mouseMove (me);
 
                 if (deletionChecker.hasBeenDeleted())
                     return;
 
-                i = jmin (i, Desktop::getInstance().mouseListeners.size());
+                i = jmin (i, desktop.mouseListeners.size());
             }
 
             if (mouseListeners_ != 0)
@@ -2977,6 +2933,7 @@ void Component::internalMouseMove (const int x, const int y, const int64 time)
 
 void Component::internalMouseWheel (const int intAmountX, const int intAmountY, const int64 time)
 {
+    Desktop& desktop = Desktop::getInstance();
     const ComponentDeletionWatcher deletionChecker (this);
 
     const float wheelIncrementX = intAmountX * (1.0f / 256.0f);
@@ -2996,14 +2953,14 @@ void Component::internalMouseWheel (const int intAmountX, const int intAmountY, 
     if (isCurrentlyBlockedByAnotherModalComponent())
     {
         // allow blocked mouse-events to go to global listeners..
-        for (int i = Desktop::getInstance().mouseListeners.size(); --i >= 0;)
+        for (int i = desktop.mouseListeners.size(); --i >= 0;)
         {
-            ((MouseListener*) Desktop::getInstance().mouseListeners[i])->mouseWheelMove (me, wheelIncrementX, wheelIncrementY);
+            ((MouseListener*) desktop.mouseListeners[i])->mouseWheelMove (me, wheelIncrementX, wheelIncrementY);
 
             if (deletionChecker.hasBeenDeleted())
                 return;
 
-            i = jmin (i, Desktop::getInstance().mouseListeners.size());
+            i = jmin (i, desktop.mouseListeners.size());
         }
     }
     else
@@ -3013,14 +2970,14 @@ void Component::internalMouseWheel (const int intAmountX, const int intAmountY, 
         if (deletionChecker.hasBeenDeleted())
             return;
 
-        for (int i = Desktop::getInstance().mouseListeners.size(); --i >= 0;)
+        for (int i = desktop.mouseListeners.size(); --i >= 0;)
         {
-            ((MouseListener*) Desktop::getInstance().mouseListeners[i])->mouseWheelMove (me, wheelIncrementX, wheelIncrementY);
+            ((MouseListener*) desktop.mouseListeners[i])->mouseWheelMove (me, wheelIncrementX, wheelIncrementY);
 
             if (deletionChecker.hasBeenDeleted())
                 return;
 
-            i = jmin (i, Desktop::getInstance().mouseListeners.size());
+            i = jmin (i, desktop.mouseListeners.size());
         }
 
         if (mouseListeners_ != 0)
@@ -3242,12 +3199,12 @@ bool Component::isFocusContainer() const throw()
 
 int Component::getExplicitFocusOrder() const throw()
 {
-    return getComponentPropertyInt (T("_jexfo"), false, 0);
+    return properties ["_jexfo"];
 }
 
 void Component::setExplicitFocusOrder (const int newFocusOrderIndex) throw()
 {
-    setComponentProperty (T("_jexfo"), newFocusOrderIndex);
+    properties.set ("_jexfo", newFocusOrderIndex);
 }
 
 KeyboardFocusTraverser* Component::createFocusTraverser()
@@ -3550,111 +3507,6 @@ ComponentPeer* Component::getPeer() const throw()
         return parentComponent_->getPeer();
     else
         return 0;
-}
-
-//==============================================================================
-const String Component::getComponentProperty (const String& keyName,
-                                              const bool useParentComponentIfNotFound,
-                                              const String& defaultReturnValue) const throw()
-{
-    if (propertySet_ != 0 && ((! useParentComponentIfNotFound) || propertySet_->containsKey (keyName)))
-        return propertySet_->getValue (keyName, defaultReturnValue);
-
-    if (useParentComponentIfNotFound && (parentComponent_ != 0))
-        return parentComponent_->getComponentProperty (keyName, true, defaultReturnValue);
-
-    return defaultReturnValue;
-}
-
-int Component::getComponentPropertyInt (const String& keyName,
-                                        const bool useParentComponentIfNotFound,
-                                        const int defaultReturnValue) const throw()
-{
-    if (propertySet_ != 0 && ((! useParentComponentIfNotFound) || propertySet_->containsKey (keyName)))
-        return propertySet_->getIntValue (keyName, defaultReturnValue);
-
-    if (useParentComponentIfNotFound && (parentComponent_ != 0))
-        return parentComponent_->getComponentPropertyInt (keyName, true, defaultReturnValue);
-
-    return defaultReturnValue;
-}
-
-double Component::getComponentPropertyDouble (const String& keyName,
-                                              const bool useParentComponentIfNotFound,
-                                              const double defaultReturnValue) const throw()
-{
-    if (propertySet_ != 0 && ((! useParentComponentIfNotFound) || propertySet_->containsKey (keyName)))
-        return propertySet_->getDoubleValue (keyName, defaultReturnValue);
-
-    if (useParentComponentIfNotFound && (parentComponent_ != 0))
-        return parentComponent_->getComponentPropertyDouble (keyName, true, defaultReturnValue);
-
-    return defaultReturnValue;
-}
-
-bool Component::getComponentPropertyBool (const String& keyName,
-                                          const bool useParentComponentIfNotFound,
-                                          const bool defaultReturnValue) const throw()
-{
-    if (propertySet_ != 0 && ((! useParentComponentIfNotFound) || propertySet_->containsKey (keyName)))
-        return propertySet_->getBoolValue (keyName, defaultReturnValue);
-
-    if (useParentComponentIfNotFound && (parentComponent_ != 0))
-        return parentComponent_->getComponentPropertyBool (keyName, true, defaultReturnValue);
-
-    return defaultReturnValue;
-}
-
-const Colour Component::getComponentPropertyColour (const String& keyName,
-                                                    const bool useParentComponentIfNotFound,
-                                                    const Colour& defaultReturnValue) const throw()
-{
-    return Colour ((uint32) getComponentPropertyInt (keyName,
-                                                     useParentComponentIfNotFound,
-                                                     defaultReturnValue.getARGB()));
-}
-
-void Component::setComponentProperty (const String& keyName, const String& value) throw()
-{
-    if (propertySet_ == 0)
-        propertySet_ = new PropertySet();
-
-    propertySet_->setValue (keyName, value);
-}
-
-void Component::setComponentProperty (const String& keyName, const int value) throw()
-{
-    if (propertySet_ == 0)
-        propertySet_ = new PropertySet();
-
-    propertySet_->setValue (keyName, value);
-}
-
-void Component::setComponentProperty (const String& keyName, const double value) throw()
-{
-    if (propertySet_ == 0)
-        propertySet_ = new PropertySet();
-
-    propertySet_->setValue (keyName, value);
-}
-
-void Component::setComponentProperty (const String& keyName, const bool value) throw()
-{
-    if (propertySet_ == 0)
-        propertySet_ = new PropertySet();
-
-    propertySet_->setValue (keyName, value);
-}
-
-void Component::setComponentProperty (const String& keyName, const Colour& colour) throw()
-{
-    setComponentProperty (keyName, (int) colour.getARGB());
-}
-
-void Component::removeComponentProperty (const String& keyName) throw()
-{
-    if (propertySet_ != 0)
-        propertySet_->removeValue (keyName);
 }
 
 //==============================================================================

@@ -69,7 +69,7 @@ END_JUCE_NAMESPACE
 - (void) keyDown: (NSEvent*) ev;
 - (void) keyUp: (NSEvent*) ev;
 - (void) flagsChanged: (NSEvent*) ev;
-#if MACOS_10_4_OR_EARLIER
+#if MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5
 - (BOOL) performKeyEquivalent: (NSEvent*) ev;
 #endif
 
@@ -175,7 +175,7 @@ public:
     virtual bool redirectKeyDown (NSEvent* ev);
     virtual bool redirectKeyUp (NSEvent* ev);
     virtual void redirectModKeyChange (NSEvent* ev);
-#if MACOS_10_4_OR_EARLIER
+#if MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5
     virtual bool redirectPerformKeyEquivalent (NSEvent* ev);
 #endif
 
@@ -210,7 +210,7 @@ public:
 
     NSWindow* window;
     JuceNSView* view;
-    bool isSharedWindow, fullScreen, insideDrawRect, usingCoreGraphics;
+    bool isSharedWindow, fullScreen, insideDrawRect, usingCoreGraphics, recursiveToFrontCall;
 };
 
 //==============================================================================
@@ -403,7 +403,7 @@ END_JUCE_NAMESPACE
         owner->redirectModKeyChange (ev);
 }
 
-#if MACOS_10_4_OR_EARLIER
+#if MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5
 - (BOOL) performKeyEquivalent: (NSEvent*) ev
 {
     if (owner != 0 && owner->redirectPerformKeyEquivalent (ev))
@@ -668,10 +668,11 @@ NSViewComponentPeer::NSViewComponentPeer (Component* const component_,
       fullScreen (false),
       insideDrawRect (false),
 #if USE_COREGRAPHICS_RENDERING
-      usingCoreGraphics (true)
+      usingCoreGraphics (true),
 #else
-      usingCoreGraphics (false)
+      usingCoreGraphics (false),
 #endif
+      recursiveToFrontCall (false)
 {
     NSRect r;
     r.origin.x = 0;
@@ -769,9 +770,14 @@ void NSViewComponentPeer::setVisible (bool shouldBeVisible)
     else
     {
         if (shouldBeVisible)
+        {
             [window orderFront: nil];
+            handleBroughtToFront();
+        }
         else
+        {
             [window orderOut: nil];
+        }
     }
 }
 
@@ -1027,6 +1033,13 @@ void NSViewComponentPeer::toFront (bool makeActiveWindow)
             [window makeKeyAndOrderFront: nil];
         else
             [window orderFront: nil];
+
+        if (! recursiveToFrontCall)
+        {
+            recursiveToFrontCall = true;
+            handleBroughtToFront();
+            recursiveToFrontCall = false;
+        }
     }
 }
 
@@ -1187,11 +1200,14 @@ bool NSViewComponentPeer::redirectKeyUp (NSEvent* ev)
 
 void NSViewComponentPeer::redirectModKeyChange (NSEvent* ev)
 {
+    keysCurrentlyDown.clear();
+    handleKeyUpOrDown (true);
+
     updateModifiers (ev);
     handleModifierKeysChange();
 }
 
-#if MACOS_10_4_OR_EARLIER
+#if MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5
 bool NSViewComponentPeer::redirectPerformKeyEquivalent (NSEvent* ev)
 {
     if ([ev type] == NSKeyDown)

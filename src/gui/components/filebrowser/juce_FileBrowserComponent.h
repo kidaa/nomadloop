@@ -127,7 +127,7 @@ public:
         This may be different from getCurrentFile(), which returns the value
         that is shown in the filename box, and if there are multiple selections,
         this will only return one of them.
-        @see getCurrentFile
+        @see getSelectedFile
     */
     const File getHighlightedFile() const throw();
 
@@ -212,7 +212,7 @@ private:
 
     int flags;
     File currentRoot;
-    OwnedArray <File> chosenFiles;
+    Array<File> chosenFiles;
     SortedSet <void*> listeners;
 
     DirectoryContentsDisplayComponent* fileListComponent;

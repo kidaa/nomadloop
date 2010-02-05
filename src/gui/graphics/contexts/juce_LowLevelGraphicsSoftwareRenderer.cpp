@@ -103,7 +103,7 @@ private:
     PixelRGB filler [4];
     bool areRGBComponentsEqual;
 
-    forcedinline void blendLine (PixelType* dest, const PixelARGB& colour, int width) const
+    inline void blendLine (PixelType* dest, const PixelARGB& colour, int width) const
     {
         do
         {
@@ -1521,7 +1521,7 @@ public:
     void drawGlyph (LLGCSavedState& state, Image& image, const Font& font, const int glyphNumber, float x, float y) throw()
     {
         ++accessCounter;
-        int oldestCounter = INT_MAX;
+        int oldestCounter = std::numeric_limits<int>::max();
         CachedGlyph* oldest = 0;
 
         for (int i = glyphs.size(); --i >= 0;)

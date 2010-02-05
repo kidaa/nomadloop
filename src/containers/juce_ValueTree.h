@@ -26,11 +26,12 @@
 #ifndef __JUCE_VALUETREE_JUCEHEADER__
 #define __JUCE_VALUETREE_JUCEHEADER__
 
-#include "juce_Variant.h"
+#include "juce_NamedValueSet.h"
 #include "juce_Value.h"
 #include "../utilities/juce_UndoManager.h"
 #include "../text/juce_XmlElement.h"
 #include "juce_ReferenceCountedArray.h"
+
 
 //==============================================================================
 /**
@@ -126,14 +127,14 @@ public:
         You can also use operator[] to get a property.
         @see var, setProperty, hasProperty
     */
-    const var getProperty (const var::identifier& name) const;
+    const var& getProperty (const var::identifier& name) const;
 
     /** Returns the value of a named property.
         If no such property has been set, this will return a void variant. This is the same as
         calling getProperty().
         @see getProperty
     */
-    const var operator[] (const var::identifier& name) const;
+    const var& operator[] (const var::identifier& name) const;
 
     /** Changes a named property of the node.
         If the undoManager parameter is non-null, its UndoManager::perform() method will be used,
@@ -287,14 +288,38 @@ public:
         /** Destructor. */
         virtual ~Listener() {}
 
-        /** This method is called when one of the properties of this node has been changed. */
-        virtual void valueTreePropertyChanged (ValueTree& tree, const var::identifier& property) = 0;
+        /** This method is called when a property of this node (or of one of its sub-nodes) has
+            changed.
 
-        /** This method is called when one or more of the children of this node have been added or removed. */
-        virtual void valueTreeChildrenChanged (ValueTree& tree) = 0;
+            The tree parameter indicates which tree has had its property changed, and the property
+            parameter indicates the property.
 
-        /** This method is called when this node has been added or removed from a parent node. */
-        virtual void valueTreeParentChanged (ValueTree& tree) = 0;
+            Note that when you register a listener to a tree, it will receive this callback for
+            property changes in that tree, and also for any of its children, (recursively, at any depth).
+            If your tree has sub-trees but you only want to know about changes to the top level tree,
+            simply check the tree parameter in this callback to make sure it's the tree you're interested in.
+        */
+        virtual void valueTreePropertyChanged (ValueTree& treeWhosePropertyHasChanged,
+                                               const var::identifier& property) = 0;
+
+        /** This method is called when a child sub-tree is added or removed.
+
+            The tree parameter indicates the tree whose child was added or removed.
+
+            Note that when you register a listener to a tree, it will receive this callback for
+            child changes in that tree, and also in any of its children, (recursively, at any depth).
+            If your tree has sub-trees but you only want to know about changes to the top level tree,
+            simply check the tree parameter in this callback to make sure it's the tree you're interested in.
+        */
+        virtual void valueTreeChildrenChanged (ValueTree& treeWhoseChildHasChanged) = 0;
+
+        /** This method is called when a tree has been added or removed from a parent node.
+
+            This callback happens when the tree to which the listener was registered is added or
+            removed from a parent. Unlike the other callbacks, it applies only to the tree to which
+            the listener is registered, and not to any of its children.
+        */
+        virtual void valueTreeParentChanged (ValueTree& treeWhoseParentHasChanged) = 0;
     };
 
     /** Adds a listener to receive callbacks when this node is changed.
@@ -317,6 +342,41 @@ public:
     void removeListener (Listener* listener);
 
     //==============================================================================
+    /** This method uses a comparator object to sort the tree's children into order.
+
+        The object provided must have a method of the form:
+        @code
+        int compareElements (const ValueTree& first, const ValueTree& second);
+        @endcode
+
+        ..and this method must return:
+          - a value of < 0 if the first comes before the second
+          - a value of 0 if the two objects are equivalent
+          - a value of > 0 if the second comes before the first
+
+        To improve performance, the compareElements() method can be declared as static or const.
+
+        @param comparator   the comparator to use for comparing elements.
+        @param retainOrderOfEquivalentItems     if this is true, then items
+                            which the comparator says are equivalent will be
+                            kept in the order in which they currently appear
+                            in the array. This is slower to perform, but may
+                            be important in some cases. If it's false, a faster
+                            algorithm is used, but equivalent elements may be
+                            rearranged.
+    */
+    template <typename ElementComparator>
+    void sort (ElementComparator& comparator, const bool retainOrderOfEquivalentItems = false)
+    {
+        if (object != 0)
+        {
+            ComparatorAdapter <ElementComparator> adapter (comparator);
+            object->children.sort (adapter, retainOrderOfEquivalentItems);
+            object->sendChildChangeMessage();
+        }
+    }
+
+    //==============================================================================
     juce_UseDebuggingNewOperator
 
 private:
@@ -330,24 +390,18 @@ private:
         SharedObject (const SharedObject& other);
         ~SharedObject();
 
-        struct Property
-        {
-            Property (const var::identifier& name, const var& value);
-
-            var::identifier name;
-            var value;
-        };
-
         const String type;
-        OwnedArray <Property> properties;
+        NamedValueSet properties;
         ReferenceCountedArray <SharedObject> children;
         SortedSet <ValueTree*> valueTreesWithListeners;
         SharedObject* parent;
 
         void sendPropertyChangeMessage (const var::identifier& property);
+        void sendPropertyChangeMessage (ValueTree& tree, const var::identifier& property);
         void sendChildChangeMessage();
+        void sendChildChangeMessage (ValueTree& tree);
         void sendParentChangeMessage();
-        const var getProperty (const var::identifier& name) const;
+        const var& getProperty (const var::identifier& name) const;
         void setProperty (const var::identifier& name, const var& newValue, UndoManager* const undoManager);
         bool hasProperty (const var::identifier& name) const;
         void removeProperty (const var::identifier& name, UndoManager* const undoManager);
@@ -366,6 +420,21 @@ private:
         const SharedObject& operator= (const SharedObject&);
     };
 
+    template <typename ElementComparator>
+    class ComparatorAdapter
+    {
+    public:
+        ComparatorAdapter (ElementComparator& comparator_) throw()  : comparator (comparator_) {}
+
+        int compareElements (SharedObject* const first, SharedObject* const second)
+        {
+            return comparator.compareElements (ValueTree (first), ValueTree (second));
+        }
+
+    private:
+        ElementComparator& comparator;
+    };
+
     friend class SharedObject;
 
     typedef ReferenceCountedObjectPtr <SharedObject> SharedObjectPtr;
@@ -373,9 +442,9 @@ private:
     ReferenceCountedObjectPtr <SharedObject> object;
     SortedSet <Listener*> listeners;
 
-    void deliverPropertyChangeMessage (const var::identifier& property);
-    void deliverChildChangeMessage();
-    void deliverParentChangeMessage();
+    void deliverPropertyChangeMessage (ValueTree& tree, const var::identifier& property);
+    void deliverChildChangeMessage (ValueTree& tree);
+    void deliverParentChangeMessage (ValueTree& tree);
 
     ValueTree (SharedObject* const object_);
 };

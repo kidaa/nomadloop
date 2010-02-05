@@ -84,7 +84,7 @@ MemoryBlock::~MemoryBlock() throw()
     jassert (size == 0 || data != 0); // non-zero size but no data allocated?
 }
 
-const MemoryBlock& MemoryBlock::operator= (const MemoryBlock& other) throw()
+MemoryBlock& MemoryBlock::operator= (const MemoryBlock& other) throw()
 {
     if (this != &other)
     {
@@ -98,13 +98,18 @@ const MemoryBlock& MemoryBlock::operator= (const MemoryBlock& other) throw()
 //==============================================================================
 bool MemoryBlock::operator== (const MemoryBlock& other) const throw()
 {
-    return (size == other.size)
-            && (memcmp (data, other.data, size) == 0);
+    return matches (other.data, other.size);
 }
 
 bool MemoryBlock::operator!= (const MemoryBlock& other) const throw()
 {
     return ! operator== (other);
+}
+
+bool MemoryBlock::matches (const void* dataToCompare, size_t dataSize) const throw()
+{
+    return size == dataSize
+            && memcmp (data, dataToCompare, size) == 0;
 }
 
 //==============================================================================

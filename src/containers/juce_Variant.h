@@ -26,10 +26,6 @@
 #ifndef __JUCE_VARIANT_JUCEHEADER__
 #define __JUCE_VARIANT_JUCEHEADER__
 
-#include "juce_ReferenceCountedObject.h"
-#include "juce_OwnedArray.h"
-#include "../text/juce_StringArray.h"
-#include "../containers/juce_Array.h"
 #include "../io/streams/juce_OutputStream.h"
 #include "../io/streams/juce_InputStream.h"
 
@@ -57,35 +53,40 @@ public:
     var() throw();
 
     /** Destructor. */
-    ~var();
+    ~var() throw();
 
-    var (const var& valueToCopy) throw();
+    /** A static var object that can be used where you need an empty variant object. */
+    static const var null;
+
+    var (const var& valueToCopy);
     var (const int value) throw();
     var (const bool value) throw();
     var (const double value) throw();
-    var (const char* const value) throw();
-    var (const juce_wchar* const value) throw();
-    var (const String& value) throw();
-    var (DynamicObject* const object) throw();
+    var (const char* const value);
+    var (const juce_wchar* const value);
+    var (const String& value);
+    var (DynamicObject* const object);
     var (MethodFunction method) throw();
 
-    const var& operator= (const var& valueToCopy) throw();
-    const var& operator= (const int value) throw();
-    const var& operator= (const bool value) throw();
-    const var& operator= (const double value) throw();
-    const var& operator= (const char* const value) throw();
-    const var& operator= (const juce_wchar* const value) throw();
-    const var& operator= (const String& value) throw();
-    const var& operator= (DynamicObject* const object) throw();
-    const var& operator= (MethodFunction method) throw();
+    var& operator= (const var& valueToCopy);
+    var& operator= (int value);
+    var& operator= (bool value);
+    var& operator= (double value);
+    var& operator= (const char* value);
+    var& operator= (const juce_wchar* value);
+    var& operator= (const String& value);
+    var& operator= (DynamicObject* object);
+    var& operator= (MethodFunction method);
 
-    operator int() const throw();
-    operator bool() const throw();
-    operator float() const throw();
-    operator double() const throw();
-    operator const String() const throw();
-    const String toString() const throw();
-    DynamicObject* getObject() const throw();
+    void swapWith (var& other) throw();
+
+    operator int() const;
+    operator bool() const;
+    operator float() const;
+    operator double() const;
+    operator const String() const;
+    const String toString() const;
+    DynamicObject* getObject() const;
 
     bool isVoid() const throw()         { return type == voidType; }
     bool isInt() const throw()          { return type == intType; }
@@ -102,21 +103,22 @@ public:
     /** Writes a binary representation of this value to a stream.
         The data can be read back later using readFromStream().
     */
-    void writeToStream (OutputStream& output) const throw();
+    void writeToStream (OutputStream& output) const;
 
     /** Reads back a stored binary representation of a value.
         The data in the stream must have been written using writeToStream(), or this
         will have unpredictable results.
     */
-    static const var readFromStream (InputStream& input) throw();
+    static const var readFromStream (InputStream& input);
 
     //==============================================================================
     class JUCE_API  identifier
     {
     public:
-        identifier (const char* const name) throw();
-        identifier (const String& name) throw();
-        ~identifier() throw();
+        identifier() throw();
+        identifier (const char* const name);
+        identifier (const String& name);
+        ~identifier();
 
         bool operator== (const identifier& other) const throw()
         {
@@ -129,7 +131,7 @@ public:
     };
 
     /** If this variant is an object, this returns one of its properties. */
-    const var operator[] (const identifier& propertyName) const throw();
+    const var operator[] (const identifier& propertyName) const;
 
     //==============================================================================
     /** If this variant is an object, this invokes one of its methods with no arguments. */
@@ -167,9 +169,7 @@ private:
         methodType
     };
 
-    Type type;
-
-    union
+    union ValueUnion
     {
         int intValue;
         bool boolValue;
@@ -177,95 +177,11 @@ private:
         String* stringValue;
         DynamicObject* objectValue;
         MethodFunction methodValue;
-    } value;
+    };
 
-    void releaseValue() throw();
+    Type type;
+    ValueUnion value;
 };
-
-//==============================================================================
-/**
-    Represents a dynamically implemented object.
-
-    An instance of this class can be used to store named properties, and
-    by subclassing hasMethod() and invokeMethod(), you can give your object
-    methods.
-
-    This is intended for use as a wrapper for scripting language objects.
-*/
-class JUCE_API  DynamicObject  : public ReferenceCountedObject
-{
-public:
-    //==============================================================================
-    DynamicObject();
-
-    /** Destructor. */
-    virtual ~DynamicObject();
-
-    //==============================================================================
-    /** Returns true if the object has a property with this name.
-        Note that if the property is actually a method, this will return false.
-    */
-    virtual bool hasProperty (const var::identifier& propertyName) const;
-
-    /** Returns a named property.
-
-        This returns a void if no such property exists.
-    */
-    virtual const var getProperty (const var::identifier& propertyName) const;
-
-    /** Sets a named property. */
-    virtual void setProperty (const var::identifier& propertyName, const var& newValue);
-
-    /** Removes a named property. */
-    virtual void removeProperty (const var::identifier& propertyName);
-
-    //==============================================================================
-    /** Checks whether this object has the specified method.
-
-        The default implementation of this just checks whether there's a property
-        with this name that's actually a method, but this can be overridden for
-        building objects with dynamic invocation.
-    */
-    virtual bool hasMethod (const var::identifier& methodName) const;
-
-    /** Invokes a named method on this object.
-
-        The default implementation looks up the named property, and if it's a method
-        call, then it invokes it.
-
-        This method is virtual to allow more dynamic invocation to used for objects
-        where the methods may not already be set as properies.
-    */
-    virtual const var invokeMethod (const var::identifier& methodName,
-                                    const var* parameters,
-                                    int numParameters);
-
-    /** Sets up a method.
-
-        This is basically the same as calling setProperty (methodName, (var::MethodFunction) myFunction), but
-        helps to avoid accidentally invoking the wrong type of var constructor. It also makes
-        the code easier to read,
-
-        The compiler will probably force you to use an explicit cast your method to a (var::MethodFunction), e.g.
-        @code
-        setMethod ("doSomething", (var::MethodFunction) &MyClass::doSomething);
-        @endcode
-    */
-    void setMethod (const var::identifier& methodName,
-                    var::MethodFunction methodFunction);
-
-    //==============================================================================
-    /** Removes all properties and methods from the object. */
-    void clear();
-
-    //==============================================================================
-    juce_UseDebuggingNewOperator
-
-private:
-    Array <int> propertyIds;
-    OwnedArray <var> propertyValues;
-};
-
 
 
 #endif   // __JUCE_VARIANT_JUCEHEADER__

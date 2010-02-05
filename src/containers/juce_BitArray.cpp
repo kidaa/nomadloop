@@ -90,7 +90,7 @@ BitArray::~BitArray() throw()
 {
 }
 
-const BitArray& BitArray::operator= (const BitArray& other) throw()
+BitArray& BitArray::operator= (const BitArray& other) throw()
 {
     if (this != &other)
     {
@@ -938,7 +938,7 @@ void BitArray::loadFromMemoryBlock (const MemoryBlock& data) throw()
 {
     clear();
 
-    for (size_t i = data.getSize(); --i >= 0;)
+    for (int i = (int) data.getSize(); --i >= 0;)
         this->setBitRangeAsInt ((int) (i << 3), 8, data [i]);
 }
 

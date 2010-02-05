@@ -8,6 +8,8 @@
 #ifndef __JUCE_JUCEHEADER__
 #define __JUCE_JUCEHEADER__
 
+#define JUCE_PUBLIC_INCLUDES 1
+
 // (this includes things that need defining outside of the JUCE namespace)
 
 /********* Start of inlined file: juce_StandardHeader.h *********/
@@ -15,7 +17,7 @@
 #define __JUCE_STANDARDHEADER_JUCEHEADER__
 
 #define JUCE_MAJOR_VERSION	  1
-#define JUCE_MINOR_VERSION	  50
+#define JUCE_MINOR_VERSION	  51
 
 #define JUCE_VERSION		((JUCE_MAJOR_VERSION << 16) + (JUCE_MINOR_VERSION << 8))
 
@@ -469,18 +471,20 @@
 #include <cstdlib>
 #include <cstdarg>
 #include <climits>
+#include <limits>
 #include <cmath>
 #include <cwchar>
 #include <stdexcept>
 #include <typeinfo>
 #include <cstring>
 #include <cstdio>
+#include <iostream>
 
 #if JUCE_USE_INTRINSICS
   #include <intrin.h>
 #endif
 
-#if JUCE_MAC
+#if JUCE_MAC || JUCE_IPHONE
   #include <libkern/OSAtomic.h>
 #endif
 
@@ -495,6 +499,10 @@
 #if JUCE_MSVC
   #include <malloc.h>
   #pragma warning (pop)
+
+  #if ! JUCE_PUBLIC_INCLUDES
+	#pragma warning (4: 4511 4512 4100)  // (enable some warnings that are turned off in VC8)
+  #endif
 #endif
 
 // DLL building settings on Win32
@@ -567,8 +575,9 @@ extern bool JUCE_PUBLIC_FUNCTION juce_isRunningUnderDebugger();
   #if ! defined (_AFXDLL)
 	#define juce_UseDebuggingNewOperator \
 	  static void* operator new (size_t sz)	   { void* const p = juce_malloc ((int) sz); return (p != 0) ? p : ::operator new (sz); } \
-	  static void* operator new (size_t sz, void* p)  { return ::operator new (sz, p); } \
-	  static void operator delete (void* p)	   { juce_free (p); }
+	  static void* operator new (size_t, void* p)	 { return p; } \
+	  static void operator delete (void* p)	   { juce_free (p); } \
+	  static void operator delete (void*, void*)	  { }
   #endif
 
 #elif defined (JUCE_DLL)
@@ -592,8 +601,9 @@ extern bool JUCE_PUBLIC_FUNCTION juce_isRunningUnderDebugger();
 
   #define juce_UseDebuggingNewOperator \
 	static void* operator new (size_t sz)	   { void* const p = juce_malloc ((int) sz); return (p != 0) ? p : ::operator new (sz); } \
-	static void* operator new (size_t sz, void* p)  { return ::operator new (sz, p); } \
-	static void operator delete (void* p)	   { juce_free (p); }
+	static void* operator new (size_t, void* p)	 { return p; } \
+	static void operator delete (void* p)	   { juce_free (p); } \
+	static void operator delete (void*, void*)	  { }
 
 #else
 
@@ -1436,12 +1446,6 @@ BEGIN_JUCE_NAMESPACE
   #pragma warning (disable: 4786) // (old vc6 warning about long class names)
 #endif
 
-#if JUCE_MAC || JUCE_IPHONE
-  #pragma align=natural
-#endif
-
-#define JUCE_PUBLIC_INCLUDES
-
 // this is where all the class header files get brought in..
 
 /********* Start of inlined file: juce_core_includes.h *********/
@@ -1458,62 +1462,148 @@ BEGIN_JUCE_NAMESPACE
 #ifndef __JUCE_ARRAYALLOCATIONBASE_JUCEHEADER__
 #define __JUCE_ARRAYALLOCATIONBASE_JUCEHEADER__
 
+/********* Start of inlined file: juce_HeapBlock.h *********/
+#ifndef __JUCE_HEAPBLOCK_JUCEHEADER__
+#define __JUCE_HEAPBLOCK_JUCEHEADER__
+
+template <class ElementType>
+class HeapBlock
+{
+public:
+
+	HeapBlock() throw() : data (0)
+	{
+	}
+
+	HeapBlock (const size_t numElements)
+		: data ((ElementType*) ::juce_malloc (numElements * sizeof (ElementType)))
+	{
+	}
+
+	~HeapBlock()
+	{
+		::juce_free (data);
+	}
+
+	inline operator ElementType*() const throw()				{ return data; }
+
+	inline operator void*() const throw()				   { return (void*) data; }
+
+	inline ElementType* operator->() const  throw()			 { return data; }
+
+	template <class CastType>
+	inline operator CastType*() const throw()				   { return (CastType*) data; }
+
+	template <typename IndexType>
+	inline ElementType& operator[] (IndexType index) const throw()	  { return data [index]; }
+
+	template <typename IndexType>
+	inline ElementType* operator+ (IndexType index) const throw()	   { return data + index; }
+
+	inline ElementType** operator&() const throw()			  { return (ElementType**) &data; }
+
+	inline bool operator== (const ElementType* const otherPointer) const throw()	{ return otherPointer == data; }
+
+	inline bool operator!= (const ElementType* const otherPointer) const throw()	{ return otherPointer != data; }
+
+	void malloc (const size_t newNumElements, const size_t elementSize = sizeof (ElementType))
+	{
+		::juce_free (data);
+		data = (ElementType*) ::juce_malloc (newNumElements * elementSize);
+	}
+
+	void calloc (const size_t newNumElements, const size_t elementSize = sizeof (ElementType))
+	{
+		::juce_free (data);
+		data = (ElementType*) ::juce_calloc (newNumElements * elementSize);
+	}
+
+	void allocate (const size_t newNumElements, const bool initialiseToZero)
+	{
+		::juce_free (data);
+
+		if (initialiseToZero)
+			data = (ElementType*) ::juce_calloc (newNumElements * sizeof (ElementType));
+		else
+			data = (ElementType*) ::juce_malloc (newNumElements * sizeof (ElementType));
+	}
+
+	void realloc (const size_t newNumElements, const size_t elementSize = sizeof (ElementType))
+	{
+		if (data == 0)
+			data = (ElementType*) ::juce_malloc (newNumElements * elementSize);
+		else
+			data = (ElementType*) ::juce_realloc (data, newNumElements * elementSize);
+	}
+
+	void free()
+	{
+		::juce_free (data);
+		data = 0;
+	}
+
+	void swapWith (HeapBlock <ElementType>& other) throw()
+	{
+		swapVariables (data, other.data);
+	}
+
+private:
+
+	ElementType* data;
+
+	HeapBlock (const HeapBlock&);
+	const HeapBlock& operator= (const HeapBlock&);
+};
+
+#endif   // __JUCE_HEAPBLOCK_JUCEHEADER__
+/********* End of inlined file: juce_HeapBlock.h *********/
+
 template <class ElementType>
 class ArrayAllocationBase
 {
 public:
 
 	ArrayAllocationBase() throw()
-		: elements (0),
-		  numAllocated (0)
+		: numAllocated (0)
 	{
 	}
 
 	~ArrayAllocationBase()
 	{
-		delete[] elements;
 	}
 
-	void setAllocatedSize (const int numElements) throw()
+	void setAllocatedSize (const int numElements)
 	{
 		if (numAllocated != numElements)
 		{
 			if (numElements > 0)
-			{
-				ElementType* const newElements = new ElementType [numElements];
-
-				const int itemsToRetain = jmin (numElements, numAllocated);
-
-				for (int i = 0; i < itemsToRetain; ++i)
-					newElements[i] = elements[i];
-
-				delete[] elements;
-				elements = newElements;
-
-			}
+				elements.realloc (numElements);
 			else
-			{
-				delete[] elements;
-				elements = 0;
-			}
+				elements.free();
 
 			numAllocated = numElements;
 		}
 	}
 
-	void ensureAllocatedSize (int minNumElements) throw()
+	void ensureAllocatedSize (const int minNumElements)
 	{
 		if (minNumElements > numAllocated)
 			setAllocatedSize ((minNumElements + minNumElements / 2 + 8) & ~7);
 	}
 
-	void shrinkToNoMoreThan (int maxNumElements) throw()
+	void shrinkToNoMoreThan (const int maxNumElements)
 	{
 		if (maxNumElements < numAllocated)
 			setAllocatedSize (maxNumElements);
 	}
 
-	ElementType* elements;
+	void swapWith (ArrayAllocationBase <ElementType>& other) throw()
+	{
+		elements.swapWith (other.elements);
+		swapVariables (numAllocated, other.numAllocated);
+	}
+
+	HeapBlock <ElementType> elements;
 	int numAllocated;
 
 private:
@@ -1780,7 +1870,8 @@ public:
 #endif   // __JUCE_CRITICALSECTION_JUCEHEADER__
 /********* End of inlined file: juce_CriticalSection.h *********/
 
-template <class ElementType, class TypeOfCriticalSectionToUse = DummyCriticalSection>
+template <typename ElementType,
+		  typename TypeOfCriticalSectionToUse = DummyCriticalSection>
 class Array
 {
 public:
@@ -1790,54 +1881,53 @@ public:
 	{
 	}
 
-	Array (const Array<ElementType, TypeOfCriticalSectionToUse>& other) throw()
+	Array (const Array<ElementType, TypeOfCriticalSectionToUse>& other)
 	{
 		other.lockArray();
 		numUsed = other.numUsed;
 		data.setAllocatedSize (other.numUsed);
-		memcpy (data.elements, other.data.elements, numUsed * sizeof (ElementType));
+
+		for (int i = 0; i < numUsed; ++i)
+			new (data.elements + i) ElementType (other.data.elements[i]);
+
 		other.unlockArray();
 	}
 
-	Array (const ElementType* values) throw()
+	explicit Array (const ElementType* values)
 	   : numUsed (0)
 	{
 		while (*values != 0)
 			add (*values++);
 	}
 
-	Array (const ElementType* values, int numValues) throw()
+	Array (const ElementType* values, int numValues)
 	   : numUsed (numValues)
 	{
 		data.setAllocatedSize (numValues);
-		memcpy (data.elements, values, numValues * sizeof (ElementType));
+
+		for (int i = 0; i < numValues; ++i)
+			new (data.elements + i) ElementType (values[i]);
 	}
 
-	~Array() throw()
+	~Array()
 	{
+		for (int i = 0; i < numUsed; ++i)
+			data.elements[i].~ElementType();
 	}
 
-	const Array <ElementType, TypeOfCriticalSectionToUse>& operator= (const Array <ElementType, TypeOfCriticalSectionToUse>& other) throw()
+	Array <ElementType, TypeOfCriticalSectionToUse>& operator= (const Array <ElementType, TypeOfCriticalSectionToUse>& other)
 	{
 		if (this != &other)
 		{
-			other.lockArray();
-			lock.enter();
-
-			data.ensureAllocatedSize (other.size());
-			numUsed = other.numUsed;
-			memcpy (data.elements, other.data.elements, numUsed * sizeof (ElementType));
-			minimiseStorageOverheads();
-
-			lock.exit();
-			other.unlockArray();
+			Array<ElementType, TypeOfCriticalSectionToUse> otherCopy (other);
+			swapWithArray (otherCopy);
 		}
 
 		return *this;
 	}
 
 	template <class OtherArrayType>
-	bool operator== (const OtherArrayType& other) const throw()
+	bool operator== (const OtherArrayType& other) const
 	{
 		lock.enter();
 
@@ -1861,22 +1951,30 @@ public:
 	}
 
 	template <class OtherArrayType>
-	bool operator!= (const OtherArrayType& other) const throw()
+	bool operator!= (const OtherArrayType& other) const
 	{
 		return ! operator== (other);
 	}
 
-	void clear() throw()
+	void clear()
 	{
 		lock.enter();
+
+		for (int i = 0; i < numUsed; ++i)
+			data.elements[i].~ElementType();
+
 		data.setAllocatedSize (0);
 		numUsed = 0;
 		lock.exit();
 	}
 
-	void clearQuick() throw()
+	void clearQuick()
 	{
 		lock.enter();
+
+		for (int i = 0; i < numUsed; ++i)
+			data.elements[i].~ElementType();
+
 		numUsed = 0;
 		lock.exit();
 	}
@@ -1886,22 +1984,22 @@ public:
 		return numUsed;
 	}
 
-	inline ElementType operator[] (const int index) const throw()
+	inline ElementType operator[] (const int index) const
 	{
 		lock.enter();
-		const ElementType result = (((unsigned int) index) < (unsigned int) numUsed)
+		const ElementType result ((((unsigned int) index) < (unsigned int) numUsed)
 										? data.elements [index]
-										: ElementType();
+										: ElementType());
 		lock.exit();
 
 		return result;
 	}
 
-	inline ElementType getUnchecked (const int index) const throw()
+	inline const ElementType getUnchecked (const int index) const
 	{
 		lock.enter();
 		jassert (((unsigned int) index) < (unsigned int) numUsed);
-		const ElementType result = data.elements [index];
+		const ElementType result (data.elements [index]);
 		lock.exit();
 
 		return result;
@@ -1916,27 +2014,27 @@ public:
 		return result;
 	}
 
-	inline ElementType getFirst() const throw()
+	inline ElementType getFirst() const
 	{
 		lock.enter();
-		const ElementType result = (numUsed > 0) ? data.elements [0]
-												 : ElementType();
+		const ElementType result ((numUsed > 0) ? data.elements [0]
+												: ElementType());
 		lock.exit();
 
 		return result;
 	}
 
-	inline ElementType getLast() const throw()
+	inline ElementType getLast() const
 	{
 		lock.enter();
-		const ElementType result = (numUsed > 0) ? data.elements [numUsed - 1]
-												 : ElementType();
+		const ElementType result ((numUsed > 0) ? data.elements [numUsed - 1]
+												: ElementType());
 		lock.exit();
 
 		return result;
 	}
 
-	int indexOf (const ElementType elementToLookFor) const throw()
+	int indexOf (const ElementType& elementToLookFor) const
 	{
 		int result = -1;
 
@@ -1958,27 +2056,12 @@ public:
 		return result;
 	}
 
-	bool contains (const ElementType elementToLookFor) const throw()
+	bool contains (const ElementType& elementToLookFor) const
 	{
 		lock.enter();
 
 		const ElementType* e = data.elements;
 		int num = numUsed;
-
-		while (num >= 4)
-		{
-			if (*e == elementToLookFor
-				 || *++e == elementToLookFor
-				 || *++e == elementToLookFor
-				 || *++e == elementToLookFor)
-			{
-				lock.exit();
-				return true;
-			}
-
-			num -= 4;
-			++e;
-		}
 
 		while (num > 0)
 		{
@@ -1996,15 +2079,15 @@ public:
 		return false;
 	}
 
-	void add (const ElementType newElement) throw()
+	void add (const ElementType& newElement)
 	{
 		lock.enter();
 		data.ensureAllocatedSize (numUsed + 1);
-		data.elements [numUsed++] = newElement;
+		new (data.elements + numUsed++) ElementType (newElement);
 		lock.exit();
 	}
 
-	void insert (int indexToInsertAt, const ElementType newElement) throw()
+	void insert (int indexToInsertAt, const ElementType& newElement)
 	{
 		lock.enter();
 		data.ensureAllocatedSize (numUsed + 1);
@@ -2017,41 +2100,41 @@ public:
 			if (numberToMove > 0)
 				memmove (insertPos + 1, insertPos, numberToMove * sizeof (ElementType));
 
-			*insertPos = newElement;
+			new (insertPos) ElementType (newElement);
 			++numUsed;
 		}
 		else
 		{
-			data.elements [numUsed++] = newElement;
+			new (data.elements + numUsed++) ElementType (newElement);
 		}
 
 		lock.exit();
 	}
 
-	void insertMultiple (int indexToInsertAt, const ElementType newElement,
-						 int numberOfTimesToInsertIt) throw()
+	void insertMultiple (int indexToInsertAt, const ElementType& newElement,
+						 int numberOfTimesToInsertIt)
 	{
 		if (numberOfTimesToInsertIt > 0)
 		{
 			lock.enter();
 			data.ensureAllocatedSize (numUsed + numberOfTimesToInsertIt);
+			ElementType* insertPos;
 
 			if (((unsigned int) indexToInsertAt) < (unsigned int) numUsed)
 			{
-				ElementType* insertPos = data.elements + indexToInsertAt;
+				insertPos = data.elements + indexToInsertAt;
 				const int numberToMove = numUsed - indexToInsertAt;
-
 				memmove (insertPos + numberOfTimesToInsertIt, insertPos, numberToMove * sizeof (ElementType));
-				numUsed += numberOfTimesToInsertIt;
-
-				while (--numberOfTimesToInsertIt >= 0)
-					*insertPos++ = newElement;
 			}
 			else
 			{
-				while (--numberOfTimesToInsertIt >= 0)
-					data.elements [numUsed++] = newElement;
+				insertPos = data.elements + numUsed;
 			}
+
+			numUsed += numberOfTimesToInsertIt;
+
+			while (--numberOfTimesToInsertIt >= 0)
+				new (insertPos++) ElementType (newElement);
 
 			lock.exit();
 		}
@@ -2059,35 +2142,35 @@ public:
 
 	void insertArray (int indexToInsertAt,
 					  const ElementType* newElements,
-					  int numberOfElements) throw()
+					  int numberOfElements)
 	{
 		if (numberOfElements > 0)
 		{
 			lock.enter();
 			data.ensureAllocatedSize (numUsed + numberOfElements);
+			ElementType* insertPos;
 
 			if (((unsigned int) indexToInsertAt) < (unsigned int) numUsed)
 			{
-				ElementType* insertPos = data.elements + indexToInsertAt;
+				insertPos = data.elements + indexToInsertAt;
 				const int numberToMove = numUsed - indexToInsertAt;
-
 				memmove (insertPos + numberOfElements, insertPos, numberToMove * sizeof (ElementType));
-				numUsed += numberOfElements;
-
-				while (--numberOfElements >= 0)
-					*insertPos++ = *newElements++;
 			}
 			else
 			{
-				while (--numberOfElements >= 0)
-					data.elements [numUsed++] = *newElements++;
+				insertPos = data.elements + numUsed;
 			}
+
+			numUsed += numberOfElements;
+
+			while (--numberOfElements >= 0)
+				new (insertPos++) ElementType (*newElements++);
 
 			lock.exit();
 		}
 	}
 
-	void addIfNotAlreadyThere (const ElementType newElement) throw()
+	void addIfNotAlreadyThere (const ElementType& newElement)
 	{
 		lock.enter();
 
@@ -2097,31 +2180,26 @@ public:
 		lock.exit();
 	}
 
-	void set (const int indexToChange,
-			  const ElementType newValue) throw()
+	void set (const int indexToChange, const ElementType& newValue)
 	{
 		jassert (indexToChange >= 0);
 
-		if (indexToChange >= 0)
+		lock.enter();
+
+		if (((unsigned int) indexToChange) < (unsigned int) numUsed)
 		{
-			lock.enter();
-
-			if (indexToChange < numUsed)
-			{
-				data.elements [indexToChange] = newValue;
-			}
-			else
-			{
-				data.ensureAllocatedSize (numUsed + 1);
-				data.elements [numUsed++] = newValue;
-			}
-
-			lock.exit();
+			data.elements [indexToChange] = newValue;
 		}
+		else if (indexToChange >= 0)
+		{
+			data.ensureAllocatedSize (numUsed + 1);
+			new (data.elements + numUsed++) ElementType (newValue);
+		}
+
+		lock.exit();
 	}
 
-	void setUnchecked (const int indexToChange,
-					   const ElementType newValue) throw()
+	void setUnchecked (const int indexToChange, const ElementType& newValue)
 	{
 		lock.enter();
 		jassert (((unsigned int) indexToChange) < (unsigned int) numUsed);
@@ -2129,8 +2207,7 @@ public:
 		lock.exit();
 	}
 
-	void addArray (const ElementType* elementsToAdd,
-				   int numElementsToAdd) throw()
+	void addArray (const ElementType* elementsToAdd, int numElementsToAdd)
 	{
 		lock.enter();
 
@@ -2139,20 +2216,18 @@ public:
 			data.ensureAllocatedSize (numUsed + numElementsToAdd);
 
 			while (--numElementsToAdd >= 0)
-				data.elements [numUsed++] = *elementsToAdd++;
+				new (data.elements + numUsed++) ElementType (*elementsToAdd++);
 		}
 
 		lock.exit();
 	}
 
-	template <class OtherArrayType>
-	void swapWithArray (OtherArrayType& otherArray) throw()
+	void swapWithArray (Array <ElementType>& otherArray) throw()
 	{
 		lock.enter();
 		otherArray.lock.enter();
-		swapVariables <int> (numUsed, otherArray.numUsed);
-		swapVariables <ElementType*> (data.elements, otherArray.data.elements);
-		swapVariables <int> (data.numAllocated, otherArray.data.numAllocated);
+		data.swapWith (otherArray.data);
+		swapVariables (numUsed, otherArray.numUsed);
 		otherArray.lock.exit();
 		lock.exit();
 	}
@@ -2160,7 +2235,7 @@ public:
 	template <class OtherArrayType>
 	void addArray (const OtherArrayType& arrayToAddFrom,
 				   int startIndex = 0,
-				   int numElementsToAdd = -1) throw()
+				   int numElementsToAdd = -1)
 	{
 		arrayToAddFrom.lockArray();
 		lock.enter();
@@ -2182,17 +2257,15 @@ public:
 	}
 
 	template <class ElementComparator>
-	void addSorted (ElementComparator& comparator,
-					const ElementType newElement) throw()
+	void addSorted (ElementComparator& comparator, const ElementType& newElement)
 	{
 		lock.enter();
-		insert (findInsertIndexInSortedArray (comparator, data.elements, newElement, 0, numUsed), newElement);
+		insert (findInsertIndexInSortedArray (comparator, (ElementType*) data.elements, newElement, 0, numUsed), newElement);
 		lock.exit();
 	}
 
 	template <class ElementComparator>
-	int indexOfSorted (ElementComparator& comparator,
-					   const ElementType elementToLookFor) const throw()
+	int indexOfSorted (ElementComparator& comparator, const ElementType& elementToLookFor) const
 	{
 		(void) comparator;  // if you pass in an object with a static compareElements() method, this
 							// avoids getting warning messages about the parameter being unused
@@ -2230,7 +2303,7 @@ public:
 		}
 	}
 
-	ElementType remove (const int indexToRemove) throw()
+	ElementType remove (const int indexToRemove)
 	{
 		lock.enter();
 
@@ -2239,7 +2312,8 @@ public:
 			--numUsed;
 
 			ElementType* const e = data.elements + indexToRemove;
-			ElementType const removed = *e;
+			ElementType removed (*e);
+			e->~ElementType();
 			const int numberToShift = numUsed - indexToRemove;
 
 			if (numberToShift > 0)
@@ -2258,7 +2332,7 @@ public:
 		}
 	}
 
-	void removeValue (const ElementType valueToRemove) throw()
+	void removeValue (const ElementType& valueToRemove)
 	{
 		lock.enter();
 		ElementType* e = data.elements;
@@ -2277,8 +2351,7 @@ public:
 		lock.exit();
 	}
 
-	void removeRange (int startIndex,
-					  const int numberToRemove) throw()
+	void removeRange (int startIndex, int numberToRemove)
 	{
 		lock.enter();
 		const int endIndex = jlimit (0, numUsed, startIndex + numberToRemove);
@@ -2286,16 +2359,17 @@ public:
 
 		if (endIndex > startIndex)
 		{
-			const int rangeSize = endIndex - startIndex;
 			ElementType* e = data.elements + startIndex;
-			int numToShift = numUsed - endIndex;
-			numUsed -= rangeSize;
 
-			while (--numToShift >= 0)
-			{
-				*e = e [rangeSize];
-				++e;
-			}
+			numberToRemove = endIndex - startIndex;
+			for (int i = 0; i < numberToRemove; ++i)
+				e[i].~ElementType();
+
+			const int numToShift = numUsed - endIndex;
+			if (numToShift > 0)
+				memmove (e, e + numberToRemove, numToShift * sizeof (ElementType));
+
+			numUsed -= numberToRemove;
 
 			if ((numUsed << 1) < data.numAllocated)
 				minimiseStorageOverheads();
@@ -2304,10 +2378,17 @@ public:
 		lock.exit();
 	}
 
-	void removeLast (const int howManyToRemove = 1) throw()
+	void removeLast (int howManyToRemove = 1)
 	{
 		lock.enter();
-		numUsed = jmax (0, numUsed - howManyToRemove);
+
+		if (howManyToRemove > numUsed)
+			howManyToRemove = numUsed;
+
+		for (int i = 0; i < howManyToRemove; ++i)
+			data.elements [numUsed - i].~ElementType();
+
+		numUsed -= howManyToRemove;
 
 		if ((numUsed << 1) < data.numAllocated)
 			minimiseStorageOverheads();
@@ -2316,7 +2397,7 @@ public:
 	}
 
 	template <class OtherArrayType>
-	void removeValuesIn (const OtherArrayType& otherArray) throw()
+	void removeValuesIn (const OtherArrayType& otherArray)
 	{
 		otherArray.lockArray();
 		lock.enter();
@@ -2340,7 +2421,7 @@ public:
 	}
 
 	template <class OtherArrayType>
-	void removeValuesNotIn (const OtherArrayType& otherArray) throw()
+	void removeValuesNotIn (const OtherArrayType& otherArray)
 	{
 		otherArray.lockArray();
 		lock.enter();
@@ -2364,7 +2445,7 @@ public:
 	}
 
 	void swap (const int index1,
-			   const int index2) throw()
+			   const int index2)
 	{
 		lock.enter();
 
@@ -2378,8 +2459,7 @@ public:
 		lock.exit();
 	}
 
-	void move (const int currentIndex,
-			   int newIndex) throw()
+	void move (const int currentIndex, int newIndex) throw()
 	{
 		if (currentIndex != newIndex)
 		{
@@ -2390,7 +2470,8 @@ public:
 				if (((unsigned int) newIndex) >= (unsigned int) numUsed)
 					newIndex = numUsed - 1;
 
-				const ElementType value = data.elements [currentIndex];
+				char tempCopy [sizeof (ElementType)];
+				memcpy (tempCopy, data.elements + currentIndex, sizeof (ElementType));
 
 				if (newIndex > currentIndex)
 				{
@@ -2405,21 +2486,21 @@ public:
 							 (currentIndex - newIndex) * sizeof (ElementType));
 				}
 
-				data.elements [newIndex] = value;
+				memcpy (data.elements + newIndex, tempCopy, sizeof (ElementType));
 			}
 
 			lock.exit();
 		}
 	}
 
-	void minimiseStorageOverheads() throw()
+	void minimiseStorageOverheads()
 	{
 		lock.enter();
 		data.shrinkToNoMoreThan (numUsed);
 		lock.exit();
 	}
 
-	void ensureStorageAllocated (const int minNumElements) throw()
+	void ensureStorageAllocated (const int minNumElements)
 	{
 		lock.enter();
 		data.ensureAllocatedSize (minNumElements);
@@ -2428,12 +2509,12 @@ public:
 
 	template <class ElementComparator>
 	void sort (ElementComparator& comparator,
-			   const bool retainOrderOfEquivalentItems = false) const throw()
+			   const bool retainOrderOfEquivalentItems = false) const
 	{
 		(void) comparator;  // if you pass in an object with a static compareElements() method, this
 							// avoids getting warning messages about the parameter being unused
 		lock.enter();
-		sortArray (comparator, data.elements, 0, size() - 1, retainOrderOfEquivalentItems);
+		sortArray (comparator, (ElementType*) data.elements, 0, size() - 1, retainOrderOfEquivalentItems);
 		lock.exit();
 	}
 
@@ -2468,102 +2549,6 @@ private:
 #ifndef __JUCE_BITARRAY_JUCEHEADER__
 #define __JUCE_BITARRAY_JUCEHEADER__
 
-/********* Start of inlined file: juce_HeapBlock.h *********/
-#ifndef __JUCE_HEAPBLOCK_JUCEHEADER__
-#define __JUCE_HEAPBLOCK_JUCEHEADER__
-
-template <class ElementType>
-class HeapBlock
-{
-public:
-
-	HeapBlock()  : data (0)
-	{
-	}
-
-	HeapBlock (const size_t numElements)
-		: data ((ElementType*) ::juce_malloc (numElements * sizeof (ElementType)))
-	{
-	}
-
-	~HeapBlock()
-	{
-		::juce_free (data);
-	}
-
-	inline operator ElementType*() const					{ return data; }
-
-	inline operator void*() const					   { return (void*) data; }
-
-	inline ElementType* operator->() const				  { return data; }
-
-	template <class CastType>
-	inline operator CastType*() const					   { return (CastType*) data; }
-
-	template <typename IndexType>
-	inline ElementType& operator[] (IndexType index) const		  { return data [index]; }
-
-	template <typename IndexType>
-	inline ElementType* operator+ (IndexType index) const		   { return data + index; }
-
-	inline ElementType** operator&() const				  { return (ElementType**) &data; }
-
-	inline bool operator== (const ElementType* const otherPointer) const	{ return otherPointer == data; }
-
-	inline bool operator!= (const ElementType* const otherPointer) const	{ return otherPointer != data; }
-
-	void malloc (const size_t newNumElements, const size_t elementSize = sizeof (ElementType))
-	{
-		::juce_free (data);
-		data = (ElementType*) ::juce_malloc (newNumElements * elementSize);
-	}
-
-	void calloc (const size_t newNumElements, const size_t elementSize = sizeof (ElementType))
-	{
-		::juce_free (data);
-		data = (ElementType*) ::juce_calloc (newNumElements * elementSize);
-	}
-
-	void allocate (const size_t newNumElements, const bool initialiseToZero)
-	{
-		::juce_free (data);
-
-		if (initialiseToZero)
-			data = (ElementType*) ::juce_calloc (newNumElements * sizeof (ElementType));
-		else
-			data = (ElementType*) ::juce_malloc (newNumElements * sizeof (ElementType));
-	}
-
-	void realloc (const size_t newNumElements, const size_t elementSize = sizeof (ElementType))
-	{
-		if (data == 0)
-			data = (ElementType*) ::juce_malloc (newNumElements * elementSize);
-		else
-			data = (ElementType*) ::juce_realloc (data, newNumElements * elementSize);
-	}
-
-	void free()
-	{
-		::juce_free (data);
-		data = 0;
-	}
-
-	void swapWith (HeapBlock <ElementType>& other)
-	{
-		swapVariables (data, other.data);
-	}
-
-private:
-
-	ElementType* data;
-
-	HeapBlock (const HeapBlock&);
-	const HeapBlock& operator= (const HeapBlock&);
-};
-
-#endif   // __JUCE_HEAPBLOCK_JUCEHEADER__
-/********* End of inlined file: juce_HeapBlock.h *********/
-
 class MemoryBlock;
 
 class JUCE_API  BitArray
@@ -2582,7 +2567,7 @@ public:
 
 	~BitArray() throw();
 
-	const BitArray& operator= (const BitArray& other) throw();
+	BitArray& operator= (const BitArray& other) throw();
 
 	bool operator== (const BitArray& other) const throw();
 	bool operator!= (const BitArray& other) const throw();
@@ -2679,13 +2664,27 @@ private:
 /********* End of inlined file: juce_BitArray.h *********/
 
 #endif
-#ifndef __JUCE_ELEMENTCOMPARATOR_JUCEHEADER__
+#ifndef __JUCE_DYNAMICOBJECT_JUCEHEADER__
 
-#endif
-#ifndef __JUCE_HEAPBLOCK_JUCEHEADER__
+/********* Start of inlined file: juce_DynamicObject.h *********/
+#ifndef __JUCE_DYNAMICOBJECT_JUCEHEADER__
+#define __JUCE_DYNAMICOBJECT_JUCEHEADER__
 
-#endif
-#ifndef __JUCE_MEMORYBLOCK_JUCEHEADER__
+/********* Start of inlined file: juce_NamedValueSet.h *********/
+#ifndef __JUCE_NAMEDVALUESET_JUCEHEADER__
+#define __JUCE_NAMEDVALUESET_JUCEHEADER__
+
+/********* Start of inlined file: juce_Variant.h *********/
+#ifndef __JUCE_VARIANT_JUCEHEADER__
+#define __JUCE_VARIANT_JUCEHEADER__
+
+/********* Start of inlined file: juce_OutputStream.h *********/
+#ifndef __JUCE_OUTPUTSTREAM_JUCEHEADER__
+#define __JUCE_OUTPUTSTREAM_JUCEHEADER__
+
+/********* Start of inlined file: juce_InputStream.h *********/
+#ifndef __JUCE_INPUTSTREAM_JUCEHEADER__
+#define __JUCE_INPUTSTREAM_JUCEHEADER__
 
 /********* Start of inlined file: juce_MemoryBlock.h *********/
 #ifndef __JUCE_MEMORYBLOCK_JUCEHEADER__
@@ -2707,11 +2706,13 @@ public:
 
 	~MemoryBlock() throw();
 
-	const MemoryBlock& operator= (const MemoryBlock& other) throw();
+	MemoryBlock& operator= (const MemoryBlock& other) throw();
 
 	bool operator== (const MemoryBlock& other) const throw();
 
 	bool operator!= (const MemoryBlock& other) const throw();
+
+	bool matches (const void* data, size_t dataSize) const throw();
 
 	template <class DataType>
 	operator DataType*() const throw()				  { return (DataType*) data; }
@@ -2772,6 +2773,555 @@ private:
 #endif   // __JUCE_MEMORYBLOCK_JUCEHEADER__
 /********* End of inlined file: juce_MemoryBlock.h *********/
 
+class JUCE_API  InputStream
+{
+public:
+	virtual ~InputStream()  {}
+
+	virtual int64 getTotalLength() = 0;
+
+	virtual bool isExhausted() = 0;
+
+	virtual int read (void* destBuffer,
+					  int maxBytesToRead) = 0;
+
+	virtual char readByte();
+
+	virtual bool readBool();
+
+	virtual short readShort();
+
+	virtual short readShortBigEndian();
+
+	virtual int readInt();
+
+	virtual int readIntBigEndian();
+
+	virtual int64 readInt64();
+
+	virtual int64 readInt64BigEndian();
+
+	virtual float readFloat();
+
+	virtual float readFloatBigEndian();
+
+	virtual double readDouble();
+
+	virtual double readDoubleBigEndian();
+
+	virtual int readCompressedInt();
+
+	virtual const String readNextLine();
+
+	virtual const String readString();
+
+	virtual const String readEntireStreamAsString();
+
+	virtual int readIntoMemoryBlock (MemoryBlock& destBlock,
+									 int maxNumBytesToRead = -1);
+
+	virtual int64 getPosition() = 0;
+
+	virtual bool setPosition (int64 newPosition) = 0;
+
+	virtual void skipNextBytes (int64 numBytesToSkip);
+
+	juce_UseDebuggingNewOperator
+
+protected:
+
+	InputStream() throw()  {}
+};
+
+#endif   // __JUCE_INPUTSTREAM_JUCEHEADER__
+/********* End of inlined file: juce_InputStream.h *********/
+
+class JUCE_API  OutputStream
+{
+public:
+	virtual ~OutputStream();
+
+	virtual void flush() = 0;
+
+	virtual bool setPosition (int64 newPosition) = 0;
+
+	virtual int64 getPosition() = 0;
+
+	virtual bool write (const void* dataToWrite,
+						int howManyBytes) = 0;
+
+	virtual void writeByte (char byte);
+
+	virtual void writeBool (bool boolValue);
+
+	virtual void writeShort (short value);
+
+	virtual void writeShortBigEndian (short value);
+
+	virtual void writeInt (int value);
+
+	virtual void writeIntBigEndian (int value);
+
+	virtual void writeInt64 (int64 value);
+
+	virtual void writeInt64BigEndian (int64 value);
+
+	virtual void writeFloat (float value);
+
+	virtual void writeFloatBigEndian (float value);
+
+	virtual void writeDouble (double value);
+
+	virtual void writeDoubleBigEndian (double value);
+
+	virtual void writeCompressedInt (int value);
+
+	virtual void writeString (const String& text);
+
+	virtual void writeText (const String& text,
+							const bool asUnicode,
+							const bool writeUnicodeHeaderBytes);
+
+	virtual void printf (const char* format, ...);
+
+	virtual int writeFromInputStream (InputStream& source,
+									  int maxNumBytesToWrite);
+
+	virtual OutputStream& operator<< (const int number);
+
+	virtual OutputStream& operator<< (const double number);
+
+	virtual OutputStream& operator<< (const char character);
+
+	virtual OutputStream& operator<< (const char* const text);
+
+	virtual OutputStream& operator<< (const juce_wchar* const text);
+
+	virtual OutputStream& operator<< (const String& text);
+
+	juce_UseDebuggingNewOperator
+
+protected:
+
+	OutputStream() throw();
+};
+
+#endif   // __JUCE_OUTPUTSTREAM_JUCEHEADER__
+/********* End of inlined file: juce_OutputStream.h *********/
+
+class JUCE_API  DynamicObject;
+
+class JUCE_API  var
+{
+public:
+
+	typedef const var (DynamicObject::*MethodFunction) (const var* arguments, int numArguments);
+
+	var() throw();
+
+	~var() throw();
+
+	static const var null;
+
+	var (const var& valueToCopy);
+	var (const int value) throw();
+	var (const bool value) throw();
+	var (const double value) throw();
+	var (const char* const value);
+	var (const juce_wchar* const value);
+	var (const String& value);
+	var (DynamicObject* const object);
+	var (MethodFunction method) throw();
+
+	var& operator= (const var& valueToCopy);
+	var& operator= (int value);
+	var& operator= (bool value);
+	var& operator= (double value);
+	var& operator= (const char* value);
+	var& operator= (const juce_wchar* value);
+	var& operator= (const String& value);
+	var& operator= (DynamicObject* object);
+	var& operator= (MethodFunction method);
+
+	void swapWith (var& other) throw();
+
+	operator int() const;
+	operator bool() const;
+	operator float() const;
+	operator double() const;
+	operator const String() const;
+	const String toString() const;
+	DynamicObject* getObject() const;
+
+	bool isVoid() const throw()	 { return type == voidType; }
+	bool isInt() const throw()	  { return type == intType; }
+	bool isBool() const throw()	 { return type == boolType; }
+	bool isDouble() const throw()	   { return type == doubleType; }
+	bool isString() const throw()	   { return type == stringType; }
+	bool isObject() const throw()	   { return type == objectType; }
+	bool isMethod() const throw()	   { return type == methodType; }
+
+	bool operator== (const var& other) const throw();
+	bool operator!= (const var& other) const throw();
+
+	void writeToStream (OutputStream& output) const;
+
+	static const var readFromStream (InputStream& input);
+
+	class JUCE_API  identifier
+	{
+	public:
+		identifier() throw();
+		identifier (const char* const name);
+		identifier (const String& name);
+		~identifier();
+
+		bool operator== (const identifier& other) const throw()
+		{
+			jassert (hashCode != other.hashCode || name == other.name); // check for name hash collisions
+			return hashCode == other.hashCode;
+		}
+
+		String name;
+		int hashCode;
+	};
+
+	const var operator[] (const identifier& propertyName) const;
+
+	const var call (const identifier& method) const;
+	const var call (const identifier& method, const var& arg1) const;
+	const var call (const identifier& method, const var& arg1, const var& arg2) const;
+	const var call (const identifier& method, const var& arg1, const var& arg2, const var& arg3);
+	const var call (const identifier& method, const var& arg1, const var& arg2, const var& arg3, const var& arg4) const;
+	const var call (const identifier& method, const var& arg1, const var& arg2, const var& arg3, const var& arg4, const var& arg5) const;
+
+	const var invoke (const identifier& method, const var* arguments, int numArguments) const;
+
+	const var invoke (const var& targetObject, const var* arguments, int numArguments) const;
+
+	juce_UseDebuggingNewOperator
+
+private:
+	enum Type
+	{
+		voidType = 0,
+		intType,
+		boolType,
+		doubleType,
+		stringType,
+		objectType,
+		methodType
+	};
+
+	union ValueUnion
+	{
+		int intValue;
+		bool boolValue;
+		double doubleValue;
+		String* stringValue;
+		DynamicObject* objectValue;
+		MethodFunction methodValue;
+	};
+
+	Type type;
+	ValueUnion value;
+};
+
+#endif   // __JUCE_VARIANT_JUCEHEADER__
+/********* End of inlined file: juce_Variant.h *********/
+
+class JUCE_API  NamedValueSet
+{
+public:
+	NamedValueSet() throw();
+
+	NamedValueSet (const NamedValueSet& other);
+
+	NamedValueSet& operator= (const NamedValueSet& other);
+
+	~NamedValueSet();
+
+	int size() const throw();
+
+	const var& operator[] (const var::identifier& name) const;
+
+	const var getWithDefault (const var::identifier& name, const var& defaultReturnValue) const;
+
+	var* getItem (const var::identifier& name) const;
+
+	bool set (const var::identifier& name, const var& newValue);
+
+	bool contains (const var::identifier& name) const;
+
+	bool remove (const var::identifier& name);
+
+	const var::identifier getName (int index) const;
+
+	void clear();
+
+	juce_UseDebuggingNewOperator
+
+private:
+	struct NamedValue
+	{
+		NamedValue() throw();
+		NamedValue (const var::identifier& name, const var& value);
+
+		var::identifier name;
+		var value;
+	};
+
+	Array <NamedValue> values;
+};
+
+#endif   // __JUCE_NAMEDVALUESET_JUCEHEADER__
+/********* End of inlined file: juce_NamedValueSet.h *********/
+
+/********* Start of inlined file: juce_ReferenceCountedObject.h *********/
+#ifndef __JUCE_REFERENCECOUNTEDOBJECT_JUCEHEADER__
+#define __JUCE_REFERENCECOUNTEDOBJECT_JUCEHEADER__
+
+/********* Start of inlined file: juce_Atomic.h *********/
+#ifndef __JUCE_ATOMIC_JUCEHEADER__
+#define __JUCE_ATOMIC_JUCEHEADER__
+
+class JUCE_API  Atomic
+{
+public:
+	static void increment (int32& variable);
+
+	static int32 incrementAndReturn (int32& variable);
+
+	static void decrement (int32& variable);
+
+	static int32 decrementAndReturn (int32& variable);
+
+	static int32 compareAndExchange (int32& destination, int32 newValue, int32 requiredCurrentValue);
+};
+
+#if (JUCE_MAC || JUCE_IPHONE)	   //  Mac and iPhone...
+
+inline void Atomic::increment (int32& variable)		 { OSAtomicIncrement32 ((int32_t*) &variable); }
+inline int32  Atomic::incrementAndReturn (int32& variable)	  { return OSAtomicIncrement32 ((int32_t*) &variable); }
+inline void Atomic::decrement (int32& variable)		 { OSAtomicDecrement32 ((int32_t*) &variable); }
+inline int32  Atomic::decrementAndReturn (int32& variable)	  { return OSAtomicDecrement32 ((int32_t*) &variable); }
+inline int32  Atomic::compareAndExchange (int32& destination, int32 newValue, int32 oldValue)
+																{ return OSAtomicCompareAndSwap32Barrier (oldValue, newValue, (int32_t*) &destination); }
+
+#elif JUCE_LINUX			// Linux...
+
+inline void  Atomic::increment (int32& variable)		{ __sync_add_and_fetch (&variable, 1); }
+inline int32 Atomic::incrementAndReturn (int32& variable)	   { return __sync_add_and_fetch (&variable, 1); }
+inline void  Atomic::decrement (int32& variable)		{ __sync_add_and_fetch (&variable, -1); }
+inline int32 Atomic::decrementAndReturn (int32& variable)	   { return __sync_add_and_fetch (&variable, -1); }
+inline int32 Atomic::compareAndExchange (int32& destination, int32 newValue, int32 oldValue)
+																{ return __sync_val_compare_and_swap (&destination, oldValue, newValue); }
+
+#elif JUCE_USE_INTRINSICS		   // Windows...
+
+// (If JUCE_USE_INTRINSICS isn't enabled, a fallback version of these methods is
+// declared in juce_win32_Threads.cpp)
+#pragma intrinsic (_InterlockedIncrement)
+#pragma intrinsic (_InterlockedDecrement)
+#pragma intrinsic (_InterlockedCompareExchange)
+
+inline void  Atomic::increment (int32& variable)		{ _InterlockedIncrement (reinterpret_cast <volatile long*> (&variable)); }
+inline int32 Atomic::incrementAndReturn (int32& variable)	   { return _InterlockedIncrement (reinterpret_cast <volatile long*> (&variable)); }
+inline void  Atomic::decrement (int32& variable)		{ _InterlockedDecrement (reinterpret_cast <volatile long*> (&variable)); }
+inline int32 Atomic::decrementAndReturn (int32& variable)	   { return _InterlockedDecrement (reinterpret_cast <volatile long*> (&variable)); }
+inline int32 Atomic::compareAndExchange (int32& destination, int32 newValue, int32 oldValue)
+																{ return _InterlockedCompareExchange (reinterpret_cast <volatile long*> (&destination), newValue, oldValue); }
+
+#endif
+
+#endif   // __JUCE_ATOMIC_JUCEHEADER__
+/********* End of inlined file: juce_Atomic.h *********/
+
+class JUCE_API  ReferenceCountedObject
+{
+public:
+
+	inline void incReferenceCount() throw()
+	{
+		Atomic::increment (refCounts);
+
+		jassert (refCounts > 0);
+	}
+
+	inline void decReferenceCount() throw()
+	{
+		jassert (refCounts > 0);
+
+		if (Atomic::decrementAndReturn (refCounts) == 0)
+			delete this;
+	}
+
+	inline int getReferenceCount() const throw()
+	{
+		return refCounts;
+	}
+
+protected:
+
+	ReferenceCountedObject()
+		: refCounts (0)
+	{
+	}
+
+	virtual ~ReferenceCountedObject()
+	{
+		// it's dangerous to delete an object that's still referenced by something else!
+		jassert (refCounts == 0);
+	}
+
+private:
+
+	int refCounts;
+};
+
+template <class ReferenceCountedObjectClass>
+class ReferenceCountedObjectPtr
+{
+public:
+
+	inline ReferenceCountedObjectPtr() throw()
+		: referencedObject (0)
+	{
+	}
+
+	inline ReferenceCountedObjectPtr (ReferenceCountedObjectClass* const refCountedObject) throw()
+		: referencedObject (refCountedObject)
+	{
+		if (refCountedObject != 0)
+			refCountedObject->incReferenceCount();
+	}
+
+	inline ReferenceCountedObjectPtr (const ReferenceCountedObjectPtr<ReferenceCountedObjectClass>& other) throw()
+		: referencedObject (other.referencedObject)
+	{
+		if (referencedObject != 0)
+			referencedObject->incReferenceCount();
+	}
+
+	const ReferenceCountedObjectPtr<ReferenceCountedObjectClass>& operator= (const ReferenceCountedObjectPtr<ReferenceCountedObjectClass>& other)
+	{
+		ReferenceCountedObjectClass* const newObject = other.referencedObject;
+
+		if (newObject != referencedObject)
+		{
+			if (newObject != 0)
+				newObject->incReferenceCount();
+
+			ReferenceCountedObjectClass* const oldObject = referencedObject;
+			referencedObject = newObject;
+
+			if (oldObject != 0)
+				oldObject->decReferenceCount();
+		}
+
+		return *this;
+	}
+
+	const ReferenceCountedObjectPtr<ReferenceCountedObjectClass>& operator= (ReferenceCountedObjectClass* const newObject)
+	{
+		if (referencedObject != newObject)
+		{
+			if (newObject != 0)
+				newObject->incReferenceCount();
+
+			ReferenceCountedObjectClass* const oldObject = referencedObject;
+			referencedObject = newObject;
+
+			if (oldObject != 0)
+				oldObject->decReferenceCount();
+		}
+
+		return *this;
+	}
+
+	inline ~ReferenceCountedObjectPtr()
+	{
+		if (referencedObject != 0)
+			referencedObject->decReferenceCount();
+	}
+
+	inline operator ReferenceCountedObjectClass*() const throw()
+	{
+		return referencedObject;
+	}
+
+	inline bool operator== (ReferenceCountedObjectClass* const object) const throw()
+	{
+		return referencedObject == object;
+	}
+
+	inline bool operator!= (ReferenceCountedObjectClass* const object) const throw()
+	{
+		return referencedObject != object;
+	}
+
+	// the -> operator is called on the referenced object
+	inline ReferenceCountedObjectClass* operator->() const throw()
+	{
+		return referencedObject;
+	}
+
+private:
+
+	ReferenceCountedObjectClass* referencedObject;
+};
+
+#endif   // __JUCE_REFERENCECOUNTEDOBJECT_JUCEHEADER__
+/********* End of inlined file: juce_ReferenceCountedObject.h *********/
+
+class JUCE_API  DynamicObject  : public ReferenceCountedObject
+{
+public:
+
+	DynamicObject();
+
+	virtual ~DynamicObject();
+
+	virtual bool hasProperty (const var::identifier& propertyName) const;
+
+	virtual const var getProperty (const var::identifier& propertyName) const;
+
+	virtual void setProperty (const var::identifier& propertyName, const var& newValue);
+
+	virtual void removeProperty (const var::identifier& propertyName);
+
+	virtual bool hasMethod (const var::identifier& methodName) const;
+
+	virtual const var invokeMethod (const var::identifier& methodName,
+									const var* parameters,
+									int numParameters);
+
+	void setMethod (const var::identifier& methodName,
+					var::MethodFunction methodFunction);
+
+	void clear();
+
+	juce_UseDebuggingNewOperator
+
+private:
+	NamedValueSet properties;
+};
+
+#endif   // __JUCE_DYNAMICOBJECT_JUCEHEADER__
+/********* End of inlined file: juce_DynamicObject.h *********/
+
+#endif
+#ifndef __JUCE_ELEMENTCOMPARATOR_JUCEHEADER__
+
+#endif
+#ifndef __JUCE_HEAPBLOCK_JUCEHEADER__
+
+#endif
+#ifndef __JUCE_MEMORYBLOCK_JUCEHEADER__
+
+#endif
+#ifndef __JUCE_NAMEDVALUESET_JUCEHEADER__
+
 #endif
 #ifndef __JUCE_OWNEDARRAY_JUCEHEADER__
 
@@ -2788,22 +3338,22 @@ class JUCE_API  ScopedPointer
 {
 public:
 
-	inline ScopedPointer()  : object (0)
+	inline ScopedPointer() throw()  : object (0)
 	{
 	}
 
-	inline ScopedPointer (ObjectType* const objectToTakePossessionOf)
+	inline ScopedPointer (ObjectType* const objectToTakePossessionOf) throw()
 		: object (objectToTakePossessionOf)
 	{
 	}
 
-	ScopedPointer (ScopedPointer& objectToTransferFrom)
+	ScopedPointer (ScopedPointer& objectToTransferFrom) throw()
 		: object (objectToTransferFrom.object)
 	{
 		objectToTransferFrom.object = 0;
 	}
 
-	inline ~ScopedPointer()						 { delete object; }
+	inline ~ScopedPointer()							 { delete object; }
 
 	const ScopedPointer& operator= (ScopedPointer& objectToTransferFrom)
 	{
@@ -2834,24 +3384,24 @@ public:
 		return *this;
 	}
 
-	inline operator ObjectType*() const					 { return object; }
+	inline operator ObjectType*() const throw()					 { return object; }
 
-	inline ObjectType& operator*() const					{ return *object; }
+	inline ObjectType& operator*() const throw()					{ return *object; }
 
-	inline ObjectType* operator->() const				   { return object; }
+	inline ObjectType* operator->() const throw()				   { return object; }
 
 	template <class CastType>
-	inline operator CastType*() const					   { return static_cast <CastType*> (object); }
+	inline operator CastType*() const throw()					   { return static_cast <CastType*> (object); }
 
-	inline ObjectType** operator&() const				   { return (ObjectType**) &object; }
+	inline ObjectType** operator&() const throw()				   { return (ObjectType**) &object; }
 
-	ObjectType* release()						   { ObjectType* const o = object; object = 0; return o; }
+	ObjectType* release() throw()						   { ObjectType* const o = object; object = 0; return o; }
 
-	inline bool operator== (const ObjectType* const otherPointer) const	 { return otherPointer == object; }
+	inline bool operator== (const ObjectType* const otherPointer) const throw()	 { return otherPointer == object; }
 
-	inline bool operator!= (const ObjectType* const otherPointer) const	 { return otherPointer != object; }
+	inline bool operator!= (const ObjectType* const otherPointer) const throw()	 { return otherPointer != object; }
 
-	void swapWith (ScopedPointer <ObjectType>& other)
+	void swapWith (ScopedPointer <ObjectType>& other) throw()
 	{
 		// Two ScopedPointers should never be able to refer to the same object - if
 		// this happens, you must have done something dodgy!
@@ -2865,7 +3415,7 @@ private:
 	ObjectType* object;
 
 	// (Required as an alternative to the overloaded & operator).
-	ScopedPointer* getAddress()						 { return this; }
+	ScopedPointer* getAddress() const throw()					   { return this; }
 };
 
 #endif   // __JUCE_SCOPEDPOINTER_JUCEHEADER__
@@ -3093,7 +3643,7 @@ public:
 		(void) comparator;  // if you pass in an object with a static compareElements() method, this
 							// avoids getting warning messages about the parameter being unused
 		lock.enter();
-		insert (findInsertIndexInSortedArray (comparator, data.elements, newObject, 0, numUsed), newObject);
+		insert (findInsertIndexInSortedArray (comparator, (ObjectClass**) data.elements, newObject, 0, numUsed), newObject);
 		lock.exit();
 	}
 
@@ -3287,14 +3837,12 @@ public:
 		}
 	}
 
-	template <class OtherArrayType>
-	void swapWithArray (OtherArrayType& otherArray) throw()
+	void swapWithArray (OwnedArray <ObjectClass>& otherArray) throw()
 	{
 		lock.enter();
 		otherArray.lock.enter();
-		swapVariables <int> (numUsed, otherArray.numUsed);
-		swapVariables <ObjectClass**> (data.elements, otherArray.data.elements);
-		swapVariables <int> (data.numAllocated, otherArray.data.numAllocated);
+		data.swapWith (otherArray.data);
+		swapVariables (numUsed, otherArray.numUsed);
 		otherArray.lock.exit();
 		lock.exit();
 	}
@@ -3321,7 +3869,7 @@ public:
 							// avoids getting warning messages about the parameter being unused
 
 		lock.enter();
-		sortArray (comparator, data.elements, 0, size() - 1, retainOrderOfEquivalentItems);
+		sortArray (comparator, (ObjectClass**) data.elements, 0, size() - 1, retainOrderOfEquivalentItems);
 		lock.exit();
 	}
 
@@ -3377,93 +3925,90 @@ public:
 
 	StringArray() throw();
 
-	StringArray (const StringArray& other) throw();
+	StringArray (const StringArray& other);
 
 	StringArray (const juce_wchar** const strings,
-				 const int numberOfStrings) throw();
+				 const int numberOfStrings);
 
 	StringArray (const char** const strings,
-				 const int numberOfStrings) throw();
+				 const int numberOfStrings);
 
-	StringArray (const juce_wchar** const strings) throw();
+	explicit StringArray (const juce_wchar** const strings);
 
-	StringArray (const char** const strings) throw();
+	explicit StringArray (const char** const strings);
 
-	virtual ~StringArray() throw();
+	~StringArray();
 
-	const StringArray& operator= (const StringArray& other) throw();
+	const StringArray& operator= (const StringArray& other);
 
-	bool operator== (const StringArray& other) const throw();
+	bool operator== (const StringArray& other) const;
 
-	bool operator!= (const StringArray& other) const throw();
+	bool operator!= (const StringArray& other) const;
 
 	inline int size() const throw()					 { return strings.size(); };
 
 	const String& operator[] (const int index) const throw();
 
 	bool contains (const String& stringToLookFor,
-				   const bool ignoreCase = false) const throw();
+				   const bool ignoreCase = false) const;
 
 	int indexOf (const String& stringToLookFor,
 				 const bool ignoreCase = false,
-				 int startIndex = 0) const throw();
+				 int startIndex = 0) const;
 
-	void add (const String& stringToAdd) throw();
+	void add (const String& stringToAdd);
 
-	void insert (const int index,
-				 const String& stringToAdd) throw();
+	void insert (const int index, const String& stringToAdd);
 
-	void addIfNotAlreadyThere (const String& stringToAdd,
-							   const bool ignoreCase = false) throw();
+	void addIfNotAlreadyThere (const String& stringToAdd, const bool ignoreCase = false);
 
-	void set (const int index,
-			  const String& newString) throw();
+	void set (const int index, const String& newString);
 
 	void addArray (const StringArray& other,
 				   int startIndex = 0,
-				   int numElementsToAdd = -1) throw();
+				   int numElementsToAdd = -1);
 
 	int addTokens (const tchar* const stringToTokenise,
-				   const bool preserveQuotedStrings) throw();
+				   const bool preserveQuotedStrings);
 
 	int addTokens (const tchar* const stringToTokenise,
 				   const tchar* breakCharacters,
-				   const tchar* quoteCharacters) throw();
+				   const tchar* quoteCharacters);
 
-	int addLines (const tchar* stringToBreakUp) throw();
+	int addLines (const tchar* stringToBreakUp);
 
-	void clear() throw();
+	void clear();
 
-	void remove (const int index) throw();
+	void remove (const int index);
 
 	void removeString (const String& stringToRemove,
-					   const bool ignoreCase = false) throw();
+					   const bool ignoreCase = false);
 
-	void removeDuplicates (const bool ignoreCase) throw();
+	void removeDuplicates (const bool ignoreCase);
 
-	void removeEmptyStrings (const bool removeWhitespaceStrings = true) throw();
+	void removeEmptyStrings (const bool removeWhitespaceStrings = true);
 
 	void move (const int currentIndex, int newIndex) throw();
 
-	void trim() throw();
+	void trim();
 
 	void appendNumbersToDuplicates (const bool ignoreCaseWhenComparing,
 									const bool appendNumberToFirstInstance,
 									const tchar* const preNumberString = defaultPreNumberString,
-									const tchar* const postNumberString = defaultPostNumberString) throw();
+									const tchar* const postNumberString = defaultPostNumberString);
 
 	const String joinIntoString (const String& separatorString,
 								 int startIndex = 0,
-								 int numberOfElements = -1) const throw();
+								 int numberOfElements = -1) const;
 
-	void sort (const bool ignoreCase) throw();
+	void sort (const bool ignoreCase);
 
-	void minimiseStorageOverheads() throw();
+	void minimiseStorageOverheads();
 
 	juce_UseDebuggingNewOperator
 
 private:
-	OwnedArray <String> strings;
+	Array <String> strings;
 };
 
 #endif   // __JUCE_STRINGARRAY_JUCEHEADER__
@@ -3525,150 +4070,6 @@ private:
 /********* Start of inlined file: juce_XmlElement.h *********/
 #ifndef __JUCE_XMLELEMENT_JUCEHEADER__
 #define __JUCE_XMLELEMENT_JUCEHEADER__
-
-/********* Start of inlined file: juce_OutputStream.h *********/
-#ifndef __JUCE_OUTPUTSTREAM_JUCEHEADER__
-#define __JUCE_OUTPUTSTREAM_JUCEHEADER__
-
-/********* Start of inlined file: juce_InputStream.h *********/
-#ifndef __JUCE_INPUTSTREAM_JUCEHEADER__
-#define __JUCE_INPUTSTREAM_JUCEHEADER__
-
-class JUCE_API  InputStream
-{
-public:
-	virtual ~InputStream()  {}
-
-	virtual int64 getTotalLength() = 0;
-
-	virtual bool isExhausted() = 0;
-
-	virtual int read (void* destBuffer,
-					  int maxBytesToRead) = 0;
-
-	virtual char readByte();
-
-	virtual bool readBool();
-
-	virtual short readShort();
-
-	virtual short readShortBigEndian();
-
-	virtual int readInt();
-
-	virtual int readIntBigEndian();
-
-	virtual int64 readInt64();
-
-	virtual int64 readInt64BigEndian();
-
-	virtual float readFloat();
-
-	virtual float readFloatBigEndian();
-
-	virtual double readDouble();
-
-	virtual double readDoubleBigEndian();
-
-	virtual int readCompressedInt();
-
-	virtual const String readNextLine();
-
-	virtual const String readString();
-
-	virtual const String readEntireStreamAsString();
-
-	virtual int readIntoMemoryBlock (MemoryBlock& destBlock,
-									 int maxNumBytesToRead = -1);
-
-	virtual int64 getPosition() = 0;
-
-	virtual bool setPosition (int64 newPosition) = 0;
-
-	virtual void skipNextBytes (int64 numBytesToSkip);
-
-	juce_UseDebuggingNewOperator
-
-protected:
-
-	InputStream() throw()  {}
-};
-
-#endif   // __JUCE_INPUTSTREAM_JUCEHEADER__
-/********* End of inlined file: juce_InputStream.h *********/
-
-class JUCE_API  OutputStream
-{
-public:
-	virtual ~OutputStream();
-
-	virtual void flush() = 0;
-
-	virtual bool setPosition (int64 newPosition) = 0;
-
-	virtual int64 getPosition() = 0;
-
-	virtual bool write (const void* dataToWrite,
-						int howManyBytes) = 0;
-
-	virtual void writeByte (char byte);
-
-	virtual void writeBool (bool boolValue);
-
-	virtual void writeShort (short value);
-
-	virtual void writeShortBigEndian (short value);
-
-	virtual void writeInt (int value);
-
-	virtual void writeIntBigEndian (int value);
-
-	virtual void writeInt64 (int64 value);
-
-	virtual void writeInt64BigEndian (int64 value);
-
-	virtual void writeFloat (float value);
-
-	virtual void writeFloatBigEndian (float value);
-
-	virtual void writeDouble (double value);
-
-	virtual void writeDoubleBigEndian (double value);
-
-	virtual void writeCompressedInt (int value);
-
-	virtual void writeString (const String& text);
-
-	virtual void writeText (const String& text,
-							const bool asUnicode,
-							const bool writeUnicodeHeaderBytes);
-
-	virtual void printf (const char* format, ...);
-
-	virtual int writeFromInputStream (InputStream& source,
-									  int maxNumBytesToWrite);
-
-	virtual OutputStream& operator<< (const int number);
-
-	virtual OutputStream& operator<< (const double number);
-
-	virtual OutputStream& operator<< (const char character);
-
-	virtual OutputStream& operator<< (const char* const text);
-
-	virtual OutputStream& operator<< (const juce_wchar* const text);
-
-	virtual OutputStream& operator<< (const String& text);
-
-	juce_UseDebuggingNewOperator
-
-protected:
-
-	OutputStream() throw();
-};
-
-#endif   // __JUCE_OUTPUTSTREAM_JUCEHEADER__
-/********* End of inlined file: juce_OutputStream.h *********/
 
 /********* Start of inlined file: juce_File.h *********/
 #ifndef __JUCE_FILE_JUCEHEADER__
@@ -3981,7 +4382,7 @@ public:
 		ignoreHiddenFiles	   = 4	 /**< Add this flag to avoid returning any hidden files in the results. */
 	};
 
-	int findChildFiles (OwnedArray<File>& results,
+	int findChildFiles (Array<File>& results,
 						const int whatToLookFor,
 						const bool searchRecursively,
 						const String& wildCardPattern = JUCE_T("*")) const;
@@ -4013,7 +4414,7 @@ public:
 						  const bool asUnicode = false,
 						  const bool writeUnicodeHeaderBytes = false) const;
 
-	static void findFileSystemRoots (OwnedArray<File>& results);
+	static void findFileSystemRoots (Array<File>& results);
 
 	const String getVolumeLabel() const;
 
@@ -4080,6 +4481,8 @@ public:
 
 	static bool isAbsolutePath (const String& path);
 
+	static const File createFileWithoutCheckingPath (const String& path);
+
 	juce_UseDebuggingNewOperator
 
 private:
@@ -4125,24 +4528,24 @@ public:
 	const String createDocument (const String& dtdToUse,
 								 const bool allOnOneLine = false,
 								 const bool includeXmlHeader = true,
-								 const tchar* const encodingType = JUCE_T("UTF-8"),
+								 const String& encodingType = JUCE_T("UTF-8"),
 								 const int lineWrapLength = 60) const throw();
 
 	void writeToStream (OutputStream& output,
 						const String& dtdToUse,
 						const bool allOnOneLine = false,
 						const bool includeXmlHeader = true,
-						const tchar* const encodingType = JUCE_T("UTF-8"),
+						const String& encodingType = JUCE_T("UTF-8"),
 						const int lineWrapLength = 60) const throw();
 
 	bool writeToFile (const File& destinationFile,
 					  const String& dtdToUse,
-					  const tchar* const encodingType = JUCE_T("UTF-8"),
+					  const String& encodingType = JUCE_T("UTF-8"),
 					  const int lineWrapLength = 60) const throw();
 
 	inline const String& getTagName() const throw()  { return tagName; }
 
-	bool hasTagName (const tchar* const possibleTagName) const throw();
+	bool hasTagName (const String& possibleTagName) const throw();
 
 	int getNumAttributes() const throw();
 
@@ -4152,37 +4555,34 @@ public:
 
 	// Attribute-handling methods..
 
-	bool hasAttribute (const tchar* const attributeName) const throw();
+	bool hasAttribute (const String& attributeName) const throw();
 
-	const String getStringAttribute (const tchar* const attributeName,
-									 const tchar* const defaultReturnValue = 0) const throw();
+	const String getStringAttribute (const String& attributeName,
+									 const String& defaultReturnValue = String::empty) const throw();
 
-	bool compareAttribute (const tchar* const attributeName,
-						   const tchar* const stringToCompareAgainst,
+	bool compareAttribute (const String& attributeName,
+						   const String& stringToCompareAgainst,
 						   const bool ignoreCase = false) const throw();
 
-	int getIntAttribute (const tchar* const attributeName,
+	int getIntAttribute (const String& attributeName,
 						 const int defaultReturnValue = 0) const throw();
 
-	double getDoubleAttribute (const tchar* const attributeName,
+	double getDoubleAttribute (const String& attributeName,
 							   const double defaultReturnValue = 0.0) const throw();
 
-	bool getBoolAttribute (const tchar* const attributeName,
+	bool getBoolAttribute (const String& attributeName,
 						   const bool defaultReturnValue = false) const throw();
 
-	void setAttribute (const tchar* const attributeName,
+	void setAttribute (const String& attributeName,
 					   const String& newValue) throw();
 
-	void setAttribute (const tchar* const attributeName,
-					   const tchar* const newValue) throw();
-
-	void setAttribute (const tchar* const attributeName,
+	void setAttribute (const String& attributeName,
 					   const int newValue) throw();
 
-	void setAttribute (const tchar* const attributeName,
+	void setAttribute (const String& attributeName,
 					   const double newValue) throw();
 
-	void removeAttribute (const tchar* const attributeName) throw();
+	void removeAttribute (const String& attributeName) throw();
 
 	void removeAllAttributes() throw();
 
@@ -4190,15 +4590,15 @@ public:
 
 	XmlElement* getFirstChildElement() const throw()	{ return firstChildElement; }
 
-	inline XmlElement* getNextElement() const throw()   { return nextElement; }
+	inline XmlElement* getNextElement() const throw()	   { return nextElement; }
 
-	XmlElement* getNextElementWithTagName (const tchar* const requiredTagName) const;
+	XmlElement* getNextElementWithTagName (const String& requiredTagName) const;
 
 	int getNumChildElements() const throw();
 
 	XmlElement* getChildElement (const int index) const throw();
 
-	XmlElement* getChildByName (const tchar* const tagNameToLookFor) const throw();
+	XmlElement* getChildByName (const String& tagNameToLookFor) const throw();
 
 	void addChildElement (XmlElement* const newChildElement) throw();
 
@@ -4213,7 +4613,7 @@ public:
 
 	void deleteAllChildElements() throw();
 
-	void deleteAllChildElementsWithTagName (const tchar* const tagName) throw();
+	void deleteAllChildElementsWithTagName (const String& tagName) throw();
 
 	bool containsChildElement (const XmlElement* const possibleChild) const throw();
 
@@ -4242,7 +4642,7 @@ public:
 
 	const String getAllSubText() const throw();
 
-	const String getChildElementAllSubText (const tchar* const childTagName,
+	const String getChildElementAllSubText (const String& childTagName,
 											const String& defaultReturnValue) const throw();
 
 	void addTextElement (const String& text) throw();
@@ -4275,7 +4675,6 @@ private:
 	XmlAttributeNode* attributes;
 
 	XmlElement (int) throw(); // for internal use
-	XmlElement (const tchar* const tagNameText, const int nameLen) throw();
 
 	void copyChildrenAndAttributesFrom (const XmlElement& other) throw();
 
@@ -4370,319 +4769,6 @@ private:
 #ifndef __JUCE_REFERENCECOUNTEDARRAY_JUCEHEADER__
 #define __JUCE_REFERENCECOUNTEDARRAY_JUCEHEADER__
 
-/********* Start of inlined file: juce_ReferenceCountedObject.h *********/
-#ifndef __JUCE_REFERENCECOUNTEDOBJECT_JUCEHEADER__
-#define __JUCE_REFERENCECOUNTEDOBJECT_JUCEHEADER__
-
-/********* Start of inlined file: juce_Atomic.h *********/
-#ifndef __JUCE_ATOMIC_JUCEHEADER__
-#define __JUCE_ATOMIC_JUCEHEADER__
-
-class JUCE_API  Atomic
-{
-public:
-	static void increment (int& variable);
-
-	static int incrementAndReturn (int& variable);
-
-	static void decrement (int& variable);
-
-	static int decrementAndReturn (int& variable);
-};
-
-#if (JUCE_MAC || JUCE_IPHONE)	   //  Mac and iPhone...
-
-#include <libkern/OSAtomic.h>
-inline void Atomic::increment (int& variable)		   { OSAtomicIncrement32 ((int32_t*) &variable); }
-inline int  Atomic::incrementAndReturn (int& variable)	  { return OSAtomicIncrement32 ((int32_t*) &variable); }
-inline void Atomic::decrement (int& variable)		   { OSAtomicDecrement32 ((int32_t*) &variable); }
-inline int  Atomic::decrementAndReturn (int& variable)	  { return OSAtomicDecrement32 ((int32_t*) &variable); }
-
-#elif JUCE_GCC
-
-#if JUCE_USE_GCC_ATOMIC_INTRINSICS	  //  Linux with intrinsics...
-
-inline void Atomic::increment (int& variable)		   { __sync_add_and_fetch (&variable, 1); }
-inline int  Atomic::incrementAndReturn (int& variable)	  { return __sync_add_and_fetch (&variable, 1); }
-inline void Atomic::decrement (int& variable)		   { __sync_add_and_fetch (&variable, -1); }
-inline int  Atomic::decrementAndReturn (int& variable)	  { return __sync_add_and_fetch (&variable, -1); }
-
-#else				   //  Linux without intrinsics...
-
-inline void Atomic::increment (int& variable)
-{
-	__asm__ __volatile__ (
-	#if JUCE_64BIT
-		"lock incl (%%rax)"
-		:
-		: "a" (&variable)
-		: "cc", "memory");
-	#else
-		"lock incl %0"
-		: "=m" (variable)
-		: "m" (variable));
-	#endif
-}
-
-inline int Atomic::incrementAndReturn (int& variable)
-{
-	int result;
-
-	__asm__ __volatile__ (
-	#if JUCE_64BIT
-		"lock xaddl %%ebx, (%%rax) \n\
-		 incl %%ebx"
-		: "=b" (result)
-		: "a" (&variable), "b" (1)
-		: "cc", "memory");
-	#else
-		"lock xaddl %%eax, (%%ecx) \n\
-		 incl %%eax"
-		: "=a" (result)
-		: "c" (&variable), "a" (1)
-		: "memory");
-	#endif
-
-	return result;
-}
-
-inline void Atomic::decrement (int& variable)
-{
-	__asm__ __volatile__ (
-	#if JUCE_64BIT
-		"lock decl (%%rax)"
-		:
-		: "a" (&variable)
-		: "cc", "memory");
-	#else
-		"lock decl %0"
-		: "=m" (variable)
-		: "m" (variable));
-	#endif
-}
-
-inline int Atomic::decrementAndReturn (int& variable)
-{
-	int result;
-
-	__asm__ __volatile__ (
-	#if JUCE_64BIT
-		"lock xaddl %%ebx, (%%rax) \n\
-		 decl %%ebx"
-		: "=b" (result)
-		: "a" (&variable), "b" (-1)
-		: "cc", "memory");
-	#else
-		"lock xaddl %%eax, (%%ecx) \n\
-		 decl %%eax"
-		: "=a" (result)
-		: "c" (&variable), "a" (-1)
-		: "memory");
-	#endif
-	return result;
-}
-#endif
-
-#elif JUCE_USE_INTRINSICS	   // Windows with intrinsics...
-
-#pragma intrinsic (_InterlockedIncrement)
-#pragma intrinsic (_InterlockedDecrement)
-
-inline void Atomic::increment (int& variable)		   { _InterlockedIncrement (reinterpret_cast <volatile long*> (&variable)); }
-inline int  Atomic::incrementAndReturn (int& variable)	  { return _InterlockedIncrement (reinterpret_cast <volatile long*> (&variable)); }
-inline void Atomic::decrement (int& variable)		   { _InterlockedDecrement (reinterpret_cast <volatile long*> (&variable)); }
-inline int  Atomic::decrementAndReturn (int& variable)	  { return _InterlockedDecrement (reinterpret_cast <volatile long*> (&variable)); }
-
-#else				   // Windows without intrinsics...
-
-inline void Atomic::increment (int& variable)
-{
-	__asm {
-		mov ecx, dword ptr [variable]
-		lock inc dword ptr [ecx]
-	}
-}
-
-inline int Atomic::incrementAndReturn (int& variable)
-{
-	int result;
-
-	__asm {
-		mov ecx, dword ptr [variable]
-		mov eax, 1
-		lock xadd dword ptr [ecx], eax
-		inc eax
-		mov result, eax
-	}
-
-	return result;
-}
-
-inline void Atomic::decrement (int& variable)
-{
-	__asm {
-		mov ecx, dword ptr [variable]
-		lock dec dword ptr [ecx]
-	}
-}
-
-inline int Atomic::decrementAndReturn (int& variable)
-{
-	int result;
-
-	__asm {
-		mov ecx, dword ptr [variable]
-		mov eax, -1
-		lock xadd dword ptr [ecx], eax
-		dec eax
-		mov result, eax
-	}
-
-	return result;
-}
-
-#endif
-
-#endif   // __JUCE_ATOMIC_JUCEHEADER__
-/********* End of inlined file: juce_Atomic.h *********/
-
-class JUCE_API  ReferenceCountedObject
-{
-public:
-
-	inline void incReferenceCount() throw()
-	{
-		Atomic::increment (refCounts);
-
-		jassert (refCounts > 0);
-	}
-
-	inline void decReferenceCount() throw()
-	{
-		jassert (refCounts > 0);
-
-		if (Atomic::decrementAndReturn (refCounts) == 0)
-			delete this;
-	}
-
-	inline int getReferenceCount() const throw()
-	{
-		return refCounts;
-	}
-
-protected:
-
-	ReferenceCountedObject()
-		: refCounts (0)
-	{
-	}
-
-	virtual ~ReferenceCountedObject()
-	{
-		// it's dangerous to delete an object that's still referenced by something else!
-		jassert (refCounts == 0);
-	}
-
-private:
-
-	int refCounts;
-};
-
-template <class ReferenceCountedObjectClass>
-class ReferenceCountedObjectPtr
-{
-public:
-
-	inline ReferenceCountedObjectPtr() throw()
-		: referencedObject (0)
-	{
-	}
-
-	inline ReferenceCountedObjectPtr (ReferenceCountedObjectClass* const refCountedObject) throw()
-		: referencedObject (refCountedObject)
-	{
-		if (refCountedObject != 0)
-			refCountedObject->incReferenceCount();
-	}
-
-	inline ReferenceCountedObjectPtr (const ReferenceCountedObjectPtr<ReferenceCountedObjectClass>& other) throw()
-		: referencedObject (other.referencedObject)
-	{
-		if (referencedObject != 0)
-			referencedObject->incReferenceCount();
-	}
-
-	const ReferenceCountedObjectPtr<ReferenceCountedObjectClass>& operator= (const ReferenceCountedObjectPtr<ReferenceCountedObjectClass>& other)
-	{
-		ReferenceCountedObjectClass* const newObject = other.referencedObject;
-
-		if (newObject != referencedObject)
-		{
-			if (newObject != 0)
-				newObject->incReferenceCount();
-
-			ReferenceCountedObjectClass* const oldObject = referencedObject;
-			referencedObject = newObject;
-
-			if (oldObject != 0)
-				oldObject->decReferenceCount();
-		}
-
-		return *this;
-	}
-
-	const ReferenceCountedObjectPtr<ReferenceCountedObjectClass>& operator= (ReferenceCountedObjectClass* const newObject)
-	{
-		if (referencedObject != newObject)
-		{
-			if (newObject != 0)
-				newObject->incReferenceCount();
-
-			ReferenceCountedObjectClass* const oldObject = referencedObject;
-			referencedObject = newObject;
-
-			if (oldObject != 0)
-				oldObject->decReferenceCount();
-		}
-
-		return *this;
-	}
-
-	inline ~ReferenceCountedObjectPtr()
-	{
-		if (referencedObject != 0)
-			referencedObject->decReferenceCount();
-	}
-
-	inline operator ReferenceCountedObjectClass*() const throw()
-	{
-		return referencedObject;
-	}
-
-	inline bool operator== (ReferenceCountedObjectClass* const object) const throw()
-	{
-		return referencedObject == object;
-	}
-
-	inline bool operator!= (ReferenceCountedObjectClass* const object) const throw()
-	{
-		return referencedObject != object;
-	}
-
-	// the -> operator is called on the referenced object
-	inline ReferenceCountedObjectClass* operator->() const throw()
-	{
-		return referencedObject;
-	}
-
-private:
-
-	ReferenceCountedObjectClass* referencedObject;
-};
-
-#endif   // __JUCE_REFERENCECOUNTEDOBJECT_JUCEHEADER__
-/********* End of inlined file: juce_ReferenceCountedObject.h *********/
-
 template <class ObjectClass, class TypeOfCriticalSectionToUse = DummyCriticalSection>
 class ReferenceCountedArray
 {
@@ -4707,26 +4793,12 @@ public:
 		other.unlockArray();
 	}
 
-	const ReferenceCountedArray<ObjectClass, TypeOfCriticalSectionToUse>& operator= (const ReferenceCountedArray<ObjectClass, TypeOfCriticalSectionToUse>& other) throw()
+	ReferenceCountedArray<ObjectClass, TypeOfCriticalSectionToUse>& operator= (const ReferenceCountedArray<ObjectClass, TypeOfCriticalSectionToUse>& other) throw()
 	{
 		if (this != &other)
 		{
-			other.lockArray();
-			lock.enter();
-
-			clear();
-
-			data.ensureAllocatedSize (other.numUsed);
-			numUsed = other.numUsed;
-			memcpy (data.elements, other.data.elements, numUsed * sizeof (ObjectClass*));
-			minimiseStorageOverheads();
-
-			for (int i = numUsed; --i >= 0;)
-				if (data.elements[i] != 0)
-					data.elements[i]->incReferenceCount();
-
-			lock.exit();
-			other.unlockArray();
+			ReferenceCountedArray<ObjectClass, TypeOfCriticalSectionToUse> otherCopy (other);
+			swapWithArray (other);
 		}
 
 		return *this;
@@ -4951,7 +5023,7 @@ public:
 					ObjectClass* newObject) throw()
 	{
 		lock.enter();
-		insert (findInsertIndexInSortedArray (comparator, data.elements, newObject, 0, numUsed), newObject);
+		insert (findInsertIndexInSortedArray (comparator, (ObjectClass**) data.elements, newObject, 0, numUsed), newObject);
 		lock.exit();
 	}
 
@@ -4960,7 +5032,7 @@ public:
 							 ObjectClass* newObject) throw()
 	{
 		lock.enter();
-		const int index = findInsertIndexInSortedArray (comparator, data.elements, newObject, 0, numUsed);
+		const int index = findInsertIndexInSortedArray (comparator, (ObjectClass**) data.elements, newObject, 0, numUsed);
 
 		if (index > 0 && comparator.compareElements (newObject, data.elements [index - 1]) == 0)
 			set (index - 1, newObject); // replace an existing object that matches
@@ -5101,6 +5173,16 @@ public:
 		}
 	}
 
+	void swapWithArray (ReferenceCountedArray<ObjectClass, TypeOfCriticalSectionToUse>& otherArray) throw()
+	{
+		lock.enter();
+		otherArray.lock.enter();
+		data.swapWith (otherArray.data);
+		swapVariables (numUsed, otherArray.numUsed);
+		otherArray.lock.exit();
+		lock.exit();
+	}
+
 	bool operator== (const ReferenceCountedArray<ObjectClass, TypeOfCriticalSectionToUse>& other) const throw()
 	{
 		other.lockArray();
@@ -5139,7 +5221,7 @@ public:
 							// avoids getting warning messages about the parameter being unused
 
 		lock.enter();
-		sortArray (comparator, data.elements, 0, size() - 1, retainOrderOfEquivalentItems);
+		sortArray (comparator, (ObjectClass**) data.elements, 0, size() - 1, retainOrderOfEquivalentItems);
 		lock.exit();
 	}
 
@@ -5212,7 +5294,7 @@ public:
 	{
 	}
 
-	const SortedSet <ElementType, TypeOfCriticalSectionToUse>& operator= (const SortedSet <ElementType, TypeOfCriticalSectionToUse>& other) throw()
+	SortedSet <ElementType, TypeOfCriticalSectionToUse>& operator= (const SortedSet <ElementType, TypeOfCriticalSectionToUse>& other) throw()
 	{
 		if (this != &other)
 		{
@@ -5870,161 +5952,6 @@ private:
 #ifndef __JUCE_VALUE_JUCEHEADER__
 #define __JUCE_VALUE_JUCEHEADER__
 
-/********* Start of inlined file: juce_Variant.h *********/
-#ifndef __JUCE_VARIANT_JUCEHEADER__
-#define __JUCE_VARIANT_JUCEHEADER__
-
-class JUCE_API  DynamicObject;
-
-class JUCE_API  var
-{
-public:
-
-	typedef const var (DynamicObject::*MethodFunction) (const var* arguments, int numArguments);
-
-	var() throw();
-
-	~var();
-
-	var (const var& valueToCopy) throw();
-	var (const int value) throw();
-	var (const bool value) throw();
-	var (const double value) throw();
-	var (const char* const value) throw();
-	var (const juce_wchar* const value) throw();
-	var (const String& value) throw();
-	var (DynamicObject* const object) throw();
-	var (MethodFunction method) throw();
-
-	const var& operator= (const var& valueToCopy) throw();
-	const var& operator= (const int value) throw();
-	const var& operator= (const bool value) throw();
-	const var& operator= (const double value) throw();
-	const var& operator= (const char* const value) throw();
-	const var& operator= (const juce_wchar* const value) throw();
-	const var& operator= (const String& value) throw();
-	const var& operator= (DynamicObject* const object) throw();
-	const var& operator= (MethodFunction method) throw();
-
-	operator int() const throw();
-	operator bool() const throw();
-	operator float() const throw();
-	operator double() const throw();
-	operator const String() const throw();
-	const String toString() const throw();
-	DynamicObject* getObject() const throw();
-
-	bool isVoid() const throw()	 { return type == voidType; }
-	bool isInt() const throw()	  { return type == intType; }
-	bool isBool() const throw()	 { return type == boolType; }
-	bool isDouble() const throw()	   { return type == doubleType; }
-	bool isString() const throw()	   { return type == stringType; }
-	bool isObject() const throw()	   { return type == objectType; }
-	bool isMethod() const throw()	   { return type == methodType; }
-
-	bool operator== (const var& other) const throw();
-	bool operator!= (const var& other) const throw();
-
-	void writeToStream (OutputStream& output) const throw();
-
-	static const var readFromStream (InputStream& input) throw();
-
-	class JUCE_API  identifier
-	{
-	public:
-		identifier (const char* const name) throw();
-		identifier (const String& name) throw();
-		~identifier() throw();
-
-		bool operator== (const identifier& other) const throw()
-		{
-			jassert (hashCode != other.hashCode || name == other.name); // check for name hash collisions
-			return hashCode == other.hashCode;
-		}
-
-		String name;
-		int hashCode;
-	};
-
-	const var operator[] (const identifier& propertyName) const throw();
-
-	const var call (const identifier& method) const;
-	const var call (const identifier& method, const var& arg1) const;
-	const var call (const identifier& method, const var& arg1, const var& arg2) const;
-	const var call (const identifier& method, const var& arg1, const var& arg2, const var& arg3);
-	const var call (const identifier& method, const var& arg1, const var& arg2, const var& arg3, const var& arg4) const;
-	const var call (const identifier& method, const var& arg1, const var& arg2, const var& arg3, const var& arg4, const var& arg5) const;
-
-	const var invoke (const identifier& method, const var* arguments, int numArguments) const;
-
-	const var invoke (const var& targetObject, const var* arguments, int numArguments) const;
-
-	juce_UseDebuggingNewOperator
-
-private:
-	enum Type
-	{
-		voidType = 0,
-		intType,
-		boolType,
-		doubleType,
-		stringType,
-		objectType,
-		methodType
-	};
-
-	Type type;
-
-	union
-	{
-		int intValue;
-		bool boolValue;
-		double doubleValue;
-		String* stringValue;
-		DynamicObject* objectValue;
-		MethodFunction methodValue;
-	} value;
-
-	void releaseValue() throw();
-};
-
-class JUCE_API  DynamicObject  : public ReferenceCountedObject
-{
-public:
-
-	DynamicObject();
-
-	virtual ~DynamicObject();
-
-	virtual bool hasProperty (const var::identifier& propertyName) const;
-
-	virtual const var getProperty (const var::identifier& propertyName) const;
-
-	virtual void setProperty (const var::identifier& propertyName, const var& newValue);
-
-	virtual void removeProperty (const var::identifier& propertyName);
-
-	virtual bool hasMethod (const var::identifier& methodName) const;
-
-	virtual const var invokeMethod (const var::identifier& methodName,
-									const var* parameters,
-									int numParameters);
-
-	void setMethod (const var::identifier& methodName,
-					var::MethodFunction methodFunction);
-
-	void clear();
-
-	juce_UseDebuggingNewOperator
-
-private:
-	Array <int> propertyIds;
-	OwnedArray <var> propertyValues;
-};
-
-#endif   // __JUCE_VARIANT_JUCEHEADER__
-/********* End of inlined file: juce_Variant.h *********/
-
 /********* Start of inlined file: juce_AsyncUpdater.h *********/
 #ifndef __JUCE_ASYNCUPDATER_JUCEHEADER__
 #define __JUCE_ASYNCUPDATER_JUCEHEADER__
@@ -6418,6 +6345,8 @@ public:
 
 	void getActionsInCurrentTransaction (Array <const UndoableAction*>& actionsFound) const;
 
+	int getNumActionsInCurrentTransaction() const;
+
 	bool canRedo() const;
 
 	const String getRedoDescription() const;
@@ -6466,9 +6395,9 @@ public:
 
 	bool hasType (const String& typeName) const;
 
-	const var getProperty (const var::identifier& name) const;
+	const var& getProperty (const var::identifier& name) const;
 
-	const var operator[] (const var::identifier& name) const;
+	const var& operator[] (const var::identifier& name) const;
 
 	void setProperty (const var::identifier& name, const var& newValue, UndoManager* const undoManager);
 
@@ -6517,16 +6446,28 @@ public:
 	public:
 		virtual ~Listener() {}
 
-		virtual void valueTreePropertyChanged (ValueTree& tree, const var::identifier& property) = 0;
+		virtual void valueTreePropertyChanged (ValueTree& treeWhosePropertyHasChanged,
+											   const var::identifier& property) = 0;
 
-		virtual void valueTreeChildrenChanged (ValueTree& tree) = 0;
+		virtual void valueTreeChildrenChanged (ValueTree& treeWhoseChildHasChanged) = 0;
 
-		virtual void valueTreeParentChanged (ValueTree& tree) = 0;
+		virtual void valueTreeParentChanged (ValueTree& treeWhoseParentHasChanged) = 0;
 	};
 
 	void addListener (Listener* listener);
 
 	void removeListener (Listener* listener);
+
+	template <typename ElementComparator>
+	void sort (ElementComparator& comparator, const bool retainOrderOfEquivalentItems = false)
+	{
+		if (object != 0)
+		{
+			ComparatorAdapter <ElementComparator> adapter (comparator);
+			object->children.sort (adapter, retainOrderOfEquivalentItems);
+			object->sendChildChangeMessage();
+		}
+	}
 
 	juce_UseDebuggingNewOperator
 
@@ -6541,24 +6482,18 @@ private:
 		SharedObject (const SharedObject& other);
 		~SharedObject();
 
-		struct Property
-		{
-			Property (const var::identifier& name, const var& value);
-
-			var::identifier name;
-			var value;
-		};
-
 		const String type;
-		OwnedArray <Property> properties;
+		NamedValueSet properties;
 		ReferenceCountedArray <SharedObject> children;
 		SortedSet <ValueTree*> valueTreesWithListeners;
 		SharedObject* parent;
 
 		void sendPropertyChangeMessage (const var::identifier& property);
+		void sendPropertyChangeMessage (ValueTree& tree, const var::identifier& property);
 		void sendChildChangeMessage();
+		void sendChildChangeMessage (ValueTree& tree);
 		void sendParentChangeMessage();
-		const var getProperty (const var::identifier& name) const;
+		const var& getProperty (const var::identifier& name) const;
 		void setProperty (const var::identifier& name, const var& newValue, UndoManager* const undoManager);
 		bool hasProperty (const var::identifier& name) const;
 		void removeProperty (const var::identifier& name, UndoManager* const undoManager);
@@ -6577,6 +6512,21 @@ private:
 		const SharedObject& operator= (const SharedObject&);
 	};
 
+	template <typename ElementComparator>
+	class ComparatorAdapter
+	{
+	public:
+		ComparatorAdapter (ElementComparator& comparator_) throw()  : comparator (comparator_) {}
+
+		int compareElements (SharedObject* const first, SharedObject* const second)
+		{
+			return comparator.compareElements (ValueTree (first), ValueTree (second));
+		}
+
+	private:
+		ElementComparator& comparator;
+	};
+
 	friend class SharedObject;
 
 	typedef ReferenceCountedObjectPtr <SharedObject> SharedObjectPtr;
@@ -6584,9 +6534,9 @@ private:
 	ReferenceCountedObjectPtr <SharedObject> object;
 	SortedSet <Listener*> listeners;
 
-	void deliverPropertyChangeMessage (const var::identifier& property);
-	void deliverChildChangeMessage();
-	void deliverParentChangeMessage();
+	void deliverPropertyChangeMessage (ValueTree& tree, const var::identifier& property);
+	void deliverChildChangeMessage (ValueTree& tree);
+	void deliverParentChangeMessage (ValueTree& tree);
 
 	ValueTree (SharedObject* const object_);
 };
@@ -6820,6 +6770,18 @@ private:
 
 	ScopedAutoReleasePool (const ScopedAutoReleasePool&);
 	const ScopedAutoReleasePool& operator= (const ScopedAutoReleasePool&);
+};
+
+#endif
+
+#if JUCE_LINUX
+
+class ScopedXLock
+{
+public:
+	ScopedXLock();
+
+	~ScopedXLock();
 };
 
 #endif
@@ -7126,6 +7088,10 @@ public:
 
 	static bool isOperatingSystem64Bit() throw();
 
+	static const String getLogonName();
+
+	static const String getFullUserName();
+
 	// CPU and memory information..
 
 	static int getCpuSpeedInMegaherz() throw();
@@ -7402,8 +7368,8 @@ public:
 	juce_UseDebuggingNewOperator
 
 private:
-	OwnedArray <File> filesFound;
-	OwnedArray <File> dirsFound;
+	Array <File> filesFound;
+	Array <File> dirsFound;
 	String wildCard;
 	int index;
 	const int whatToLookFor;
@@ -7535,7 +7501,7 @@ public:
 
 	void removeNonExistentPaths();
 
-	int findChildFiles (OwnedArray<File>& results,
+	int findChildFiles (Array<File>& results,
 						const int whatToLookFor,
 						const bool searchRecursively,
 						const String& wildCardPattern = JUCE_T("*")) const;
@@ -7600,6 +7566,55 @@ private:
 
 #endif   // __JUCE_NAMEDPIPE_JUCEHEADER__
 /********* End of inlined file: juce_NamedPipe.h *********/
+
+#endif
+#ifndef __JUCE_TEMPORARYFILE_JUCEHEADER__
+
+/********* Start of inlined file: juce_TemporaryFile.h *********/
+#ifndef __JUCE_TEMPORARYFILE_JUCEHEADER__
+#define __JUCE_TEMPORARYFILE_JUCEHEADER__
+
+class JUCE_API  TemporaryFile
+{
+public:
+
+	enum OptionFlags
+	{
+		useHiddenFile = 1,	  /**< Indicates that the temporary file should be hidden -
+										 i.e. its name should start with a dot. */
+		putNumbersInBrackets = 2	/**< Indicates that when numbers are appended to make sure
+										 the file is unique, they should go in brackets rather
+										 than just being appended (see File::getNonexistentSibling() )*/
+	};
+
+	TemporaryFile (const String& suffix = String::empty,
+				   const int optionFlags = 0);
+
+	TemporaryFile (const File& targetFile,
+				   const int optionFlags = 0);
+
+	~TemporaryFile();
+
+	const File getFile() const		  { return temporaryFile; }
+
+	const File getTargetFile() const		{ return targetFile; }
+
+	bool overwriteTargetFileWithTemporary() const;
+
+	juce_UseDebuggingNewOperator
+
+private:
+
+	File temporaryFile, targetFile;
+
+	void createTempFile (const File& parentDirectory, String name, const String& suffix, const int optionFlags);
+
+	TemporaryFile (const TemporaryFile&);
+	const TemporaryFile& operator= (const TemporaryFile&);
+};
+
+#endif   // __JUCE_TEMPORARYFILE_JUCEHEADER__
+/********* End of inlined file: juce_TemporaryFile.h *********/
 
 #endif
 #ifndef __JUCE_ZIPFILE_JUCEHEADER__
@@ -8714,10 +8729,11 @@ public:
 	juce_UseDebuggingNewOperator
 
 private:
-	const int numThreads, threadStopTimeout;
+	const int threadStopTimeout;
 	int priority;
-	HeapBlock <Thread*> threads;
-	VoidArray jobs;
+	class ThreadPoolThread;
+	OwnedArray <ThreadPoolThread> threads;
+	Array <ThreadPoolJob*> jobs;
 
 	CriticalSection lock;
 	uint32 lastJobEndTime;
@@ -8965,6 +8981,8 @@ public:
 	inline int getRawFlags() const throw()				  { return flags; }
 
 	inline bool testFlags (const int flagsToTest) const throw()	 { return (flags & flagsToTest) != 0; }
+
+	int getNumMouseButtonsDown() const throw();
 
 	static const ModifierKeys getCurrentModifiers() throw();
 
@@ -9726,6 +9744,7 @@ private:
 	void addEdgePoint (const int x, const int y, const int winding) throw();
 	void remapTableForNumEdges (const int newNumEdgesPerLine) throw();
 	void intersectWithEdgeTableLine (const int y, const int* otherLine) throw();
+	void clipEdgeTableLineToRange (int* line, int x1, int x2) throw();
 	void sanitiseLevels (const bool useNonZeroWinding) throw();
 };
 
@@ -9944,7 +9963,6 @@ private:
 /********* End of inlined file: juce_Path.h *********/
 
 class Font;
-class CustomTypefaceGlyphInfo;
 
 class JUCE_API  Typeface  : public ReferenceCountedObject
 {
@@ -10023,14 +10041,16 @@ protected:
 
 private:
 
-	OwnedArray <CustomTypefaceGlyphInfo> glyphs;
+	class GlyphInfo;
+	friend class OwnedArray<GlyphInfo>;
+	OwnedArray <GlyphInfo> glyphs;
 	short lookupTable [128];
 
 	CustomTypeface (const CustomTypeface&);
 	const CustomTypeface& operator= (const CustomTypeface&);
 
-	CustomTypefaceGlyphInfo* findGlyph (const juce_wchar character, const bool loadIfNeeded) throw();
-	CustomTypefaceGlyphInfo* findGlyphSubstituting (const juce_wchar character) throw();
+	GlyphInfo* findGlyph (const juce_wchar character, const bool loadIfNeeded) throw();
+	GlyphInfo* findGlyphSubstituting (const juce_wchar character) throw();
 };
 
 #endif   // __JUCE_TYPEFACE_JUCEHEADER__
@@ -10720,7 +10740,7 @@ public:
 		a = (uint8) (a * multiplier);
 	}
 
-	forcedinline void setARGB (const uint8 a_, const uint8 r, const uint8 g, const uint8 b) throw()
+	forcedinline void setARGB (const uint8 a_, const uint8 /*r*/, const uint8 /*g*/, const uint8 /*b*/) throw()
 	{
 		a = a_;
 	}
@@ -12150,39 +12170,9 @@ public:
 
 	virtual void inputAttemptWhenModal();
 
-	const String getComponentProperty (const String& keyName,
-									   const bool useParentComponentIfNotFound,
-									   const String& defaultReturnValue = String::empty) const throw();
+	NamedValueSet& getProperties() throw()				  { return properties; }
 
-	int getComponentPropertyInt (const String& keyName,
-								 const bool useParentComponentIfNotFound,
-								 const int defaultReturnValue = 0) const throw();
-
-	double getComponentPropertyDouble (const String& keyName,
-									   const bool useParentComponentIfNotFound,
-									   const double defaultReturnValue = 0.0) const throw();
-
-	bool getComponentPropertyBool (const String& keyName,
-								   const bool useParentComponentIfNotFound,
-								   const bool defaultReturnValue = false) const throw();
-
-	const Colour getComponentPropertyColour (const String& keyName,
-											 const bool useParentComponentIfNotFound,
-											 const Colour& defaultReturnValue = Colours::black) const throw();
-
-	void setComponentProperty (const String& keyName, const String& value) throw();
-
-	void setComponentProperty (const String& keyName, const int value) throw();
-
-	void setComponentProperty (const String& keyName, const double value) throw();
-
-	void setComponentProperty (const String& keyName, const bool value) throw();
-
-	void setComponentProperty (const String& keyName, const Colour& newColour) throw();
-
-	void removeComponentProperty (const String& keyName) throw();
-
-	PropertySet* getComponentProperties() const throw()	   { return propertySet_; }
+	const NamedValueSet& getProperties() const throw()		  { return properties; }
 
 	const Colour findColour (const int colourId, const bool inheritFromParent = false) const throw();
 
@@ -12223,7 +12213,7 @@ private:
 	VoidArray* mouseListeners_;
 	VoidArray* keyListeners_;
 	VoidArray* componentListeners_;
-	PropertySet* propertySet_;
+	NamedValueSet properties;
 
 	struct ComponentFlags
 	{
@@ -12258,7 +12248,7 @@ private:
 
 	void internalMouseEnter (int x, int y, const int64 time);
 	void internalMouseExit  (int x, int y, const int64 time);
-	void internalMouseDown  (int x, int y);
+	void internalMouseDown  (int x, int y, const int64 time);
 	void internalMouseUp	(const int oldModifiers, int x, int y, const int64 time);
 	void internalMouseDrag  (int x, int y, const int64 time);
 	void internalMouseMove  (int x, int y, const int64 time);
@@ -12718,7 +12708,7 @@ private:
 	friend class Component;
 	friend class ComponentPeer;
 	SortedSet <void*> mouseListeners, focusListeners;
-	VoidArray desktopComponents;
+	Array <Component*> desktopComponents;
 
 	friend class DeletedAtShutdown;
 	friend class TopLevelWindowManager;
@@ -12726,7 +12716,24 @@ private:
 	~Desktop() throw();
 
 	Array <Rectangle> monitorCoordsClipped, monitorCoordsUnclipped;
-	int lastMouseX, lastMouseY;
+
+	int lastFakeMouseMoveX, lastFakeMouseMoveY, mouseClickCounter;
+	bool mouseMovedSignificantlySincePressed;
+
+	struct RecentMouseDown
+	{
+		int x, y;
+		int64 time;
+		Component* component;
+	};
+
+	RecentMouseDown mouseDowns[4];
+
+	void incrementMouseClickCounter() throw();
+	void registerMouseDown (int x, int y, int64 time, Component* component) throw();
+	void registerMouseDrag (int x, int y) throw();
+	const Time getLastMouseDownTime() const throw();
+	int getNumberOfMultipleClicks() const throw();
 
 	Component* kioskModeComponent;
 	Rectangle kioskComponentOriginalBounds;
@@ -13491,13 +13498,13 @@ private:
 
 #if JUCE_MAC
 	File volumeDir;
-	OwnedArray<File> tracks;
-	Array <int> trackStartSamples;
+	Array<File> tracks;
+	Array<int> trackStartSamples;
 	int currentReaderTrack;
 	ScopedPointer <AudioFormatReader> reader;
 	AudioCDReader (const File& volume);
 public:
-	static int compareElements (const File* const, const File* const) throw();
+	static int compareElements (const File&, const File&);
 private:
 
 #elif JUCE_WINDOWS
@@ -15280,7 +15287,7 @@ private:
 	void timerCallback();
 
 	static const String getTipFor (Component* const c);
-	void showFor (Component* const c, const String& tip);
+	void showFor (const String& tip);
 	void hide();
 
 	TooltipWindow (const TooltipWindow&);
@@ -15315,9 +15322,9 @@ protected:
 public:
 	virtual ~Button();
 
-	void setButtonText (const String& newText) throw();
+	void setButtonText (const String& newText);
 
-	const String getButtonText() const throw()		  { return text; }
+	const String getButtonText() const			  { return text; }
 
 	bool isDown() const throw();
 
@@ -15338,9 +15345,9 @@ public:
 
 	int getRadioGroupId() const throw()			 { return radioGroupId; }
 
-	void addButtonListener (ButtonListener* const newListener) throw();
+	void addButtonListener (ButtonListener* const newListener);
 
-	void removeButtonListener (ButtonListener* const listener) throw();
+	void removeButtonListener (ButtonListener* const listener);
 
 	virtual void triggerClick();
 
@@ -15354,7 +15361,7 @@ public:
 
 	void clearShortcuts();
 
-	bool isRegisteredForShortcut (const KeyPress& key) const throw();
+	bool isRegisteredForShortcut (const KeyPress& key) const;
 
 	void setRepeatSpeed (const int initialDelayInMillisecs,
 						 const int repeatDelayInMillisecs,
@@ -15379,7 +15386,7 @@ public:
 		ConnectedOnBottom = 8
 	};
 
-	void setConnectedEdges (const int connectedEdgeFlags) throw();
+	void setConnectedEdges (const int connectedEdgeFlags);
 
 	int getConnectedEdgeFlags() const throw()		   { return connectedEdgeFlags; }
 
@@ -15440,8 +15447,9 @@ private:
 	String text;
 	SortedSet <void*> buttonListeners;
 
-	friend class InternalButtonRepeatTimer;
-	ScopedPointer <Timer> repeatTimer;
+	class RepeatTimer;
+	friend class ScopedPointer <RepeatTimer>;
+	ScopedPointer <RepeatTimer> repeatTimer;
 	uint32 buttonPressTime, lastTimeCallbackTime;
 	ApplicationCommandManager* commandManagerToUse;
 	int autoRepeatDelay, autoRepeatSpeed, autoRepeatMinimumDelay;
@@ -15457,14 +15465,14 @@ private:
 	bool triggerOnMouseDown : 1;
 	bool generateTooltip : 1;
 
-	void repeatTimerCallback() throw();
-	Timer& getRepeatTimer() throw();
+	void repeatTimerCallback();
+	RepeatTimer& getRepeatTimer();
 
-	ButtonState updateState (const MouseEvent* const e) throw();
-	bool isShortcutPressed() const throw();
+	ButtonState updateState (const MouseEvent* const e);
+	bool isShortcutPressed() const;
 	void turnOffOtherButtonsInGroup (const bool sendChangeNotification);
 
-	void flashButtonState() throw();
+	void flashButtonState();
 	void sendClickMessage (const ModifierKeys& modifiers);
 	void sendStateMessage();
 
@@ -16729,7 +16737,7 @@ public:
 
 	MidiMessageSequence (const MidiMessageSequence& other);
 
-	const MidiMessageSequence& operator= (const MidiMessageSequence& other);
+	MidiMessageSequence& operator= (const MidiMessageSequence& other);
 
 	~MidiMessageSequence();
 
@@ -16799,6 +16807,8 @@ public:
 										 const double time,
 										 OwnedArray<MidiMessage>& resultMessages);
 
+	void swapWith (MidiMessageSequence& other) throw();
+
 	juce_UseDebuggingNewOperator
 
 	static int compareElements (const MidiMessageSequence::MidiEventHolder* const first,
@@ -16806,7 +16816,6 @@ public:
 
 private:
 
-	friend class MidiComparator;
 	friend class MidiFile;
 	OwnedArray <MidiEventHolder> list;
 
@@ -18150,7 +18159,7 @@ public:
 
 		AudioProcessor* const processor;
 
-		PropertySet properties;
+		NamedValueSet properties;
 
 		typedef ReferenceCountedObjectPtr <Node> Ptr;
 
@@ -18454,6 +18463,8 @@ public:
 
 	int getPreferredHeight() const throw()		  { return preferredHeight; }
 
+	void setPreferredHeight (int newHeight) throw()	 { preferredHeight = newHeight; }
+
 	virtual void refresh() = 0;
 
 	void paint (Graphics& g);
@@ -18536,6 +18547,9 @@ public:
 
 private:
 	PropertyPanel* panel;
+
+	GenericAudioProcessorEditor (const GenericAudioProcessorEditor&);
+	const GenericAudioProcessorEditor& operator= (const GenericAudioProcessorEditor&);
 };
 
 #endif   // __JUCE_GENERICAUDIOPROCESSOREDITOR_JUCEHEADER__
@@ -20092,16 +20106,16 @@ public:
 	class Iterator
 	{
 	public:
-		Iterator (CodeDocument* const document) throw();
+		Iterator (CodeDocument* const document);
 		Iterator (const Iterator& other);
 		const Iterator& operator= (const Iterator& other) throw();
 		~Iterator() throw();
 
-		juce_wchar nextChar() throw();
+		juce_wchar nextChar();
 
-		juce_wchar peekNextChar() const throw();
+		juce_wchar peekNextChar() const;
 
-		void skip() throw();
+		void skip();
 
 		int getPosition() const throw()	 { return position; }
 
@@ -20115,6 +20129,7 @@ public:
 
 	private:
 		CodeDocument* document;
+		CodeDocumentLine* currentLine;
 		int line, position;
 	};
 
@@ -20138,6 +20153,7 @@ private:
 
 	void insert (const String& text, const int insertPos, const bool undoable);
 	void remove (const int startPos, const int endPos, const bool undoable);
+	void checkLastLineStatus();
 
 	CodeDocument (const CodeDocument&);
 	const CodeDocument& operator= (const CodeDocument&);
@@ -20174,8 +20190,6 @@ public:
 
 #endif   // __JUCE_CODETOKENISER_JUCEHEADER__
 /********* End of inlined file: juce_CodeTokeniser.h *********/
-
-class CodeEditorLine;
 
 class JUCE_API  CodeEditorComponent   : public Component,
 										public Timer,
@@ -20295,7 +20309,7 @@ private:
 	int firstLineOnScreen, gutter, spacesPerTab;
 	float charWidth;
 	int lineHeight, linesOnScreen, columnsOnScreen;
-	int scrollbarThickness;
+	int scrollbarThickness, columnToTryToMaintain;
 	bool useSpacesForTabs;
 	double xOffset;
 
@@ -20317,6 +20331,7 @@ private:
 	CodeTokeniser* codeTokeniser;
 	Array <Colour> coloursForTokenCategories;
 
+	class CodeEditorLine;
 	OwnedArray <CodeEditorLine> lines;
 	void rebuildLineTokens();
 
@@ -20324,6 +20339,7 @@ private:
 	void clearCachedIterators (const int firstLineToBeInvalid) throw();
 	void updateCachedIterators (int maxLineNum);
 	void getIteratorForPosition (int position, CodeDocument::Iterator& result);
+	void moveLineDelta (const int delta, const bool selecting);
 
 	void updateScrollBars();
 	void scrollToLineInternal (int line);
@@ -21829,7 +21845,7 @@ private:
 
 	int flags;
 	File currentRoot;
-	OwnedArray <File> chosenFiles;
+	Array<File> chosenFiles;
 	SortedSet <void*> listeners;
 
 	DirectoryContentsDisplayComponent* fileListComponent;
@@ -21883,14 +21899,14 @@ public:
 
 	const File getResult() const;
 
-	const OwnedArray <File>& getResults() const;
+	const Array<File>& getResults() const;
 
 	juce_UseDebuggingNewOperator
 
 private:
 	String title, filters;
 	File startingFile;
-	OwnedArray <File> results;
+	Array<File> results;
 	bool useNativeDialogBox;
 
 	bool showDialog (const bool selectsDirectories,
@@ -21900,7 +21916,7 @@ private:
 					 const bool selectMultipleFiles,
 					 FilePreviewComponent* const previewComponent);
 
-	static void showPlatformDialog (OwnedArray<File>& results,
+	static void showPlatformDialog (Array<File>& results,
 									const String& title,
 									const File& file,
 									const String& filters,
@@ -22488,6 +22504,11 @@ public:
 	~FileChooserDialogBox();
 
 	bool show (int width = 0,int height = 0);
+
+	enum ColourIds
+	{
+		titleTextColourId	  = 0x1000850, /**< The colour to use to draw the box's title. */
+	};
 
 	void buttonClicked (Button* button);
 	void closeButtonPressed();
@@ -23564,15 +23585,9 @@ private:
 	ScopedPointer <MenuBarComponent> menuBar;
 	MenuBarModel* menuBarModel;
 
-	class ButtonListenerProxy   : public ButtonListener
-	{
-	public:
-		ButtonListenerProxy();
-		void buttonClicked (Button* button);
-
-		DocumentWindow* owner;
-
-	} buttonListener;
+	class ButtonListenerProxy;
+	friend class ScopedPointer <ButtonListenerProxy>;
+	ScopedPointer <ButtonListenerProxy> buttonListener;
 
 	void repaintTitleBar();
 
@@ -23923,9 +23938,9 @@ public:
 
 	juce_UseDebuggingNewOperator
 
-	class Token;
-
 private:
+	class Token;
+	friend class OwnedArray <Token>;
 	OwnedArray <Token> tokens;
 	int totalLines;
 };
@@ -24136,7 +24151,7 @@ public:
 
 	virtual void drawTickBox (Graphics& g,
 							  Component& component,
-							  int x, int y, int w, int h,
+							  float x, float y, float w, float h,
 							  const bool ticked,
 							  const bool isEnabled,
 							  const bool isMouseOverButton,
@@ -24516,16 +24531,6 @@ public:
 								  const bool flatOnTop, const bool flatOnBottom) throw();
 
 	juce_UseDebuggingNewOperator
-
-protected:
-	// xxx the following methods are only here to cause a compiler error, because they've been
-	// deprecated or their parameters have changed. Hopefully these definitions should cause an
-	// error if you try to build a subclass with the old versions.
-	virtual int drawTickBox (Graphics&, int, int, int, int, bool, const bool, const bool, const bool) { return 0; }
-	virtual int drawProgressBar (Graphics&, int, int, int, int, float) { return 0; }
-	virtual int drawProgressBar (Graphics&, ProgressBar&, int, int, int, int, float) { return 0; }
-	virtual void getTabButtonBestWidth (int, const String&, int) {}
-	virtual int drawTreeviewPlusMinusBox (Graphics&, int, int, int, int, bool) { return 0; }
 
 private:
 	friend void JUCE_PUBLIC_FUNCTION shutdownJuce_GUI();
@@ -25051,6 +25056,9 @@ private:
 
 	void hoverTimerCallback();
 	void checkJustHoveredCallback();
+
+	MouseHoverDetector (const MouseHoverDetector&);
+	const MouseHoverDetector& operator= (const MouseHoverDetector&);
 };
 
 #endif   // __JUCE_MOUSEHOVERDETECTOR_JUCEHEADER__
@@ -25100,6 +25108,9 @@ private:
 	String onText, offText;
 
 	void createButton();
+
+	BooleanPropertyComponent (const BooleanPropertyComponent&);
+	const BooleanPropertyComponent& operator= (const BooleanPropertyComponent&);
 };
 
 #endif   // __JUCE_BOOLEANPROPERTYCOMPONENT_JUCEHEADER__
@@ -25133,6 +25144,9 @@ public:
 
 private:
 	TextButton* button;
+
+	ButtonPropertyComponent (const ButtonPropertyComponent&);
+	const ButtonPropertyComponent& operator= (const ButtonPropertyComponent&);
 };
 
 #endif   // __JUCE_BUTTONPROPERTYCOMPONENT_JUCEHEADER__
@@ -25154,7 +25168,8 @@ protected:
 public:
 	ChoicePropertyComponent (const Value& valueToControl,
 							 const String& propertyName,
-							 const StringArray& choices);
+							 const StringArray& choices,
+							 const Array <int>* choiceIDs = 0);
 
 	~ChoicePropertyComponent();
 
@@ -25175,7 +25190,10 @@ protected:
 private:
 	ComboBox* comboBox;
 
-	void createComboBox();
+	void createComboBox (const Array <int>* choiceIDs);
+
+	ChoicePropertyComponent (const ChoicePropertyComponent&);
+	const ChoicePropertyComponent& operator= (const ChoicePropertyComponent&);
 };
 
 #endif   // __JUCE_CHOICEPROPERTYCOMPONENT_JUCEHEADER__
@@ -25229,6 +25247,9 @@ public:
 protected:
 
 	Slider* slider;
+
+	SliderPropertyComponent (const SliderPropertyComponent&);
+	const SliderPropertyComponent& operator= (const SliderPropertyComponent&);
 };
 
 #endif   // __JUCE_SLIDERPROPERTYCOMPONENT_JUCEHEADER__
@@ -25270,6 +25291,9 @@ private:
 	Label* textEditor;
 
 	void createEditor (const int maxNumChars, const bool isMultiLine);
+
+	TextPropertyComponent (const TextPropertyComponent&);
+	const TextPropertyComponent& operator= (const TextPropertyComponent&);
 };
 
 #endif   // __JUCE_TEXTPROPERTYCOMPONENT_JUCEHEADER__
@@ -25853,8 +25877,6 @@ private:
 // this is used to disable OpenGL, and is defined in juce_Config.h
 #if JUCE_OPENGL || DOXYGEN
 
-class OpenGLComponentWatcher;
-
 class JUCE_API  OpenGLPixelFormat
 {
 public:
@@ -25964,8 +25986,9 @@ public:
 	juce_UseDebuggingNewOperator
 
 private:
-	friend class OpenGLComponentWatcher;
-	OpenGLComponentWatcher* componentWatcher;
+	class OpenGLComponentWatcher;
+	friend class ScopedPointer <OpenGLComponentWatcher>;
+	ScopedPointer <OpenGLComponentWatcher> componentWatcher;
 
 	OpenGLContext* context;
 	OpenGLContext* contextToShareListsWith;
@@ -27546,10 +27569,6 @@ public:
   #pragma pack (pop)
 #endif
 
-#if JUCE_MAC || JUCE_IPHONE
-  #pragma align=reset
-#endif
-
 END_JUCE_NAMESPACE
 
 #ifndef DONT_SET_USING_JUCE_NAMESPACE
@@ -27618,6 +27637,7 @@ END_JUCE_NAMESPACE
 #pragma comment(lib, "winmm.lib")
 #pragma comment(lib, "wininet.lib")
 #pragma comment(lib, "ole32.lib")
+#pragma comment(lib, "oleaut32.lib")
 #pragma comment(lib, "advapi32.lib")
 #pragma comment(lib, "ws2_32.lib")
 #pragma comment(lib, "comsupp.lib")

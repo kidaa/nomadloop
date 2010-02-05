@@ -35,6 +35,9 @@
 #ifndef __JUCE_BITARRAY_JUCEHEADER__
  #include "containers/juce_BitArray.h"
 #endif
+#ifndef __JUCE_DYNAMICOBJECT_JUCEHEADER__
+ #include "containers/juce_DynamicObject.h"
+#endif
 #ifndef __JUCE_ELEMENTCOMPARATOR_JUCEHEADER__
  #include "containers/juce_ElementComparator.h"
 #endif
@@ -43,6 +46,9 @@
 #endif
 #ifndef __JUCE_MEMORYBLOCK_JUCEHEADER__
  #include "containers/juce_MemoryBlock.h"
+#endif
+#ifndef __JUCE_NAMEDVALUESET_JUCEHEADER__
+ #include "containers/juce_NamedValueSet.h"
 #endif
 #ifndef __JUCE_OWNEDARRAY_JUCEHEADER__
  #include "containers/juce_OwnedArray.h"
@@ -160,6 +166,9 @@
 #endif
 #ifndef __JUCE_NAMEDPIPE_JUCEHEADER__
  #include "io/files/juce_NamedPipe.h"
+#endif
+#ifndef __JUCE_TEMPORARYFILE_JUCEHEADER__
+ #include "io/files/juce_TemporaryFile.h"
 #endif
 #ifndef __JUCE_ZIPFILE_JUCEHEADER__
  #include "io/files/juce_ZipFile.h"

@@ -33,6 +33,8 @@
 */
 //==============================================================================
 
+#define JUCE_PUBLIC_INCLUDES 1
+
 // (this includes things that need defining outside of the JUCE namespace)
 #include "src/core/juce_StandardHeader.h"
 
@@ -44,12 +46,6 @@ BEGIN_JUCE_NAMESPACE
   #pragma warning (push)
   #pragma warning (disable: 4786) // (old vc6 warning about long class names)
 #endif
-
-#if JUCE_MAC || JUCE_IPHONE
-  #pragma align=natural
-#endif
-
-#define JUCE_PUBLIC_INCLUDES
 
 // this is where all the class header files get brought in..
 #include "src/juce_core_includes.h"
@@ -63,10 +59,6 @@ BEGIN_JUCE_NAMESPACE
 #if JUCE_MSVC
   #pragma warning (pop)
   #pragma pack (pop)
-#endif
-
-#if JUCE_MAC || JUCE_IPHONE
-  #pragma align=reset
 #endif
 
 END_JUCE_NAMESPACE

@@ -34,11 +34,6 @@ BEGIN_JUCE_NAMESPACE
 #include "../geometry/juce_Rectangle.h"
 #include "../../../containers/juce_SparseSet.h"
 
-#if JUCE_MSVC
-  #pragma warning (disable: 4996) // deprecated sprintf warning
-#endif
-
-
 // this will throw an assertion if you try to draw something that's not
 // possible in postscript
 #define WARN_ABOUT_NON_POSTSCRIPT_OPERATIONS 0
@@ -145,7 +140,7 @@ void LowLevelGraphicsPostScriptRenderer::clipToPath (const Path& path, const Aff
     out << "clip\n";
 }
 
-void LowLevelGraphicsPostScriptRenderer::clipToImageAlpha (const Image& sourceImage, const Rectangle& srcClip, const AffineTransform& transform)
+void LowLevelGraphicsPostScriptRenderer::clipToImageAlpha (const Image& /*sourceImage*/, const Rectangle& /*srcClip*/, const AffineTransform& /*transform*/)
 {
     needToClip = true;
     jassertfalse // xxx
@@ -329,11 +324,11 @@ void LowLevelGraphicsPostScriptRenderer::setFill (const FillType& fillType)
     stateStack.getLast()->fillType = fillType;
 }
 
-void LowLevelGraphicsPostScriptRenderer::setOpacity (float opacity)
+void LowLevelGraphicsPostScriptRenderer::setOpacity (float /*opacity*/)
 {
 }
 
-void LowLevelGraphicsPostScriptRenderer::setInterpolationQuality (Graphics::ResamplingQuality quality)
+void LowLevelGraphicsPostScriptRenderer::setInterpolationQuality (Graphics::ResamplingQuality /*quality*/)
 {
 }
 
@@ -460,7 +455,7 @@ void LowLevelGraphicsPostScriptRenderer::writeImage (const Image& im,
 }
 
 void LowLevelGraphicsPostScriptRenderer::drawImage (const Image& sourceImage, const Rectangle& srcClip,
-                                                    const AffineTransform& transform, const bool fillEntireClipAsTiles)
+                                                    const AffineTransform& transform, const bool /*fillEntireClipAsTiles*/)
 {
     const int w = jmin (sourceImage.getWidth(), srcClip.getRight());
     const int h = jmin (sourceImage.getHeight(), srcClip.getBottom());
