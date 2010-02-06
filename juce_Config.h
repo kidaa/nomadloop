@@ -102,7 +102,7 @@
     installed, and its header files will need to be on your include path.
 */
 #if ! (defined (JUCE_QUICKTIME) || JUCE_LINUX || JUCE_IPHONE || (JUCE_WINDOWS && ! JUCE_MSVC))
-  #define JUCE_QUICKTIME 1
+  #define JUCE_QUICKTIME 0
 #endif
 
 
@@ -187,7 +187,7 @@
     @see VSTPluginFormat, AudioPluginFormat, AudioPluginFormatManager, JUCE_PLUGINHOST_AU
 */
 #ifndef JUCE_PLUGINHOST_VST
-//  #define JUCE_PLUGINHOST_VST 1
+  #define JUCE_PLUGINHOST_VST 1
 #endif
 
 /** JUCE_PLUGINHOST_AU: Enables the AudioUnit plugin hosting classes. This is Mac-only,
@@ -211,7 +211,7 @@
     If you're not using any embedded web-pages, turning this off may reduce your code size.
 */
 #ifndef JUCE_WEB_BROWSER
-  #define JUCE_WEB_BROWSER 1
+  #define JUCE_WEB_BROWSER 0
 #endif
 
 

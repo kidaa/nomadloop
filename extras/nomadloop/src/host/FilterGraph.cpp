@@ -118,8 +118,8 @@ void FilterGraph::addFilter (const PluginDescription* desc, double x, double y)
 
         if (node != 0)
         {
-            node->properties.setValue ("x", x);
-            node->properties.setValue ("y", y);				
+            node->properties.set ("x", x);
+            node->properties.set ("y", y);				
 			node->processor->setPlayHead(graph.getPlayHead());			
             changed();
         }
@@ -158,8 +158,8 @@ void FilterGraph::setNodePosition (const int nodeId, double x, double y)
 
     if (n != 0)
     {
-        n->properties.setValue ("x", jlimit (0.0, 1.0, x));
-        n->properties.setValue ("y", jlimit (0.0, 1.0, y));
+        n->properties.set ("x", jlimit (0.0, 1.0, x));
+        n->properties.set ("y", jlimit (0.0, 1.0, y));
     }
 }
 
@@ -171,8 +171,8 @@ void FilterGraph::getNodePosition (const int nodeId, double& x, double& y) const
 
     if (n != 0)
     {
-        x = n->properties.getDoubleValue ("x");
-        y = n->properties.getDoubleValue ("y");
+        x = (double) n->properties ["x"];
+        y = (double) n->properties ["y"];
     }
 }
 
@@ -308,10 +308,10 @@ static XmlElement* createNodeXml (AudioProcessorGraph::Node* const node) throw()
 
     XmlElement* e = new XmlElement ("FILTER");
     e->setAttribute (T("uid"), (int) node->id);
-    e->setAttribute (T("x"), node->properties.getDoubleValue("x"));
-    e->setAttribute (T("y"), node->properties.getDoubleValue("y"));
-    e->setAttribute (T("uiLastX"), node->properties.getIntValue("uiLastX"));
-    e->setAttribute (T("uiLastY"), node->properties.getIntValue("uiLastY"));
+    e->setAttribute (T("x"), node->properties ["x"].toString());
+    e->setAttribute (T("y"), node->properties ["y"].toString());
+    e->setAttribute (T("uiLastX"), node->properties ["uiLastX"].toString());
+    e->setAttribute (T("uiLastY"), node->properties ["uiLastY"].toString());
 
     PluginDescription pd;
 
@@ -366,10 +366,10 @@ void FilterGraph::createNodeFromXml (const XmlElement& xml)
 
 	node->processor->setPlayHead(graph.getPlayHead());
 
-    node->properties.setValue ("x", xml.getDoubleAttribute (T("x")));
-    node->properties.setValue ("y", xml.getDoubleAttribute (T("y")));
-    node->properties.setValue ("uiLastX", xml.getIntAttribute (T("uiLastX")));
-    node->properties.setValue ("uiLastY", xml.getIntAttribute (T("uiLastY")));
+    node->properties.set ("x", xml.getDoubleAttribute (T("x")));
+    node->properties.set ("y", xml.getDoubleAttribute (T("y")));
+    node->properties.set ("uiLastX", xml.getIntAttribute (T("uiLastX")));
+    node->properties.set ("uiLastY", xml.getIntAttribute (T("uiLastY")));
 }
 
 XmlElement* FilterGraph::createXml() const
