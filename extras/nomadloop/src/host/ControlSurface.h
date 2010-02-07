@@ -102,6 +102,9 @@ public:
 	void setText(const String&);
 	const String getText() const;
 
+	void createControlActionsXml (XmlElement*) const;
+	void restoreControlActionsFromXml (GraphDocumentComponent*, const XmlElement*);
+
 protected:	
 	OwnedArray<ControlAction> controlActions;
 	/*AudioProcessorGraph::Node::Ptr boundNode;

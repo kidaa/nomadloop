@@ -1068,8 +1068,7 @@ GraphDocumentComponent::GraphDocumentComponent (AudioDeviceManager* deviceManage
 
 GraphDocumentComponent::~GraphDocumentComponent()
 {
-    deviceManager->removeAudioCallback (&graphPlayer);
-	deviceManager->removeMidiInputCallback (T("MIDI Yoke NT:  1"), &graphPlayer);
+    deviceManager->removeAudioCallback (&graphPlayer);	
     deleteAllChildren();
 
     graphPlayer.setProcessor (0);

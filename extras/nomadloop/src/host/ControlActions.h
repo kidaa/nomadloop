@@ -29,9 +29,9 @@ class MidiControlAction : public ControlAction
 	//AudioProcessorGraph::Node::Ptr node;
 	const MidiInput* source;
 	MidiMessage messageTemplate;
-	int channel;
+	/*int channel;
 	int status;
-	int value;
+	int value;*/
 
 	bool followInput;
 	bool sendOutput;
@@ -88,6 +88,16 @@ public:
 
 	void setValue(float value);
 	const String getText() const;
+
+	inline int getBoundNodeId() const
+	{
+		return boundNode->id;
+	}
+
+	inline int getBoundParameterIndex() const
+	{
+		return boundParameterIndex;
+	}
 
 	virtual void audioProcessorParameterChanged(AudioProcessor *processor, int parameterIndex, float value);
 	virtual void audioProcessorChanged(AudioProcessor *processor);

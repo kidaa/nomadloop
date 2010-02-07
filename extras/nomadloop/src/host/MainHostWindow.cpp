@@ -94,12 +94,6 @@ public:
 		playHeadLabel->setColour(Label::textColourId, Colours::red);
 		playHeadLabel->setInterceptsMouseClicks(false, false);		
 
-		deviceManager->setMidiInputEnabled (T("MIDI Yoke NT:  8"), true);
-		deviceManager->addMidiInputCallback (T("MIDI Yoke NT:  8"), &playHead);
-
-		//deviceManager->addAudioCallback (&playHead);
-
-
 		addAndMakeVisible(controlSurface);		
 		addAndMakeVisible(graphDocument);
 		focusedComponent = graphDocument;
@@ -107,8 +101,6 @@ public:
 
 	~ContentComp()
 	{
-		//deviceManager->removeAudioCallback (&playHead);
-		deviceManager->removeMidiInputCallback (T("MIDI Yoke NT: 8"), &playHead);
 		deleteAllChildren();
 
 		//delete projectDocument;

@@ -372,6 +372,48 @@ const String ControlSurfaceMappableComponent::getText() const
 	return text;
 }
 
+void ControlSurfaceMappableComponent::createControlActionsXml (XmlElement* controlSurfaceElement) const
+{
+	for (int i=0; i<controlActions.size(); ++i)
+	{
+		XmlElement* controlActionElement = 0;
+		const std::type_info& type = typeid(*controlActions.getUnchecked(i));
+
+		if (type == typeid(MidiControlAction))
+		{
+			controlActionElement = new XmlElement(T("MidiControlAction"));
+			controlActionElement->setAttribute(T("channel"), 1);
+		}
+		else if (type == typeid(PluginParameterControlAction))
+		{
+			PluginParameterControlAction* ppca = dynamic_cast<PluginParameterControlAction*>(controlActions.getUnchecked(i));
+			controlActionElement = new XmlElement(T("PluginParameterControlAction"));
+			controlActionElement->setAttribute (T("nodeId"), ppca->getBoundNodeId());
+			controlActionElement->setAttribute (T("nodeParam"), ppca->getBoundParameterIndex());
+		}
+	
+		controlSurfaceElement->addChildElement(controlActionElement);
+	}
+}
+
+void ControlSurfaceMappableComponent::restoreControlActionsFromXml (GraphDocumentComponent* graphDoc, const XmlElement* controlElement)
+{
+	controlActions.clear();
+
+	forEachXmlChildElement (*controlElement, controlActionElement)
+	{
+		if (controlActionElement->hasTagName(T("MidiControlAction")))
+		{
+		}
+		else if (controlActionElement->hasTagName(T("PluginParameterControlAction")))
+		{
+			controlActions.add(new PluginParameterControlAction(
+				graphDoc->graph.getNodeForId(controlActionElement->getIntAttribute(T("nodeId"))),
+				controlActionElement->getIntAttribute(T("nodeParam"))));
+		}
+	}
+}
+
 // do not call from GUI thread
 float ControlSurfaceMappableComponent::getUpdatedValue()
 {
@@ -1030,7 +1072,9 @@ XmlElement* ControlSurfaceComponent::createSubviewXml(SubviewComponent* subviewC
 
 			/*touchCompElement->setAttribute (T("nodeId"), touchComp->getBoundNodeId());
 			touchCompElement->setAttribute (T("nodeParam"), touchComp->getBoundParameterIndex());*/
-			
+
+			touchComp->createControlActionsXml(touchCompElement);
+
 			subviewCompElement->addChildElement (touchCompElement);
 		}
 		else if (dynamic_cast<SubviewComponent*>(subviewComp->getChildComponent(i)) != 0)
@@ -1092,6 +1136,8 @@ void ControlSurfaceComponent::restoreSubviewFromXml (SubviewComponent* container
 					GraphDocumentComponent* graphDoc = dynamic_cast<MainHostWindow*>(getTopLevelComponent())->getGraphEditor();
 					touchComp->setBoundParameter(graphDoc, boundId, el->getIntAttribute(T("nodeParam")));					
 				}*/
+				GraphDocumentComponent* graphDoc = dynamic_cast<MainHostWindow*>(getTopLevelComponent())->getGraphEditor();
+				touchComp->restoreControlActionsFromXml(graphDoc, el);
 				container->addAndMakeVisible(touchComp);
 			}
 		}
