@@ -104,6 +104,8 @@
 
   #if defined (__ppc__) || defined (__ppc64__)
 	#define JUCE_PPC 1
+	#undef MAC_OS_X_VERSION_MAX_ALLOWED
+	#define MAC_OS_X_VERSION_MAX_ALLOWED	MAC_OS_X_VERSION_10_4
   #else
 	#define JUCE_INTEL 1
   #endif
@@ -3155,10 +3157,14 @@ inline void Atomic::decrement (int32& variable)		 { OSAtomicDecrement32 ((int32_
 inline int32  Atomic::decrementAndReturn (int32& variable)	  { return OSAtomicDecrement32 ((int32_t*) &variable); }
 inline int32  Atomic::compareAndExchange (int32& destination, int32 newValue, int32 oldValue)
 																{ return OSAtomicCompareAndSwap32Barrier (oldValue, newValue, (int32_t*) &destination); }
-inline void* Atomic::swapPointers (void* volatile* value1, void* volatile value2)
+inline void* Atomic::swapPointers (void* volatile* value1, void* value2)
 {
 	void* currentVal = *value1;
+#if MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5 && ! JUCE_64BIT
+	while (! OSAtomicCompareAndSwap32 ((int32_t) currentVal, (int32_t) value2, (int32_t*) value1)) { currentVal = *value1; }
+#else
 	while (! OSAtomicCompareAndSwapPtr (currentVal, value2, value1)) { currentVal = *value1; }
+#endif
 	return currentVal;
 }
 
@@ -3170,10 +3176,10 @@ inline void  Atomic::decrement (int32& variable)		{ __sync_add_and_fetch (&varia
 inline int32 Atomic::decrementAndReturn (int32& variable)	   { return __sync_add_and_fetch (&variable, -1); }
 inline int32 Atomic::compareAndExchange (int32& destination, int32 newValue, int32 oldValue)
 																{ return __sync_val_compare_and_swap (&destination, oldValue, newValue); }
-inline void* Atomic::swapPointers (void* volatile* value1, void* volatile value2)
+inline void* Atomic::swapPointers (void* volatile* value1, void* value2)
 {
 	void* currentVal = *value1;
-	while (! __sync_bool_compare_and_swap (&value1, currentVal, value2)) { currentVal = *value1; }
+	while (! __sync_bool_compare_and_swap (value1, currentVal, value2)) { currentVal = *value1; }
 	return currentVal;
 }
 
@@ -3477,7 +3483,7 @@ private:
 	ObjectType* object;
 
 	// (Required as an alternative to the overloaded & operator).
-	ScopedPointer* getAddress() const throw()					   { return this; }
+	const ScopedPointer* getAddress() const throw()				 { return this; }
 };
 
 #endif   // __JUCE_SCOPEDPOINTER_JUCEHEADER__
