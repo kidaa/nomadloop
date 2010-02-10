@@ -816,6 +816,7 @@ void SubviewComponent::mouseDown(const MouseEvent &e)
 		m.addSeparator();
 		m.addItem(6, T("Add subview"));
 		m.addItem(5, T("Add PresetSaver"));
+		m.addItem(7, T("Add Plugin editor"));
 
 		int choice = m.show();
 
@@ -866,6 +867,26 @@ void SubviewComponent::mouseDown(const MouseEvent &e)
 			SubviewComponent* sc = new SubviewComponent();
 			sc->setBounds(e.x, e.y, getWidth() / 2, getHeight() / 2);
 			addAndMakeVisible(sc);
+		}
+		else if (choice == 7)
+		{
+			GraphDocumentComponent* graphDoc = dynamic_cast<MainHostWindow*>(getTopLevelComponent())->getGraphEditor();
+			PopupMenu filterMenu;
+			for (int i=0; i<graphDoc->graph.getNumFilters(); ++i)
+			{
+				filterMenu.addItem(i+1, graphDoc->graph.getNode(i)->processor->getName());				
+			}
+			int filterIndex = filterMenu.show();
+			if (filterIndex > 0)
+			{
+				AudioProcessorEditor* ui = graphDoc->graph.getNode(filterIndex-1)->processor->createEditorIfNeeded();
+				if (ui == 0)
+				{
+					ui = new GenericAudioProcessorEditor (graphDoc->graph.getNode(filterIndex-1)->processor);
+				}
+				ui->setTopLeftPosition(e.x, e.y);
+				addAndMakeVisible(ui);
+			}
 		}
 	}
 }
