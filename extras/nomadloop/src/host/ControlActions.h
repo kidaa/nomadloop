@@ -59,7 +59,7 @@ class MidiRemoteControlDispatcher : public MidiInputCallback
 	MidiInputCallback* passThrough;
 
 	virtual void handleIncomingMidiMessage(MidiInput* source, const MidiMessage& message);
-	virtual void handlePartialSysexMessage(MidiInput* source, const juce::uint8 *messageData,
+	virtual void handlePartialSysexMessage(MidiInput* source, const JUCE_NAMESPACE::uint8 *messageData,
 		const int numBytesSoFar, const double timestamp);
 public:
 	inline MidiRemoteControlDispatcher() : passThrough(0)

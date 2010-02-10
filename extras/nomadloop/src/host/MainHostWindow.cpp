@@ -79,14 +79,14 @@ class ContentComp : public Component
 {
 	AudioDeviceManager* deviceManager;
 	SyncPlayHead playHead;	
-	juce::Label* playHeadLabel;
+	Label* playHeadLabel;
 public:
 	ContentComp(AudioDeviceManager* deviceManager)
 		: deviceManager(deviceManager),
 			graphDocument(new GraphDocumentComponent(deviceManager, &playHead)),
 			controlSurface(new ControlSurfaceComponent())			
 	{
-		addAndMakeVisible(playHeadLabel = new juce::Label(T("PlayHeadLabel"), T("PlayHead: ")));
+		addAndMakeVisible(playHeadLabel = new Label(T("PlayHeadLabel"), T("PlayHead: ")));
 		playHeadLabel->setAlwaysOnTop(true);
 		playHeadLabel->setTopLeftPosition(0, 0);
 		playHeadLabel->setSize(256, 48);
@@ -131,7 +131,7 @@ public:
 	GraphDocumentComponent* graphDocument;
 	ControlSurfaceComponent* controlSurface;
 
-	juce::AudioPlayHead* getPlayHead()
+	AudioPlayHead* getPlayHead()
 	{
 		return &playHead;
 	}

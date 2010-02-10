@@ -36,7 +36,7 @@ void MidiRemoteControlDispatcher::handleIncomingMidiMessage(MidiInput* source, c
 		passThrough->handleIncomingMidiMessage(source, message);
 }
 
-void MidiRemoteControlDispatcher::handlePartialSysexMessage(MidiInput* source, const juce::uint8 *messageData,
+void MidiRemoteControlDispatcher::handlePartialSysexMessage(MidiInput* source, const JUCE_NAMESPACE::uint8 *messageData,
 		const int numBytesSoFar, const double timestamp)
 {
 }

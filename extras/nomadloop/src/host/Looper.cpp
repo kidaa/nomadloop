@@ -45,7 +45,7 @@ void MidiLoopProcessor::releaseResources()
 {
 }
 
-void MidiLoopProcessor::processBlock(juce::AudioSampleBuffer& sampleBuffer, juce::MidiBuffer& midiBuffer)
+void MidiLoopProcessor::processBlock(AudioSampleBuffer& sampleBuffer, MidiBuffer& midiBuffer)
 {
 	LoopProcessor* masterLoop = LoopManager::getInstance()->getMasterLoop();
 
@@ -109,7 +109,7 @@ bool MidiLoopProcessor::producesMidi() const
 	return true;
 }
 
-juce::AudioProcessorEditor* MidiLoopProcessor::createEditor()
+AudioProcessorEditor* MidiLoopProcessor::createEditor()
 {
 	return 0;
 }
@@ -178,7 +178,7 @@ void MidiLoopProcessor::changeProgramName(int, const String&)
 {
 }
 
-void MidiLoopProcessor::getStateInformation(juce::MemoryBlock&)
+void MidiLoopProcessor::getStateInformation(MemoryBlock&)
 {
 }
 
@@ -243,7 +243,7 @@ void AudioLoopProcessor::releaseResources()
 {
 }
 
-void AudioLoopProcessor::processBlock(juce::AudioSampleBuffer& sampleBuffer, juce::MidiBuffer& midiBuffer)
+void AudioLoopProcessor::processBlock(AudioSampleBuffer& sampleBuffer, MidiBuffer& midiBuffer)
 {
 	LoopProcessor* masterLoop = LoopManager::getInstance()->getMasterLoop();
 
@@ -326,7 +326,7 @@ bool AudioLoopProcessor::producesMidi() const
 	return false;
 }
 
-juce::AudioProcessorEditor* AudioLoopProcessor::createEditor()
+AudioProcessorEditor* AudioLoopProcessor::createEditor()
 {
 	return 0;
 }
@@ -394,7 +394,7 @@ void AudioLoopProcessor::changeProgramName(int, const String&)
 {
 }
 
-void AudioLoopProcessor::getStateInformation(juce::MemoryBlock&)
+void AudioLoopProcessor::getStateInformation(MemoryBlock&)
 {
 }
 

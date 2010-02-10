@@ -151,7 +151,7 @@ public:
 			{				
 				for (int j=0; j<graphDoc->graph.getNode(nodeIdx)->processor->getNumParameters(); ++j)
 				{
-					juce::String paramName(graphDoc->graph.getNode(nodeIdx)->processor->getParameterName(j));
+					String paramName(graphDoc->graph.getNode(nodeIdx)->processor->getParameterName(j));
 					if (paramName.isEmpty())
 						paramName = T("(Unknown)");
 					paramSelectionComboBox->addItem(paramName, j+1);
@@ -169,7 +169,7 @@ public:
 			int filterIndex = filterSelectionComboBox->getSelectedId() - 1;
 			int paramIndex = paramSelectionComboBox->getSelectedId() - 1;
 
-			juce::Logger::outputDebugPrintf(T("Selected filter %i and parameter %i"), filterIndex, paramIndex);
+			Logger::outputDebugPrintf(T("Selected filter %i and parameter %i"), filterIndex, paramIndex);
 			if (filterIndex == -1 || paramIndex == -1)
 				return 0;
 			return new PluginParameterControlAction(graphDoc->graph.getNode(filterIndex), paramIndex);
@@ -183,7 +183,7 @@ public:
 
 // ================================================
 
-ControlSurfaceMappableComponent::ControlSurfaceMappableComponent(const juce::String& componentName)
+ControlSurfaceMappableComponent::ControlSurfaceMappableComponent(const String& componentName)
 	: Component(componentName), value(0.f), text(T("Test"))
 {
 }
@@ -239,7 +239,7 @@ void ControlSurfaceMappableComponent::showContextMenu()
 		int filterIndex = choice/itemsPerFilter;
 		int paramIndex = choice%itemsPerFilter;
 
-		juce::Logger::outputDebugPrintf(T("Selected filter %i and parameter %i"), filterIndex, paramIndex);
+		Logger::outputDebugPrintf(T("Selected filter %i and parameter %i"), filterIndex, paramIndex);
 		PluginParameterControlAction* action = new PluginParameterControlAction(graphDoc->graph.getNode(filterIndex), paramIndex);
 		action->setMappedComponent(this);
 		controlActions.add(action);
@@ -435,7 +435,7 @@ float ControlSurfaceMappableComponent::getValue()
 class TouchVerticalSlider : public ControlSurfaceMappableComponent
 {
 public:
-	TouchVerticalSlider(const juce::String& componentName)
+	TouchVerticalSlider(const String& componentName)
 		: ControlSurfaceMappableComponent(componentName), draggingKnob(false)
 	{
 	}
@@ -451,7 +451,7 @@ public:
 		repaint();
 	}
 
-	void paint(juce::Graphics &g)
+	void paint(Graphics &g)
 	{
 		Colour colour(Colours::azure);
 
@@ -465,7 +465,7 @@ public:
 		g.drawFittedText(getText(), 0, static_cast<int>((1.f-getValue())*(getHeight()-getWidth())), getWidth(), getWidth(), Justification(Justification::centred), 1);		
 	}
 
-	void mouseDown(const juce::MouseEvent &e)
+	void mouseDown(const MouseEvent &e)
 	{
 		if (e.mods.isPopupMenu())
 		{
@@ -487,7 +487,7 @@ public:
 		}
 	}
 
-	void mouseDrag(const juce::MouseEvent &e)
+	void mouseDrag(const MouseEvent &e)
 	{
 		if (draggingKnob)
 		{
@@ -497,7 +497,7 @@ public:
 		}
 	}
 
-	void mouseUp(const juce::MouseEvent &e)
+	void mouseUp(const MouseEvent &e)
 	{		
 		draggingKnob = false;
 	}
@@ -511,7 +511,7 @@ private:
 class TouchHorizontalSlider : public ControlSurfaceMappableComponent
 {
 public:
-	TouchHorizontalSlider(const juce::String& componentName)
+	TouchHorizontalSlider(const String& componentName)
 		: ControlSurfaceMappableComponent(componentName), draggingKnob(false)
 	{
 	}
@@ -527,7 +527,7 @@ public:
 		repaint();
 	}
 
-	void paint(juce::Graphics &g)
+	void paint(Graphics &g)
 	{
 		Colour colour(Colours::azure);
 
@@ -541,7 +541,7 @@ public:
 		g.drawFittedText(getText(), static_cast<int>(getValue()*(getWidth()-getHeight())), 0, getHeight(), getHeight(), Justification(Justification::centred), 1);
 	}
 
-	void mouseDown(const juce::MouseEvent &e)
+	void mouseDown(const MouseEvent &e)
 	{
 		if (e.mods.isPopupMenu())
 		{
@@ -562,7 +562,7 @@ public:
 		}
 	}
 
-	void mouseDrag(const juce::MouseEvent &e)
+	void mouseDrag(const MouseEvent &e)
 	{
 		if (draggingKnob)
 		{
@@ -572,7 +572,7 @@ public:
 		}
 	}
 
-	void mouseUp(const juce::MouseEvent &e)
+	void mouseUp(const MouseEvent &e)
 	{		
 		draggingKnob = false;
 	}
@@ -585,11 +585,11 @@ private:
 
 class XYDragger : public ControlSurfaceMappableComponent
 {
-	juce::ComponentDragger dragger;
+	ComponentDragger dragger;
 
 public:
 
-	XYDragger(const juce::String& name)
+	XYDragger(const String& name)
 		: ControlSurfaceMappableComponent(name)
 	{
 	}
@@ -598,16 +598,16 @@ public:
 	{
 	}
 
-	void paint(juce::Graphics& g)
+	void paint(Graphics& g)
 	{
-		Colour colour(juce::Colours::papayawhip);
+		Colour colour(Colours::papayawhip);
 
 		this->getLookAndFeel().drawGlassLozenge(g, 0.f, (1.f-getValue())*(getHeight()-getWidth()), static_cast<float>(getWidth()), static_cast<float>(getWidth()), colour, 1.0f, getWidth()/2.0f, false, false, false, false);
 		g.setColour(Colours::black);
 		
 	}
 
-	void mouseDown(const juce::MouseEvent& e)
+	void mouseDown(const MouseEvent& e)
 	{
 		if (e.mods.isPopupMenu())
 		{
@@ -620,7 +620,7 @@ public:
 		}
 	}
 
-	void mouseDrag(const juce::MouseEvent& e)
+	void mouseDrag(const MouseEvent& e)
 	{
 		dragger.dragComponent(this, e);
 		setValue(this->getX() / static_cast<float>(this->getParentComponent()->getWidth() - this->getWidth()));
@@ -631,12 +631,12 @@ public:
 
 class RotaryKnob : public ControlSurfaceMappableComponent, public SliderListener
 {
-	juce::Slider* pot;
+	Slider* pot;
 public:
-	RotaryKnob(const juce::String& componentName)
+	RotaryKnob(const String& componentName)
 		: ControlSurfaceMappableComponent(componentName)
 	{
-		pot = new juce::Slider(componentName);
+		pot = new Slider(componentName);
 		pot->setSliderStyle(Slider::Rotary);
 		pot->setColour(Slider::rotarySliderFillColourId, Colours::aquamarine);
 		pot->setColour(Slider::rotarySliderOutlineColourId, Colours::aquamarine.darker());
@@ -666,7 +666,7 @@ public:
 		repaint();
 	}
 
-	void mouseDown(const juce::MouseEvent &e)
+	void mouseDown(const MouseEvent &e)
 	{
 		if (e.mods.isPopupMenu())
 		{
@@ -694,7 +694,7 @@ public:
 class TouchButton : public ControlSurfaceMappableComponent
 {
 public:
-	TouchButton(const juce::String& componentName)
+	TouchButton(const String& componentName)
 		: ControlSurfaceMappableComponent(componentName)
 	{
 	}
@@ -710,7 +710,7 @@ public:
 		repaint();
 	}
 
-	void paint(juce::Graphics &g)
+	void paint(Graphics &g)
 	{
 		Colour colour(Colours::red);
 
@@ -728,7 +728,7 @@ public:
 		g.drawFittedText(getText(), 0, 0, getWidth(), getHeight(), Justification(Justification::centred), 1);
 	}
 
-	void mouseDown(const juce::MouseEvent &e)
+	void mouseDown(const MouseEvent &e)
 	{
 		if (e.mods.isPopupMenu())
 		{
@@ -870,7 +870,7 @@ void SubviewComponent::mouseDown(const MouseEvent &e)
 	}
 }
 
-void SubviewComponent::mouseMove(const juce::MouseEvent &e)
+void SubviewComponent::mouseMove(const MouseEvent &e)
 {
 	if (movingComp != 0)
 	{
@@ -883,13 +883,13 @@ void SubviewComponent::mouseMove(const juce::MouseEvent &e)
 	}
 }
 
-void SubviewComponent::setMovingComponent(juce::Component *c)
+void SubviewComponent::setMovingComponent(Component *c)
 {
 	movingComp = c;
 	overlayComponent->toFront(true);
 }
 
-void SubviewComponent::setResizingComponent(juce::Component *c)
+void SubviewComponent::setResizingComponent(Component *c)
 {
 	resizingComp = c;
 	overlayComponent->toFront(true);

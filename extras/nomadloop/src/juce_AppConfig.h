@@ -39,7 +39,11 @@
 */
 
 #if !(LINUX)
-#define JUCE_PLUGINHOST_VST  1
+
+#define JUCE_ObjCExtraSuffix NomadLoop
+#define JUCE_NAMESPACE NomadJuce
+
+#define JUCE_PLUGINHOST_VST  0
 #define JUCE_PLUGINHOST_AU  1
 #define JUCE_SUPPORT_CARBON 1
 #else
