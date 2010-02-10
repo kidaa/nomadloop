@@ -168,7 +168,7 @@ public:
 
         @see setConstrainer
     */
-    void setBoundsConstrained (int x, int y, int width, int height);
+    void setBoundsConstrained (const Rectangle<int>& bounds);
 
 
     //==============================================================================
@@ -345,7 +345,7 @@ private:
     ScopedPointer <Component> contentComponent;
     bool resizeToFitContent, fullscreen;
     ComponentDragger dragger;
-    Rectangle lastNonFullScreenPos;
+    Rectangle<int> lastNonFullScreenPos;
     ComponentBoundsConstrainer defaultConstrainer;
     ComponentBoundsConstrainer* constrainer;
     #ifdef JUCE_DEBUG

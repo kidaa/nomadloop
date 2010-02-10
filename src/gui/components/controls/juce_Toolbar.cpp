@@ -32,6 +32,7 @@ BEGIN_JUCE_NAMESPACE
 #include "juce_ToolbarItemFactory.h"
 #include "juce_ToolbarItemPalette.h"
 #include "../menus/juce_PopupMenu.h"
+#include "../menus/juce_PopupMenuCustomComponent.h"
 #include "../lookandfeel/juce_LookAndFeel.h"
 #include "../layout/juce_StretchableObjectResizer.h"
 #include "../windows/juce_DialogWindow.h"
@@ -83,7 +84,7 @@ public:
     {
     }
 
-    void contentAreaChanged (const Rectangle&)
+    void contentAreaChanged (const Rectangle<int>&)
     {
     }
 
@@ -543,7 +544,7 @@ void Toolbar::updateAllItemPositions (const bool animate)
             {
                 const int size = (int) resizer.getItemSize (activeIndex++);
 
-                Rectangle newBounds;
+                Rectangle<int> newBounds;
                 if (vertical)
                     newBounds.setBounds (0, pos, getWidth(), size);
                 else
@@ -643,12 +644,12 @@ void Toolbar::itemDragMove (const String&, Component* sourceComponent, int x, in
                 const int dragObjectLeft = vertical ? (y - tc->dragOffsetY) : (x - tc->dragOffsetX);
                 const int dragObjectRight = dragObjectLeft + (vertical ? tc->getHeight() : tc->getWidth());
 
-                const Rectangle current (animator.getComponentDestination (getChildComponent (newIndex)));
+                const Rectangle<int> current (animator.getComponentDestination (getChildComponent (newIndex)));
                 ToolbarItemComponent* const prev = getNextActiveComponent (newIndex, -1);
 
                 if (prev != 0)
                 {
-                    const Rectangle previousPos (animator.getComponentDestination (prev));
+                    const Rectangle<int> previousPos (animator.getComponentDestination (prev));
 
                     if (abs (dragObjectLeft - (vertical ? previousPos.getY() : previousPos.getX())
                           < abs (dragObjectRight - (vertical ? current.getBottom() : current.getRight()))))
@@ -660,7 +661,7 @@ void Toolbar::itemDragMove (const String&, Component* sourceComponent, int x, in
                 ToolbarItemComponent* const next = getNextActiveComponent (newIndex, 1);
                 if (next != 0)
                 {
-                    const Rectangle nextPos (animator.getComponentDestination (next));
+                    const Rectangle<int> nextPos (animator.getComponentDestination (next));
 
                     if (abs (dragObjectLeft - (vertical ? current.getY() : current.getX())
                          > abs (dragObjectRight - (vertical ? nextPos.getBottom() : nextPos.getRight()))))
@@ -748,7 +749,7 @@ public:
 
     void positionNearBar()
     {
-        const Rectangle screenSize (toolbar->getParentMonitorArea());
+        const Rectangle<int> screenSize (toolbar->getParentMonitorArea());
         const int tbx = toolbar->getScreenX();
         const int tby = toolbar->getScreenY();
         const int gap = 8;

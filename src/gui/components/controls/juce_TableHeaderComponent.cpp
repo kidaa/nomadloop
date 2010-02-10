@@ -253,7 +253,7 @@ int TableHeaderComponent::getColumnIdOfIndex (int index, const bool onlyCountVis
     return (ci != 0) ? ci->id : 0;
 }
 
-const Rectangle TableHeaderComponent::getColumnPosition (const int index) const
+const Rectangle<int> TableHeaderComponent::getColumnPosition (const int index) const
 {
     int x = 0, width = 0, n = 0;
 
@@ -274,7 +274,7 @@ const Rectangle TableHeaderComponent::getColumnPosition (const int index) const
         }
     }
 
-    return Rectangle (x, 0, width, getHeight());
+    return Rectangle<int> (x, 0, width, getHeight());
 }
 
 int TableHeaderComponent::getColumnIdAtX (const int xToFind) const
@@ -439,21 +439,19 @@ const String TableHeaderComponent::toString() const
 {
     String s;
 
-    XmlElement doc (T("TABLELAYOUT"));
+    XmlElement doc ("TABLELAYOUT");
 
-    doc.setAttribute (T("sortedCol"), getSortColumnId());
-    doc.setAttribute (T("sortForwards"), isSortedForwards());
+    doc.setAttribute ("sortedCol", getSortColumnId());
+    doc.setAttribute ("sortForwards", isSortedForwards());
 
     for (int i = 0; i < columns.size(); ++i)
     {
         const ColumnInfo* const ci = columns.getUnchecked (i);
 
-        XmlElement* const e = new XmlElement (T("COLUMN"));
-        doc.addChildElement (e);
-
-        e->setAttribute (T("id"), ci->id);
-        e->setAttribute (T("visible"), ci->isVisible());
-        e->setAttribute (T("width"), ci->width);
+        XmlElement* const e = doc.createNewChildElement ("COLUMN");
+        e->setAttribute ("id", ci->id);
+        e->setAttribute ("visible", ci->isVisible());
+        e->setAttribute ("width", ci->width);
     }
 
     return doc.createDocument (String::empty, true, false);
@@ -466,19 +464,19 @@ void TableHeaderComponent::restoreFromString (const String& storedVersion)
 
     int index = 0;
 
-    if (storedXml != 0 && storedXml->hasTagName (T("TABLELAYOUT")))
+    if (storedXml != 0 && storedXml->hasTagName ("TABLELAYOUT"))
     {
         forEachXmlChildElement (*storedXml, col)
         {
-            const int tabId = col->getIntAttribute (T("id"));
+            const int tabId = col->getIntAttribute ("id");
 
             ColumnInfo* const ci = getInfoForId (tabId);
 
             if (ci != 0)
             {
                 columns.move (columns.indexOf (ci), index);
-                ci->width = col->getIntAttribute (T("width"));
-                setColumnVisible (tabId, col->getBoolAttribute (T("visible")));
+                ci->width = col->getIntAttribute ("width");
+                setColumnVisible (tabId, col->getBoolAttribute ("visible"));
             }
 
             ++index;
@@ -487,8 +485,8 @@ void TableHeaderComponent::restoreFromString (const String& storedVersion)
         columnsResized = true;
         sendColumnsChanged();
 
-        setSortColumnId (storedXml->getIntAttribute (T("sortedCol")),
-                         storedXml->getBoolAttribute (T("sortForwards"), true));
+        setSortColumnId (storedXml->getIntAttribute ("sortedCol"),
+                         storedXml->getBoolAttribute ("sortForwards", true));
     }
 }
 
@@ -537,7 +535,7 @@ void TableHeaderComponent::paint (Graphics& g)
 
     lf.drawTableHeaderBackground (g, *this);
 
-    const Rectangle clip (g.getClipBounds());
+    const Rectangle<int> clip (g.getClipBounds());
 
     int x = 0;
     for (int i = 0; i < columns.size(); ++i)
@@ -646,7 +644,7 @@ void TableHeaderComponent::mouseDrag (const MouseEvent& e)
                     if (columns.getUnchecked (i)->isVisible())
                         minWidthOnRight += columns.getUnchecked (i)->minimumWidth;
 
-                const Rectangle currentPos (getColumnPosition (getIndexOfColumnId (columnIdBeingResized, true)));
+                const Rectangle<int> currentPos (getColumnPosition (getIndexOfColumnId (columnIdBeingResized, true)));
                 w = jmax (ci->minimumWidth, jmin (w, getWidth() - minWidthOnRight - currentPos.getX()));
             }
 
@@ -740,7 +738,7 @@ void TableHeaderComponent::beginDrag (const MouseEvent& e)
         {
             draggingColumnOriginalIndex = getIndexOfColumnId (columnIdBeingDragged, true);
 
-            const Rectangle columnRect (getColumnPosition (draggingColumnOriginalIndex));
+            const Rectangle<int> columnRect (getColumnPosition (draggingColumnOriginalIndex));
 
             const int temp = columnIdBeingDragged;
             columnIdBeingDragged = 0;
