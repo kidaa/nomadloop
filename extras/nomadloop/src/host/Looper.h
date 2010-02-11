@@ -25,7 +25,7 @@ class MidiLoopProcessor : public LoopProcessor
 	bool recording;
 	int sampleLength;
 	int sampleScrub;
-	juce::MidiBuffer sequence;
+	MidiBuffer sequence;
 
 public:
 	MidiLoopProcessor();
@@ -35,14 +35,14 @@ public:
 	const String getName() const;
 	void prepareToPlay(double sampleRate, int estimatedSamplesPerBlock);
 	void releaseResources();
-	void processBlock(juce::AudioSampleBuffer &, juce::MidiBuffer &);
+	void processBlock(AudioSampleBuffer &, MidiBuffer &);
 	const String getInputChannelName(const int) const;
 	const String getOutputChannelName(const int) const;	
 	bool isInputChannelStereoPair(int) const;
 	bool isOutputChannelStereoPair(int) const;
 	bool acceptsMidi() const;
 	bool producesMidi() const;
-	juce::AudioProcessorEditor* createEditor();
+	AudioProcessorEditor* createEditor();
 	int getNumParameters();
 	const String getParameterName(int);
 	float getParameter(int);
@@ -53,7 +53,7 @@ public:
 	void setCurrentProgram(int);
 	const String getProgramName(int);
 	void changeProgramName(int, const String&);
-	void getStateInformation(juce::MemoryBlock&);
+	void getStateInformation(MemoryBlock&);
 	void setStateInformation(const void *, int);
 
 	int getLengthInSamples() const;
@@ -80,14 +80,14 @@ public:
 	const String getName() const;
 	void prepareToPlay(double sampleRate, int estimatedSamplesPerBlock);
 	void releaseResources();
-	void processBlock(juce::AudioSampleBuffer &,juce::MidiBuffer &);
+	void processBlock(AudioSampleBuffer &,MidiBuffer &);
 	const String getInputChannelName(const int) const;
 	const String getOutputChannelName(const int) const;
 	bool isInputChannelStereoPair(int) const;
 	bool isOutputChannelStereoPair(int) const;
 	bool acceptsMidi() const;
 	bool producesMidi() const;
-	juce::AudioProcessorEditor* createEditor();
+	AudioProcessorEditor* createEditor();
 	int getNumParameters();
 	const String getParameterName(int);
 	float getParameter(int);
@@ -98,7 +98,7 @@ public:
 	void setCurrentProgram(int);
 	const String getProgramName(int);
 	void changeProgramName(int, const String&);
-	void getStateInformation(juce::MemoryBlock&);
+	void getStateInformation(MemoryBlock&);
 	void setStateInformation(const void *, int);
 
 	int getLengthInSamples() const;

@@ -15,7 +15,7 @@ SyncPlayHead::SyncPlayHead()
 	currentPositionInfo.timeSigNumerator = 4;
 }
 
-bool SyncPlayHead::getCurrentPosition(juce::AudioPlayHead::CurrentPositionInfo &result)
+bool SyncPlayHead::getCurrentPosition(AudioPlayHead::CurrentPositionInfo &result)
 {
 	LoopProcessor* masterLoop = LoopManager::getInstance()->getMasterLoop();
 	if (masterLoop != 0)

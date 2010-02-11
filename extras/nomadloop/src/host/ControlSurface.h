@@ -17,8 +17,8 @@ public:
 	void paint(Graphics& g);
 	void resized();
 
-	void mouseDown(const juce::MouseEvent& e);
-	void mouseMove(const juce::MouseEvent& e);
+	void mouseDown(const MouseEvent& e);
+	void mouseMove(const MouseEvent& e);
 
 	void setMovingComponent(Component* c);
 	void setResizingComponent(Component* c);
@@ -58,7 +58,7 @@ public:
 class ControlSurfaceMappableComponent : public Component, public AsyncUpdater
 {
 public:
-	ControlSurfaceMappableComponent(const juce::String& componentName);
+	ControlSurfaceMappableComponent(const String& componentName);
 	virtual ~ControlSurfaceMappableComponent();
 
 	void showContextMenu();

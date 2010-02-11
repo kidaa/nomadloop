@@ -7,6 +7,11 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		81F9E8FF1122F0A400FBEFA4 /* ControlActions.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 81F9E8F91122F0A400FBEFA4 /* ControlActions.cpp */; };
+		81F9E9001122F0A400FBEFA4 /* ControlSurface.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 81F9E8FA1122F0A400FBEFA4 /* ControlSurface.cpp */; };
+		81F9E9011122F0A400FBEFA4 /* Looper.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 81F9E8FB1122F0A400FBEFA4 /* Looper.cpp */; };
+		81F9E9021122F0A400FBEFA4 /* ProjectDocument.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 81F9E8FC1122F0A400FBEFA4 /* ProjectDocument.cpp */; };
+		81F9E9031122F0A400FBEFA4 /* SyncPlayHead.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 81F9E8FE1122F0A400FBEFA4 /* SyncPlayHead.cpp */; };
 		8490449F0EF15F1600D72485 /* CoreAudio.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8490449E0EF15F1600D72485 /* CoreAudio.framework */; };
 		8497883C103562B60020003B /* CoreAudioKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8497883B103562B60020003B /* CoreAudioKit.framework */; };
 		84B59D6D0DE34F530041FA3D /* juce_LibrarySource.mm in Sources */ = {isa = PBXBuildFile; fileRef = 84B59D6C0DE34F530041FA3D /* juce_LibrarySource.mm */; };
@@ -30,6 +35,12 @@
 
 /* Begin PBXFileReference section */
 		508344B209E5C41E0093A071 /* PluginHost.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PluginHost.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		81F9E8F91122F0A400FBEFA4 /* ControlActions.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = ControlActions.cpp; path = ../../src/host/ControlActions.cpp; sourceTree = SOURCE_ROOT; };
+		81F9E8FA1122F0A400FBEFA4 /* ControlSurface.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = ControlSurface.cpp; path = ../../src/host/ControlSurface.cpp; sourceTree = SOURCE_ROOT; };
+		81F9E8FB1122F0A400FBEFA4 /* Looper.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Looper.cpp; path = ../../src/host/Looper.cpp; sourceTree = SOURCE_ROOT; };
+		81F9E8FC1122F0A400FBEFA4 /* ProjectDocument.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = ProjectDocument.cpp; path = ../../src/host/ProjectDocument.cpp; sourceTree = SOURCE_ROOT; };
+		81F9E8FD1122F0A400FBEFA4 /* ProjectDocument.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ProjectDocument.h; path = ../../src/host/ProjectDocument.h; sourceTree = SOURCE_ROOT; };
+		81F9E8FE1122F0A400FBEFA4 /* SyncPlayHead.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = SyncPlayHead.cpp; path = ../../src/host/SyncPlayHead.cpp; sourceTree = SOURCE_ROOT; };
 		8490449E0EF15F1600D72485 /* CoreAudio.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreAudio.framework; path = /System/Library/Frameworks/CoreAudio.framework; sourceTree = "<absolute>"; };
 		8497883B103562B60020003B /* CoreAudioKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreAudioKit.framework; path = System/Library/Frameworks/CoreAudioKit.framework; sourceTree = SDKROOT; };
 		84B59D6A0DE34F530041FA3D /* includes.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = includes.h; path = ../../src/includes.h; sourceTree = SOURCE_ROOT; };
@@ -103,6 +114,12 @@
 		20286C2AFDCF999611CA2CEA /* Sources */ = {
 			isa = PBXGroup;
 			children = (
+				81F9E8F91122F0A400FBEFA4 /* ControlActions.cpp */,
+				81F9E8FA1122F0A400FBEFA4 /* ControlSurface.cpp */,
+				81F9E8FB1122F0A400FBEFA4 /* Looper.cpp */,
+				81F9E8FC1122F0A400FBEFA4 /* ProjectDocument.cpp */,
+				81F9E8FD1122F0A400FBEFA4 /* ProjectDocument.h */,
+				81F9E8FE1122F0A400FBEFA4 /* SyncPlayHead.cpp */,
 				84FFAE920C6C8A6F009F6E72 /* FilterGraph.cpp */,
 				84FFAE930C6C8A6F009F6E72 /* FilterGraph.h */,
 				84FFAE940C6C8A6F009F6E72 /* GraphEditorPanel.cpp */,
@@ -150,9 +167,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		8D0C4E890486CD37000505A6 /* PluginHost */ = {
+		8D0C4E890486CD37000505A6 /* NomadLoop */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = C0E91AC508A95435008D54AB /* Build configuration list for PBXNativeTarget "PluginHost" */;
+			buildConfigurationList = C0E91AC508A95435008D54AB /* Build configuration list for PBXNativeTarget "NomadLoop" */;
 			buildPhases = (
 				8D0C4E8C0486CD37000505A6 /* Resources */,
 				8D0C4E8F0486CD37000505A6 /* Sources */,
@@ -162,7 +179,7 @@
 			);
 			dependencies = (
 			);
-			name = PluginHost;
+			name = NomadLoop;
 			productInstallPath = "$(HOME)/Applications";
 			productName = PluginHost;
 			productReference = 508344B209E5C41E0093A071 /* PluginHost.app */;
@@ -180,7 +197,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				8D0C4E890486CD37000505A6 /* PluginHost */,
+				8D0C4E890486CD37000505A6 /* NomadLoop */,
 			);
 		};
 /* End PBXProject section */
@@ -207,6 +224,11 @@
 				84FFAEAF0C6C8A6F009F6E72 /* MainHostWindow.cpp in Sources */,
 				84FFAEB00C6C8A6F009F6E72 /* HostStartup.cpp in Sources */,
 				84B59D6D0DE34F530041FA3D /* juce_LibrarySource.mm in Sources */,
+				81F9E8FF1122F0A400FBEFA4 /* ControlActions.cpp in Sources */,
+				81F9E9001122F0A400FBEFA4 /* ControlSurface.cpp in Sources */,
+				81F9E9011122F0A400FBEFA4 /* Looper.cpp in Sources */,
+				81F9E9021122F0A400FBEFA4 /* ProjectDocument.cpp in Sources */,
+				81F9E9031122F0A400FBEFA4 /* SyncPlayHead.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -233,20 +255,20 @@
 		};
 		C0E91ACA08A95435008D54AB /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 84FC4CD80CD8894600850651 /* juce.xcconfig */;
 			buildSettings = {
 				GCC_ENABLE_FIX_AND_CONTINUE = YES;
 				GCC_OPTIMIZATION_LEVEL = 0;
+				MACOSX_DEPLOYMENT_TARGET = 10.4;
 				PRODUCT_NAME = PluginHost;
+				SEPARATE_STRIP = YES;
 				USER_HEADER_SEARCH_PATHS = "~/SDKs/vstsdk2.4 $(inherited)";
-				ZERO_LINK = NO;
 			};
 			name = Debug;
 		};
 		C0E91ACB08A95435008D54AB /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 84FC4CD80CD8894600850651 /* juce.xcconfig */;
 			buildSettings = {
+				MACOSX_DEPLOYMENT_TARGET = 10.4;
 				PRODUCT_NAME = PluginHost;
 				SEPARATE_STRIP = YES;
 				USER_HEADER_SEARCH_PATHS = "~/SDKs/vstsdk2.4 $(inherited)";
@@ -257,7 +279,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		C0E91AC508A95435008D54AB /* Build configuration list for PBXNativeTarget "PluginHost" */ = {
+		C0E91AC508A95435008D54AB /* Build configuration list for PBXNativeTarget "NomadLoop" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				C0E91AC608A95435008D54AB /* Debug */,

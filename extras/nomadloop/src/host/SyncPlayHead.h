@@ -4,7 +4,7 @@
 #include "../includes.h"
 #include "Looper.h"
 
-class SyncPlayHead : public juce::AudioPlayHead, public juce::MidiInputCallback, public juce::AudioIODeviceCallback
+class SyncPlayHead : public AudioPlayHead, public MidiInputCallback, public AudioIODeviceCallback
 {
 	int ppqn;
 	//double bpm;
