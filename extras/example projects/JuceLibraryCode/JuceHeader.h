@@ -15,6 +15,12 @@
 
 #include "AppConfig.h"
 #include "../../../juce_amalgamated.h"
-#include "BinaryData.h"
+
+namespace ProjectInfo
+{
+    const char* const  projectName    = "HelloWorld";
+    const char* const  versionString  = "1.0.0";
+    const int          versionNumber  = 0x10000;
+}
 
 #endif   // __APPHEADERFILE_D9639818__

@@ -60,7 +60,7 @@
 #endif
 
 //==============================================================================
-#if JUCE_BUILD_NATIVE || JUCE_BUILD_CORE
+#if JUCE_BUILD_NATIVE || JUCE_BUILD_CORE || (JUCE_BUILD_MISC && (JUCE_PLUGINHOST_VST || JUCE_PLUGINHOST_AU))
  #if JUCE_WINDOWS
   #include "../src/native/windows/juce_win32_NativeIncludes.h"
  #elif JUCE_LINUX
@@ -362,7 +362,7 @@
  #include "../src/io/streams/juce_GZIPDecompressorInputStream.cpp"
 #endif
 
-#if JUCE_BUILD_NATIVE
+#if JUCE_BUILD_NATIVE && ! JUCE_ONLY_BUILD_CORE_LIBRARY
  #include "../src/audio/audio_file_formats/juce_FlacAudioFormat.cpp"
  #include "../src/audio/audio_file_formats/juce_OggVorbisAudioFormat.cpp"
 #endif
