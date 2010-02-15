@@ -1,5 +1,6 @@
 #include "../includes.h"
 #include "ControlSurface.h"
+#include "LoopControls.h"
 #include "ControlActions.h"
 #include "MainHostWindow.h"
 
@@ -178,6 +179,7 @@ public:
 		{
 			// MIDI
 		}
+		return 0;
 	}
 };
 
@@ -817,6 +819,9 @@ void SubviewComponent::mouseDown(const MouseEvent &e)
 		m.addItem(6, T("Add subview"));
 		m.addItem(5, T("Add PresetSaver"));
 		m.addItem(7, T("Add Plugin editor"));
+		m.addSeparator();
+		m.addItem(8, T("Loop view"));
+		m.addItem(9, T("Arranger"));
 
 		int choice = m.show();
 
@@ -887,6 +892,12 @@ void SubviewComponent::mouseDown(const MouseEvent &e)
 				ui->setTopLeftPosition(e.x, e.y);
 				addAndMakeVisible(ui);
 			}
+		}
+		else if (choice == 8)
+		{
+			LoopComponent* lc = new LoopComponent();
+			lc->setBounds(e.x, e.y, 128, 128);
+			addAndMakeVisible(lc);
 		}
 	}
 }
