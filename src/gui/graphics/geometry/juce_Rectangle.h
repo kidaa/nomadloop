@@ -107,18 +107,29 @@ public:
     /** Returns the y co-ordinate of the rectangle's centre. */
     inline ValueType getCentreY() const throw()                     { return y + h / (ValueType) 2; }
 
+    inline const Point<ValueType> getCentre() const throw()         { return Point<ValueType> (x + w / (ValueType) 2, y + h / (ValueType) 2); }
+
     /** Returns true if the rectangle's width and height are both zero or less */
     bool isEmpty() const throw()                                    { return w <= 0 || h <= 0; }
 
     //==============================================================================
     /** Returns the rectangle's top-left position as a Point. */
-    const Point<ValueType> getPosition() const throw()              { return Point<ValueType> (x, y); }
+    const Point<ValueType> getPosition() const throw()                                              { return Point<ValueType> (x, y); }
 
     /** Changes the position of the rectangle's top-left corner (leaving its size unchanged). */
-    void setPosition (const ValueType newX, const ValueType newY) throw()       { x = newX; y = newY; }
+    void setPosition (const Point<ValueType>& newPos) throw()                                       { x = newPos.getX(); y = newPos.getY(); }
+
+    /** Changes the position of the rectangle's top-left corner (leaving its size unchanged). */
+    void setPosition (const ValueType newX, const ValueType newY) throw()                           { x = newX; y = newY; }
+
+    /** Returns a rectangle with the same size as this one, but a new position. */
+    const Rectangle withPosition (const Point<ValueType>& newPos) const throw()                     { return Rectangle (newPos.getX(), newPos.getY(), w, h); }
 
     /** Changes the rectangle's size, leaving the position of its top-left corner unchanged. */
-    void setSize (const ValueType newWidth, const ValueType newHeight) throw()  { w = newWidth; h = newHeight; }
+    void setSize (const ValueType newWidth, const ValueType newHeight) throw()                      { w = newWidth; h = newHeight; }
+
+    /** Returns a rectangle with the same position as this one, but a new size. */
+    const Rectangle withSize (const ValueType newWidth, const ValueType newHeight) const throw()    { return Rectangle (x, y, newWidth, newHeight); }
 
     /** Changes all the rectangle's co-ordinates. */
     void setBounds (const ValueType newX, const ValueType newY,
@@ -256,11 +267,24 @@ public:
         return xCoord >= x && yCoord >= y && xCoord < x + w && yCoord < y + h;
     }
 
+    /** Returns true if this co-ordinate is inside the rectangle. */
+    bool contains (const Point<ValueType> point) const throw()
+    {
+        return point.getX() >= x && point.getY() >= y && point.getX() < x + w && point.getY() < y + h;
+    }
+
     /** Returns true if this other rectangle is completely inside this one. */
     bool contains (const Rectangle& other) const throw()
     {
         return x <= other.x && y <= other.y
             && x + w >= other.x + other.w && y + h >= other.y + other.h;
+    }
+
+    /** Returns the nearest point to the specified point that lies within this rectangle. */
+    const Point<ValueType> getConstrainedPoint (const Point<ValueType>& point) const throw()
+    {
+        return Point<ValueType> (jlimit (x, x + w, point.getX()),
+                                 jlimit (y, y + h, point.getY()));
     }
 
     /** Returns true if any part of another rectangle overlaps this one. */

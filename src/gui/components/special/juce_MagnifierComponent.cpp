@@ -76,40 +76,38 @@ public:
             peer->grabFocus();
     }
 
-    void textInputRequired (int x, int y)
+    void textInputRequired (const Point<int>& position)
     {
         ComponentPeer* peer = magnifierComp->getPeer();
         if (peer != 0)
-            peer->textInputRequired (x, y);
+            peer->textInputRequired (position);
     }
 
-    void getBounds (int& x, int& y, int& w, int& h) const
+    const Rectangle<int> getBounds() const
     {
-        x = magnifierComp->getScreenX();
-        y = magnifierComp->getScreenY();
-        w = component->getWidth();
-        h = component->getHeight();
+        return Rectangle<int> (magnifierComp->getScreenX(), magnifierComp->getScreenY(),
+                               component->getWidth(), component->getHeight());
     }
 
-    int getScreenX() const                          { return magnifierComp->getScreenX(); }
-    int getScreenY() const                          { return magnifierComp->getScreenY(); }
+    const Point<int> getScreenPosition() const
+    {
+        return magnifierComp->getScreenPosition();
+    }
 
-    void relativePositionToGlobal (int& x, int& y)
+    const Point<int> relativePositionToGlobal (const Point<int>& relativePosition)
     {
         const double zoom = magnifierComp->getScaleFactor();
-        x = roundToInt (x * zoom);
-        y = roundToInt (y * zoom);
-
-        magnifierComp->relativePositionToGlobal (x, y);
+        return magnifierComp->relativePositionToGlobal (Point<int> (roundToInt (relativePosition.getX() * zoom),
+                                                                    roundToInt (relativePosition.getY() * zoom)));
     }
 
-    void globalPositionToRelative (int& x, int& y)
+    const Point<int> globalPositionToRelative (const Point<int>& screenPosition)
     {
-        magnifierComp->globalPositionToRelative (x, y);
-
+        const Point<int> p (magnifierComp->globalPositionToRelative (screenPosition));
         const double zoom = magnifierComp->getScaleFactor();
-        x = roundToInt (x / zoom);
-        y = roundToInt (y / zoom);
+
+        return Point<int> (roundToInt (p.getX() / zoom),
+                           roundToInt (p.getY() / zoom));
     }
 
     bool contains (int x, int y, bool) const
@@ -290,37 +288,37 @@ void MagnifierComponent::childBoundsChanged (Component* c)
 void MagnifierComponent::mouseDown (const MouseEvent& e)
 {
     if (peer != 0)
-        peer->handleMouseDown (scaleInt (e.x), scaleInt (e.y), e.eventTime.toMilliseconds());
+        peer->handleMouseDown (Point<int> (scaleInt (e.x), scaleInt (e.y)), e.eventTime.toMilliseconds());
 }
 
 void MagnifierComponent::mouseUp (const MouseEvent& e)
 {
     if (peer != 0)
-        peer->handleMouseUp (e.mods.getRawFlags(), scaleInt (e.x), scaleInt (e.y), e.eventTime.toMilliseconds());
+        peer->handleMouseUp (e.mods.getRawFlags(), Point<int> (scaleInt (e.x), scaleInt (e.y)), e.eventTime.toMilliseconds());
 }
 
 void MagnifierComponent::mouseDrag (const MouseEvent& e)
 {
     if (peer != 0)
-        peer->handleMouseDrag (scaleInt (e.x), scaleInt (e.y), e.eventTime.toMilliseconds());
+        peer->handleMouseDrag (Point<int> (scaleInt (e.x), scaleInt (e.y)), e.eventTime.toMilliseconds());
 }
 
 void MagnifierComponent::mouseMove (const MouseEvent& e)
 {
     if (peer != 0)
-        peer->handleMouseMove (scaleInt (e.x), scaleInt (e.y), e.eventTime.toMilliseconds());
+        peer->handleMouseMove (Point<int> (scaleInt (e.x), scaleInt (e.y)), e.eventTime.toMilliseconds());
 }
 
 void MagnifierComponent::mouseEnter (const MouseEvent& e)
 {
     if (peer != 0)
-        peer->handleMouseEnter (scaleInt (e.x), scaleInt (e.y), e.eventTime.toMilliseconds());
+        peer->handleMouseEnter (Point<int> (scaleInt (e.x), scaleInt (e.y)), e.eventTime.toMilliseconds());
 }
 
 void MagnifierComponent::mouseExit (const MouseEvent& e)
 {
     if (peer != 0)
-        peer->handleMouseExit (scaleInt (e.x), scaleInt (e.y), e.eventTime.toMilliseconds());
+        peer->handleMouseExit (Point<int> (scaleInt (e.x), scaleInt (e.y)), e.eventTime.toMilliseconds());
 }
 
 void MagnifierComponent::mouseWheelMove (const MouseEvent& e, float ix, float iy)

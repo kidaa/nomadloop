@@ -286,10 +286,9 @@ public:
 
         if (topComp->getPeer() != 0)
         {
-            int x = 0, y = 0;
-            owner->relativePositionToOtherComponent (topComp, x, y);
+            const Point<int> pos (owner->relativePositionToOtherComponent (topComp, Point<int>()));
 
-            owner->setControlBounds (Rectangle<int> (x, y, owner->getWidth(), owner->getHeight()));
+            owner->setControlBounds (Rectangle<int> (pos.getX(), pos.getY(), owner->getWidth(), owner->getHeight()));
         }
     }
 
@@ -343,8 +342,8 @@ static void offerActiveXMouseEventToPeer (ComponentPeer* const peer, HWND hwnd, 
     GetWindowRect (hwnd, &activeXRect);
     GetWindowRect ((HWND) peer->getNativeHandle(), &peerRect);
 
-    const int mx = GET_X_LPARAM (lParam) + activeXRect.left - peerRect.left;
-    const int my = GET_Y_LPARAM (lParam) + activeXRect.top - peerRect.top;
+    const Point<int> mousePos (GET_X_LPARAM (lParam) + activeXRect.left - peerRect.left,
+                               GET_Y_LPARAM (lParam) + activeXRect.top - peerRect.top);
     const int64 mouseEventTime = getMouseEventTime();
 
     const int oldModifiers = currentModifiers;
@@ -354,21 +353,21 @@ static void offerActiveXMouseEventToPeer (ComponentPeer* const peer, HWND hwnd, 
     {
     case WM_MOUSEMOVE:
         if (ModifierKeys (currentModifiers).isAnyMouseButtonDown())
-            peer->handleMouseDrag (mx, my, mouseEventTime);
+            peer->handleMouseDrag (mousePos, mouseEventTime);
         else
-            peer->handleMouseMove (mx, my, mouseEventTime);
+            peer->handleMouseMove (mousePos, mouseEventTime);
         break;
 
     case WM_LBUTTONDOWN:
     case WM_MBUTTONDOWN:
     case WM_RBUTTONDOWN:
-        peer->handleMouseDown (mx, my, mouseEventTime);
+        peer->handleMouseDown (mousePos, mouseEventTime);
         break;
 
     case WM_LBUTTONUP:
     case WM_MBUTTONUP:
     case WM_RBUTTONUP:
-        peer->handleMouseUp (oldModifiers, mx, my, mouseEventTime);
+        peer->handleMouseUp (oldModifiers, mousePos, mouseEventTime);
         break;
 
     default:
@@ -452,9 +451,7 @@ bool ActiveXControlComponent::createControl (const void* controlIID)
 
     if (dynamic_cast <Win32ComponentPeer*> (peer) != 0)
     {
-        int x = 0, y = 0;
-        relativePositionToOtherComponent (getTopLevelComponent(), x, y);
-
+        const Point<int> pos (relativePositionToOtherComponent (getTopLevelComponent(), Point<int>()));
         HWND hwnd = (HWND) peer->getNativeHandle();
 
         ScopedPointer <ActiveXControlData> info (new ActiveXControlData (hwnd, this));
@@ -469,15 +466,15 @@ bool ActiveXControlComponent::createControl (const void* controlIID)
             if (OleSetContainedObject (info->control, TRUE) == S_OK)
             {
                 RECT rect;
-                rect.left = x;
-                rect.top = y;
-                rect.right = x + getWidth();
-                rect.bottom = y + getHeight();
+                rect.left = pos.getX();
+                rect.top = pos.getY();
+                rect.right = pos.getX() + getWidth();
+                rect.bottom = pos.getY() + getHeight();
 
                 if (info->control->DoVerb (OLEIVERB_SHOW, 0, info->clientSite, 0, hwnd, &rect) == S_OK)
                 {
                     control = info.release();
-                    setControlBounds (Rectangle<int> (x, y, getWidth(), getHeight()));
+                    setControlBounds (Rectangle<int> (pos.getX(), pos.getY(), getWidth(), getHeight()));
 
                     ((ActiveXControlData*) control)->controlHWND = getHWND (this);
 

@@ -29,9 +29,11 @@
 class Component;
 class Graphics;
 #include "../mouse/juce_MouseCursor.h"
+#include "../keyboard/juce_TextInputTarget.h"
 #include "../../../events/juce_MessageListener.h"
 #include "../../../text/juce_StringArray.h"
 #include "../../graphics/geometry/juce_RectangleList.h"
+
 class ComponentBoundsConstrainer;
 class ComponentDeletionWatcher;
 
@@ -147,19 +149,16 @@ public:
         If the native window is contained in another window, then the co-ordinates are
         relative to the parent window's origin, not the screen origin.
     */
-    virtual void getBounds (int& x, int& y, int& w, int& h) const = 0;
+    virtual const Rectangle<int> getBounds() const = 0;
 
     /** Returns the x-position of this window, relative to the screen's origin. */
-    virtual int getScreenX() const = 0;
-
-    /** Returns the y-position of this window, relative to the screen's origin. */
-    virtual int getScreenY() const = 0;
+    virtual const Point<int> getScreenPosition() const = 0;
 
     /** Converts a position relative to the top-left of this component to screen co-ordinates. */
-    virtual void relativePositionToGlobal (int& x, int& y) = 0;
+    virtual const Point<int> relativePositionToGlobal (const Point<int>& relativePosition) = 0;
 
     /** Converts a screen co-ordinate to a position relative to the top-left of this component. */
-    virtual void globalPositionToRelative (int& x, int& y) = 0;
+    virtual const Point<int> globalPositionToRelative (const Point<int>& screenPosition) = 0;
 
     /** Minimises the window. */
     virtual void setMinimised (bool shouldBeMinimised) = 0;
@@ -255,7 +254,7 @@ public:
         This may cause things like a virtual on-screen keyboard to appear, depending
         on the OS.
     */
-    virtual void textInputRequired (int x, int y) = 0;
+    virtual void textInputRequired (const Point<int>& position) = 0;
 
     /** Called when the window gains keyboard focus. */
     void handleFocusGain();
@@ -280,6 +279,9 @@ public:
     /** Called whenever a modifier key is pressed or released. */
     void handleModifierKeysChange();
 
+    /** Returns the currently focused TextInputTarget, or null if none is found. */
+    TextInputTarget* findCurrentTextInputTarget();
+
     //==============================================================================
     /** Invalidates a region of the window to be repainted asynchronously. */
     virtual void repaint (int x, int y, int w, int h) = 0;
@@ -293,12 +295,12 @@ public:
     virtual void performAnyPendingRepaintsNow() = 0;
 
     //==============================================================================
-    void handleMouseEnter (int x, int y, const int64 time);
-    void handleMouseMove  (int x, int y, const int64 time);
-    void handleMouseDown  (int x, int y, const int64 time);
-    void handleMouseDrag  (int x, int y, const int64 time);
-    void handleMouseUp    (const int oldModifiers, int x, int y, const int64 time);
-    void handleMouseExit  (int x, int y, const int64 time);
+    void handleMouseEnter (const Point<int>& position, const int64 time);
+    void handleMouseMove  (const Point<int>& position, const int64 time);
+    void handleMouseDown  (const Point<int>& position, const int64 time);
+    void handleMouseDrag  (const Point<int>& position, const int64 time);
+    void handleMouseUp    (const int oldModifiers, const Point<int>& position, const int64 time);
+    void handleMouseExit  (const Point<int>& position, const int64 time);
     void handleMouseWheel (const int amountX, const int amountY, const int64 time);
 
     /** Causes a mouse-move callback to be made asynchronously. */
@@ -306,9 +308,9 @@ public:
 
     void handleUserClosingWindow();
 
-    void handleFileDragMove (const StringArray& files, int x, int y);
+    void handleFileDragMove (const StringArray& files, const Point<int>& position);
     void handleFileDragExit (const StringArray& files);
-    void handleFileDragDrop (const StringArray& files, int x, int y);
+    void handleFileDragDrop (const StringArray& files, const Point<int>& position);
 
     //==============================================================================
     /** Resets the masking region.
