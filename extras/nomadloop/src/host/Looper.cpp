@@ -70,7 +70,7 @@ void MidiLoopProcessor::processBlock(AudioSampleBuffer& sampleBuffer, MidiBuffer
 		this->sequence.addEvents(midiBuffer, 0, sampleBuffer.getNumSamples(), this->sampleLength);
 		sampleLength += sampleBuffer.getNumSamples();
 	}
-	else if (!sequence.isEmpty())
+	else if (sampleLength > 0)
 	{
 		midiBuffer.clear();
 
