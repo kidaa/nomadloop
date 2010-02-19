@@ -197,6 +197,14 @@
 				Name="host"
 				>
 				<File
+					RelativePath="..\..\src\host\Analysis.cpp"
+					>
+				</File>
+				<File
+					RelativePath="..\..\src\host\Analysis.h"
+					>
+				</File>
+				<File
 					RelativePath="..\..\src\host\AudioSetupComponent.cpp"
 					>
 				</File>
@@ -242,6 +250,14 @@
 				</File>
 				<File
 					RelativePath="..\..\src\host\InternalFilters.h"
+					>
+				</File>
+				<File
+					RelativePath="..\..\src\host\LoopControls.cpp"
+					>
+				</File>
+				<File
+					RelativePath="..\..\src\host\LoopControls.h"
 					>
 				</File>
 				<File
