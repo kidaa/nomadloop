@@ -2,6 +2,7 @@
 #define ADLER_LOOPER
 
 #include "../includes.h"
+#include "Analysis.h"
 #include <vector>
 #include <deque>
 
@@ -26,6 +27,8 @@ class MidiLoopProcessor : public LoopProcessor
 	int sampleLength;
 	int sampleScrub;
 	MidiBuffer sequence;
+
+	Key estimatedKey;
 
 public:
 	MidiLoopProcessor();
@@ -61,6 +64,8 @@ public:
 
 	int getScrubPositionInSamples() const;
 	double getScrubPositionInSeconds() const;
+
+	inline const Key& getEstimatedKey() const { return estimatedKey; }
 };
 
 // A graph filter hooking into the looping engine

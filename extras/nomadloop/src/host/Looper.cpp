@@ -58,10 +58,15 @@ void MidiLoopProcessor::processBlock(AudioSampleBuffer& sampleBuffer, MidiBuffer
 			{
 				// take over as master, since no current master
 				LoopManager::getInstance()->setMasterLoop(this);
+
+				KeyAnalyzer a;
+				a.analyze(sequence);
+				estimatedKey = a.getKey();
 			}
 		}
 		else if (masterLoop == this || masterLoop->getScrubPositionInSamples() == 0)
 			recording = recordingCued;
+		
 	}
 
 	if (recording)

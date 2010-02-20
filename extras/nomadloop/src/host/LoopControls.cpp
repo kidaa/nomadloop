@@ -16,11 +16,18 @@ void LoopComponent::paint(Graphics &g)
 		AudioLoopProcessor* audioLoop = dynamic_cast<AudioLoopProcessor*>(loop);
 		if (audioLoop != 0)
 		{
-		}
+		}		
 
 		g.setColour(Colours::green);
 		if (loop->getLengthInSamples() > 0)
 			g.fillRect(0, 0, loop->getScrubPositionInSamples()*getWidth()/loop->getLengthInSamples(), getHeight());
+
+		MidiLoopProcessor* midiLoop = dynamic_cast<MidiLoopProcessor*>(loop);
+		if (midiLoop != 0)
+		{
+			g.setColour(Colours::white);
+			g.drawText(midiLoop->getEstimatedKey().getName(), 4, 4, getWidth()-8, 16, Justification::centredLeft, true);
+		}
 	}
 
 }

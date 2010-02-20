@@ -18,6 +18,11 @@ private:
 	int rootPitchClass;
 
 public:
+	Key(int pitchClass = 0, Mode mode = Unknown)
+		: rootPitchClass(pitchClass), mode(mode)
+	{
+	}
+
 	inline bool isMajor() const	{ return mode == Major; }
 	inline bool isMinor() const { return mode == Minor; }
 	inline Mode getMode() const { return mode; }

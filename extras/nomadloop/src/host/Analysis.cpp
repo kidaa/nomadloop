@@ -2,7 +2,24 @@
 
 String Key::getName() const
 {
-	return String(T("P")) + String(isMajor()?T("maj"):T("min"));
+	String note;
+	switch (rootPitchClass)
+	{
+		case 0: note = "C"; break;
+		case 1: note = "C#"; break;
+		case 2: note = "D"; break;
+		case 3: note = "D#"; break;
+		case 4: note = "E"; break;
+		case 5: note = "F"; break;
+		case 6: note = "F#"; break;
+		case 7: note = "G"; break;
+		case 8: note = "G#"; break;
+		case 9: note = "A"; break;
+		case 10: note = "A#"; break;
+		case 11: note = "B"; break;
+	}
+
+	return note + String(isMajor()?T("maj"):isMinor()?T("min"):T("?"));
 }
 
 const Key& KeyAnalyzer::getKey() const
@@ -99,6 +116,7 @@ void KeyAnalyzer::analyze(const MidiBuffer& buffer)
 			pitchClass = i;
 		}
 	}
+	bestGuess = Key(pitchClass, mode);
 
 	// find the second highest ranked key
 	double secondBestKey = 0;
