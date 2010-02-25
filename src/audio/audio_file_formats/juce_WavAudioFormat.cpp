@@ -81,17 +81,17 @@ const StringPairArray WavAudioFormat::createBWAVMetadata (const String& descript
 
 struct BWAVChunk
 {
-    uint8 description [256];
-    uint8 originator [32];
-    uint8 originatorRef [32];
-    uint8 originationDate [10];
-    uint8 originationTime [8];
+    char description [256];
+    char originator [32];
+    char originatorRef [32];
+    char originationDate [10];
+    char originationTime [8];
     uint32 timeRefLow;
     uint32 timeRefHigh;
     uint16 version;
     uint8 umid[64];
     uint8 reserved[190];
-    uint8 codingHistory[1];
+    char codingHistory[1];
 
     void copyTo (StringPairArray& values) const
     {
@@ -111,7 +111,7 @@ struct BWAVChunk
 
     static MemoryBlock createFrom (const StringPairArray& values)
     {
-        const size_t sizeNeeded = sizeof (BWAVChunk) + values [WavAudioFormat::bwavCodingHistory].copyToUTF8 (0) - 1;
+        const size_t sizeNeeded = sizeof (BWAVChunk) + values [WavAudioFormat::bwavCodingHistory].getNumBytesAsUTF8();
         MemoryBlock data ((sizeNeeded + 3) & ~3);
         data.fillWith (0);
 
@@ -129,7 +129,7 @@ struct BWAVChunk
         b->timeRefLow = ByteOrder::swapIfBigEndian ((uint32) (time & 0xffffffff));
         b->timeRefHigh = ByteOrder::swapIfBigEndian ((uint32) (time >> 32));
 
-        values [WavAudioFormat::bwavCodingHistory].copyToUTF8 (b->codingHistory);
+        values [WavAudioFormat::bwavCodingHistory].copyToUTF8 (b->codingHistory, 0x7fffffff);
 
         if (b->description[0] != 0
             || b->originator[0] != 0
@@ -264,7 +264,7 @@ class WavAudioFormatReader  : public AudioFormatReader
     static inline int chunkName (const char* const name)   { return (int) ByteOrder::littleEndianInt (name); }
 
     WavAudioFormatReader (const WavAudioFormatReader&);
-    const WavAudioFormatReader& operator= (const WavAudioFormatReader&);
+    WavAudioFormatReader& operator= (const WavAudioFormatReader&);
 
 public:
     int64 bwavChunkStart, bwavSize;
@@ -619,7 +619,7 @@ class WavAudioFormatWriter  : public AudioFormatWriter
     static inline int chunkName (const char* const name)   { return (int) ByteOrder::littleEndianInt (name); }
 
     WavAudioFormatWriter (const WavAudioFormatWriter&);
-    const WavAudioFormatWriter& operator= (const WavAudioFormatWriter&);
+    WavAudioFormatWriter& operator= (const WavAudioFormatWriter&);
 
     void writeHeader()
     {

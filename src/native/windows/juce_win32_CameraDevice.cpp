@@ -64,11 +64,8 @@ public:
         {
             ComSmartPtr <IAMStreamConfig> streamConfig;
 
-            hr = captureGraphBuilder->FindInterface (&PIN_CATEGORY_CAPTURE,
-                                                     0,
-                                                     filter,
-                                                     IID_IAMStreamConfig,
-                                                     (void**) &streamConfig);
+            hr = captureGraphBuilder->FindInterface (&PIN_CATEGORY_CAPTURE, 0, filter,
+                                                     IID_IAMStreamConfig, (void**) &streamConfig);
 
             if (streamConfig != 0)
             {
@@ -166,8 +163,7 @@ public:
         smartTee = 0;
         smartTeePreviewOutputPin = 0;
         smartTeeCaptureOutputPin = 0;
-        mux = 0;
-        fileWriter = 0;
+        asfWriter = 0;
 
         delete activeImage;
         delete loadingImage;
@@ -210,19 +206,24 @@ public:
             }
         }
 
-        imageSwapLock.enter();
-        const int lineStride = width * 3;
-        const Image::BitmapData destData (*loadingImage, 0, 0, width, height, true);
+        {
+            const int lineStride = width * 3;
+            const ScopedLock sl (imageSwapLock);
 
-        for (int i = 0; i < height; ++i)
-            memcpy (destData.getLinePointer ((height - 1) - i),
-                    buffer + lineStride * i,
-                    lineStride);
+            {
+                const Image::BitmapData destData (*loadingImage, 0, 0, width, height, true);
 
-        imageNeedsFlipping = true;
-        imageSwapLock.exit();
+                for (int i = 0; i < height; ++i)
+                    memcpy (destData.getLinePointer ((height - 1) - i),
+                            buffer + lineStride * i,
+                            lineStride);
+            }
 
-        callListeners (*loadingImage);
+            imageNeedsFlipping = true;
+        }
+
+        if (listeners.size() > 0)
+            callListeners (*loadingImage);
 
         sendChangeMessage (this);
     }
@@ -231,10 +232,9 @@ public:
     {
         if (imageNeedsFlipping)
         {
-            imageSwapLock.enter();
+            const ScopedLock sl (imageSwapLock);
             swapVariables (loadingImage, activeImage);
             imageNeedsFlipping = false;
-            imageSwapLock.exit();
         }
 
         RectanglePlacement rp (RectanglePlacement::centred);
@@ -259,56 +259,59 @@ public:
         firstRecordedTime = Time();
         recordNextFrameTime = true;
 
-        HRESULT hr = mux.CoCreateInstance (CLSID_AviDest, CLSCTX_INPROC_SERVER);
+        HRESULT hr = asfWriter.CoCreateInstance (CLSID_WMAsfWriter, CLSCTX_INPROC_SERVER);
 
         if (SUCCEEDED (hr))
         {
-            hr = graphBuilder->AddFilter (mux, _T("AVI Mux"));
+            ComSmartPtr <IFileSinkFilter> fileSink;
+            hr = asfWriter->QueryInterface (IID_IFileSinkFilter, (void**) &fileSink);
 
             if (SUCCEEDED (hr))
             {
-                fileWriter.CoCreateInstance (CLSID_FileWriter, CLSCTX_INPROC_SERVER);
+                hr = fileSink->SetFileName (file.getFullPathName(), 0);
 
                 if (SUCCEEDED (hr))
                 {
-                    ComSmartPtr <IFileSinkFilter> fileSink;
-                    hr = fileWriter->QueryInterface (IID_IFileSinkFilter, (void**) &fileSink);
+                    hr = graphBuilder->AddFilter (asfWriter, _T("AsfWriter"));
 
                     if (SUCCEEDED (hr))
                     {
-                        AM_MEDIA_TYPE mt;
-                        zerostruct (mt);
-                        mt.majortype = MEDIATYPE_Stream;
-                        mt.subtype = MEDIASUBTYPE_Avi;
-                        mt.formattype = FORMAT_VideoInfo;
-                        hr = fileSink->SetFileName (file.getFullPathName(), &mt);
+                        ComSmartPtr <IConfigAsfWriter> asfConfig;
+                        hr = asfWriter->QueryInterface (IID_IConfigAsfWriter, (void**) &asfConfig);
+                        asfConfig->SetIndexMode (true);
+                        ComSmartPtr <IWMProfileManager> profileManager;
+                        hr = WMCreateProfileManager (&profileManager);
+
+                        // This gibberish is the DirectShow profile for a video-only wmv file.
+                        String prof ("<profile version=\"589824\" storageformat=\"1\" name=\"Quality\" description=\"Quality type for output.\"><streamconfig "
+                            "majortype=\"{73646976-0000-0010-8000-00AA00389B71}\" streamnumber=\"1\" streamname=\"Video Stream\" inputname=\"Video409\" bitrate=\"894960\" "
+                            "bufferwindow=\"0\" reliabletransport=\"1\" decodercomplexity=\"AU\" rfc1766langid=\"en-us\"><videomediaprops maxkeyframespacing=\"50000000\" quality=\"90\"/>"
+                            "<wmmediatype subtype=\"{33564D57-0000-0010-8000-00AA00389B71}\" bfixedsizesamples=\"0\" btemporalcompression=\"1\" lsamplesize=\"0\"> <videoinfoheader "
+                            "dwbitrate=\"894960\" dwbiterrorrate=\"0\" avgtimeperframe=\"100000\"><rcsource left=\"0\" top=\"0\" right=\"$WIDTH\" bottom=\"$HEIGHT\"/> <rctarget "
+                            "left=\"0\" top=\"0\" right=\"$WIDTH\" bottom=\"$HEIGHT\"/> <bitmapinfoheader biwidth=\"$WIDTH\" biheight=\"$HEIGHT\" biplanes=\"1\" bibitcount=\"24\" "
+                            "bicompression=\"WMV3\" bisizeimage=\"0\" bixpelspermeter=\"0\" biypelspermeter=\"0\" biclrused=\"0\" biclrimportant=\"0\"/> "
+                            "</videoinfoheader></wmmediatype></streamconfig></profile>");
+
+                        prof = prof.replace (T("$WIDTH"), String (width))
+                                   .replace (T("$HEIGHT"), String (height));
+
+                        ComSmartPtr <IWMProfile> currentProfile;
+                        hr = profileManager->LoadProfileByData ((const WCHAR*) prof, &currentProfile);
+                        hr = asfConfig->ConfigureFilterUsingProfile (currentProfile);
 
                         if (SUCCEEDED (hr))
                         {
-                            hr = graphBuilder->AddFilter (fileWriter, _T("File Writer"));
+                            ComSmartPtr <IPin> asfWriterInputPin;
 
-                            if (SUCCEEDED (hr))
+                            if (getPin (asfWriter, PINDIR_INPUT, &asfWriterInputPin, "Video Input 01"))
                             {
-                                ComSmartPtr <IPin> muxInputPin, muxOutputPin, writerInput;
+                                hr = graphBuilder->Connect (smartTeeCaptureOutputPin, asfWriterInputPin);
 
-                                if (getPin (mux, PINDIR_INPUT, &muxInputPin)
-                                     && getPin (mux, PINDIR_OUTPUT, &muxOutputPin)
-                                     && getPin (fileWriter, PINDIR_INPUT, &writerInput))
+                                if (SUCCEEDED (hr)
+                                     && ok && activeUsers > 0
+                                     && SUCCEEDED (mediaControl->Run()))
                                 {
-                                    hr = graphBuilder->Connect (smartTeeCaptureOutputPin, muxInputPin);
-
-                                    if (SUCCEEDED (hr))
-                                    {
-                                        hr = graphBuilder->Connect (muxOutputPin, writerInput);
-
-                                        if (SUCCEEDED (hr))
-                                        {
-                                            if (ok && activeUsers > 0)
-                                                mediaControl->Run();
-
-                                            return true;
-                                        }
-                                    }
+                                    return true;
                                 }
                             }
                         }
@@ -329,16 +332,10 @@ public:
     {
         mediaControl->Stop();
 
-        if (mux != 0)
+        if (asfWriter != 0)
         {
-            graphBuilder->RemoveFilter (mux);
-            mux = 0;
-        }
-
-        if (fileWriter != 0)
-        {
-            graphBuilder->RemoveFilter (fileWriter);
-            fileWriter = 0;
+            graphBuilder->RemoveFilter (asfWriter);
+            asfWriter = 0;
         }
 
         if (ok && activeUsers > 0)
@@ -377,6 +374,7 @@ public:
                 l->imageReceived (image);
         }
     }
+
 
     //==============================================================================
     class DShowCaptureViewerComp   : public Component,
@@ -445,7 +443,7 @@ private:
     ComSmartPtr <IMediaControl> mediaControl;
     ComSmartPtr <IPin> smartTeePreviewOutputPin;
     ComSmartPtr <IPin> smartTeeCaptureOutputPin;
-    ComSmartPtr <IBaseFilter> mux, fileWriter;
+    ComSmartPtr <IBaseFilter> asfWriter;
     int activeUsers;
     Array <int> widths, heights;
     DWORD graphRegistrationID;
@@ -507,16 +505,16 @@ private:
                           const int minWidth, const int minHeight,
                           const int maxWidth, const int maxHeight)
     {
-        int count = 0, size = 0;
+        int count = 0, size = 0, bestArea = 0, bestIndex = -1;
         streamConfig->GetNumberOfCapabilities (&count, &size);
 
         if (size == sizeof (VIDEO_STREAM_CONFIG_CAPS))
         {
+            AM_MEDIA_TYPE* config;
+            VIDEO_STREAM_CONFIG_CAPS scc;
+
             for (int i = 0; i < count; ++i)
             {
-                VIDEO_STREAM_CONFIG_CAPS scc;
-                AM_MEDIA_TYPE* config;
-
                 HRESULT hr = streamConfig->GetStreamCaps (i, &config, (BYTE*) &scc);
 
                 if (SUCCEEDED (hr))
@@ -526,13 +524,25 @@ private:
                          && scc.InputSize.cx <= maxWidth
                          && scc.InputSize.cy <= maxHeight)
                     {
-                        hr = streamConfig->SetFormat (config);
-                        deleteMediaType (config);
-                        return SUCCEEDED (hr);
+                        int area = scc.InputSize.cx * scc.InputSize.cy;
+                        if (area > bestArea)
+                        {
+                            bestIndex = i;
+                            bestArea = area;
+                        }
                     }
 
                     deleteMediaType (config);
                 }
+            }
+
+            if (bestIndex >= 0)
+            {
+                HRESULT hr = streamConfig->GetStreamCaps (bestIndex, &config, (BYTE*) &scc);
+
+                hr = streamConfig->SetFormat (config);
+                deleteMediaType (config);
+                return SUCCEEDED (hr);
             }
         }
 
@@ -658,7 +668,7 @@ private:
         DShowCameraDeviceInteral& owner;
 
         GrabberCallback (const GrabberCallback&);
-        const GrabberCallback& operator= (const GrabberCallback&);
+        GrabberCallback& operator= (const GrabberCallback&);
     };
 
     ComSmartPtr <GrabberCallback> callback;
@@ -667,7 +677,7 @@ private:
 
     //==============================================================================
     DShowCameraDeviceInteral (const DShowCameraDeviceInteral&);
-    const DShowCameraDeviceInteral& operator= (const DShowCameraDeviceInteral&);
+    DShowCameraDeviceInteral& operator= (const DShowCameraDeviceInteral&);
 };
 
 
@@ -692,10 +702,10 @@ Component* CameraDevice::createViewerComponent()
 
 const String CameraDevice::getFileExtension()
 {
-    return ".avi";
+    return ".wmv";
 }
 
-void CameraDevice::startRecordingToFile (const File& file)
+void CameraDevice::startRecordingToFile (const File& file, int quality)
 {
     stopRecording();
 

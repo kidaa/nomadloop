@@ -29,7 +29,7 @@ BEGIN_JUCE_NAMESPACE
 
 
 #include "juce_OutputStream.h"
-#include "../../threads/juce_CriticalSection.h"
+#include "../../threads/juce_ScopedLock.h"
 #include "../../containers/juce_VoidArray.h"
 
 
@@ -51,21 +51,19 @@ void juce_CheckForDanglingStreams()
 #endif
 
 //==============================================================================
-OutputStream::OutputStream() throw()
+OutputStream::OutputStream()
 {
 #if JUCE_DEBUG
-    activeStreamLock.enter();
+    const ScopedLock sl (activeStreamLock);
     activeStreams.add (this);
-    activeStreamLock.exit();
 #endif
 }
 
 OutputStream::~OutputStream()
 {
 #if JUCE_DEBUG
-    activeStreamLock.enter();
+    const ScopedLock sl (activeStreamLock);
     activeStreams.removeValue (this);
-    activeStreamLock.exit();
 #endif
 }
 
@@ -169,85 +167,15 @@ void OutputStream::writeDoubleBigEndian (double value)
 
 void OutputStream::writeString (const String& text)
 {
-    const int numBytes = text.copyToUTF8 (0);
-    HeapBlock <uint8> temp (numBytes);
-
-    text.copyToUTF8 (temp);
-    write (temp, numBytes); // (numBytes includes the terminating null).
+    // (This avoids using toUTF8() to prevent the memory bloat that it would leave behind
+    // if lots of large, persistent strings were to be written to streams).
+    const int numBytes = text.getNumBytesAsUTF8() + 1;
+    HeapBlock<char> temp (numBytes);
+    text.copyToUTF8 (temp, numBytes);
+    write (temp, numBytes);
 }
 
-void OutputStream::printf (const char* pf, ...)
-{
-    unsigned int bufSize = 256;
-    HeapBlock <char> buf (bufSize);
-
-    for (;;)
-    {
-        va_list list;
-        va_start (list, pf);
-
-        const int num = CharacterFunctions::vprintf (buf, bufSize, pf, list);
-
-        va_end (list);
-
-        if (num > 0)
-        {
-            write (buf, num);
-            break;
-        }
-        else if (num == 0)
-        {
-            break;
-        }
-
-        bufSize += 256;
-        buf.malloc (bufSize);
-    }
-}
-
-OutputStream& OutputStream::operator<< (const int number)
-{
-    const String s (number);
-    write ((const char*) s, s.length());
-    return *this;
-}
-
-OutputStream& OutputStream::operator<< (const double number)
-{
-    const String s (number);
-    write ((const char*) s, s.length());
-    return *this;
-}
-
-OutputStream& OutputStream::operator<< (const char character)
-{
-    writeByte (character);
-    return *this;
-}
-
-OutputStream& OutputStream::operator<< (const char* const text)
-{
-    write (text, (int) strlen (text));
-    return *this;
-}
-
-OutputStream& OutputStream::operator<< (const juce_wchar* const text)
-{
-    const String s (text);
-    write ((const char*) s, s.length());
-    return *this;
-}
-
-OutputStream& OutputStream::operator<< (const String& text)
-{
-    write ((const char*) text,
-           text.length());
-
-    return *this;
-}
-
-void OutputStream::writeText (const String& text,
-                              const bool asUnicode,
+void OutputStream::writeText (const String& text, const bool asUnicode,
                               const bool writeUnicodeHeaderBytes)
 {
     if (asUnicode)
@@ -269,7 +197,7 @@ void OutputStream::writeText (const String& text,
     }
     else
     {
-        const char* src = (const char*) text;
+        const char* src = text.toUTF8();
         const char* t = src;
 
         for (;;)
@@ -300,8 +228,7 @@ void OutputStream::writeText (const String& text,
     }
 }
 
-int OutputStream::writeFromInputStream (InputStream& source,
-                                        int numBytesToWrite)
+int OutputStream::writeFromInputStream (InputStream& source, int numBytesToWrite)
 {
     if (numBytesToWrite < 0)
         numBytesToWrite = 0x7fffffff;
@@ -324,6 +251,29 @@ int OutputStream::writeFromInputStream (InputStream& source,
     }
 
     return numWritten;
+}
+
+//==============================================================================
+OutputStream& operator<< (OutputStream& stream, const int number)
+{
+    return stream << String (number);
+}
+
+OutputStream& operator<< (OutputStream& stream, const double number)
+{
+    return stream << String (number);
+}
+
+OutputStream& operator<< (OutputStream& stream, const char character)
+{
+    stream.writeByte (character);
+    return stream;
+}
+
+OutputStream& operator<< (OutputStream& stream, const char* const text)
+{
+    stream.write (text, (int) strlen (text));
+    return stream;
 }
 
 

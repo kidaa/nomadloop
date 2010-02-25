@@ -165,7 +165,7 @@ private:
     }
 
     SolidColourEdgeTableRenderer (const SolidColourEdgeTableRenderer&);
-    const SolidColourEdgeTableRenderer& operator= (const SolidColourEdgeTableRenderer&);
+    SolidColourEdgeTableRenderer& operator= (const SolidColourEdgeTableRenderer&);
 };
 
 //==============================================================================
@@ -230,7 +230,7 @@ public:
             start = roundToInt ((y - yTerm) * grad);
     }
 
-    forcedinline const PixelARGB getPixel (const int x) const throw()
+    inline const PixelARGB getPixel (const int x) const throw()
     {
         return vertical ? linePix
                         : lookupTable [jlimit (0, numEntries, (x * scale - start) >> (int) numScaleBits)];
@@ -246,7 +246,7 @@ private:
     enum { numScaleBits = 12 };
 
     LinearGradientPixelGenerator (const LinearGradientPixelGenerator&);
-    const LinearGradientPixelGenerator& operator= (const LinearGradientPixelGenerator&);
+    LinearGradientPixelGenerator& operator= (const LinearGradientPixelGenerator&);
 };
 
 //==============================================================================
@@ -274,7 +274,7 @@ public:
         dy *= dy;
     }
 
-    forcedinline const PixelARGB getPixel (const int px) const throw()
+    inline const PixelARGB getPixel (const int px) const throw()
     {
         double x = px - gx1;
         x *= x;
@@ -290,7 +290,7 @@ protected:
     double maxDist, invScale, dy;
 
     RadialGradientPixelGenerator (const RadialGradientPixelGenerator&);
-    const RadialGradientPixelGenerator& operator= (const RadialGradientPixelGenerator&);
+    RadialGradientPixelGenerator& operator= (const RadialGradientPixelGenerator&);
 };
 
 //==============================================================================
@@ -312,7 +312,7 @@ public:
         lineYM11 = inverseTransform.mat11 * y + inverseTransform.mat12 - gy1;
     }
 
-    forcedinline const PixelARGB getPixel (const int px) const throw()
+    inline const PixelARGB getPixel (const int px) const throw()
     {
         double x = px;
         const double y = tM10 * x + lineYM11;
@@ -331,7 +331,7 @@ private:
     const AffineTransform inverseTransform;
 
     TransformedRadialGradientPixelGenerator (const TransformedRadialGradientPixelGenerator&);
-    const TransformedRadialGradientPixelGenerator& operator= (const TransformedRadialGradientPixelGenerator&);
+    TransformedRadialGradientPixelGenerator& operator= (const TransformedRadialGradientPixelGenerator&);
 };
 
 //==============================================================================
@@ -382,7 +382,7 @@ private:
     PixelType* linePixels;
 
     GradientEdgeTableRenderer (const GradientEdgeTableRenderer&);
-    const GradientEdgeTableRenderer& operator= (const GradientEdgeTableRenderer&);
+    GradientEdgeTableRenderer& operator= (const GradientEdgeTableRenderer&);
 };
 
 //==============================================================================
@@ -496,7 +496,7 @@ private:
     }
 
     ImageFillEdgeTableRenderer (const ImageFillEdgeTableRenderer&);
-    const ImageFillEdgeTableRenderer& operator= (const ImageFillEdgeTableRenderer&);
+    ImageFillEdgeTableRenderer& operator= (const ImageFillEdgeTableRenderer&);
 };
 
 //==============================================================================
@@ -877,7 +877,7 @@ private:
         BresenhamInterpolator xBresenham, yBresenham;
 
         TransformedImageSpanInterpolator (const TransformedImageSpanInterpolator&);
-        const TransformedImageSpanInterpolator& operator= (const TransformedImageSpanInterpolator&);
+        TransformedImageSpanInterpolator& operator= (const TransformedImageSpanInterpolator&);
     };
 
     //==============================================================================
@@ -894,7 +894,7 @@ private:
     int scratchSize;
 
     TransformedImageFillEdgeTableRenderer (const TransformedImageFillEdgeTableRenderer&);
-    const TransformedImageFillEdgeTableRenderer& operator= (const TransformedImageFillEdgeTableRenderer&);
+    TransformedImageFillEdgeTableRenderer& operator= (const TransformedImageFillEdgeTableRenderer&);
 };
 
 //==============================================================================
@@ -1165,7 +1165,7 @@ public:
     Graphics::ResamplingQuality interpolationQuality;
 
 private:
-    const LLGCSavedState& operator= (const LLGCSavedState&);
+    LLGCSavedState& operator= (const LLGCSavedState&);
 
     void dupeEdgeTableIfMultiplyReferenced() throw()
     {
@@ -1608,7 +1608,7 @@ public:
         ScopedPointer <EdgeTable> edgeTable;
 
         CachedGlyph (const CachedGlyph&);
-        const CachedGlyph& operator= (const CachedGlyph&);
+        CachedGlyph& operator= (const CachedGlyph&);
     };
 
     //==============================================================================
@@ -1619,7 +1619,7 @@ private:
     int accessCounter, hits, misses;
 
     GlyphCache (const GlyphCache&);
-    const GlyphCache& operator= (const GlyphCache&);
+    GlyphCache& operator= (const GlyphCache&);
 };
 
 juce_ImplementSingleton_SingleThreaded (GlyphCache);

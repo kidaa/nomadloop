@@ -35,17 +35,6 @@ BEGIN_JUCE_NAMESPACE
 const int juce_edgeTableDefaultEdgesPerLine = 32;
 
 //==============================================================================
-static void copyEdgeTableData (int* dest, const int destLineStride, const int* src, const int srcLineStride, int numLines) throw()
-{
-    while (--numLines >= 0)
-    {
-        memcpy (dest, src, (src[0] * 2 + 1) * sizeof (int));
-        src += srcLineStride;
-        dest += destLineStride;
-    }
-}
-
-//==============================================================================
 EdgeTable::EdgeTable (const Rectangle<int>& bounds_,
                       const Path& path, const AffineTransform& transform) throw()
    : bounds (bounds_),
@@ -260,7 +249,7 @@ EdgeTable::EdgeTable (const EdgeTable& other) throw()
     operator= (other);
 }
 
-const EdgeTable& EdgeTable::operator= (const EdgeTable& other) throw()
+EdgeTable& EdgeTable::operator= (const EdgeTable& other) throw()
 {
     bounds = other.bounds;
     maxEdgesPerLine = other.maxEdgesPerLine;
@@ -277,6 +266,16 @@ EdgeTable::~EdgeTable() throw()
 }
 
 //==============================================================================
+void EdgeTable::copyEdgeTableData (int* dest, const int destLineStride, const int* src, const int srcLineStride, int numLines) throw()
+{
+    while (--numLines >= 0)
+    {
+        memcpy (dest, src, (src[0] * 2 + 1) * sizeof (int));
+        src += srcLineStride;
+        dest += destLineStride;
+    }
+}
+
 void EdgeTable::sanitiseLevels (const bool useNonZeroWinding) throw()
 {
     // Convert the table from relative windings to absolute levels..

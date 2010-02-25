@@ -74,7 +74,7 @@ public:
     EdgeTable (const EdgeTable& other) throw();
 
     /** Copies from another edge table. */
-    const EdgeTable& operator= (const EdgeTable& other) throw();
+    EdgeTable& operator= (const EdgeTable& other) throw();
 
     /** Destructor. */
     ~EdgeTable() throw();
@@ -205,6 +205,7 @@ private:
     void intersectWithEdgeTableLine (const int y, const int* otherLine) throw();
     void clipEdgeTableLineToRange (int* line, int x1, int x2) throw();
     void sanitiseLevels (const bool useNonZeroWinding) throw();
+    static void copyEdgeTableData (int* dest, const int destLineStride, const int* src, const int srcLineStride, int numLines) throw();
 };
 
 

@@ -86,13 +86,13 @@ public:
         If this ScopedPointer already points to an object, that object
         will first be deleted.
     */
-    const ScopedPointer& operator= (ScopedPointer& objectToTransferFrom)
+    ScopedPointer& operator= (ScopedPointer& objectToTransferFrom)
     {
         if (this != objectToTransferFrom.getAddress())
         {
             // Two ScopedPointers should never be able to refer to the same object - if
             // this happens, you must have done something dodgy!
-            jassert (object != objectToTransferFrom.object);
+            jassert (object == 0 || object != objectToTransferFrom.object);
 
             ObjectType* const oldObject = object;
             object = objectToTransferFrom.object;
@@ -110,7 +110,7 @@ public:
 
         The pointer that you pass is may be null.
     */
-    const ScopedPointer& operator= (ObjectType* const newObjectToTakePossessionOf)
+    ScopedPointer& operator= (ObjectType* const newObjectToTakePossessionOf)
     {
         if (object != newObjectToTakePossessionOf)
         {

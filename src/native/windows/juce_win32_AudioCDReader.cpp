@@ -1559,7 +1559,7 @@ class DeinitialiseTimer  : private Timer,
                            private DeletedAtShutdown
 {
     DeinitialiseTimer (const DeinitialiseTimer&);
-    const DeinitialiseTimer& operator= (const DeinitialiseTimer&);
+    DeinitialiseTimer& operator= (const DeinitialiseTimer&);
 
 public:
     DeinitialiseTimer()
@@ -2215,6 +2215,9 @@ public:
 
     private:
         Pimpl& pimpl;
+
+        ScopedDiscOpener (const ScopedDiscOpener&);
+        ScopedDiscOpener& operator= (const ScopedDiscOpener&);
     };
 
     DiskState getDiskState()
@@ -2391,6 +2394,8 @@ int AudioCDBurner::getNumAvailableAudioBlocks() const
 const String AudioCDBurner::burn (AudioCDBurner::BurnProgressListener* listener, bool ejectDiscAfterwards,
                                   bool performFakeBurnForTesting, int writeSpeed)
 {
+    pimpl->setIntProperty (L"WriteSpeed", writeSpeed > 0 ? writeSpeed : -1);
+
     pimpl->listener = listener;
     pimpl->progress = 0;
     pimpl->shouldCancel = false;

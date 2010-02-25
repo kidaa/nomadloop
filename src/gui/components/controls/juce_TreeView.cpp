@@ -83,12 +83,8 @@ public:
             else
                 selectBasedOnModifiers (item, e.mods);
 
-            MouseEvent e2 (e);
-            e2.x -= pos.getX();
-            e2.y -= pos.getY();
-
-            if (e2.x >= 0)
-                item->itemClicked (e2);
+            if (e.x >= pos.getX())
+                item->itemClicked (e.withNewPosition (e.getPosition() - pos.getPosition()));
         }
     }
 
@@ -114,12 +110,7 @@ public:
             TreeViewItem* const item = findItemAt (e.y, pos);
 
             if (item != 0 && (e.x >= pos.getX() || ! owner->openCloseButtonsVisible))
-            {
-                MouseEvent e2 (e);
-                e2.x -= pos.getX();
-                e2.y -= pos.getY();
-                item->itemDoubleClicked (e2);
-            }
+                item->itemDoubleClicked (e.withNewPosition (e.getPosition() - pos.getPosition()));
         }
     }
 
@@ -328,7 +319,7 @@ private:
     bool isDragging, needSelectionOnMouseUp;
 
     TreeViewContentComponent (const TreeViewContentComponent&);
-    const TreeViewContentComponent& operator= (const TreeViewContentComponent&);
+    TreeViewContentComponent& operator= (const TreeViewContentComponent&);
 
     void selectBasedOnModifiers (TreeViewItem* const item, const ModifierKeys& modifiers)
     {
@@ -396,7 +387,7 @@ public:
 
 private:
     TreeViewport (const TreeViewport&);
-    const TreeViewport& operator= (const TreeViewport&);
+    TreeViewport& operator= (const TreeViewport&);
 };
 
 
@@ -1168,16 +1159,19 @@ void TreeViewItem::addSubItem (TreeViewItem* const newItem, const int insertPosi
 void TreeViewItem::removeSubItem (const int index, const bool deleteItem)
 {
     if (ownerView != 0)
-        ownerView->nodeAlterationLock.enter();
+    {
+        const ScopedLock sl (ownerView->nodeAlterationLock);
 
-    if (((unsigned int) index) < (unsigned int) subItems.size())
+        if (((unsigned int) index) < (unsigned int) subItems.size())
+        {
+            subItems.remove (index, deleteItem);
+            treeHasChanged();
+        }
+    }
+    else
     {
         subItems.remove (index, deleteItem);
-        treeHasChanged();
     }
-
-    if (ownerView != 0)
-        ownerView->nodeAlterationLock.exit();
 }
 
 bool TreeViewItem::isOpen() const throw()

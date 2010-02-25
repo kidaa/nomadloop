@@ -158,10 +158,9 @@ static const String parseAbsolutePath (String path)
         else
         {
             // expand a name of type "~dave/abc"
-            const String userName (path.substring (1)
-                                       .upToFirstOccurrenceOf (T("/"), false, false));
+            const String userName (path.substring (1).upToFirstOccurrenceOf (T("/"), false, false));
 
-            struct passwd* const pw = getpwnam (userName);
+            struct passwd* const pw = getpwnam (userName.toUTF8());
             if (pw != 0)
             {
                 String home (homeDir);
@@ -222,13 +221,13 @@ File::File (const File& other)
 {
 }
 
-const File& File::operator= (const String& newPath)
+File& File::operator= (const String& newPath)
 {
     fullPath = parseAbsolutePath (newPath);
     return *this;
 }
 
-const File& File::operator= (const File& other)
+File& File::operator= (const File& other)
 {
     fullPath = other.fullPath;
     return *this;
