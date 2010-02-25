@@ -133,6 +133,7 @@
 #endif
 
 #include "../juce_PluginHeaders.h"
+#include "../juce_PluginHostType.h"
 
 
 #ifdef _MSC_VER
@@ -235,19 +236,14 @@ public:
 
     void run()
     {
-        MessageManager* const messageManager = MessageManager::getInstance();
-
-        const Thread::ThreadID originalThreadId = messageManager->getCurrentMessageThread();
-        messageManager->setCurrentMessageThread (Thread::getCurrentThreadId());
-
         initialiseJuce_GUI();
         initialised = true;
 
-        while ((! threadShouldExit()) && messageManager->runDispatchLoopUntil (250))
+        MessageManager::getInstance()->setCurrentThreadAsMessageThread();
+
+        while ((! threadShouldExit()) && MessageManager::getInstance()->runDispatchLoopUntil (250))
         {
         }
-
-        messageManager->setCurrentMessageThread (originalThreadId);
     }
 
     juce_DeclareSingleton (SharedMessageThread, false)
@@ -382,11 +378,8 @@ public:
         hasShutdown = false;
         firstProcessCallback = true;
         shouldDeleteEditor = false;
-        channels = 0;
         speakerIn = kSpeakerArrEmpty;
         speakerOut = kSpeakerArrEmpty;
-        speakerInChans = 0;
-        speakerOutChans = 0;
         numInChans = JucePlugin_MaxNumInputChannels;
         numOutChans = JucePlugin_MaxNumOutputChannels;
 
@@ -438,8 +431,7 @@ public:
 
         jassert (editorComp == 0);
 
-        juce_free (channels);
-        channels = 0;
+        channels.free();
         deleteTempChannels();
 
         jassert (activePlugins.contains (this));
@@ -458,7 +450,9 @@ public:
     {
         if (editorComp == 0)
         {
+            checkWhetherWavelabHasChangedThread();
             const MessageManagerLock mmLock;
+
             AudioProcessorEditor* const ed = filter->createEditorIfNeeded();
 
             if (ed != 0)
@@ -475,7 +469,7 @@ public:
 
     void close()
     {
-        const MessageManagerLock mmLock;
+        const NonWavelabMMLock mmLock;
         jassert (! recursionCheck);
 
         stopTimer();
@@ -485,13 +479,13 @@ public:
     //==============================================================================
     bool getEffectName (char* name)
     {
-        String (JucePlugin_Name).copyToBuffer (name, 64);
+        String (JucePlugin_Name).copyToCString (name, 64);
         return true;
     }
 
     bool getVendorString (char* text)
     {
-        String (JucePlugin_Manufacturer).copyToBuffer (text, 64);
+        String (JucePlugin_Manufacturer).copyToCString (text, 64);
         return true;
     }
 
@@ -555,8 +549,8 @@ public:
 
         const String name (filter->getInputChannelName ((int) index));
 
-        name.copyToBuffer (properties->label, kVstMaxLabelLen - 1);
-        name.copyToBuffer (properties->shortLabel, kVstMaxShortLabelLen - 1);
+        name.copyToCString (properties->label, kVstMaxLabelLen - 1);
+        name.copyToCString (properties->shortLabel, kVstMaxShortLabelLen - 1);
 
         if (speakerIn != kSpeakerArrEmpty)
         {
@@ -583,8 +577,8 @@ public:
 
         const String name (filter->getOutputChannelName ((int) index));
 
-        name.copyToBuffer (properties->label, kVstMaxLabelLen - 1);
-        name.copyToBuffer (properties->shortLabel, kVstMaxShortLabelLen - 1);
+        name.copyToCString (properties->label, kVstMaxLabelLen - 1);
+        name.copyToCString (properties->shortLabel, kVstMaxShortLabelLen - 1);
 
         if (speakerOut != kSpeakerArrEmpty)
         {
@@ -765,8 +759,7 @@ public:
             return;
 
         isProcessing = true;
-        juce_free (channels);
-        channels = (float**) juce_calloc (sizeof (float*) * (numInChans + numOutChans));
+        channels.calloc (numInChans + numOutChans);
 
         double rate = getSampleRate();
         jassert (rate > 0);
@@ -812,8 +805,7 @@ public:
         outgoingEvents.freeEvents();
 
         isProcessing = false;
-        juce_free (channels);
-        channels = 0;
+        channels.free();
 
         deleteTempChannels();
     }
@@ -946,14 +938,14 @@ public:
     void getProgramName (char* name)
     {
         if (filter != 0)
-            filter->getProgramName (filter->getCurrentProgram()).copyToBuffer (name, 24);
+            filter->getProgramName (filter->getCurrentProgram()).copyToCString (name, 24);
     }
 
     bool getProgramNameIndexed (VstInt32 category, VstInt32 index, char* text)
     {
         if (filter != 0 && ((unsigned int) index) < (unsigned int) filter->getNumPrograms())
         {
-            filter->getProgramName (index).copyToBuffer (text, 24);
+            filter->getProgramName (index).copyToCString (text, 24);
             return true;
         }
 
@@ -984,7 +976,7 @@ public:
         if (filter != 0)
         {
             jassert (((unsigned int) index) < (unsigned int) filter->getNumParameters());
-            filter->getParameterText (index).copyToBuffer (text, 24); // length should technically be kVstMaxParamStrLen, which is 8, but hosts will normally allow a bit more.
+            filter->getParameterText (index).copyToCString (text, 24); // length should technically be kVstMaxParamStrLen, which is 8, but hosts will normally allow a bit more.
         }
     }
 
@@ -993,7 +985,7 @@ public:
         if (filter != 0)
         {
             jassert (((unsigned int) index) < (unsigned int) filter->getNumParameters());
-            filter->getParameterName (index).copyToBuffer (text, 16); // length should technically be kVstMaxParamStrLen, which is 8, but hosts will normally allow a bit more.
+            filter->getParameterName (index).copyToCString (text, 16); // length should technically be kVstMaxParamStrLen, which is 8, but hosts will normally allow a bit more.
         }
     }
 
@@ -1022,26 +1014,49 @@ public:
         return filter != 0 && filter->isParameterAutomatable ((int) index);
     }
 
+    class ChannelConfigComparator
+    {
+    public:
+        static int compareElements (const short* const first, const short* const second)
+        {
+            if (first[0] < second[0])
+                return -1;
+            else if (first[0] > second[0])
+                return 1;
+            else if (first[1] < second[1])
+                return -1;
+            else if (first[1] > second[1])
+                return 1;
+
+            return 0;
+        }
+    };
+
     bool setSpeakerArrangement (VstSpeakerArrangement* pluginInput,
                                 VstSpeakerArrangement* pluginOutput)
     {
-        const short channelConfigs[][2] = { JucePlugin_PreferredChannelConfigurations };
+        short channelConfigs[][2] = { JucePlugin_PreferredChannelConfigurations };
+
+        Array <short*> channelConfigsSorted;
+        ChannelConfigComparator comp;
 
         for (int i = 0; i < numElementsInArray (channelConfigs); ++i)
-        {
-            bool configMono      = (channelConfigs[i][1] == 1) && (pluginOutput->type == kSpeakerArrMono);
-            bool configStereo    = (channelConfigs[i][1] == 2) && (pluginOutput->type == kSpeakerArrStereo);
-            bool inCountMatches  = (channelConfigs[i][0] == pluginInput->numChannels);
-            bool outCountMatches = (channelConfigs[i][1] == pluginOutput->numChannels);
+            channelConfigsSorted.addSorted (comp, channelConfigs[i]);
 
-            if ((configMono || configStereo) && inCountMatches && outCountMatches)
+        for (int i = channelConfigsSorted.size(); --i >= 0;)
+        {
+            const short* const config = channelConfigsSorted.getUnchecked(i);
+            bool inCountMatches  = (config[0] == pluginInput->numChannels);
+            bool outCountMatches = (config[1] == pluginOutput->numChannels);
+
+            if (inCountMatches && outCountMatches)
             {
                 speakerIn = (VstSpeakerArrangementType) pluginInput->type;
                 speakerOut = (VstSpeakerArrangementType) pluginOutput->type;
-                speakerInChans = pluginInput->numChannels;
-                speakerOutChans = pluginOutput->numChannels;
+                numInChans = pluginInput->numChannels;
+                numOutChans = pluginOutput->numChannels;
 
-                filter->setPlayConfigDetails (speakerInChans, speakerOutChans,
+                filter->setPlayConfigDetails (numInChans, numOutChans,
                                               filter->getSampleRate(),
                                               filter->getBlockSize());
                 return true;
@@ -1069,7 +1084,7 @@ public:
         // hope so) we'll give it a while and then free it in the timer callback.
         chunkMemoryTime = JUCE_NAMESPACE::Time::getApproximateMillisecondCounter();
 
-        return chunkMemory.getSize();
+        return (VstInt32) chunkMemory.getSize();
     }
 
     VstInt32 setChunk (void* data, VstInt32 byteSize, bool onlyRestoreCurrentProgramData)
@@ -1234,6 +1249,7 @@ public:
         }
         else if (opCode == effEditOpen)
         {
+            checkWhetherWavelabHasChangedThread();
             const MessageManagerLock mmLock;
             jassert (! recursionCheck);
 
@@ -1269,12 +1285,14 @@ public:
         }
         else if (opCode == effEditClose)
         {
+            checkWhetherWavelabHasChangedThread();
             const MessageManagerLock mmLock;
             deleteEditor (true);
             return 0;
         }
         else if (opCode == effEditGetRect)
         {
+            checkWhetherWavelabHasChangedThread();
             const MessageManagerLock mmLock;
             createEditorComp();
 
@@ -1303,7 +1321,7 @@ public:
         if (editorComp != 0)
         {
 #if ! JUCE_LINUX // linux hosts shouldn't be trusted!
-            if (! (canHostDo ("sizeWindow") && sizeWindow (newWidth, newHeight)))
+            if (! (canHostDo (const_cast <char*> ("sizeWindow")) && sizeWindow (newWidth, newHeight)))
 #endif
             {
                 // some hosts don't support the sizeWindow call, so do it manually..
@@ -1395,17 +1413,44 @@ private:
     bool firstProcessCallback;
     int diffW, diffH;
     VstSpeakerArrangementType speakerIn, speakerOut;
-    int speakerInChans, speakerOutChans;
     int numInChans, numOutChans;
-    float** channels;
+    HeapBlock <float*> channels;
     VoidArray tempChannels; // see note in processReplacing()
     bool hasCreatedTempChannels;
     bool shouldDeleteEditor;
 
+    //==============================================================================
+    static PluginHostType& getHostType()
+    {
+        static PluginHostType hostType;
+        return hostType;
+    }
+
+#if JUCE_WINDOWS   // Workarounds for Wavelab's happy-go-lucky use of threads.
+    class NonWavelabMMLock
+    {
+    public:
+        NonWavelabMMLock() : mm (getHostType().isWavelab() ? 0 : new MessageManagerLock())  {}
+        ~NonWavelabMMLock() {}
+
+    private:
+        ScopedPointer <MessageManagerLock> mm;
+    };
+
+    static void checkWhetherWavelabHasChangedThread()
+    {
+        if (getHostType().isWavelab())
+            MessageManager::getInstance()->setCurrentThreadAsMessageThread();
+    }
+#else
+    typedef MessageManagerLock NonWavelabMMLock;
+    static void checkWhetherWavelabHasChangedThread() {}
+#endif
+
+    //==============================================================================
     void deleteTempChannels()
     {
-        int i;
-        for (i = tempChannels.size(); --i >= 0;)
+        for (int i = tempChannels.size(); --i >= 0;)
             juce_free (tempChannels.getUnchecked(i));
 
         tempChannels.clear();
