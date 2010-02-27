@@ -29,10 +29,12 @@ BEGIN_JUCE_NAMESPACE
 
 
 #include "juce_TooltipWindow.h"
+#include "../windows/juce_ComponentPeer.h"
 #include "../../../core/juce_Time.h"
 #include "../../../threads/juce_Process.h"
 #include "../lookandfeel/juce_LookAndFeel.h"
 #include "../juce_Desktop.h"
+#include "../mouse/juce_MouseInputSource.h"
 
 
 //==============================================================================
@@ -134,7 +136,7 @@ void TooltipWindow::hide()
 void TooltipWindow::timerCallback()
 {
     const unsigned int now = Time::getApproximateMillisecondCounter();
-    Component* const newComp = Component::getComponentUnderMouse();
+    Component* const newComp = Desktop::getInstance().getMainMouseSource().getComponentUnderMouse();
     const String newTip (getTipFor (newComp));
 
     const bool tipChanged = (newTip != lastTipUnderMouse || newComp != lastComponentUnderMouse);

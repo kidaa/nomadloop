@@ -29,7 +29,7 @@ BEGIN_JUCE_NAMESPACE
 
 
 #include "juce_Desktop.h"
-#include "juce_ComponentDeletionWatcher.h"
+#include "windows/juce_ComponentPeer.h"
 #include "mouse/juce_MouseInputSource.h"
 #include "mouse/juce_MouseListener.h"
 #include "mouse/juce_MouseEvent.h"
@@ -40,10 +40,7 @@ Desktop::Desktop() throw()
     : mouseClickCounter (0),
       kioskModeComponent (0)
 {
-    const int maxNumMice = 1;
-    for (int i = maxNumMice; --i >= 0;)
-        mouseSources.add (new MouseInputSource (i, true));
-
+    createMouseInputSources();
     refreshMonitorSizes();
 }
 
@@ -222,6 +219,35 @@ void Desktop::incrementMouseClickCounter() throw()
     ++mouseClickCounter;
 }
 
+int Desktop::getNumDraggingMouseSources() const throw()
+{
+    int num = 0;
+    for (int i = mouseSources.size(); --i >= 0;)
+        if (mouseSources.getUnchecked(i)->isDragging())
+            ++num;
+
+    return num;
+}
+
+MouseInputSource* Desktop::getDraggingMouseSource (int index) const throw()
+{
+    int num = 0;
+    for (int i = mouseSources.size(); --i >= 0;)
+    {
+        MouseInputSource* const mi = mouseSources.getUnchecked(i);
+
+        if (mi->isDragging())
+        {
+            if (index == num)
+                return mi;
+
+            ++num;
+        }
+    }
+
+    return 0;
+}
+
 //==============================================================================
 void Desktop::addGlobalMouseListener (MouseListener* const listener) throw()
 {
@@ -287,7 +313,7 @@ void Desktop::sendMouseMove()
 
         if (target != 0)
         {
-            ComponentDeletionWatcher deletionChecker (target);
+            Component::SafePointer<Component> deletionChecker (target);
             const Point<int> pos (target->globalPositionToRelative (lastFakeMouseMove));
             const Time now (Time::getCurrentTime());
 
@@ -301,7 +327,7 @@ void Desktop::sendMouseMove()
                 else
                     ((MouseListener*) mouseListeners[i])->mouseMove (me);
 
-                if (deletionChecker.hasBeenDeleted())
+                if (deletionChecker == 0)
                     return;
 
                 i = jmin (i, mouseListeners.size());

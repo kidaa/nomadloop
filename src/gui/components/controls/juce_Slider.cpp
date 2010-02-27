@@ -32,6 +32,7 @@ BEGIN_JUCE_NAMESPACE
 #include "../menus/juce_PopupMenu.h"
 #include "../juce_Desktop.h"
 #include "../special/juce_BubbleComponent.h"
+#include "../mouse/juce_MouseInputSource.h"
 #include "../../../text/juce_LocalisedStrings.h"
 
 
@@ -501,7 +502,9 @@ void Slider::setValue (double newValue,
 
         if (popupDisplay != 0)
         {
-            ((SliderPopupDisplayComponent*) popupDisplay)->updatePosition (getTextFromValue (newValue));
+            static_cast <SliderPopupDisplayComponent*> (static_cast <Component*> (popupDisplay))
+                ->updatePosition (getTextFromValue (newValue));
+
             popupDisplay->repaint();
         }
 
@@ -559,7 +562,9 @@ void Slider::setMinValue (double newValue, const bool sendUpdateMessage, const b
 
         if (popupDisplay != 0)
         {
-            ((SliderPopupDisplayComponent*) popupDisplay)->updatePosition (getTextFromValue (newValue));
+            static_cast <SliderPopupDisplayComponent*> (static_cast <Component*> (popupDisplay))
+                ->updatePosition (getTextFromValue (newValue));
+
             popupDisplay->repaint();
         }
 
@@ -599,7 +604,9 @@ void Slider::setMaxValue (double newValue, const bool sendUpdateMessage, const b
 
         if (popupDisplay != 0)
         {
-            ((SliderPopupDisplayComponent*) popupDisplay)->updatePosition (getTextFromValue (valueMax.getValue()));
+            static_cast <SliderPopupDisplayComponent*> (static_cast <Component*> (popupDisplay))
+                ->updatePosition (getTextFromValue (valueMax.getValue()));
+
             popupDisplay->repaint();
         }
 
@@ -1137,12 +1144,8 @@ void Slider::restoreMouseIfHidden()
     {
         mouseWasHidden = false;
 
-        Component* c = Component::getComponentUnderMouse();
-
-        if (c == 0)
-            c = this;
-
-        c->enableUnboundedMouseMovement (false);
+        for (int i = Desktop::getInstance().getNumMouseSources(); --i >= 0;)
+            Desktop::getInstance().getMouseSource(i)->enableUnboundedMouseMovement (false);
 
         const double pos = (sliderBeingDragged == 2) ? getMaxValue()
                                                      : ((sliderBeingDragged == 1) ? getMinValue()
@@ -1332,7 +1335,7 @@ void Slider::mouseDrag (const MouseEvent& e)
 
                     valueWhenLastDragged = proportionOfLengthToValue (jlimit (0.0, 1.0, currentPos + speed));
 
-                    e.originalComponent->enableUnboundedMouseMovement (true, false);
+                    e.source.enableUnboundedMouseMovement (true, false);
                     mouseWasHidden = true;
                 }
             }
@@ -1393,7 +1396,7 @@ void Slider::mouseWheelMove (const MouseEvent& e, float wheelIncrementX, float w
          && style != TwoValueHorizontal
          && style != TwoValueVertical)
     {
-        if (maximum > minimum && ! isMouseButtonDownAnywhere())
+        if (maximum > minimum && ! e.mods.isAnyMouseButtonDown())
         {
             if (valueBox != 0)
                 valueBox->hideEditor (false);

@@ -29,6 +29,7 @@ BEGIN_JUCE_NAMESPACE
 
 #include "juce_MagnifierComponent.h"
 #include "../../graphics/imaging/juce_Image.h"
+#include "../windows/juce_ComponentPeer.h"
 
 
 //==============================================================================
@@ -326,7 +327,8 @@ void MagnifierComponent::mouseExit (const MouseEvent& e)
 void MagnifierComponent::mouseWheelMove (const MouseEvent& e, float ix, float iy)
 {
     if (peer != 0)
-        peer->handleMouseWheel (Point<int> (scaleInt (e.x), scaleInt (e.y)), e.eventTime.toMilliseconds(),
+        peer->handleMouseWheel (e.source.getIndex(),
+                                Point<int> (scaleInt (e.x), scaleInt (e.y)), e.eventTime.toMilliseconds(),
                                 ix * 256.0f, iy * 256.0f);
     else
         Component::mouseWheelMove (e, ix, iy);

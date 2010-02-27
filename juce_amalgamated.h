@@ -43,7 +43,7 @@
 
 #define JUCE_MAJOR_VERSION	  1
 #define JUCE_MINOR_VERSION	  51
-#define JUCE_BUILDNUMBER	4
+#define JUCE_BUILDNUMBER	6
 
 #define JUCE_VERSION		((JUCE_MAJOR_VERSION << 16) + (JUCE_MINOR_VERSION << 8) + JUCE_BUILDNUMBER)
 
@@ -491,6 +491,10 @@
 
 // Now we'll include any OS headers we need.. (at this point we are outside the Juce namespace).
 #if JUCE_MSVC
+  #if (defined(_MSC_VER) && (_MSC_VER <= 1200))
+	#pragma warning (disable: 4284)  // (spurious VC6 warning)
+  #endif
+
   #pragma warning (push)
   #pragma warning (disable: 4514 4245 4100)
 #endif
@@ -1504,7 +1508,7 @@ public:
 	}
 
 	HeapBlock (const size_t numElements)
-		: data ((ElementType*) ::juce_malloc (numElements * sizeof (ElementType)))
+		: data (reinterpret_cast <ElementType*> (::juce_malloc (numElements * sizeof (ElementType))))
 	{
 	}
 
@@ -1515,12 +1519,11 @@ public:
 
 	inline operator ElementType*() const throw()				{ return data; }
 
-	inline operator void*() const throw()				   { return (void*) data; }
+	inline ElementType* getData() const throw()				 { return data; }
+
+	inline operator void*() const throw()				   { return static_cast <void*> (data); }
 
 	inline ElementType* operator->() const  throw()			 { return data; }
-
-	template <class CastType>
-	inline operator CastType*() const throw()				   { return (CastType*) data; }
 
 	template <typename IndexType>
 	inline ElementType& operator[] (IndexType index) const throw()	  { return data [index]; }
@@ -1528,7 +1531,9 @@ public:
 	template <typename IndexType>
 	inline ElementType* operator+ (IndexType index) const throw()	   { return data + index; }
 
-	inline ElementType** operator&() const throw()			  { return (ElementType**) &data; }
+	inline ElementType* const* operator&() const throw()			{ return static_cast <ElementType* const*> (&data); }
+
+	inline ElementType** operator&() throw()				{ return static_cast <ElementType**> (&data); }
 
 	inline bool operator== (const ElementType* const otherPointer) const throw()	{ return otherPointer == data; }
 
@@ -1537,13 +1542,13 @@ public:
 	void malloc (const size_t newNumElements, const size_t elementSize = sizeof (ElementType))
 	{
 		::juce_free (data);
-		data = (ElementType*) ::juce_malloc (newNumElements * elementSize);
+		data = reinterpret_cast <ElementType*> (::juce_malloc (newNumElements * elementSize));
 	}
 
 	void calloc (const size_t newNumElements, const size_t elementSize = sizeof (ElementType))
 	{
 		::juce_free (data);
-		data = (ElementType*) ::juce_calloc (newNumElements * elementSize);
+		data = reinterpret_cast <ElementType*> (::juce_calloc (newNumElements * elementSize));
 	}
 
 	void allocate (const size_t newNumElements, const bool initialiseToZero)
@@ -1551,17 +1556,17 @@ public:
 		::juce_free (data);
 
 		if (initialiseToZero)
-			data = (ElementType*) ::juce_calloc (newNumElements * sizeof (ElementType));
+			data = reinterpret_cast <ElementType*> (::juce_calloc (newNumElements * sizeof (ElementType)));
 		else
-			data = (ElementType*) ::juce_malloc (newNumElements * sizeof (ElementType));
+			data = reinterpret_cast <ElementType*> (::juce_malloc (newNumElements * sizeof (ElementType)));
 	}
 
 	void realloc (const size_t newNumElements, const size_t elementSize = sizeof (ElementType))
 	{
 		if (data == 0)
-			data = (ElementType*) ::juce_malloc (newNumElements * elementSize);
+			data = reinterpret_cast <ElementType*> (::juce_malloc (newNumElements * elementSize));
 		else
-			data = (ElementType*) ::juce_realloc (data, newNumElements * elementSize);
+			data = reinterpret_cast <ElementType*> (::juce_realloc (data, newNumElements * elementSize));
 	}
 
 	void free()
@@ -2053,13 +2058,13 @@ public:
 	int indexOf (const ElementType& elementToLookFor) const
 	{
 		const ScopedLockType lock (getLock());
-		const ElementType* e = data.elements;
+		const ElementType* e = data.elements.getData();
 		const ElementType* const end = e + numUsed;
 
 		while (e != end)
 		{
 			if (elementToLookFor == *e)
-				return (int) (e - data.elements);
+				return (int) (e - data.elements.getData());
 
 			++e;
 		}
@@ -2070,7 +2075,7 @@ public:
 	bool contains (const ElementType& elementToLookFor) const
 	{
 		const ScopedLockType lock (getLock());
-		const ElementType* e = data.elements;
+		const ElementType* e = data.elements.getData();
 		const ElementType* const end = e + numUsed;
 
 		while (e != end)
@@ -2246,7 +2251,7 @@ public:
 	void addSorted (ElementComparator& comparator, const ElementType& newElement)
 	{
 		const ScopedLockType lock (getLock());
-		insert (findInsertIndexInSortedArray (comparator, (ElementType*) data.elements, newElement, 0, numUsed), newElement);
+		insert (findInsertIndexInSortedArray (comparator, data.elements.getData(), newElement, 0, numUsed), newElement);
 	}
 
 	template <class ElementComparator>
@@ -2319,7 +2324,7 @@ public:
 		{
 			if (valueToRemove == *e)
 			{
-				remove ((int) (e - data.elements));
+				remove ((int) (e - data.elements.getData()));
 				break;
 			}
 
@@ -2474,7 +2479,7 @@ public:
 		const ScopedLockType lock (getLock());
 		(void) comparator;  // if you pass in an object with a static compareElements() method, this
 							// avoids getting warning messages about the parameter being unused
-		sortArray (comparator, (ElementType*) data.elements, 0, size() - 1, retainOrderOfEquivalentItems);
+		sortArray (comparator, data.elements.getData(), 0, size() - 1, retainOrderOfEquivalentItems);
 	}
 
 	inline const TypeOfCriticalSectionToUse& getLock() const throw()	   { return data; }
@@ -2672,9 +2677,6 @@ public:
 	bool operator!= (const MemoryBlock& other) const throw();
 
 	bool matches (const void* data, size_t dataSize) const throw();
-
-	template <class DataType>
-	operator DataType*() const throw()				  { return (DataType*) data; }
 
 	void* getData() const throw()				   { return data; }
 
@@ -3371,16 +3373,11 @@ public:
 
 	inline ObjectType* operator->() const throw()				   { return object; }
 
-	template <class CastType>
-	inline operator CastType*() const throw()					   { return static_cast <CastType*> (object); }
+	inline ObjectType* const* operator&() const throw()				 { return static_cast <ObjectType* const*> (&object); }
 
-	inline ObjectType** operator&() const throw()				   { return (ObjectType**) &object; }
+	inline ObjectType** operator&() throw()					 { return static_cast <ObjectType**> (&object); }
 
 	ObjectType* release() throw()						   { ObjectType* const o = object; object = 0; return o; }
-
-	inline bool operator== (const ObjectType* const otherPointer) const throw()	 { return otherPointer == object; }
-
-	inline bool operator!= (const ObjectType* const otherPointer) const throw()	 { return otherPointer != object; }
 
 	void swapWith (ScopedPointer <ObjectType>& other) throw()
 	{
@@ -3398,6 +3395,18 @@ private:
 	// (Required as an alternative to the overloaded & operator).
 	const ScopedPointer* getAddress() const throw()				 { return this; }
 };
+
+template <class ObjectType>
+inline bool operator== (const ScopedPointer<ObjectType>& pointer1, const ObjectType* const pointer2) throw()
+{
+	return static_cast <ObjectType*> (pointer1) == pointer2;
+}
+
+template <class ObjectType>
+inline bool operator!= (const ScopedPointer<ObjectType>& pointer1, const ObjectType* const pointer2) throw()
+{
+	return static_cast <ObjectType*> (pointer1) != pointer2;
+}
 
 #endif   // __JUCE_SCOPEDPOINTER_JUCEHEADER__
 /*** End of inlined file: juce_ScopedPointer.h ***/
@@ -3442,7 +3451,7 @@ public:
 	{
 		const ScopedLockType lock (getLock());
 		return (((unsigned int) index) < (unsigned int) numUsed) ? data.elements [index]
-																 : (ObjectClass*) 0;
+																 : static_cast <ObjectClass*> (0);
 	}
 
 	inline ObjectClass* getUnchecked (const int index) const throw()
@@ -3456,26 +3465,26 @@ public:
 	{
 		const ScopedLockType lock (getLock());
 		return numUsed > 0 ? data.elements [0]
-						   : (ObjectClass*) 0;
+						   : static_cast <ObjectClass*> (0);
 	}
 
 	inline ObjectClass* getLast() const throw()
 	{
 		const ScopedLockType lock (getLock());
 		return numUsed > 0 ? data.elements [numUsed - 1]
-						   : (ObjectClass*) 0;
+						   : static_cast <ObjectClass*> (0);
 	}
 
 	int indexOf (const ObjectClass* const objectToLookFor) const throw()
 	{
 		const ScopedLockType lock (getLock());
-		ObjectClass* const* e = data.elements;
+		ObjectClass* const* e = data.elements.getData();
 		ObjectClass* const* const end = e + numUsed;
 
 		while (e != end)
 		{
 			if (objectToLookFor == *e)
-				return (int) (e - data.elements);
+				return (int) (e - data.elements.getData());
 
 			++e;
 		}
@@ -3486,7 +3495,7 @@ public:
 	bool contains (const ObjectClass* const objectToLookFor) const throw()
 	{
 		const ScopedLockType lock (getLock());
-		ObjectClass* const* e = data.elements;
+		ObjectClass* const* e = data.elements.getData();
 		ObjectClass* const* const end = e + numUsed;
 
 		while (e != end)
@@ -3578,7 +3587,7 @@ public:
 		(void) comparator;  // if you pass in an object with a static compareElements() method, this
 							// avoids getting warning messages about the parameter being unused
 		const ScopedLockType lock (getLock());
-		insert (findInsertIndexInSortedArray (comparator, (ObjectClass**) data.elements, newObject, 0, numUsed), newObject);
+		insert (findInsertIndexInSortedArray (comparator, data.elements.getData(), newObject, 0, numUsed), newObject);
 	}
 
 	template <class ElementComparator>
@@ -3644,13 +3653,13 @@ public:
 					   const bool deleteObject = true)
 	{
 		const ScopedLockType lock (getLock());
-		ObjectClass** e = data.elements;
+		ObjectClass** e = data.elements.getData();
 
 		for (int i = numUsed; --i >= 0;)
 		{
 			if (objectToRemove == *e)
 			{
-				remove ((int) (e - data.elements), deleteObject);
+				remove ((int) (e - data.elements.getData()), deleteObject);
 				break;
 			}
 
@@ -3783,7 +3792,7 @@ public:
 							// avoids getting warning messages about the parameter being unused
 
 		const ScopedLockType lock (getLock());
-		sortArray (comparator, (ObjectClass**) data.elements, 0, size() - 1, retainOrderOfEquivalentItems);
+		sortArray (comparator, data.elements.getData(), 0, size() - 1, retainOrderOfEquivalentItems);
 	}
 
 	inline const TypeOfCriticalSectionToUse& getLock() const throw()	   { return data; }
@@ -4896,7 +4905,7 @@ public:
 	{
 		const ScopedLockType lock (getLock());
 		return (((unsigned int) index) < (unsigned int) numUsed) ? data.elements [index]
-																 : (ObjectClass*) 0;
+																 : static_cast <ObjectClass*> (0);
 	}
 
 	inline const ReferenceCountedObjectPtr<ObjectClass> getUnchecked (const int index) const throw()
@@ -4910,26 +4919,26 @@ public:
 	{
 		const ScopedLockType lock (getLock());
 		return numUsed > 0 ? data.elements [0]
-						   : (ObjectClass*) 0;
+						   : static_cast <ObjectClass*> (0);
 	}
 
 	inline const ReferenceCountedObjectPtr<ObjectClass> getLast() const throw()
 	{
 		const ScopedLockType lock (getLock());
 		return numUsed > 0 ? data.elements [numUsed - 1]
-						   : (ObjectClass*) 0;
+						   : static_cast <ObjectClass*> (0);
 	}
 
 	int indexOf (const ObjectClass* const objectToLookFor) const throw()
 	{
 		const ScopedLockType lock (getLock());
-		ObjectClass** e = data.elements;
+		ObjectClass** e = data.elements.getData();
 		ObjectClass** const end = e + numUsed;
 
 		while (e != end)
 		{
 			if (objectToLookFor == *e)
-				return (int) (e - data.elements);
+				return (int) (e - data.elements.getData());
 
 			++e;
 		}
@@ -4940,7 +4949,7 @@ public:
 	bool contains (const ObjectClass* const objectToLookFor) const throw()
 	{
 		const ScopedLockType lock (getLock());
-		ObjectClass** e = data.elements;
+		ObjectClass** e = data.elements.getData();
 		ObjectClass** const end = e + numUsed;
 
 		while (e != end)
@@ -5059,7 +5068,7 @@ public:
 					ObjectClass* newObject) throw()
 	{
 		const ScopedLockType lock (getLock());
-		insert (findInsertIndexInSortedArray (comparator, (ObjectClass**) data.elements, newObject, 0, numUsed), newObject);
+		insert (findInsertIndexInSortedArray (comparator, data.elements.getData(), newObject, 0, numUsed), newObject);
 	}
 
 	template <class ElementComparator>
@@ -5067,7 +5076,7 @@ public:
 							 ObjectClass* newObject) throw()
 	{
 		const ScopedLockType lock (getLock());
-		const int index = findInsertIndexInSortedArray (comparator, (ObjectClass**) data.elements, newObject, 0, numUsed);
+		const int index = findInsertIndexInSortedArray (comparator, data.elements.getData(), newObject, 0, numUsed);
 
 		if (index > 0 && comparator.compareElements (newObject, data.elements [index - 1]) == 0)
 			set (index - 1, newObject); // replace an existing object that matches
@@ -5232,7 +5241,7 @@ public:
 							// avoids getting warning messages about the parameter being unused
 
 		const ScopedLockType lock (getLock());
-		sortArray (comparator, (ObjectClass**) data.elements, 0, size() - 1, retainOrderOfEquivalentItems);
+		sortArray (comparator, data.elements.getData(), 0, size() - 1, retainOrderOfEquivalentItems);
 	}
 
 	void minimiseStorageOverheads() throw()
@@ -7680,6 +7689,9 @@ private:
 	class ZipInputStream;
 	class ZipFilenameComparator;
 	class ZipEntryInfo;
+	friend class ZipInputStream;
+	friend class ZipFilenameComparator;
+	friend class ZipEntryInfo;
 
 	OwnedArray <ZipEntryInfo> entries;
 	CriticalSection lock;
@@ -8914,7 +8926,7 @@ public:
 private:
 	ReferenceCountedObjectPtr <SharedMouseCursorInternal> cursorHandle;
 
-	friend class Component;
+	friend class MouseInputSourceInternal;
 	void showInWindow (ComponentPeer* window) const throw();
 	void showInAllWindows() const throw();
 	void* getHandle() const throw();
@@ -9196,6 +9208,8 @@ public:
 
 	void applyTransform (const AffineTransform& transform) throw()	  { transform.transformPoint (x, y); }
 
+	const String toString() const                                       { return String (x) + ", " + String (y); }
+
 	juce_UseDebuggingNewOperator
 
 private:
@@ -9314,6 +9328,8 @@ public:
 	virtual void componentParentHierarchyChanged (Component& component);
 
 	virtual void componentNameChanged (Component& component);
+
+	virtual void componentBeingDeleted (Component& component);
 };
 
 #endif   // __JUCE_COMPONENTLISTENER_JUCEHEADER__
@@ -9555,6 +9571,8 @@ public:
 
 	~Rectangle() throw() {}
 
+	bool isEmpty() const throw()					{ return w <= 0 || h <= 0; }
+
 	inline ValueType getX() const throw()			   { return x; }
 
 	inline ValueType getY() const throw()			   { return y; }
@@ -9567,13 +9585,13 @@ public:
 
 	inline ValueType getBottom() const throw()			  { return y + h; }
 
-	inline ValueType getCentreX() const throw()			 { return x + w / (ValueType) 2; }
+	ValueType getCentreX() const throw()				{ return x + w / (ValueType) 2; }
 
-	inline ValueType getCentreY() const throw()			 { return y + h / (ValueType) 2; }
+	ValueType getCentreY() const throw()				{ return y + h / (ValueType) 2; }
 
-	inline const Point<ValueType> getCentre() const throw()	 { return Point<ValueType> (x + w / (ValueType) 2, y + h / (ValueType) 2); }
+	const Point<ValueType> getCentre() const throw()		{ return Point<ValueType> (x + w / (ValueType) 2, y + h / (ValueType) 2); }
 
-	bool isEmpty() const throw()					{ return w <= 0 || h <= 0; }
+	ValueType getAspectRatio (const bool widthOverHeight = true) const throw()			  { return widthOverHeight ? w / h : h / w; }
 
 	const Point<ValueType> getPosition() const throw()						  { return Point<ValueType> (x, y); }
 
@@ -9978,7 +9996,7 @@ public:
 	void clipToRectangle (const Rectangle<int>& r) throw();
 	void excludeRectangle (const Rectangle<int>& r) throw();
 	void clipToEdgeTable (const EdgeTable& other);
-	void clipLineToMask (int x, int y, uint8* mask, int maskStride, int numPixels) throw();
+	void clipLineToMask (int x, int y, const uint8* mask, int maskStride, int numPixels) throw();
 	bool isEmpty() throw();
 	const Rectangle<int>& getMaximumBounds() const throw()	   { return bounds; }
 	void translate (float dx, int dy) throw();
@@ -11956,224 +11974,10 @@ private:
 #endif   // __JUCE_BORDERSIZE_JUCEHEADER__
 /*** End of inlined file: juce_BorderSize.h ***/
 
-
-/*** Start of inlined file: juce_ComponentPeer.h ***/
-#ifndef __JUCE_COMPONENTPEER_JUCEHEADER__
-#define __JUCE_COMPONENTPEER_JUCEHEADER__
-
-class Component;
-class Graphics;
-
-
-/*** Start of inlined file: juce_TextInputTarget.h ***/
-#ifndef __JUCE_TEXTINPUTTARGET_JUCEHEADER__
-#define __JUCE_TEXTINPUTTARGET_JUCEHEADER__
-
-class JUCE_API  TextInputTarget
-{
-public:
-
-	TextInputTarget() {}
-
-	virtual ~TextInputTarget() {}
-
-	virtual const Range<int> getHighlightedRegion() const = 0;
-
-	virtual void setHighlightedRegion (const Range<int>& newRange) = 0;
-
-	virtual const String getTextInRange (const Range<int>& range) const = 0;
-
-	virtual void insertTextAtCaret (const String& textToInsert) = 0;
-};
-
-#endif   // __JUCE_TEXTINPUTTARGET_JUCEHEADER__
-/*** End of inlined file: juce_TextInputTarget.h ***/
-
-class ComponentBoundsConstrainer;
-class ComponentDeletionWatcher;
-
-class JUCE_API  ComponentPeer
-{
-public:
-
-	enum StyleFlags
-	{
-		windowAppearsOnTaskbar	  = (1 << 0),	/**< Indicates that the window should have a corresponding
-														entry on the taskbar (ignored on MacOSX) */
-		windowIsTemporary	   = (1 << 1),	/**< Indicates that the window is a temporary popup, like a menu,
-														tooltip, etc. */
-		windowIgnoresMouseClicks	= (1 << 2),	/**< Indicates that the window should let mouse clicks pass
-														through it (may not be possible on some platforms). */
-		windowHasTitleBar	   = (1 << 3),	/**< Indicates that the window should have a normal OS-specific
-														title bar and frame\. if not specified, the window will be
-														borderless. */
-		windowIsResizable	   = (1 << 4),	/**< Indicates that the window should have a resizable border. */
-		windowHasMinimiseButton	 = (1 << 5),	/**< Indicates that if the window has a title bar, it should have a
-														minimise button on it. */
-		windowHasMaximiseButton	 = (1 << 6),	/**< Indicates that if the window has a title bar, it should have a
-														maximise button on it. */
-		windowHasCloseButton	= (1 << 7),	/**< Indicates that if the window has a title bar, it should have a
-														close button on it. */
-		windowHasDropShadow	 = (1 << 8),	/**< Indicates that the window should have a drop-shadow (this may
-														not be possible on all platforms). */
-		windowRepaintedExplictly	= (1 << 9),	/**< Not intended for public use - this tells a window not to
-														do its own repainting, but only to repaint when the
-														performAnyPendingRepaintsNow() method is called. */
-		windowIgnoresKeyPresses	 = (1 << 10),   /**< Tells the window not to catch any keypresses. This can
-														be used for things like plugin windows, to stop them interfering
-														with the host's shortcut keys */
-		windowIsSemiTransparent	 = (1 << 31)	/**< Not intended for public use - makes a window transparent. */
-
-	};
-
-	ComponentPeer (Component* const component,
-				   const int styleFlags) throw();
-
-	virtual ~ComponentPeer();
-
-	Component* getComponent() const throw()		 { return component; }
-
-	int getStyleFlags() const throw()			   { return styleFlags; }
-
-	virtual void* getNativeHandle() const = 0;
-
-	virtual void setVisible (bool shouldBeVisible) = 0;
-
-	virtual void setTitle (const String& title) = 0;
-
-	virtual void setPosition (int x, int y) = 0;
-
-	virtual void setSize (int w, int h) = 0;
-
-	virtual void setBounds (int x, int y, int w, int h, const bool isNowFullScreen) = 0;
-
-	virtual const Rectangle<int> getBounds() const = 0;
-
-	virtual const Point<int> getScreenPosition() const = 0;
-
-	virtual const Point<int> relativePositionToGlobal (const Point<int>& relativePosition) = 0;
-
-	virtual const Point<int> globalPositionToRelative (const Point<int>& screenPosition) = 0;
-
-	virtual void setMinimised (bool shouldBeMinimised) = 0;
-
-	virtual bool isMinimised() const = 0;
-
-	virtual void setFullScreen (bool shouldBeFullScreen) = 0;
-
-	virtual bool isFullScreen() const = 0;
-
-	void setNonFullScreenBounds (const Rectangle<int>& newBounds) throw();
-
-	const Rectangle<int>& getNonFullScreenBounds() const throw();
-
-	virtual void setIcon (const Image& newIcon) = 0;
-
-	void setConstrainer (ComponentBoundsConstrainer* const newConstrainer) throw();
-
-	ComponentBoundsConstrainer* getConstrainer() const throw()		  { return constrainer; }
-
-	virtual bool contains (const Point<int>& position, bool trueIfInAChildWindow) const = 0;
-
-	virtual const BorderSize getFrameSize() const = 0;
-
-	void handleMovedOrResized();
-
-	void handleScreenSizeChange();
-
-	void handlePaint (LowLevelGraphicsContext& contextToPaintTo);
-
-	virtual bool setAlwaysOnTop (bool alwaysOnTop) = 0;
-
-	virtual void toFront (bool makeActive) = 0;
-
-	virtual void toBehind (ComponentPeer* other) = 0;
-
-	void handleBroughtToFront();
-
-	virtual bool isFocused() const = 0;
-
-	virtual void grabFocus() = 0;
-
-	virtual void textInputRequired (const Point<int>& position) = 0;
-
-	void handleFocusGain();
-	void handleFocusLoss();
-
-	Component* getLastFocusedSubcomponent() const throw();
-
-	bool handleKeyPress (const int keyCode,
-						 const juce_wchar textCharacter);
-
-	bool handleKeyUpOrDown (const bool isKeyDown);
-
-	void handleModifierKeysChange();
-
-	TextInputTarget* findCurrentTextInputTarget();
-
-	virtual void repaint (int x, int y, int w, int h) = 0;
-
-	virtual void performAnyPendingRepaintsNow() = 0;
-
-	void handleMouseEvent (const Point<int>& positionWithinPeer, const ModifierKeys& newMods, const int64 time);
-	void handleMouseWheel (const Point<int>& positionWithinPeer, const int64 time, float x, float y);
-
-	void handleUserClosingWindow();
-
-	void handleFileDragMove (const StringArray& files, const Point<int>& position);
-	void handleFileDragExit (const StringArray& files);
-	void handleFileDragDrop (const StringArray& files, const Point<int>& position);
-
-	void clearMaskedRegion() throw();
-
-	void addMaskedRegion (int x, int y, int w, int h) throw();
-
-	static int getNumPeers() throw();
-
-	static ComponentPeer* getPeer (const int index) throw();
-
-	static bool isValidPeer (const ComponentPeer* const peer) throw();
-
-	static void bringModalComponentToFront();
-
-	virtual const StringArray getAvailableRenderingEngines() throw();
-	virtual int getCurrentRenderingEngine() throw();
-	virtual void setCurrentRenderingEngine (int index) throw();
-
-	juce_UseDebuggingNewOperator
-
-protected:
-	Component* const component;
-	const int styleFlags;
-	RectangleList maskedRegion;
-	Rectangle<int> lastNonFullscreenBounds;
-	uint32 lastPaintTime;
-	ComponentBoundsConstrainer* constrainer;
-
-	static void updateCurrentModifiers() throw();
-
-private:
-
-	Component* lastFocusedComponent;
-	ScopedPointer <ComponentDeletionWatcher> dragAndDropTargetComponent;
-	Component* lastDragAndDropCompUnderMouse;
-	bool fakeMouseMessageSent : 1, isWindowMinimised : 1;
-
-	friend class Component;
-	static ComponentPeer* getPeerFor (const Component* const component) throw();
-
-	void setLastDragDropTarget (Component* comp);
-
-	ComponentPeer (const ComponentPeer&);
-	ComponentPeer& operator= (const ComponentPeer&);
-};
-
-#endif   // __JUCE_COMPONENTPEER_JUCEHEADER__
-/*** End of inlined file: juce_ComponentPeer.h ***/
-
 class LookAndFeel;
 class MouseInputSource;
 class MouseInputSourceInternal;
+class ComponentPeer;
 
 class JUCE_API  Component  : public MouseListener,
 							 protected MessageListener
@@ -12497,11 +12301,6 @@ public:
 
 	const Point<int> getMouseXYRelative() const;
 
-	static Component* JUCE_CALLTYPE getComponentUnderMouse() throw();
-
-	void enableUnboundedMouseMovement (bool shouldUnboundedMovementBeEnabled,
-									   bool keepCursorVisibleUntilOffscreen = false) throw();
-
 	virtual void resized();
 
 	virtual void moved();
@@ -12558,6 +12357,48 @@ public:
 
 	uint32 getComponentUID() const throw()		{ return componentUID; }
 
+	template <class ComponentType>
+	class JUCE_API  SafePointer   : private ComponentListener
+	{
+	public:
+		SafePointer()					   : comp (0) {}
+
+		SafePointer (ComponentType* const component)	: comp (component)   { attach(); }
+
+		SafePointer (const SafePointer& other)		  : comp (other.comp)  { attach(); }
+
+		~SafePointer()					  { detach(); }
+
+		SafePointer& operator= (const SafePointer& other)   { return operator= (other.comp); }
+
+		SafePointer& operator= (ComponentType* const newComponent)
+		{
+			detach();
+			comp = newComponent;
+			attach();
+			return *this;
+		}
+
+		operator ComponentType*() throw()		   { return comp; }
+
+		operator const ComponentType*() const throw()	   { return comp; }
+
+		/** Returns the component that this pointer refers to, or null if the component no longer exists. */
+		ComponentType* operator->() throw()		 { jassert (comp != 0); return comp; }
+
+		/** Returns the component that this pointer refers to, or null if the component no longer exists. */
+		const ComponentType* operator->() const throw()	 { jassert (comp != 0); return comp; }
+
+		juce_UseDebuggingNewOperator
+
+	private:
+		ComponentType* comp;
+
+		void attach()   { if (comp != 0) comp->addComponentListener (this); }
+		void detach()   { if (comp != 0) comp->removeComponentListener (this); }
+		void componentBeingDeleted (Component&)	 { comp = 0; }
+	};
+
 	juce_UseDebuggingNewOperator
 
 private:
@@ -12568,7 +12409,6 @@ private:
 	friend class MouseInputSourceInternal;
 
 	static Component* currentlyFocusedComponent;
-	static Component* componentUnderMouse;
 
 	String componentName_;
 	Component* parentComponent_;
@@ -12631,7 +12471,6 @@ private:
 	void internalModifierKeysChanged();
 	void internalChildrenChanged();
 	void internalHierarchyChanged();
-	void internalUpdateMouseCursor (const bool forcedUpdate) throw();
 	void sendMovedResizedMessages (const bool wasMoved, const bool wasResized);
 	void repaintParent() throw();
 	void sendFakeMouseMove() const;
@@ -13076,15 +12915,21 @@ public:
 
 	Component* findComponentAt (const Point<int>& screenPosition) const;
 
+	int getNumMouseSources() const throw()			  { return mouseSources.size(); }
+
+	MouseInputSource* getMouseSource (int index) const throw()	  { return mouseSources [index]; }
+
+	MouseInputSource& getMainMouseSource() const throw()		{ return *mouseSources.getUnchecked(0); }
+
+	int getNumDraggingMouseSources() const throw();
+
+	MouseInputSource* getDraggingMouseSource (int index) const throw();
+
 	juce_UseDebuggingNewOperator
 
 	void refreshMonitorSizes() throw();
 
 	static bool canUseSemiTransparentWindows() throw();
-
-	int getNumMouseInputSources() const throw()			 { return mouseSources.size(); }
-	MouseInputSource* getMouseSource (int index) const throw()	  { return mouseSources [index]; }
-	MouseInputSource& getMainMouseSource() const throw()		{ return *mouseSources.getUnchecked(0); }
 
 private:
 
@@ -13113,6 +12958,8 @@ private:
 
 	Component* kioskModeComponent;
 	Rectangle<int> kioskComponentOriginalBounds;
+
+	void createMouseInputSources();
 
 	void timerCallback();
 	void sendMouseMove();
@@ -15532,6 +15379,7 @@ private:
 	MemoryBlock data;
 	int bytesUsed;
 
+	uint8* getData() const throw()	   { return reinterpret_cast <uint8*> (data.getData()); }
 	uint8* findEventAfter (uint8* d, const int samplePosition) const throw();
 };
 
@@ -15610,36 +15458,6 @@ protected:
 /*** Start of inlined file: juce_Label.h ***/
 #ifndef __JUCE_LABEL_JUCEHEADER__
 #define __JUCE_LABEL_JUCEHEADER__
-
-
-/*** Start of inlined file: juce_ComponentDeletionWatcher.h ***/
-#ifndef __JUCE_COMPONENTDELETIONWATCHER_JUCEHEADER__
-#define __JUCE_COMPONENTDELETIONWATCHER_JUCEHEADER__
-
-class JUCE_API  ComponentDeletionWatcher
-{
-public:
-
-	ComponentDeletionWatcher (const Component* const componentToWatch) throw();
-
-	~ComponentDeletionWatcher() throw();
-
-	bool hasBeenDeleted() const throw();
-
-	const Component* getComponent() const throw();
-
-	juce_UseDebuggingNewOperator
-
-private:
-	const Component* const componentToWatch;
-	const uint32 componentUID;
-
-	ComponentDeletionWatcher (const ComponentDeletionWatcher&);
-	ComponentDeletionWatcher& operator= (const ComponentDeletionWatcher&);
-};
-
-#endif   // __JUCE_COMPONENTDELETIONWATCHER_JUCEHEADER__
-/*** End of inlined file: juce_ComponentDeletionWatcher.h ***/
 
 
 /*** Start of inlined file: juce_TextEditor.h ***/
@@ -15895,6 +15713,7 @@ private:
 	SortedSet <void*> buttonListeners;
 
 	class RepeatTimer;
+	friend class RepeatTimer;
 	friend class ScopedPointer <RepeatTimer>;
 	ScopedPointer <RepeatTimer> repeatTimer;
 	uint32 buttonPressTime, lastTimeCallbackTime;
@@ -16291,6 +16110,31 @@ private:
 #endif   // __JUCE_POPUPMENU_JUCEHEADER__
 /*** End of inlined file: juce_PopupMenu.h ***/
 
+
+/*** Start of inlined file: juce_TextInputTarget.h ***/
+#ifndef __JUCE_TEXTINPUTTARGET_JUCEHEADER__
+#define __JUCE_TEXTINPUTTARGET_JUCEHEADER__
+
+class JUCE_API  TextInputTarget
+{
+public:
+
+	TextInputTarget() {}
+
+	virtual ~TextInputTarget() {}
+
+	virtual const Range<int> getHighlightedRegion() const = 0;
+
+	virtual void setHighlightedRegion (const Range<int>& newRange) = 0;
+
+	virtual const String getTextInRange (const Range<int>& range) const = 0;
+
+	virtual void insertTextAtCaret (const String& textToInsert) = 0;
+};
+
+#endif   // __JUCE_TEXTINPUTTARGET_JUCEHEADER__
+/*** End of inlined file: juce_TextInputTarget.h ***/
+
 class TextEditor;
 class TextHolderComponent;
 
@@ -16587,6 +16431,7 @@ private:
 	void timerCallbackInt();
 	void repaintCaret();
 	void repaintText (const Range<int>& range);
+	UndoManager* getUndoManager() throw();
 
 	TextEditor (const TextEditor&);
 	TextEditor& operator= (const TextEditor&);
@@ -16650,7 +16495,7 @@ public:
 	void attachToComponent (Component* owner,
 							const bool onLeft);
 
-	Component* getAttachedComponent() const throw()				 { return ownerComponent; }
+	Component* getAttachedComponent() const;
 
 	bool isAttachedOnLeft() const throw()					   { return leftOfOwnerComp; }
 
@@ -16718,8 +16563,7 @@ private:
 	Justification justification;
 	ScopedPointer <TextEditor> editor;
 	SortedSet <void*> listeners;
-	Component* ownerComponent;
-	ScopedPointer <ComponentDeletionWatcher> deletionWatcher;
+	Component::SafePointer<Component> ownerComponent;
 	int horizontalBorderSize, verticalBorderSize;
 	float minimumHorizontalScale;
 	bool editSingleClick : 1;
@@ -19594,6 +19438,8 @@ public:
 private:
 	class SharedEvents;
 	class BlockingMessage;
+	friend class SharedEvents;
+	friend class BlockingMessage;
 	SharedEvents* sharedEvents;
 	bool locked;
 
@@ -23394,6 +23240,36 @@ private:
 #endif
 #ifndef __JUCE_COMPONENTDELETIONWATCHER_JUCEHEADER__
 
+/*** Start of inlined file: juce_ComponentDeletionWatcher.h ***/
+#ifndef __JUCE_COMPONENTDELETIONWATCHER_JUCEHEADER__
+#define __JUCE_COMPONENTDELETIONWATCHER_JUCEHEADER__
+
+class JUCE_API  ComponentDeletionWatcher
+{
+public:
+
+	ComponentDeletionWatcher (const Component* const componentToWatch) throw();
+
+	~ComponentDeletionWatcher() throw();
+
+	bool hasBeenDeleted() const throw();
+
+	const Component* getComponent() const throw();
+
+	juce_UseDebuggingNewOperator
+
+private:
+	const Component* const componentToWatch;
+	const uint32 componentUID;
+
+	ComponentDeletionWatcher (const ComponentDeletionWatcher&);
+	ComponentDeletionWatcher& operator= (const ComponentDeletionWatcher&);
+};
+
+#endif   // __JUCE_COMPONENTDELETIONWATCHER_JUCEHEADER__
+/*** End of inlined file: juce_ComponentDeletionWatcher.h ***/
+
+
 #endif
 #ifndef __JUCE_COMPONENTLISTENER_JUCEHEADER__
 
@@ -23603,14 +23479,11 @@ public:
 
 private:
 
-	Component* const component;
+	Component::SafePointer<Component> component;
 	ComponentPeer* lastPeer;
 	VoidArray registeredParentComps;
 	bool reentrant;
 	Rectangle<int> lastBounds;
-#ifdef JUCE_DEBUG
-	ScopedPointer <ComponentDeletionWatcher> deletionWatcher;
-#endif
 
 	void unregister() throw();
 	void registerWithParentComps() throw();
@@ -26241,6 +26114,15 @@ public:
 
 	bool hasMouseMovedSignificantlySincePressed() const throw();
 
+	bool hasMouseCursor() const throw();
+	void showMouseCursor (const MouseCursor& cursor);
+	void hideCursor();
+	void revealCursor();
+
+	bool canDoUnboundedMovement() const throw();
+
+	void enableUnboundedMouseMovement (bool isEnabled, bool keepCursorVisibleUntilOffscreen = false);
+
 	juce_UseDebuggingNewOperator
 
 	void handleEvent (ComponentPeer* peer, const Point<int>& positionWithinPeer, int64 time, const ModifierKeys& mods);
@@ -26645,6 +26527,7 @@ public:
 
 private:
 	class OpenGLComponentWatcher;
+	friend class OpenGLComponentWatcher;
 	friend class ScopedPointer <OpenGLComponentWatcher>;
 	ScopedPointer <OpenGLComponentWatcher> componentWatcher;
 
@@ -26930,6 +26813,192 @@ private:
 
 #endif
 #ifndef __JUCE_COMPONENTPEER_JUCEHEADER__
+
+/*** Start of inlined file: juce_ComponentPeer.h ***/
+#ifndef __JUCE_COMPONENTPEER_JUCEHEADER__
+#define __JUCE_COMPONENTPEER_JUCEHEADER__
+
+class ComponentBoundsConstrainer;
+
+class JUCE_API  ComponentPeer
+{
+public:
+
+	enum StyleFlags
+	{
+		windowAppearsOnTaskbar	  = (1 << 0),	/**< Indicates that the window should have a corresponding
+														entry on the taskbar (ignored on MacOSX) */
+		windowIsTemporary	   = (1 << 1),	/**< Indicates that the window is a temporary popup, like a menu,
+														tooltip, etc. */
+		windowIgnoresMouseClicks	= (1 << 2),	/**< Indicates that the window should let mouse clicks pass
+														through it (may not be possible on some platforms). */
+		windowHasTitleBar	   = (1 << 3),	/**< Indicates that the window should have a normal OS-specific
+														title bar and frame\. if not specified, the window will be
+														borderless. */
+		windowIsResizable	   = (1 << 4),	/**< Indicates that the window should have a resizable border. */
+		windowHasMinimiseButton	 = (1 << 5),	/**< Indicates that if the window has a title bar, it should have a
+														minimise button on it. */
+		windowHasMaximiseButton	 = (1 << 6),	/**< Indicates that if the window has a title bar, it should have a
+														maximise button on it. */
+		windowHasCloseButton	= (1 << 7),	/**< Indicates that if the window has a title bar, it should have a
+														close button on it. */
+		windowHasDropShadow	 = (1 << 8),	/**< Indicates that the window should have a drop-shadow (this may
+														not be possible on all platforms). */
+		windowRepaintedExplictly	= (1 << 9),	/**< Not intended for public use - this tells a window not to
+														do its own repainting, but only to repaint when the
+														performAnyPendingRepaintsNow() method is called. */
+		windowIgnoresKeyPresses	 = (1 << 10),   /**< Tells the window not to catch any keypresses. This can
+														be used for things like plugin windows, to stop them interfering
+														with the host's shortcut keys */
+		windowIsSemiTransparent	 = (1 << 31)	/**< Not intended for public use - makes a window transparent. */
+
+	};
+
+	ComponentPeer (Component* const component,
+				   const int styleFlags) throw();
+
+	virtual ~ComponentPeer();
+
+	Component* getComponent() const throw()		 { return component; }
+
+	int getStyleFlags() const throw()			   { return styleFlags; }
+
+	virtual void* getNativeHandle() const = 0;
+
+	virtual void setVisible (bool shouldBeVisible) = 0;
+
+	virtual void setTitle (const String& title) = 0;
+
+	virtual void setPosition (int x, int y) = 0;
+
+	virtual void setSize (int w, int h) = 0;
+
+	virtual void setBounds (int x, int y, int w, int h, const bool isNowFullScreen) = 0;
+
+	virtual const Rectangle<int> getBounds() const = 0;
+
+	virtual const Point<int> getScreenPosition() const = 0;
+
+	virtual const Point<int> relativePositionToGlobal (const Point<int>& relativePosition) = 0;
+
+	virtual const Point<int> globalPositionToRelative (const Point<int>& screenPosition) = 0;
+
+	virtual void setMinimised (bool shouldBeMinimised) = 0;
+
+	virtual bool isMinimised() const = 0;
+
+	virtual void setFullScreen (bool shouldBeFullScreen) = 0;
+
+	virtual bool isFullScreen() const = 0;
+
+	void setNonFullScreenBounds (const Rectangle<int>& newBounds) throw();
+
+	const Rectangle<int>& getNonFullScreenBounds() const throw();
+
+	virtual void setIcon (const Image& newIcon) = 0;
+
+	void setConstrainer (ComponentBoundsConstrainer* const newConstrainer) throw();
+
+	ComponentBoundsConstrainer* getConstrainer() const throw()		  { return constrainer; }
+
+	virtual bool contains (const Point<int>& position, bool trueIfInAChildWindow) const = 0;
+
+	virtual const BorderSize getFrameSize() const = 0;
+
+	void handleMovedOrResized();
+
+	void handleScreenSizeChange();
+
+	void handlePaint (LowLevelGraphicsContext& contextToPaintTo);
+
+	virtual bool setAlwaysOnTop (bool alwaysOnTop) = 0;
+
+	virtual void toFront (bool makeActive) = 0;
+
+	virtual void toBehind (ComponentPeer* other) = 0;
+
+	void handleBroughtToFront();
+
+	virtual bool isFocused() const = 0;
+
+	virtual void grabFocus() = 0;
+
+	virtual void textInputRequired (const Point<int>& position) = 0;
+
+	void handleFocusGain();
+	void handleFocusLoss();
+
+	Component* getLastFocusedSubcomponent() const throw();
+
+	bool handleKeyPress (const int keyCode,
+						 const juce_wchar textCharacter);
+
+	bool handleKeyUpOrDown (const bool isKeyDown);
+
+	void handleModifierKeysChange();
+
+	TextInputTarget* findCurrentTextInputTarget();
+
+	virtual void repaint (int x, int y, int w, int h) = 0;
+
+	virtual void performAnyPendingRepaintsNow() = 0;
+
+	void handleMouseEvent (int touchIndex, const Point<int>& positionWithinPeer, const ModifierKeys& newMods, const int64 time);
+	void handleMouseWheel (int touchIndex, const Point<int>& positionWithinPeer, const int64 time, float x, float y);
+
+	void handleUserClosingWindow();
+
+	void handleFileDragMove (const StringArray& files, const Point<int>& position);
+	void handleFileDragExit (const StringArray& files);
+	void handleFileDragDrop (const StringArray& files, const Point<int>& position);
+
+	void clearMaskedRegion() throw();
+
+	void addMaskedRegion (int x, int y, int w, int h) throw();
+
+	static int getNumPeers() throw();
+
+	static ComponentPeer* getPeer (const int index) throw();
+
+	static bool isValidPeer (const ComponentPeer* const peer) throw();
+
+	static void bringModalComponentToFront();
+
+	virtual const StringArray getAvailableRenderingEngines() throw();
+	virtual int getCurrentRenderingEngine() throw();
+	virtual void setCurrentRenderingEngine (int index) throw();
+
+	juce_UseDebuggingNewOperator
+
+protected:
+	Component* const component;
+	const int styleFlags;
+	RectangleList maskedRegion;
+	Rectangle<int> lastNonFullscreenBounds;
+	uint32 lastPaintTime;
+	ComponentBoundsConstrainer* constrainer;
+
+	static void updateCurrentModifiers() throw();
+
+private:
+
+	Component* lastFocusedComponent;
+	Component::SafePointer<Component> dragAndDropTargetComponent;
+	Component* lastDragAndDropCompUnderMouse;
+	bool fakeMouseMessageSent : 1, isWindowMinimised : 1;
+
+	friend class Component;
+	static ComponentPeer* getPeerFor (const Component* const component) throw();
+
+	void setLastDragDropTarget (Component* comp);
+
+	ComponentPeer (const ComponentPeer&);
+	ComponentPeer& operator= (const ComponentPeer&);
+};
+
+#endif   // __JUCE_COMPONENTPEER_JUCEHEADER__
+/*** End of inlined file: juce_ComponentPeer.h ***/
+
 
 #endif
 #ifndef __JUCE_DIALOGWINDOW_JUCEHEADER__
@@ -27659,7 +27728,7 @@ public:
 
 	int subPathIndex;
 
-	bool isLastInSubpath() const		{ return stackPos == stackBase
+	bool isLastInSubpath() const		{ return stackPos == stackBase.getData()
 													  && (index >= path.numElements
 														   || points [index] == Path::moveMarker); }
 
@@ -27961,9 +28030,9 @@ public:
 
 	void clear();
 
-	void setKernelValue (const int x,
-						 const int y,
-						 const float value);
+	float getKernelValue (int x, int y) const throw();
+
+	void setKernelValue (int x, int y, float value) throw();
 
 	void setOverallSum (const float desiredTotalSum);
 
@@ -27972,8 +28041,6 @@ public:
 	void createGaussianBlur (const float blurRadius);
 
 	int getKernelSize() const		   { return size; }
-
-	float** getValues() const		   { return values; }
 
 	void applyToImage (Image& destImage,
 					   const Image* sourceImage,

@@ -26,8 +26,7 @@
 #ifndef __JUCE_COMPONENTPEER_JUCEHEADER__
 #define __JUCE_COMPONENTPEER_JUCEHEADER__
 
-class Component;
-class Graphics;
+#include "../juce_Component.h"
 #include "../mouse/juce_MouseCursor.h"
 #include "../keyboard/juce_TextInputTarget.h"
 #include "../../../events/juce_MessageListener.h"
@@ -35,7 +34,6 @@ class Graphics;
 #include "../../graphics/geometry/juce_RectangleList.h"
 
 class ComponentBoundsConstrainer;
-class ComponentDeletionWatcher;
 
 
 //==============================================================================
@@ -295,8 +293,8 @@ public:
     virtual void performAnyPendingRepaintsNow() = 0;
 
     //==============================================================================
-    void handleMouseEvent (const Point<int>& positionWithinPeer, const ModifierKeys& newMods, const int64 time);
-    void handleMouseWheel (const Point<int>& positionWithinPeer, const int64 time, float x, float y);
+    void handleMouseEvent (int touchIndex, const Point<int>& positionWithinPeer, const ModifierKeys& newMods, const int64 time);
+    void handleMouseWheel (int touchIndex, const Point<int>& positionWithinPeer, const int64 time, float x, float y);
 
     void handleUserClosingWindow();
 
@@ -368,7 +366,7 @@ protected:
 private:
     //==============================================================================
     Component* lastFocusedComponent;
-    ScopedPointer <ComponentDeletionWatcher> dragAndDropTargetComponent;
+    Component::SafePointer<Component> dragAndDropTargetComponent;
     Component* lastDragAndDropCompUnderMouse;
     bool fakeMouseMessageSent : 1, isWindowMinimised : 1;
 
