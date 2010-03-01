@@ -30,16 +30,19 @@ BEGIN_JUCE_NAMESPACE
 #include "juce_MouseInputSource.h"
 #include "juce_MouseEvent.h"
 #include "../juce_Component.h"
-#include "../juce_ComponentDeletionWatcher.h"
 #include "../../../events/juce_AsyncUpdater.h"
+#include "../lookandfeel/juce_LookAndFeel.h"
+#include "../windows/juce_ComponentPeer.h"
 
 
 //==============================================================================
 class MouseInputSourceInternal   : public AsyncUpdater
 {
 public:
+    //==============================================================================
     MouseInputSourceInternal (MouseInputSource& source_, const int index_, const bool isMouseDevice_)
-        : index (index_), isMouseDevice (isMouseDevice_), source (source_), lastPeer (0), lastTime (0)
+        : index (index_), isMouseDevice (isMouseDevice_), source (source_), lastPeer (0), lastTime (0),
+          isUnboundedMouseModeOn (false), isCursorVisibleUntilOffscreen (false), currentCursorHandle (0)
     {
         zerostruct (mouseDowns);
     }
@@ -48,6 +51,7 @@ public:
     {
     }
 
+    //==============================================================================
     bool isDragging() const throw()
     {
         return buttonState.isAnyMouseButtonDown();
@@ -55,7 +59,7 @@ public:
 
     Component* getComponentUnderMouse() const
     {
-        return componentUnderMouse != 0 ? const_cast<Component*> (componentUnderMouse->getComponent()) : 0;
+        return const_cast<Component*> (static_cast <const Component*> (componentUnderMouse));
     }
 
     const ModifierKeys getCurrentModifiers() const
@@ -88,6 +92,55 @@ public:
         return 0;
     }
 
+    const Point<int> getScreenPosition() const throw()
+    {
+        return lastScreenPos + unboundedMouseOffset;
+    }
+
+    //==============================================================================
+    void sendMouseEnter (Component* const comp, const Point<int>& screenPos, const int64 time)
+    {
+        //DBG ("Mouse " + String (source.getIndex()) + " enter: " + comp->globalPositionToRelative (screenPos).toString() + " - Comp: " + String::toHexString ((int) comp));
+        comp->internalMouseEnter (source, comp->globalPositionToRelative (screenPos), time);
+    }
+
+    void sendMouseExit (Component* const comp, const Point<int>& screenPos, const int64 time)
+    {
+        //DBG ("Mouse " + String (source.getIndex()) + " exit: " + comp->globalPositionToRelative (screenPos).toString() + " - Comp: " + String::toHexString ((int) comp));
+        comp->internalMouseExit (source, comp->globalPositionToRelative (screenPos), time);
+    }
+
+    void sendMouseMove (Component* const comp, const Point<int>& screenPos, const int64 time)
+    {
+        //DBG ("Mouse " + String (source.getIndex()) + " move: " + comp->globalPositionToRelative (screenPos).toString() + " - Comp: " + String::toHexString ((int) comp));
+        comp->internalMouseMove (source, comp->globalPositionToRelative (screenPos), time);
+    }
+
+    void sendMouseDown (Component* const comp, const Point<int>& screenPos, const int64 time)
+    {
+        //DBG ("Mouse " + String (source.getIndex()) + " down: " + comp->globalPositionToRelative (screenPos).toString() + " - Comp: " + String::toHexString ((int) comp));
+        comp->internalMouseDown (source, comp->globalPositionToRelative (screenPos), time);
+    }
+
+    void sendMouseDrag (Component* const comp, const Point<int>& screenPos, const int64 time)
+    {
+        //DBG ("Mouse " + String (source.getIndex()) + " drag: " + comp->globalPositionToRelative (screenPos).toString() + " - Comp: " + String::toHexString ((int) comp));
+        comp->internalMouseDrag (source, comp->globalPositionToRelative (screenPos), time);
+    }
+
+    void sendMouseUp (Component* const comp, const Point<int>& screenPos, const int64 time)
+    {
+        //DBG ("Mouse " + String (source.getIndex()) + " up: " + comp->globalPositionToRelative (screenPos).toString() + " - Comp: " + String::toHexString ((int) comp));
+        comp->internalMouseUp (source, comp->globalPositionToRelative (screenPos), time, getCurrentModifiers());
+    }
+
+    void sendMouseWheel (Component* const comp, const Point<int>& screenPos, const int64 time, float x, float y)
+    {
+        //DBG ("Mouse " + String (source.getIndex()) + " wheel: " + comp->globalPositionToRelative (screenPos).toString() + " - Comp: " + String::toHexString ((int) comp));
+        comp->internalMouseWheel (source, comp->globalPositionToRelative (screenPos), time, x, y);
+    }
+
+    //==============================================================================
     void setButtons (const Point<int>& screenPos, const int64 time, const ModifierKeys& newButtonState)
     {
         if (buttonState != newButtonState)
@@ -104,8 +157,9 @@ public:
                 Component* const current = getComponentUnderMouse();
 
                 if (current != 0)
-                    current->internalMouseUp (source, current->globalPositionToRelative (screenPos),
-                                              time, getCurrentModifiers());
+                    sendMouseUp (current, screenPos + unboundedMouseOffset, time);
+
+                enableUnboundedMouseMovement (false, false);
             }
 
             buttonState = newButtonState;
@@ -119,8 +173,7 @@ public:
                 if (current != 0)
                 {
                     registerMouseDown (screenPos, time, current);
-
-                    current->internalMouseDown (source, current->globalPositionToRelative (screenPos), time);
+                    sendMouseDown (current, screenPos, time);
                 }
             }
         }
@@ -132,23 +185,23 @@ public:
 
         if (newComponent != current)
         {
-            ScopedPointer<ComponentDeletionWatcher> newCompWatcher (newComponent != 0 ? new ComponentDeletionWatcher (newComponent) : 0);
+            Component::SafePointer<Component> safeNewComp (newComponent);
             const ModifierKeys originalButtonState (buttonState);
 
             if (current != 0)
             {
                 setButtons (screenPos, time, ModifierKeys());
-                current->internalMouseExit (source, current->globalPositionToRelative (screenPos), time);
+                sendMouseExit (current, screenPos, time);
                 buttonState = originalButtonState;
             }
 
-            componentUnderMouse = newCompWatcher;
+            componentUnderMouse = safeNewComp;
             current = getComponentUnderMouse();
-            Component::componentUnderMouse = current;
 
             if (current != 0)
-                current->internalMouseEnter (source, current->globalPositionToRelative (screenPos), time);
+                sendMouseEnter (current, screenPos, time);
 
+            revealCursor (false);
             setButtons (screenPos, time, originalButtonState);
         }
     }
@@ -179,21 +232,25 @@ public:
 
             if (current != 0)
             {
-                const Point<int> pos (current->globalPositionToRelative (lastScreenPos));
-
                 if (isDragging())
                 {
                     registerMouseDrag (newScreenPos);
-                    current->internalMouseDrag (source, pos, time);
+                    sendMouseDrag (current, newScreenPos + unboundedMouseOffset, time);
+
+                    if (isUnboundedMouseModeOn)
+                        handleUnboundedDrag (current);
                 }
                 else
                 {
-                    current->internalMouseMove (source, pos, time);
+                    sendMouseMove (current, newScreenPos, time);
                 }
             }
+
+            revealCursor (false);
         }
     }
 
+    //==============================================================================
     void handleEvent (ComponentPeer* const newPeer, const Point<int>& positionWithinPeer, const int64 time, const ModifierKeys& newMods)
     {
         jassert (newPeer != 0);
@@ -234,10 +291,11 @@ public:
         {
             Component* current = getComponentUnderMouse();
             if (current != 0)
-                current->internalMouseWheel (source, current->globalPositionToRelative (screenPos), time, x, y);
+                sendMouseWheel (current, screenPos, time, x, y);
         }
     }
 
+    //==============================================================================
     const Time getLastMouseDownTime() const throw()
     {
         return Time (mouseDowns[0].time);
@@ -282,6 +340,7 @@ public:
                 || lastTime > mouseDowns[0].time + 300;
     }
 
+    //==============================================================================
     void triggerFakeMove()
     {
         triggerAsyncUpdate();
@@ -289,9 +348,95 @@ public:
 
     void handleAsyncUpdate()
     {
-        setScreenPos (Desktop::getMousePosition(), Time::currentTimeMillis(), true);
+        if (! isDragging())
+            setScreenPos (Desktop::getMousePosition(), jmax (lastTime, Time::currentTimeMillis()), true);
     }
 
+    //==============================================================================
+    void enableUnboundedMouseMovement (bool enable, bool keepCursorVisibleUntilOffscreen)
+    {
+        enable = enable && isDragging();
+        isCursorVisibleUntilOffscreen = keepCursorVisibleUntilOffscreen;
+
+        if (enable != isUnboundedMouseModeOn)
+        {
+            if ((! enable) && ((! isCursorVisibleUntilOffscreen) || ! unboundedMouseOffset.isOrigin()))
+            {
+                // when released, return the mouse to within the component's bounds
+                Component* current = getComponentUnderMouse();
+                if (current != 0)
+                    Desktop::setMousePosition (current->getScreenBounds()
+                                                    .getConstrainedPoint (current->getMouseXYRelative()));
+            }
+
+            isUnboundedMouseModeOn = enable;
+            unboundedMouseOffset = Point<int>();
+
+            revealCursor (true);
+        }
+    }
+
+    void handleUnboundedDrag (Component* current)
+    {
+        const Rectangle<int> screenArea (current->getParentMonitorArea().expanded (-2, -2));
+
+        if (! screenArea.contains (lastScreenPos))
+        {
+            const Point<int> compPos (current->getScreenPosition());
+            int deltaX = 0, deltaY = 0;
+
+            if (lastScreenPos.getX() <= screenArea.getX() || lastScreenPos.getX() >= screenArea.getRight())
+                deltaX = compPos.getX() + current->getWidth() / 2 - lastScreenPos.getX();
+
+            if (lastScreenPos.getY() <= screenArea.getY() || lastScreenPos.getY() >= screenArea.getBottom())
+                deltaY = compPos.getY() + current->getHeight() / 2 - lastScreenPos.getY();
+
+            const Point<int> delta (deltaX, deltaY);
+            unboundedMouseOffset -= delta;
+            Desktop::setMousePosition (lastScreenPos + delta);
+        }
+        else if (isCursorVisibleUntilOffscreen
+                  && (! unboundedMouseOffset.isOrigin())
+                  && screenArea.contains (lastScreenPos + unboundedMouseOffset))
+        {
+            Desktop::setMousePosition (lastScreenPos + unboundedMouseOffset);
+            unboundedMouseOffset = Point<int>();
+        }
+    }
+
+    //==============================================================================
+    void showMouseCursor (MouseCursor cursor, bool forcedUpdate)
+    {
+        if (isUnboundedMouseModeOn && ((! unboundedMouseOffset.isOrigin()) || ! isCursorVisibleUntilOffscreen))
+        {
+            cursor = MouseCursor::NoCursor;
+            forcedUpdate = true;
+        }
+
+        if (forcedUpdate || cursor.getHandle() != currentCursorHandle)
+        {
+            currentCursorHandle = cursor.getHandle();
+            cursor.showInWindow (lastPeer);
+        }
+    }
+
+    void hideCursor()
+    {
+        showMouseCursor (MouseCursor (MouseCursor::NoCursor), true);
+    }
+
+    void revealCursor (bool forcedUpdate)
+    {
+        MouseCursor mc (MouseCursor::NormalCursor);
+
+        Component* current = getComponentUnderMouse();
+        if (current != 0)
+            mc = current->getLookAndFeel().getMouseCursorFor (*current);
+
+        showMouseCursor (mc, forcedUpdate);
+    }
+
+    //==============================================================================
     int index;
     bool isMouseDevice;
     Point<int> lastScreenPos;
@@ -299,8 +444,12 @@ public:
 
 private:
     MouseInputSource& source;
-    ScopedPointer<ComponentDeletionWatcher> componentUnderMouse;
+    Component::SafePointer<Component> componentUnderMouse;
     ComponentPeer* lastPeer;
+
+    Point<int> unboundedMouseOffset;
+    bool isUnboundedMouseModeOn, isCursorVisibleUntilOffscreen;
+    void* currentCursorHandle;
 
     struct RecentMouseDown
     {
@@ -341,20 +490,26 @@ MouseInputSource::~MouseInputSource()
 {
 }
 
-bool MouseInputSource::isMouse() const                              { return pimpl->isMouseDevice; }
-bool MouseInputSource::isTouch() const                              { return ! pimpl->isMouseDevice; }
-bool MouseInputSource::canHover() const                             { return pimpl->isMouseDevice; }
-bool MouseInputSource::hasMouseWheel() const                        { return pimpl->isMouseDevice; }
-int MouseInputSource::getIndex() const                              { return pimpl->index; }
-bool MouseInputSource::isDragging() const                           { return pimpl->isDragging(); }
-const Point<int> MouseInputSource::getScreenPosition() const        { return pimpl->lastScreenPos; }
-const ModifierKeys MouseInputSource::getCurrentModifiers() const    { return pimpl->getCurrentModifiers(); }
-Component* MouseInputSource::getComponentUnderMouse() const         { return pimpl->getComponentUnderMouse(); }
-void MouseInputSource::triggerFakeMove() const                      { pimpl->triggerFakeMove(); }
-int MouseInputSource::getNumberOfMultipleClicks() const throw()     { return pimpl->getNumberOfMultipleClicks(); }
-const Time MouseInputSource::getLastMouseDownTime() const throw()   { return pimpl->getLastMouseDownTime(); }
+bool MouseInputSource::isMouse() const                                  { return pimpl->isMouseDevice; }
+bool MouseInputSource::isTouch() const                                  { return ! isMouse(); }
+bool MouseInputSource::canHover() const                                 { return isMouse(); }
+bool MouseInputSource::hasMouseWheel() const                            { return isMouse(); }
+int MouseInputSource::getIndex() const                                  { return pimpl->index; }
+bool MouseInputSource::isDragging() const                               { return pimpl->isDragging(); }
+const Point<int> MouseInputSource::getScreenPosition() const            { return pimpl->getScreenPosition(); }
+const ModifierKeys MouseInputSource::getCurrentModifiers() const        { return pimpl->getCurrentModifiers(); }
+Component* MouseInputSource::getComponentUnderMouse() const             { return pimpl->getComponentUnderMouse(); }
+void MouseInputSource::triggerFakeMove() const                          { pimpl->triggerFakeMove(); }
+int MouseInputSource::getNumberOfMultipleClicks() const throw()         { return pimpl->getNumberOfMultipleClicks(); }
+const Time MouseInputSource::getLastMouseDownTime() const throw()       { return pimpl->getLastMouseDownTime(); }
 const Point<int> MouseInputSource::getLastMouseDownPosition() const throw()     { return pimpl->getLastMouseDownPosition(); }
 bool MouseInputSource::hasMouseMovedSignificantlySincePressed() const throw()   { return pimpl->hasMouseMovedSignificantlySincePressed(); }
+bool MouseInputSource::canDoUnboundedMovement() const throw()           { return isMouse(); }
+void MouseInputSource::enableUnboundedMouseMovement (bool isEnabled, bool keepCursorVisibleUntilOffscreen)    { pimpl->enableUnboundedMouseMovement (isEnabled, keepCursorVisibleUntilOffscreen); }
+bool MouseInputSource::hasMouseCursor() const throw()                   { return isMouse(); }
+void MouseInputSource::showMouseCursor (const MouseCursor& cursor)      { pimpl->showMouseCursor (cursor, false); }
+void MouseInputSource::hideCursor()                                     { pimpl->hideCursor(); }
+void MouseInputSource::revealCursor()                                   { pimpl->revealCursor (false); }
 
 void MouseInputSource::handleEvent (ComponentPeer* peer, const Point<int>& positionWithinPeer, const int64 time, const ModifierKeys& mods)
 {

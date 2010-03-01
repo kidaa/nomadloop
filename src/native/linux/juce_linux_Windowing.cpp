@@ -535,7 +535,7 @@ public:
 
         if (windowH != 0)
         {
-            const ComponentDeletionWatcher deletionChecker (component);
+            Component::SafePointer<Component> deletionChecker (component);
 
             wx = x;
             wy = y;
@@ -566,7 +566,7 @@ public:
                                wx - windowBorder.getLeft(),
                                wy - windowBorder.getTop(), ww, wh);
 
-            if (! deletionChecker.hasBeenDeleted())
+            if (deletionChecker != 0)
             {
                 updateBorderSize();
                 handleMovedOrResized();
@@ -902,7 +902,8 @@ public:
                 colour[index++] = image.getPixelAt (x, y).getARGB();
 
         XImage* ximage = XCreateImage (display, CopyFromParent, 24, ZPixmap,
-                                       0, (char*) colour, width, height, 32, 0);
+                                       0, reinterpret_cast<char*> (colour.getData()),
+                                       width, height, 32, 0);
 
         Pixmap pixmap = XCreatePixmap (display, DefaultRootWindow (display),
                                        width, height, 24);
@@ -938,7 +939,7 @@ public:
         }
 
         return XCreatePixmapFromBitmapData (display, DefaultRootWindow (display),
-                                            (char*) mask, width, height, 1, 0, 1);
+                                            reinterpret_cast<char*> (mask.getData()), width, height, 1, 0, 1);
     }
 
     void setIcon (const Image& newIcon)
@@ -958,7 +959,7 @@ public:
         XChangeProperty (display, windowH,
                          XInternAtom (display, "_NET_WM_ICON", False),
                          XA_CARDINAL, 32, PropModeReplace,
-                         (unsigned char*) data, dataSize);
+                         reinterpret_cast<unsigned char*> (data.getData()), dataSize);
 
         deleteIconPixmaps();
 
@@ -1015,7 +1016,13 @@ public:
                 char utf8 [64];
                 zeromem (utf8, sizeof (utf8));
                 KeySym sym;
-                XLookupString (keyEvent, utf8, sizeof (utf8), &sym, 0);
+
+                {
+                    const char* oldLocale = ::setlocale (LC_ALL, 0);
+                    ::setlocale (LC_ALL, "");
+                    XLookupString (keyEvent, utf8, sizeof (utf8), &sym, 0);
+                    ::setlocale (LC_ALL, oldLocale);
+                }
 
                 const juce_wchar unicodeChar = *(const juce_wchar*) String::fromUTF8 (utf8, sizeof (utf8) - 1);
                 int keyCode = (int) unicodeChar;
@@ -1143,7 +1150,7 @@ public:
 
                 if (map == WheelUp || map == WheelDown)
                 {
-                    handleMouseWheel (Point<int> (buttonPressEvent->x, buttonPressEvent->y),
+                    handleMouseWheel (0, Point<int> (buttonPressEvent->x, buttonPressEvent->y),
                                       getEventTime (buttonPressEvent->time), 0, map == WheelDown ? -84.0f : 84.0f);
                 }
                 if (map == LeftButton)
@@ -1166,7 +1173,7 @@ public:
                 {
                     toFront (true);
 
-                    handleMouseEvent (Point<int> (buttonPressEvent->x, buttonPressEvent->y), currentModifiers,
+                    handleMouseEvent (0, Point<int> (buttonPressEvent->x, buttonPressEvent->y), currentModifiers,
                                       getEventTime (buttonPressEvent->time));
                 }
 
@@ -1188,7 +1195,7 @@ public:
                 else if (map == MiddleButton)
                     currentModifiers = currentModifiers.withoutFlags (ModifierKeys::middleButtonModifier);
 
-                handleMouseEvent (Point<int> (buttonRelEvent->x, buttonRelEvent->y), currentModifiers,
+                handleMouseEvent (0, Point<int> (buttonRelEvent->x, buttonRelEvent->y), currentModifiers,
                                   getEventTime (buttonRelEvent->time));
 
                 clearLastMousePos();
@@ -1230,7 +1237,7 @@ public:
                         }
                     }
 
-                    handleMouseEvent (mousePos - getScreenPosition(), currentModifiers, getEventTime (movedEvent->time));
+                    handleMouseEvent (0, mousePos - getScreenPosition(), currentModifiers, getEventTime (movedEvent->time));
                 }
 
                 break;
@@ -1244,7 +1251,7 @@ public:
                 if (! currentModifiers.isAnyMouseButtonDown())
                 {
                     updateKeyModifiers (enterEvent->state);
-                    handleMouseEvent (Point<int> (enterEvent->x, enterEvent->y), currentModifiers, getEventTime (enterEvent->time));
+                    handleMouseEvent (0, Point<int> (enterEvent->x, enterEvent->y), currentModifiers, getEventTime (enterEvent->time));
                 }
 
                 break;
@@ -1261,7 +1268,7 @@ public:
                      || leaveEvent->mode == NotifyUngrab)
                 {
                     updateKeyModifiers (leaveEvent->state);
-                    handleMouseEvent (Point<int> (leaveEvent->x, leaveEvent->y), currentModifiers, getEventTime (leaveEvent->time));
+                    handleMouseEvent (0, Point<int> (leaveEvent->x, leaveEvent->y), currentModifiers, getEventTime (leaveEvent->time));
                 }
 
                 break;
@@ -2660,6 +2667,11 @@ void juce_updateMultiMonitorInfo (Array <Rectangle<int> >& monitorCoords, const 
 }
 
 //==============================================================================
+void Desktop::createMouseInputSources()
+{
+    mouseSources.add (new MouseInputSource (0, true));
+}
+
 bool Desktop::canUseSemiTransparentWindows() throw()
 {
     return false;
@@ -2777,8 +2789,8 @@ void* juce_createMouseCursorFromImage (const Image& image, int hotspotX, int hot
         }
     }
 
-    Pixmap sourcePixmap = XCreatePixmapFromBitmapData (display, root, (char*) sourcePlane, cursorW, cursorH, 0xffff, 0, 1);
-    Pixmap maskPixmap = XCreatePixmapFromBitmapData (display, root, (char*) maskPlane, cursorW, cursorH, 0xffff, 0, 1);
+    Pixmap sourcePixmap = XCreatePixmapFromBitmapData (display, root, reinterpret_cast <char*> (sourcePlane.getData()), cursorW, cursorH, 0xffff, 0, 1);
+    Pixmap maskPixmap = XCreatePixmapFromBitmapData (display, root, reinterpret_cast <char*> (maskPlane.getData()), cursorW, cursorH, 0xffff, 0, 1);
 
     XColor white, black;
     black.red = black.green = black.blue = 0;
