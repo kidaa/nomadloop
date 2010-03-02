@@ -527,7 +527,7 @@ public:
         {
             FSRef fn;
 
-            if (FSPathMakeRef ((UInt8*) (const char*) filename, &fn, 0) == noErr)
+            if (FSPathMakeRef ((UInt8*) filename.toUTF8(), &fn, 0) == noErr)
             {
                 resFileId = FSOpenResFile (&fn, fsRdPerm);
 
@@ -1218,19 +1218,18 @@ public:
 
         if (topComp->getPeer() != 0)
         {
-            int x = 0, y = 0;
-            relativePositionToOtherComponent (topComp, x, y);
+            const Point<int> pos (relativePositionToOtherComponent (topComp, Point<int>()));
 
             recursiveResize = true;
 
 #if JUCE_WIN32
             if (pluginHWND != 0)
-                MoveWindow (pluginHWND, x, y, getWidth(), getHeight(), TRUE);
+                MoveWindow (pluginHWND, pos.getX(), pos.getY(), getWidth(), getHeight(), TRUE);
 #elif JUCE_LINUX
             if (pluginWindow != 0)
             {
                 XResizeWindow (display, pluginWindow, getWidth(), getHeight());
-                XMoveWindow (display, pluginWindow, x, y);
+                XMoveWindow (display, pluginWindow, pos.getX(), pos.getY());
                 XMapRaised (display, pluginWindow);
             }
 #endif
@@ -1289,9 +1288,8 @@ public:
 
             if (peer != 0)
             {
-                peer->addMaskedRegion (getScreenX() - peer->getScreenX(),
-                                       getScreenY() - peer->getScreenY(),
-                                       getWidth(), getHeight());
+                const Point<int> pos (getScreenPosition() - peer->getScreenPosition());
+                peer->addMaskedRegion (pos.getX(), pos.getY(), getWidth(), getHeight());
 
 #if JUCE_LINUX
                 if (pluginWindow != 0)
@@ -1879,10 +1877,11 @@ private:
 
             if (peer != 0)
             {
+                const Point<int> pos (getScreenPosition() - peer->getScreenPosition());
                 ERect r;
-                r.left = getScreenX() - peer->getScreenX();
+                r.left = pos.getX();
                 r.right = r.left + getWidth();
-                r.top = getScreenY() - peer->getScreenY();
+                r.top = pos.getY();
                 r.bottom = r.top + getHeight();
 
                 owner->dispatch (effEditDraw, 0, 0, &r, 0);
@@ -2041,7 +2040,7 @@ void VSTPluginInstance::setParamsInProgramBlock (fxProgram* const prog) throw()
     prog->fxVersion = vst_swap (getVersionNumber());
     prog->numParams = vst_swap (numParams);
 
-    getCurrentProgramName().copyToBuffer (prog->prgName, sizeof (prog->prgName) - 1);
+    getCurrentProgramName().copyToCString (prog->prgName, sizeof (prog->prgName) - 1);
 
     for (int i = 0; i < numParams; ++i)
         prog->params[i] = vst_swapFloat (getParameter (i));
@@ -2092,7 +2091,7 @@ bool VSTPluginInstance::saveToFXBFile (MemoryBlock& dest, bool isFXB, int maxSiz
             set->numPrograms = vst_swap (numPrograms);
             set->chunkSize = vst_swap ((long) chunk.getSize());
 
-            getCurrentProgramName().copyToBuffer (set->name, sizeof (set->name) - 1);
+            getCurrentProgramName().copyToCString (set->name, sizeof (set->name) - 1);
             chunk.copyTo (set->chunk, 0, chunk.getSize());
         }
     }
@@ -2195,12 +2194,11 @@ int VSTPluginInstance::dispatch (const int opcode, const int index, const int va
 
             if (getActiveEditor() != 0)
             {
-                int x = 0, y = 0;
-                getActiveEditor()->relativePositionToOtherComponent (getActiveEditor()->getTopLevelComponent(), x, y);
+                const Point<int> pos (getActiveEditor()->relativePositionToOtherComponent (getActiveEditor()->getTopLevelComponent(), Point<int>()));
 
                 GetPort (&oldPort);
                 SetPortWindowPort ((WindowRef) getActiveEditor()->getWindowHandle());
-                SetOrigin (-x, -y);
+                SetOrigin (-pos.getX(), -pos.getY());
             }
 #endif
 
@@ -2219,8 +2217,6 @@ int VSTPluginInstance::dispatch (const int opcode, const int index, const int va
     }
     catch (...)
     {
-        //char s[512];
-        //sprintf (s, "dispatcher (%d, %d, %d, %x, %f)", opcode, index, value, (int)ptr, opt);
     }
 
     --insideVSTCallback;
@@ -2279,7 +2275,7 @@ static VstIntPtr handleGeneralCallback (VstInt32 opcode, VstInt32 index, VstInt3
             if (JUCEApplication::getInstance() != 0)
                 hostName = JUCEApplication::getInstance()->getApplicationName();
 
-            hostName.copyToBuffer ((char*) ptr, jmin (kVstMaxVendorStrLen, kVstMaxProductStrLen) - 1);
+            hostName.copyToCString ((char*) ptr, jmin (kVstMaxVendorStrLen, kVstMaxProductStrLen) - 1);
         }
         break;
 
@@ -2377,7 +2373,7 @@ VstIntPtr VSTPluginInstance::handleCallback (VstInt32 opcode, VstInt32 index, Vs
       #if JUCE_MAC
         return (VstIntPtr) (void*) &module->parentDirFSSpec;
       #else
-        return (VstIntPtr) (pointer_sized_uint) (const char*) module->fullParentDirectoryPathName;
+        return (VstIntPtr) (pointer_sized_uint) module->fullParentDirectoryPathName.toUTF8();
       #endif
 
     case audioMasterGetAutomationState:
@@ -2625,7 +2621,7 @@ void VSTPluginInstance::createTempParameterStore (MemoryBlock& dest)
     dest.setSize (64 + 4 * getNumParameters());
     dest.fillWith (0);
 
-    getCurrentProgramName().copyToBuffer ((char*) dest.getData(), 63);
+    getCurrentProgramName().copyToCString ((char*) dest.getData(), 63);
 
     float* const p = (float*) (((char*) dest.getData()) + 64);
     for (int i = 0; i < getNumParameters(); ++i)
@@ -2675,7 +2671,7 @@ void VSTPluginInstance::changeProgramName (int index, const String& newName)
     if (index == getCurrentProgram())
     {
         if (getNumPrograms() > 0 && newName != getCurrentProgramName())
-            dispatch (effSetProgramName, 0, 0, (void*) (const char*) newName.substring (0, 24), 0.0f);
+            dispatch (effSetProgramName, 0, 0, (void*) newName.substring (0, 24).toCString(), 0.0f);
     }
     else
     {

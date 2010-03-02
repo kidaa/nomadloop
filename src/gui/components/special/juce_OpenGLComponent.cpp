@@ -30,6 +30,7 @@
 BEGIN_JUCE_NAMESPACE
 
 #include "juce_OpenGLComponent.h"
+#include "../windows/juce_ComponentPeer.h"
 #include "../layout/juce_ComponentMovementWatcher.h"
 #include "../../../threads/juce_ScopedLock.h"
 
@@ -259,9 +260,8 @@ void OpenGLComponent::paint (Graphics&)
 
         if (peer != 0)
         {
-            peer->addMaskedRegion (getScreenX() - peer->getScreenX(),
-                                   getScreenY() - peer->getScreenY(),
-                                   getWidth(), getHeight());
+            const Point<int> topLeft (getScreenPosition() - peer->getScreenPosition());
+            peer->addMaskedRegion (topLeft.getX(), topLeft.getY(), getWidth(), getHeight());
         }
     }
 }

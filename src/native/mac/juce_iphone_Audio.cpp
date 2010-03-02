@@ -205,9 +205,8 @@ public:
             if (callback_ != 0)
                 callback_->audioDeviceAboutToStart (this);
 
-            callbackLock.enter();
+            const ScopedLock sl (callbackLock);
             callback = callback_;
-            callbackLock.exit();
         }
     }
 
@@ -215,10 +214,13 @@ public:
     {
         if (isRunning)
         {
-            callbackLock.enter();
-            AudioIODeviceCallback* const lastCallback = callback;
-            callback = 0;
-            callbackLock.exit();
+            AudioIODeviceCallback* lastCallback;
+
+            {
+                const ScopedLock sl (callbackLock);
+                lastCallback = callback;
+                callback = 0;
+            }
 
             if (lastCallback != 0)
                 lastCallback->audioDeviceStopped();
@@ -517,7 +519,7 @@ private:
     }
 
     IPhoneAudioIODevice (const IPhoneAudioIODevice&);
-    const IPhoneAudioIODevice& operator= (const IPhoneAudioIODevice&);
+    IPhoneAudioIODevice& operator= (const IPhoneAudioIODevice&);
 };
 
 
@@ -576,7 +578,7 @@ public:
 
 private:
     IPhoneAudioIODeviceType (const IPhoneAudioIODeviceType&);
-    const IPhoneAudioIODeviceType& operator= (const IPhoneAudioIODeviceType&);
+    IPhoneAudioIODeviceType& operator= (const IPhoneAudioIODeviceType&);
 };
 
 //==============================================================================

@@ -32,6 +32,7 @@ BEGIN_JUCE_NAMESPACE
 #include "../menus/juce_PopupMenu.h"
 #include "../juce_Desktop.h"
 #include "../special/juce_BubbleComponent.h"
+#include "../mouse/juce_MouseInputSource.h"
 #include "../../../text/juce_LocalisedStrings.h"
 
 
@@ -85,7 +86,7 @@ private:
     String text;
 
     SliderPopupDisplayComponent (const SliderPopupDisplayComponent&);
-    const SliderPopupDisplayComponent& operator= (const SliderPopupDisplayComponent&);
+    SliderPopupDisplayComponent& operator= (const SliderPopupDisplayComponent&);
 };
 
 //==============================================================================
@@ -501,7 +502,9 @@ void Slider::setValue (double newValue,
 
         if (popupDisplay != 0)
         {
-            ((SliderPopupDisplayComponent*) popupDisplay)->updatePosition (getTextFromValue (newValue));
+            static_cast <SliderPopupDisplayComponent*> (static_cast <Component*> (popupDisplay))
+                ->updatePosition (getTextFromValue (newValue));
+
             popupDisplay->repaint();
         }
 
@@ -559,7 +562,9 @@ void Slider::setMinValue (double newValue, const bool sendUpdateMessage, const b
 
         if (popupDisplay != 0)
         {
-            ((SliderPopupDisplayComponent*) popupDisplay)->updatePosition (getTextFromValue (newValue));
+            static_cast <SliderPopupDisplayComponent*> (static_cast <Component*> (popupDisplay))
+                ->updatePosition (getTextFromValue (newValue));
+
             popupDisplay->repaint();
         }
 
@@ -599,7 +604,9 @@ void Slider::setMaxValue (double newValue, const bool sendUpdateMessage, const b
 
         if (popupDisplay != 0)
         {
-            ((SliderPopupDisplayComponent*) popupDisplay)->updatePosition (getTextFromValue (valueMax.getValue()));
+            static_cast <SliderPopupDisplayComponent*> (static_cast <Component*> (popupDisplay))
+                ->updatePosition (getTextFromValue (valueMax.getValue()));
+
             popupDisplay->repaint();
         }
 
@@ -1137,48 +1144,39 @@ void Slider::restoreMouseIfHidden()
     {
         mouseWasHidden = false;
 
-        Component* c = Component::getComponentUnderMouse();
-
-        if (c == 0)
-            c = this;
-
-        c->enableUnboundedMouseMovement (false);
+        for (int i = Desktop::getInstance().getNumMouseSources(); --i >= 0;)
+            Desktop::getInstance().getMouseSource(i)->enableUnboundedMouseMovement (false);
 
         const double pos = (sliderBeingDragged == 2) ? getMaxValue()
                                                      : ((sliderBeingDragged == 1) ? getMinValue()
                                                                                   : (double) currentValue.getValue());
 
+        Point<int> mousePos;
+
         if (style == RotaryHorizontalDrag || style == RotaryVerticalDrag)
         {
-            int x, y, downX, downY;
-            Desktop::getMousePosition (x, y);
-            Desktop::getLastMouseDownPosition (downX, downY);
+            mousePos = Desktop::getLastMouseDownPosition();
 
             if (style == RotaryHorizontalDrag)
             {
                 const double posDiff = valueToProportionOfLength (pos) - valueToProportionOfLength (valueOnMouseDown);
-                x = roundToInt (pixelsForFullDragExtent * posDiff + downX);
-                y = downY;
+                mousePos += Point<int> (roundToInt (pixelsForFullDragExtent * posDiff), 0);
             }
             else
             {
                 const double posDiff = valueToProportionOfLength (valueOnMouseDown) - valueToProportionOfLength (pos);
-                x = downX;
-                y = roundToInt (pixelsForFullDragExtent * posDiff + downY);
+                mousePos += Point<int> (0, roundToInt (pixelsForFullDragExtent * posDiff));
             }
-
-            Desktop::setMousePosition (x, y);
         }
         else
         {
             const int pixelPos = (int) getLinearSliderPos (pos);
 
-            int x = isHorizontal() ? pixelPos : (getWidth() / 2);
-            int y = isVertical()   ? pixelPos : (getHeight() / 2);
-
-            relativePositionToGlobal (x, y);
-            Desktop::setMousePosition (x, y);
+            mousePos = relativePositionToGlobal (Point<int> (isHorizontal() ? pixelPos : (getWidth() / 2),
+                                                             isVertical()   ? pixelPos : (getHeight() / 2)));
         }
+
+        Desktop::setMousePosition (mousePos);
     }
 }
 
@@ -1337,7 +1335,7 @@ void Slider::mouseDrag (const MouseEvent& e)
 
                     valueWhenLastDragged = proportionOfLengthToValue (jlimit (0.0, 1.0, currentPos + speed));
 
-                    e.originalComponent->enableUnboundedMouseMovement (true, false);
+                    e.source.enableUnboundedMouseMovement (true, false);
                     mouseWasHidden = true;
                 }
             }
@@ -1398,7 +1396,7 @@ void Slider::mouseWheelMove (const MouseEvent& e, float wheelIncrementX, float w
          && style != TwoValueHorizontal
          && style != TwoValueVertical)
     {
-        if (maximum > minimum && ! isMouseButtonDownAnywhere())
+        if (maximum > minimum && ! e.mods.isAnyMouseButtonDown())
         {
             if (valueBox != 0)
                 valueBox->hideEditor (false);

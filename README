@@ -1,0 +1,4 @@
+NomadLoop is a digital audio host focused on live-looping, real-time metacomposition and analysis, exceptional support for non-keyboard MIDI controllers, and multitouch control.
+
+It is based on Julian Storen's excellent JUCE library for C++, and released under the terms of the GNU GPL.
+

@@ -55,8 +55,7 @@ static JUCEApplication* appInstance = 0;
 //==============================================================================
 JUCEApplication::JUCEApplication()
     : appReturnValue (0),
-      stillInitialising (true),
-      appLock (0)
+      stillInitialising (true)
 {
 }
 
@@ -65,7 +64,7 @@ JUCEApplication::~JUCEApplication()
     if (appLock != 0)
     {
         appLock->exit();
-        delete appLock;
+        appLock = 0;
     }
 }
 
@@ -228,10 +227,10 @@ bool JUCEApplication::initialiseApp (String& commandLine)
 int JUCEApplication::shutdownAppAndClearUp()
 {
     jassert (appInstance != 0);
-    JUCEApplication* const app = appInstance;
+    ScopedPointer<JUCEApplication> app (appInstance);
     int returnValue = 0;
 
-    MessageManager::getInstance()->deregisterBroadcastListener (app);
+    MessageManager::getInstance()->deregisterBroadcastListener ((JUCEApplication*) app);
 
     static bool reentrancyCheck = false;
 
@@ -262,7 +261,7 @@ int JUCEApplication::shutdownAppAndClearUp()
             returnValue = app->getApplicationReturnValue();
 
             appInstance = 0;
-            delete app;
+            app = 0;
         }
         JUCE_CATCH_ALL_ASSERT
 
@@ -273,15 +272,14 @@ int JUCEApplication::shutdownAppAndClearUp()
 }
 
 #if JUCE_IPHONE
- extern int juce_IPhoneMain (int argc, char* argv[], JUCEApplication* app);
+ extern int juce_IPhoneMain (int argc, const char* argv[], JUCEApplication* app);
 #endif
 
 #if ! JUCE_WINDOWS
 extern const char* juce_Argv0;
 #endif
 
-int JUCEApplication::main (int argc, char* argv[],
-                           JUCEApplication* const newApp)
+int JUCEApplication::main (int argc, const char* argv[], JUCEApplication* const newApp)
 {
 #if ! JUCE_WINDOWS
     juce_Argv0 = argv[0];
@@ -298,7 +296,7 @@ int JUCEApplication::main (int argc, char* argv[],
 
     String cmd;
     for (int i = 1; i < argc; ++i)
-        cmd << String::fromUTF8 ((const uint8*) argv[i]) << T(' ');
+        cmd << argv[i] << ' ';
 
     return JUCEApplication::main (cmd, newApp);
 #endif

@@ -29,6 +29,7 @@ BEGIN_JUCE_NAMESPACE
 
 #include "juce_ComponentBoundsConstrainer.h"
 #include "../juce_Desktop.h"
+#include "../windows/juce_ComponentPeer.h"
 
 
 //==============================================================================
@@ -153,8 +154,7 @@ void ComponentBoundsConstrainer::setBoundsForComponent (Component* const compone
         if (peer != 0)
             border = peer->getFrameSize();
 
-        limits = Desktop::getInstance().getMonitorAreaContaining (bounds.getCentreX(),
-                                                                  bounds.getCentreY());
+        limits = Desktop::getInstance().getMonitorAreaContaining (bounds.getCentre());
     }
     else
     {

@@ -229,10 +229,7 @@ public:
 
     const String getTooltip()
     {
-        int x, y;
-        getMouseXYRelative (x, y);
-
-        const int columnId = owner.getHeader()->getColumnIdAtX (x);
+        const int columnId = owner.getHeader()->getColumnIdAtX (getMouseXYRelative().getX());
 
         if (columnId != 0 && owner.getModel() != 0)
             return owner.getModel()->getCellTooltip (row, columnId);
@@ -262,7 +259,7 @@ private:
     }
 
     TableListRowComp (const TableListRowComp&);
-    const TableListRowComp& operator= (const TableListRowComp&);
+    TableListRowComp& operator= (const TableListRowComp&);
 };
 
 
@@ -313,7 +310,7 @@ private:
     TableListBox& owner;
 
     TableListBoxHeader (const TableListBoxHeader&);
-    const TableListBoxHeader& operator= (const TableListBoxHeader&);
+    TableListBoxHeader& operator= (const TableListBoxHeader&);
 };
 
 //==============================================================================

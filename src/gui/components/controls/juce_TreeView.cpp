@@ -31,6 +31,7 @@ BEGIN_JUCE_NAMESPACE
 #include "../lookandfeel/juce_LookAndFeel.h"
 #include "../../../containers/juce_BitArray.h"
 #include "../mouse/juce_DragAndDropContainer.h"
+#include "../mouse/juce_MouseInputSource.h"
 #include "../../graphics/imaging/juce_Image.h"
 
 
@@ -83,12 +84,8 @@ public:
             else
                 selectBasedOnModifiers (item, e.mods);
 
-            MouseEvent e2 (e);
-            e2.x -= pos.getX();
-            e2.y -= pos.getY();
-
-            if (e2.x >= 0)
-                item->itemClicked (e2);
+            if (e.x >= pos.getX())
+                item->itemClicked (e.withNewPosition (e.getPosition() - pos.getPosition()));
         }
     }
 
@@ -114,12 +111,7 @@ public:
             TreeViewItem* const item = findItemAt (e.y, pos);
 
             if (item != 0 && (e.x >= pos.getX() || ! owner->openCloseButtonsVisible))
-            {
-                MouseEvent e2 (e);
-                e2.x -= pos.getX();
-                e2.y -= pos.getY();
-                item->itemDoubleClicked (e2);
-            }
+                item->itemDoubleClicked (e.withNewPosition (e.getPosition() - pos.getPosition()));
         }
     }
 
@@ -176,6 +168,24 @@ public:
 
     void paint (Graphics& g);
     TreeViewItem* findItemAt (int y, Rectangle<int>& itemPosition) const;
+
+    static bool isMouseDraggingInChildCompOf (Component* const comp)
+    {
+        for (int i = Desktop::getInstance().getNumMouseSources(); --i >= 0;)
+        {
+            MouseInputSource* source = Desktop::getInstance().getMouseSource(i);
+
+            if (source->isDragging())
+            {
+                Component* const underMouse = source->getComponentUnderMouse();
+
+                if (underMouse != 0 && (comp == underMouse || comp->isParentOf (underMouse)))
+                    return true;
+            }
+        }
+
+        return false;
+    }
 
     void updateComponents()
     {
@@ -238,10 +248,7 @@ public:
                     }
                 }
 
-                if ((! keep)
-                     && Component::isMouseButtonDownAnywhere()
-                     && (comp == Component::getComponentUnderMouse()
-                          || comp->isParentOf (Component::getComponentUnderMouse())))
+                if ((! keep) && isMouseDraggingInChildCompOf (comp))
                 {
                     keep = true;
                     comp->setSize (0, 0);
@@ -306,11 +313,8 @@ public:
 
     const String getTooltip()
     {
-        int x, y;
-        getMouseXYRelative (x, y);
         Rectangle<int> pos;
-
-        TreeViewItem* const item = findItemAt (y, pos);
+        TreeViewItem* const item = findItemAt (getMouseXYRelative().getY(), pos);
 
         if (item != 0)
             return item->getTooltip();
@@ -331,7 +335,7 @@ private:
     bool isDragging, needSelectionOnMouseUp;
 
     TreeViewContentComponent (const TreeViewContentComponent&);
-    const TreeViewContentComponent& operator= (const TreeViewContentComponent&);
+    TreeViewContentComponent& operator= (const TreeViewContentComponent&);
 
     void selectBasedOnModifiers (TreeViewItem* const item, const ModifierKeys& modifiers)
     {
@@ -399,7 +403,7 @@ public:
 
 private:
     TreeViewport (const TreeViewport&);
-    const TreeViewport& operator= (const TreeViewport&);
+    TreeViewport& operator= (const TreeViewport&);
 };
 
 
@@ -557,10 +561,8 @@ TreeViewItem* TreeView::getItemOnRow (int index) const
 TreeViewItem* TreeView::getItemAt (int y) const throw()
 {
     TreeViewContentComponent* const tc = (TreeViewContentComponent*) viewport->getViewedComponent();
-    int x;
-    relativePositionToOtherComponent (tc, x, y);
     Rectangle<int> pos;
-    return tc->findItemAt (y, pos);
+    return tc->findItemAt (relativePositionToOtherComponent (tc, Point<int> (0, y)).getY(), pos);
 }
 
 TreeViewItem* TreeView::findItemFromIdentifierString (const String& identifierString) const
@@ -1173,16 +1175,19 @@ void TreeViewItem::addSubItem (TreeViewItem* const newItem, const int insertPosi
 void TreeViewItem::removeSubItem (const int index, const bool deleteItem)
 {
     if (ownerView != 0)
-        ownerView->nodeAlterationLock.enter();
+    {
+        const ScopedLock sl (ownerView->nodeAlterationLock);
 
-    if (((unsigned int) index) < (unsigned int) subItems.size())
+        if (((unsigned int) index) < (unsigned int) subItems.size())
+        {
+            subItems.remove (index, deleteItem);
+            treeHasChanged();
+        }
+    }
+    else
     {
         subItems.remove (index, deleteItem);
-        treeHasChanged();
     }
-
-    if (ownerView != 0)
-        ownerView->nodeAlterationLock.exit();
 }
 
 bool TreeViewItem::isOpen() const throw()

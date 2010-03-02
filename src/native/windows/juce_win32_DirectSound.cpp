@@ -1174,7 +1174,7 @@ private:
     CriticalSection startStopLock;
 
     DSoundAudioIODevice (const DSoundAudioIODevice&);
-    const DSoundAudioIODevice& operator= (const DSoundAudioIODevice&);
+    DSoundAudioIODevice& operator= (const DSoundAudioIODevice&);
 
     const String openDevice (const BitArray& inputChannels,
                              const BitArray& outputChannels,
@@ -1307,7 +1307,7 @@ public:
             {
                 JUCE_TRY
                 {
-                    callback->audioDeviceIOCallback ((const float**) inputBuffers,
+                    callback->audioDeviceIOCallback (const_cast <const float**> (inputBuffers.getData()),
                                                      numInputBuffers,
                                                      outputBuffers,
                                                      numOutputBuffers,
@@ -1493,7 +1493,7 @@ private:
 
     //==============================================================================
     DSoundAudioIODeviceType (const DSoundAudioIODeviceType&);
-    const DSoundAudioIODeviceType& operator= (const DSoundAudioIODeviceType&);
+    DSoundAudioIODeviceType& operator= (const DSoundAudioIODeviceType&);
 };
 
 //==============================================================================

@@ -53,7 +53,7 @@ public:
     MidiBuffer (const MidiBuffer& other) throw();
 
     /** Makes a copy of another MidiBuffer. */
-    const MidiBuffer& operator= (const MidiBuffer& other) throw();
+    MidiBuffer& operator= (const MidiBuffer& other) throw();
 
     /** Destructor */
     ~MidiBuffer() throw();
@@ -217,7 +217,7 @@ public:
         const uint8* data;
 
         Iterator (const Iterator&);
-        const Iterator& operator= (const Iterator&);
+        Iterator& operator= (const Iterator&);
     };
 
 
@@ -229,6 +229,7 @@ private:
     MemoryBlock data;
     int bytesUsed;
 
+    uint8* getData() const throw()       { return reinterpret_cast <uint8*> (data.getData()); }
     uint8* findEventAfter (uint8* d, const int samplePosition) const throw();
 };
 

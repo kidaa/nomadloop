@@ -13,6 +13,8 @@ public:
 
 	void paint(Graphics &g);
 	void timerCallback();
+
+	void mouseDown(const MouseEvent &e);
 };
 
 class ArrangementComponent : public Component

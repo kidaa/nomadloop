@@ -27,10 +27,16 @@
 #define __JUCE_DESKTOP_JUCEHEADER__
 
 #include "juce_Component.h"
+#include "../../core/juce_Time.h"
 #include "../../utilities/juce_DeletedAtShutdown.h"
 #include "../../events/juce_Timer.h"
 #include "../../events/juce_AsyncUpdater.h"
 #include "../../containers/juce_SortedSet.h"
+#include "../../containers/juce_OwnedArray.h"
+#include "../graphics/geometry/juce_RectangleList.h"
+class MouseInputSource;
+class MouseInputSourceInternal;
+class MouseListener;
 
 
 //==============================================================================
@@ -91,7 +97,7 @@ public:
         If clippedToWorkArea is true, it will exclude any areas like the taskbar on Windows,
         or the menu bar on Mac. If clippedToWorkArea is false, the entire monitor area is returned.
     */
-    const Rectangle<int> getMonitorAreaContaining (int x, int y, const bool clippedToWorkArea = true) const throw();
+    const Rectangle<int> getMonitorAreaContaining (const Point<int>& position, const bool clippedToWorkArea = true) const throw();
 
 
     //==============================================================================
@@ -99,17 +105,17 @@ public:
 
         The co-ordinates are relative to the top-left of the main monitor.
     */
-    static void getMousePosition (int& x, int& y) throw();
+    static const Point<int> getMousePosition();
 
     /** Makes the mouse pointer jump to a given location.
 
         The co-ordinates are relative to the top-left of the main monitor.
     */
-    static void setMousePosition (int x, int y) throw();
+    static void setMousePosition (const Point<int>& newPosition);
 
     /** Returns the last position at which a mouse button was pressed.
     */
-    static void getLastMouseDownPosition (int& x, int& y) throw();
+    static const Point<int> getLastMouseDownPosition() throw();
 
     /** Returns the number of times the mouse button has been clicked since the
         app started.
@@ -218,9 +224,43 @@ public:
 
         Returns 0 if the co-ordinates are inside a non-Juce window.
     */
-    Component* findComponentAt (const int screenX,
-                                const int screenY) const;
+    Component* findComponentAt (const Point<int>& screenPosition) const;
 
+
+    //==============================================================================
+    /** Returns the number of MouseInputSource objects the system has at its disposal.
+        In a traditional single-mouse system, there might be only one object. On a multi-touch
+        system, there could be one input source per potential finger.
+        To find out how many mouse events are currently happening, use getNumDraggingMouseSources().
+        @see getMouseSource
+    */
+    int getNumMouseSources() const throw()                          { return mouseSources.size(); }
+
+    /** Returns one of the system's MouseInputSource objects.
+        The index should be from 0 to getNumMouseSources() - 1. Out-of-range indexes will return
+        a null pointer.
+        In a traditional single-mouse system, there might be only one object. On a multi-touch
+        system, there could be one input source per potential finger.
+    */
+    MouseInputSource* getMouseSource (int index) const throw()      { return mouseSources [index]; }
+
+    /** Returns the main mouse input device that the system is using.
+        @see getNumMouseSources()
+    */
+    MouseInputSource& getMainMouseSource() const throw()            { return *mouseSources.getUnchecked(0); }
+
+    /** Returns the number of mouse-sources that are currently being dragged.
+        In a traditional single-mouse system, this will be 0 or 1, depending on whether a
+        juce component has the button down on it. In a multi-touch system, this could
+        be any number from 0 to the number of simultaneous touches that can be detected.
+    */
+    int getNumDraggingMouseSources() const throw();
+
+    /** Returns one of the mouse sources that's currently being dragged.
+        The index should be between 0 and getNumDraggingMouseSources() - 1. If the index is
+        out of range, or if no mice or fingers are down, this will return a null pointer.
+    */
+    MouseInputSource* getDraggingMouseSource (int index) const throw();
 
     //==============================================================================
     juce_UseDebuggingNewOperator
@@ -234,13 +274,14 @@ public:
     /** True if the OS supports semitransparent windows */
     static bool canUseSemiTransparentWindows() throw();
 
-
 private:
     //==============================================================================
     static Desktop* instance;
 
     friend class Component;
     friend class ComponentPeer;
+    friend class MouseInputSource;
+    friend class MouseInputSourceInternal;
     SortedSet <void*> mouseListeners, focusListeners;
     Array <Component*> desktopComponents;
 
@@ -251,26 +292,17 @@ private:
 
     Array <Rectangle<int> > monitorCoordsClipped, monitorCoordsUnclipped;
 
-    int lastFakeMouseMoveX, lastFakeMouseMoveY, mouseClickCounter;
-    bool mouseMovedSignificantlySincePressed;
+    OwnedArray <MouseInputSource> mouseSources;
 
-    struct RecentMouseDown
-    {
-        Point<int> position;
-        int64 time;
-        Component* component;
-    };
-
-    RecentMouseDown mouseDowns[4];
+    Point<int> lastFakeMouseMove;
+    int mouseClickCounter;
 
     void incrementMouseClickCounter() throw();
-    void registerMouseDown (const Point<int>& position, int64 time, Component* component) throw();
-    void registerMouseDrag (const Point<int>& position) throw();
-    const Time getLastMouseDownTime() const throw();
-    int getNumberOfMultipleClicks() const throw();
 
     Component* kioskModeComponent;
     Rectangle<int> kioskComponentOriginalBounds;
+
+    void createMouseInputSources();
 
     void timerCallback();
     void sendMouseMove();
@@ -287,7 +319,7 @@ private:
     void handleAsyncUpdate();
 
     Desktop (const Desktop&);
-    const Desktop& operator= (const Desktop&);
+    Desktop& operator= (const Desktop&);
 };
 
 

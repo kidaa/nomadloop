@@ -33,6 +33,7 @@
 */
 #define JUCE_MAJOR_VERSION      1
 #define JUCE_MINOR_VERSION      51
+#define JUCE_BUILDNUMBER        6
 
 /** Current Juce version number.
 
@@ -42,7 +43,7 @@
 
     See also SystemStats::getJUCEVersion() for a string version.
 */
-#define JUCE_VERSION            ((JUCE_MAJOR_VERSION << 16) + (JUCE_MINOR_VERSION << 8))
+#define JUCE_VERSION            ((JUCE_MAJOR_VERSION << 16) + (JUCE_MINOR_VERSION << 8) + JUCE_BUILDNUMBER)
 
 
 //==============================================================================
@@ -64,6 +65,10 @@
 
 // Now we'll include any OS headers we need.. (at this point we are outside the Juce namespace).
 #if JUCE_MSVC
+  #if (defined(_MSC_VER) && (_MSC_VER <= 1200))
+    #pragma warning (disable: 4284)  // (spurious VC6 warning)
+  #endif
+
   #pragma warning (push)
   #pragma warning (disable: 4514 4245 4100)
 #endif

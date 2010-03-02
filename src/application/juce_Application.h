@@ -265,7 +265,7 @@ public:
     /** @internal */
     static int main (String& commandLine, JUCEApplication* const newApp);
     /** @internal */
-    static int main (int argc, char* argv[], JUCEApplication* const newApp);
+    static int main (int argc, const char* argv[], JUCEApplication* const newApp);
 
     /** @internal */
     static void sendUnhandledException (const std::exception* const e,
@@ -289,10 +289,10 @@ private:
     String commandLineParameters;
     int appReturnValue;
     bool stillInitialising;
-    InterProcessLock* appLock;
+    ScopedPointer<InterProcessLock> appLock;
 
     JUCEApplication (const JUCEApplication&);
-    const JUCEApplication& operator= (const JUCEApplication&);
+    JUCEApplication& operator= (const JUCEApplication&);
 
 public:
     /** @internal */

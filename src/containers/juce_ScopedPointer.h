@@ -86,13 +86,13 @@ public:
         If this ScopedPointer already points to an object, that object
         will first be deleted.
     */
-    const ScopedPointer& operator= (ScopedPointer& objectToTransferFrom)
+    ScopedPointer& operator= (ScopedPointer& objectToTransferFrom)
     {
         if (this != objectToTransferFrom.getAddress())
         {
             // Two ScopedPointers should never be able to refer to the same object - if
             // this happens, you must have done something dodgy!
-            jassert (object != objectToTransferFrom.object);
+            jassert (object == 0 || object != objectToTransferFrom.object);
 
             ObjectType* const oldObject = object;
             object = objectToTransferFrom.object;
@@ -110,7 +110,7 @@ public:
 
         The pointer that you pass is may be null.
     */
-    const ScopedPointer& operator= (ObjectType* const newObjectToTakePossessionOf)
+    ScopedPointer& operator= (ObjectType* const newObjectToTakePossessionOf)
     {
         if (object != newObjectToTakePossessionOf)
         {
@@ -134,12 +134,11 @@ public:
     /** Lets you access methods and properties of the object that this ScopedPointer refers to. */
     inline ObjectType* operator->() const throw()                                   { return object; }
 
-    /** Returns a pointer to the object by casting it to whatever type you need. */
-    template <class CastType>
-    inline operator CastType*() const throw()                                       { return static_cast <CastType*> (object); }
+    /** Returns a reference to the address of the object that this ScopedPointer refers to. */
+    inline ObjectType* const* operator&() const throw()                             { return static_cast <ObjectType* const*> (&object); }
 
     /** Returns a reference to the address of the object that this ScopedPointer refers to. */
-    inline ObjectType** operator&() const throw()                                   { return (ObjectType**) &object; }
+    inline ObjectType** operator&() throw()                                         { return static_cast <ObjectType**> (&object); }
 
     //==============================================================================
     /** Removes the current object from this ScopedPointer without deleting it.
@@ -147,17 +146,6 @@ public:
         This will return the current object, and set the ScopedPointer to a null pointer.
     */
     ObjectType* release() throw()                                                   { ObjectType* const o = object; object = 0; return o; }
-
-    //==============================================================================
-    /** Compares the pointer with another pointer.
-        This can be handy for checking whether this is a null pointer.
-    */
-    inline bool operator== (const ObjectType* const otherPointer) const throw()     { return otherPointer == object; }
-
-    /** Compares the pointer with another pointer.
-        This can be handy for checking whether this is a null pointer.
-    */
-    inline bool operator!= (const ObjectType* const otherPointer) const throw()     { return otherPointer != object; }
 
     //==============================================================================
     /** Swaps this object with that of another ScopedPointer.
@@ -179,6 +167,25 @@ private:
     // (Required as an alternative to the overloaded & operator).
     const ScopedPointer* getAddress() const throw()                                 { return this; }
 };
+
+//==============================================================================
+/** Compares a ScopedPointer with another pointer.
+    This can be handy for checking whether this is a null pointer.
+*/
+template <class ObjectType>
+inline bool operator== (const ScopedPointer<ObjectType>& pointer1, const ObjectType* const pointer2) throw()
+{
+    return static_cast <ObjectType*> (pointer1) == pointer2;
+}
+
+/** Compares a ScopedPointer with another pointer.
+    This can be handy for checking whether this is a null pointer.
+*/
+template <class ObjectType>
+inline bool operator!= (const ScopedPointer<ObjectType>& pointer1, const ObjectType* const pointer2) throw()
+{
+    return static_cast <ObjectType*> (pointer1) != pointer2;
+}
 
 
 #endif   // __JUCE_SCOPEDPOINTER_JUCEHEADER__

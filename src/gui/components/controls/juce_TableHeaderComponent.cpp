@@ -58,7 +58,7 @@ private:
     ScopedPointer <Image> image;
 
     DragOverlayComp (const DragOverlayComp&);
-    const DragOverlayComp& operator= (const DragOverlayComp&);
+    DragOverlayComp& operator= (const DragOverlayComp&);
 };
 
 
@@ -797,10 +797,7 @@ void TableHeaderComponent::mouseUp (const MouseEvent& e)
 
 const MouseCursor TableHeaderComponent::getMouseCursor()
 {
-    int x, y;
-    getMouseXYRelative (x, y);
-
-    if (columnIdBeingResized != 0 || (getResizeDraggerAt (x) != 0 && ! isMouseButtonDown()))
+    if (columnIdBeingResized != 0 || (getResizeDraggerAt (getMouseXYRelative().getX()) != 0 && ! isMouseButtonDown()))
         return MouseCursor (MouseCursor::LeftRightResizeCursor);
 
     return Component::getMouseCursor();

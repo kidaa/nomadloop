@@ -27,21 +27,20 @@
 
 BEGIN_JUCE_NAMESPACE
 
+#include "juce_ComponentPeer.h"
 #include "../../../application/juce_Application.h"
-#include "../juce_Component.h"
-#include "../juce_ComponentDeletionWatcher.h"
 #include "../juce_Desktop.h"
 #include "../../../events/juce_MessageManager.h"
 #include "../../../core/juce_Time.h"
 #include "../../../core/juce_Random.h"
 #include "../layout/juce_ComponentBoundsConstrainer.h"
 #include "../mouse/juce_FileDragAndDropTarget.h"
+#include "../mouse/juce_MouseInputSource.h"
 
 //#define JUCE_ENABLE_REPAINT_DEBUGGING 1
 
 
 //==============================================================================
-static const int fakeMouseMoveMessage = 0x7fff00ff;
 static VoidArray heavyweightPeers;
 
 
@@ -102,226 +101,20 @@ void ComponentPeer::updateCurrentModifiers() throw()
 }
 
 //==============================================================================
-void ComponentPeer::handleMouseEnter (int x, int y, const int64 time)
+void ComponentPeer::handleMouseEvent (const int touchIndex, const Point<int>& positionWithinPeer, const ModifierKeys& newMods, const int64 time)
 {
-    jassert (component->isValidComponent());
-    updateCurrentModifiers();
+    MouseInputSource* const mouse = Desktop::getInstance().getMouseSource (touchIndex);
+    jassert (mouse != 0); // not enough sources!
 
-    Component* c = component->getComponentAt (x, y);
-    const ComponentDeletionWatcher deletionChecker (component);
-
-    if (c != Component::componentUnderMouse && Component::componentUnderMouse != 0)
-    {
-        jassert (Component::componentUnderMouse->isValidComponent());
-
-        const int oldX = x;
-        const int oldY = y;
-        component->relativePositionToOtherComponent (Component::componentUnderMouse, x, y);
-        Component::componentUnderMouse->internalMouseExit (x, y, time);
-        Component::componentUnderMouse = 0;
-
-        if (deletionChecker.hasBeenDeleted())
-            return;
-
-        c = component->getComponentAt (oldX, oldY);
-    }
-
-    Component::componentUnderMouse = c;
-
-    if (Component::componentUnderMouse != 0)
-    {
-        component->relativePositionToOtherComponent (Component::componentUnderMouse, x, y);
-        Component::componentUnderMouse->internalMouseEnter (x, y, time);
-    }
+    mouse->handleEvent (this, positionWithinPeer, time, newMods);
 }
 
-void ComponentPeer::handleMouseMove (int x, int y, const int64 time)
+void ComponentPeer::handleMouseWheel (const int touchIndex, const Point<int>& positionWithinPeer, const int64 time, const float x, const float y)
 {
-    jassert (component->isValidComponent());
-    updateCurrentModifiers();
+    MouseInputSource* const mouse = Desktop::getInstance().getMouseSource (touchIndex);
+    jassert (mouse != 0); // not enough sources!
 
-    fakeMouseMessageSent = false;
-
-    const ComponentDeletionWatcher deletionChecker (component);
-    Component* c = component->getComponentAt (x, y);
-
-    if (c != Component::componentUnderMouse)
-    {
-        const int oldX = x;
-        const int oldY = y;
-
-        if (Component::componentUnderMouse != 0)
-        {
-            component->relativePositionToOtherComponent (Component::componentUnderMouse, x, y);
-            Component::componentUnderMouse->internalMouseExit (x, y, time);
-            x = oldX;
-            y = oldY;
-
-            Component::componentUnderMouse = 0;
-
-            if (deletionChecker.hasBeenDeleted())
-                return; // if this window has just been deleted..
-
-            c = component->getComponentAt (x, y);
-        }
-
-        Component::componentUnderMouse = c;
-
-        if (c != 0)
-        {
-            component->relativePositionToOtherComponent (c, x, y);
-            c->internalMouseEnter (x, y, time);
-            x = oldX;
-            y = oldY;
-
-            if (deletionChecker.hasBeenDeleted())
-                return; // if this window has just been deleted..
-        }
-    }
-
-    if (Component::componentUnderMouse != 0)
-    {
-        component->relativePositionToOtherComponent (Component::componentUnderMouse, x, y);
-        Component::componentUnderMouse->internalMouseMove (x, y, time);
-    }
-}
-
-void ComponentPeer::handleMouseDown (int x, int y, const int64 time)
-{
-    Desktop::getInstance().incrementMouseClickCounter();
-    updateCurrentModifiers();
-
-    if (ModifierKeys::getCurrentModifiers().getNumMouseButtonsDown() == 1)
-    {
-        Component::componentUnderMouse = component->getComponentAt (x, y);
-
-        if (Component::componentUnderMouse != 0)
-        {
-            component->relativePositionToOtherComponent (Component::componentUnderMouse, x, y);
-            Component::componentUnderMouse->internalMouseDown (x, y, time);
-        }
-    }
-}
-
-void ComponentPeer::handleMouseDrag (int x, int y, const int64 time)
-{
-    updateCurrentModifiers();
-
-    if (Component::componentUnderMouse != 0)
-    {
-        component->relativePositionToOtherComponent (Component::componentUnderMouse, x, y);
-        Component::componentUnderMouse->internalMouseDrag (x, y, time);
-    }
-}
-
-void ComponentPeer::handleMouseUp (const int oldModifiers, int x, int y, const int64 time)
-{
-    updateCurrentModifiers();
-
-    if (ModifierKeys (oldModifiers).getNumMouseButtonsDown() == 1)
-    {
-        const ComponentDeletionWatcher deletionChecker (component);
-        Component* c = component->getComponentAt (x, y);
-
-        if (c != Component::componentUnderMouse)
-        {
-            const int oldX = x;
-            const int oldY = y;
-
-            if (Component::componentUnderMouse != 0)
-            {
-                component->relativePositionToOtherComponent (Component::componentUnderMouse, x, y);
-                Component::componentUnderMouse->internalMouseUp (oldModifiers, x, y, time);
-                x = oldX;
-                y = oldY;
-
-                if (Component::componentUnderMouse != 0)
-                    Component::componentUnderMouse->internalMouseExit (x, y, time);
-
-                if (deletionChecker.hasBeenDeleted())
-                    return;
-
-                c = component->getComponentAt (oldX, oldY);
-            }
-
-            Component::componentUnderMouse = c;
-
-            if (Component::componentUnderMouse != 0)
-            {
-                component->relativePositionToOtherComponent (Component::componentUnderMouse, x, y);
-                Component::componentUnderMouse->internalMouseEnter (x, y, time);
-            }
-        }
-        else
-        {
-            if (Component::componentUnderMouse != 0)
-            {
-                component->relativePositionToOtherComponent (Component::componentUnderMouse, x, y);
-                Component::componentUnderMouse->internalMouseUp (oldModifiers, x, y, time);
-            }
-        }
-    }
-}
-
-void ComponentPeer::handleMouseExit (int x, int y, const int64 time)
-{
-    jassert (component->isValidComponent());
-    updateCurrentModifiers();
-
-    if (Component::componentUnderMouse != 0)
-    {
-        component->relativePositionToOtherComponent (Component::componentUnderMouse, x, y);
-
-        Component::componentUnderMouse->internalMouseExit (x, y, time);
-        Component::componentUnderMouse = 0;
-    }
-}
-
-void ComponentPeer::handleMouseWheel (const int amountX, const int amountY, const int64 time)
-{
-    updateCurrentModifiers();
-
-    if (Component::componentUnderMouse != 0)
-        Component::componentUnderMouse->internalMouseWheel (amountX, amountY, time);
-}
-
-void ComponentPeer::sendFakeMouseMove() throw()
-{
-    if ((! fakeMouseMessageSent)
-         && component->flags.hasHeavyweightPeerFlag
-         && ! ModifierKeys::getCurrentModifiers().isAnyMouseButtonDown())
-    {
-        if (! isMinimised())
-        {
-            int realX, realY, realW, realH;
-            getBounds (realX, realY, realW, realH);
-
-            component->bounds_.setBounds (realX, realY, realW, realH);
-        }
-
-        int x, y;
-        component->getMouseXYRelative (x, y);
-
-        if (((unsigned int) x) < (unsigned int) component->getWidth()
-             && ((unsigned int) y) < (unsigned int) component->getHeight()
-             && contains (x, y, false))
-        {
-            postMessage (new Message (fakeMouseMoveMessage, x, y, 0));
-        }
-
-        fakeMouseMessageSent = true;
-    }
-}
-
-void ComponentPeer::handleMessage (const Message& message)
-{
-    if (message.intParameter1 == fakeMouseMoveMessage)
-    {
-        if (! ModifierKeys::getCurrentModifiers().isAnyMouseButtonDown())
-            handleMouseMove (message.intParameter2,
-                             message.intParameter3,
-                             Time::currentTimeMillis());
-    }
+    mouse->handleWheel (this, positionWithinPeer, time, x, y);
 }
 
 //==============================================================================
@@ -379,7 +172,7 @@ bool ComponentPeer::handleKeyPress (const int keyCode,
 
     while (target != 0)
     {
-        const ComponentDeletionWatcher deletionChecker (target);
+        const Component::SafePointer<Component> deletionChecker (target);
 
         if (target->keyListeners_ != 0)
         {
@@ -387,7 +180,7 @@ bool ComponentPeer::handleKeyPress (const int keyCode,
             {
                 keyWasUsed = ((KeyListener*) target->keyListeners_->getUnchecked(i))->keyPressed (keyInfo, target);
 
-                if (keyWasUsed || deletionChecker.hasBeenDeleted())
+                if (keyWasUsed || deletionChecker == 0)
                     return keyWasUsed;
 
                 i = jmin (i, target->keyListeners_->size());
@@ -396,7 +189,7 @@ bool ComponentPeer::handleKeyPress (const int keyCode,
 
         keyWasUsed = target->keyPressed (keyInfo);
 
-        if (keyWasUsed || deletionChecker.hasBeenDeleted())
+        if (keyWasUsed || deletionChecker == 0)
             break;
 
         if (keyInfo.isKeyCode (KeyPress::tabKey) && Component::getCurrentlyFocusedComponent() != 0)
@@ -433,11 +226,11 @@ bool ComponentPeer::handleKeyUpOrDown (const bool isKeyDown)
 
     while (target != 0)
     {
-        const ComponentDeletionWatcher deletionChecker (target);
+        const Component::SafePointer<Component> deletionChecker (target);
 
         keyWasUsed = target->keyStateChanged (isKeyDown);
 
-        if (keyWasUsed || deletionChecker.hasBeenDeleted())
+        if (keyWasUsed || deletionChecker == 0)
             break;
 
         if (target->keyListeners_ != 0)
@@ -446,7 +239,7 @@ bool ComponentPeer::handleKeyUpOrDown (const bool isKeyDown)
             {
                 keyWasUsed = ((KeyListener*) target->keyListeners_->getUnchecked(i))->keyStateChanged (isKeyDown, target);
 
-                if (keyWasUsed || deletionChecker.hasBeenDeleted())
+                if (keyWasUsed || deletionChecker == 0)
                     return keyWasUsed;
 
                 i = jmin (i, target->keyListeners_->size());
@@ -463,7 +256,7 @@ void ComponentPeer::handleModifierKeysChange()
 {
     updateCurrentModifiers();
 
-    Component* target = Component::getComponentUnderMouse();
+    Component* target = Desktop::getInstance().getMainMouseSource().getComponentUnderMouse();
 
     if (target == 0)
         target = Component::getCurrentlyFocusedComponent();
@@ -473,6 +266,15 @@ void ComponentPeer::handleModifierKeysChange()
 
     if (target->isValidComponent())
         target->internalModifierKeysChanged();
+}
+
+TextInputTarget* ComponentPeer::findCurrentTextInputTarget()
+{
+    Component* const c = Component::getCurrentlyFocusedComponent();
+    if (component->isParentOf (c))
+        return dynamic_cast <TextInputTarget*> (c);
+
+    return 0;
 }
 
 //==============================================================================
@@ -498,24 +300,22 @@ void ComponentPeer::handleMovedOrResized()
 
     if (component->flags.hasHeavyweightPeerFlag && ! nowMinimised)
     {
-        const ComponentDeletionWatcher deletionChecker (component);
+        const Component::SafePointer<Component> deletionChecker (component);
 
-        int realX, realY, realW, realH;
-        getBounds (realX, realY, realW, realH);
-
-        const bool wasMoved   = (component->getX() != realX || component->getY() != realY);
-        const bool wasResized = (component->getWidth() != realW || component->getHeight() != realH);
+        const Rectangle<int> newBounds (getBounds());
+        const bool wasMoved   = (component->getPosition() != newBounds.getPosition());
+        const bool wasResized = (component->getWidth() != newBounds.getWidth() || component->getHeight() != newBounds.getHeight());
 
         if (wasMoved || wasResized)
         {
-            component->bounds_.setBounds (realX, realY, realW, realH);
+            component->bounds_ = newBounds;
 
             if (wasResized)
                 component->repaint();
 
             component->sendMovedResizedMessages (wasMoved, wasResized);
 
-            if (deletionChecker.hasBeenDeleted())
+            if (deletionChecker == 0)
                 return;
         }
     }
@@ -610,18 +410,16 @@ static FileDragAndDropTarget* findDragAndDropTarget (Component* c,
     return 0;
 }
 
-void ComponentPeer::handleFileDragMove (const StringArray& files, int x, int y)
+void ComponentPeer::handleFileDragMove (const StringArray& files, const Point<int>& position)
 {
     updateCurrentModifiers();
 
-    FileDragAndDropTarget* lastTarget = 0;
-
-    if (dragAndDropTargetComponent != 0 && ! dragAndDropTargetComponent->hasBeenDeleted())
-        lastTarget = const_cast <FileDragAndDropTarget*> (dynamic_cast <const FileDragAndDropTarget*> (dragAndDropTargetComponent->getComponent()));
+    FileDragAndDropTarget* lastTarget
+        = const_cast<FileDragAndDropTarget*> (dynamic_cast<const FileDragAndDropTarget*> (static_cast<Component*> (dragAndDropTargetComponent)));
 
     FileDragAndDropTarget* newTarget = 0;
 
-    Component* const compUnderMouse = component->getComponentAt (x, y);
+    Component* const compUnderMouse = component->getComponentAt (position);
 
     if (compUnderMouse != lastDragAndDropCompUnderMouse)
     {
@@ -637,12 +435,9 @@ void ComponentPeer::handleFileDragMove (const StringArray& files, int x, int y)
 
             if (newTarget != 0)
             {
-                Component* const targetComp = dynamic_cast <Component*> (newTarget);
-                int mx = x, my = y;
-                component->relativePositionToOtherComponent (targetComp, mx, my);
-
-                dragAndDropTargetComponent = new ComponentDeletionWatcher (dynamic_cast <Component*> (newTarget));
-                newTarget->fileDragEnter (files, mx, my);
+                dragAndDropTargetComponent = dynamic_cast <Component*> (newTarget);
+                const Point<int> pos (component->relativePositionToOtherComponent (dragAndDropTargetComponent, position));
+                newTarget->fileDragEnter (files, pos.getX(), pos.getY());
             }
         }
     }
@@ -654,27 +449,28 @@ void ComponentPeer::handleFileDragMove (const StringArray& files, int x, int y)
     if (newTarget != 0)
     {
         Component* const targetComp = dynamic_cast <Component*> (newTarget);
-        component->relativePositionToOtherComponent (targetComp, x, y);
+        const Point<int> pos (component->relativePositionToOtherComponent (targetComp, position));
 
-        newTarget->fileDragMove (files, x, y);
+        newTarget->fileDragMove (files, pos.getX(), pos.getY());
     }
 }
 
 void ComponentPeer::handleFileDragExit (const StringArray& files)
 {
-    handleFileDragMove (files, -1, -1);
+    handleFileDragMove (files, Point<int> (-1, -1));
 
     jassert (dragAndDropTargetComponent == 0);
     lastDragAndDropCompUnderMouse = 0;
 }
 
-void ComponentPeer::handleFileDragDrop (const StringArray& files, int x, int y)
+void ComponentPeer::handleFileDragDrop (const StringArray& files, const Point<int>& position)
 {
-    handleFileDragMove (files, x, y);
+    handleFileDragMove (files, position);
 
-    if (dragAndDropTargetComponent != 0 && ! dragAndDropTargetComponent->hasBeenDeleted())
+    if (dragAndDropTargetComponent != 0)
     {
-        FileDragAndDropTarget* const target = const_cast <FileDragAndDropTarget*> (dynamic_cast <const FileDragAndDropTarget*> (dragAndDropTargetComponent->getComponent()));
+        FileDragAndDropTarget* const target
+            = const_cast<FileDragAndDropTarget*> (dynamic_cast<const FileDragAndDropTarget*> (static_cast<Component*> (dragAndDropTargetComponent)));
 
         dragAndDropTargetComponent = 0;
         lastDragAndDropCompUnderMouse = 0;
@@ -691,8 +487,8 @@ void ComponentPeer::handleFileDragDrop (const StringArray& files, int x, int y)
                     return;
             }
 
-            component->relativePositionToOtherComponent (targetComp, x, y);
-            target->filesDropped (files, x, y);
+            const Point<int> pos (component->relativePositionToOtherComponent (targetComp, position));
+            target->filesDropped (files, pos.getX(), pos.getY());
         }
     }
 }

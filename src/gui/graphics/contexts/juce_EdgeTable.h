@@ -74,7 +74,7 @@ public:
     EdgeTable (const EdgeTable& other) throw();
 
     /** Copies from another edge table. */
-    const EdgeTable& operator= (const EdgeTable& other) throw();
+    EdgeTable& operator= (const EdgeTable& other) throw();
 
     /** Destructor. */
     ~EdgeTable() throw();
@@ -83,7 +83,7 @@ public:
     void clipToRectangle (const Rectangle<int>& r) throw();
     void excludeRectangle (const Rectangle<int>& r) throw();
     void clipToEdgeTable (const EdgeTable& other);
-    void clipLineToMask (int x, int y, uint8* mask, int maskStride, int numPixels) throw();
+    void clipLineToMask (int x, int y, const uint8* mask, int maskStride, int numPixels) throw();
     bool isEmpty() throw();
     const Rectangle<int>& getMaximumBounds() const throw()       { return bounds; }
     void translate (float dx, int dy) throw();
@@ -205,6 +205,7 @@ private:
     void intersectWithEdgeTableLine (const int y, const int* otherLine) throw();
     void clipEdgeTableLineToRange (int* line, int x1, int x2) throw();
     void sanitiseLevels (const bool useNonZeroWinding) throw();
+    static void copyEdgeTableData (int* dest, const int destLineStride, const int* src, const int srcLineStride, int numLines) throw();
 };
 
 

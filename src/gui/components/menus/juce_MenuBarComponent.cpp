@@ -36,7 +36,7 @@ BEGIN_JUCE_NAMESPACE
 class DummyMenuComponent  : public Component
 {
     DummyMenuComponent (const DummyMenuComponent&);
-    const DummyMenuComponent& operator= (const DummyMenuComponent&);
+    DummyMenuComponent& operator= (const DummyMenuComponent&);
 
 public:
     DummyMenuComponent()    {}
@@ -193,13 +193,8 @@ void MenuBarComponent::showMenu (int index)
         currentPopup = 0;
         menuBarItemsChanged (0);
 
-        Component* const prevFocused = getCurrentlyFocusedComponent();
-
-        ScopedPointer <ComponentDeletionWatcher> prevCompDeletionChecker;
-        if (prevFocused != 0)
-            prevCompDeletionChecker = new ComponentDeletionWatcher (prevFocused);
-
-        ComponentDeletionWatcher deletionChecker (this);
+        Component::SafePointer<Component> prevFocused (getCurrentlyFocusedComponent());
+        Component::SafePointer<Component> deletionChecker (this);
 
         enterModalState (false);
         inModalState = true;
@@ -244,7 +239,7 @@ void MenuBarComponent::showMenu (int index)
                                             // be stuck behind other comps that are already modal..
             result = currentPopup->runModalLoop();
 
-            if (deletionChecker.hasBeenDeleted())
+            if (deletionChecker == 0)
                 return;
 
             const int lastPopupIndex = currentPopupIndex;
@@ -276,12 +271,11 @@ void MenuBarComponent::showMenu (int index)
         inModalState = false;
         exitModalState (0);
 
-        if (prevCompDeletionChecker != 0 && ! prevCompDeletionChecker->hasBeenDeleted())
+        if (prevFocused != 0)
             prevFocused->grabKeyboardFocus();
 
-        int mx, my;
-        getMouseXYRelative (mx, my);
-        updateItemUnderMouse (mx, my);
+        const Point<int> mousePos (getMouseXYRelative());
+        updateItemUnderMouse (mousePos.getX(), mousePos.getY());
         repaint();
 
         if (result != 0)
@@ -320,10 +314,9 @@ void MenuBarComponent::mouseExit (const MouseEvent& e)
 
 void MenuBarComponent::mouseDown (const MouseEvent& e)
 {
-    const MouseEvent e2 (e.getEventRelativeTo (this));
-
     if (currentPopupIndex < 0)
     {
+        const MouseEvent e2 (e.getEventRelativeTo (this));
         updateItemUnderMouse (e2.x, e2.y);
 
         currentPopupIndex = -2;
@@ -440,9 +433,8 @@ void MenuBarComponent::timerCallback()
 {
     stopTimer();
 
-    int mx, my;
-    getMouseXYRelative (mx, my);
-    updateItemUnderMouse (mx, my);
+    const Point<int> mousePos (getMouseXYRelative());
+    updateItemUnderMouse (mousePos.getX(), mousePos.getY());
 }
 
 

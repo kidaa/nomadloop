@@ -162,6 +162,29 @@ void JUCE_CALLTYPE Thread::sleep (int millisecs)
 const tchar File::separator = T('/');
 const tchar* File::separatorString = T("/");
 
+//==============================================================================
+const File File::getCurrentWorkingDirectory()
+{
+    HeapBlock<char> heapBuffer;
+
+    char localBuffer [1024];
+    char* cwd = getcwd (localBuffer, sizeof (localBuffer) - 1);
+    int bufferSize = 4096;
+
+    while (cwd == 0 && errno == ERANGE)
+    {
+        heapBuffer.malloc (bufferSize);
+        cwd = getcwd (heapBuffer, bufferSize - 1);
+        bufferSize += 1024;
+    }
+
+    return File (String::fromUTF8 (cwd));
+}
+
+bool File::setAsCurrentWorkingDirectory() const
+{
+    return chdir (getFullPathName().toUTF8()) == 0;
+}
 
 //==============================================================================
 bool juce_copyFile (const String& s, const String& d);
@@ -315,7 +338,7 @@ const File juce_getExecutableFile()
 {
     Dl_info exeInfo;
     dladdr ((const void*) juce_getExecutableFile, &exeInfo);
-    return File (exeInfo.dli_fname);
+    return File (String::fromUTF8 (exeInfo.dli_fname));
 }
 
 //==============================================================================
@@ -378,7 +401,7 @@ const String juce_getVolumeLabel (const String& filenameOnVolume,
         if (getattrlist ((const char*) f.getFullPathName().toUTF8(),
                          &attrList, &attrBuf, sizeof(attrBuf), 0) == 0)
         {
-            return String::fromUTF8 (((const uint8*) &attrBuf.mountPointRef) + attrBuf.mountPointRef.attr_dataoffset,
+            return String::fromUTF8 (((const char*) &attrBuf.mountPointRef) + attrBuf.mountPointRef.attr_dataoffset,
                                      (int) attrBuf.mountPointRef.attr_length);
         }
 

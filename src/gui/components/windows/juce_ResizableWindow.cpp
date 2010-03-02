@@ -29,6 +29,7 @@ BEGIN_JUCE_NAMESPACE
 
 
 #include "juce_ResizableWindow.h"
+#include "juce_ComponentPeer.h"
 #include "../juce_Desktop.h"
 #include "../lookandfeel/juce_LookAndFeel.h"
 #include "../../graphics/geometry/juce_RectangleList.h"
@@ -475,8 +476,7 @@ bool ResizableWindow::restoreWindowStateFromString (const String& s)
     if (newPos.isEmpty())
         return false;
 
-    const Rectangle<int> screen (Desktop::getInstance().getMonitorAreaContaining (newPos.getCentreX(),
-                                                                                  newPos.getCentreY()));
+    const Rectangle<int> screen (Desktop::getInstance().getMonitorAreaContaining (newPos.getCentre()));
 
     ComponentPeer* const peer = isOnDesktop() ? getPeer() : 0;
     if (peer != 0)

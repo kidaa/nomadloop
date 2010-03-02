@@ -62,7 +62,7 @@ static int CALLBACK wfontEnum1 (ENUMLOGFONTEXW* lpelfe,
         lf.lfPitchAndFamily = FF_DONTCARE;
 
         const String fontName (lpelfe->elfLogFont.lfFaceName);
-        fontName.copyToBuffer (lf.lfFaceName, LF_FACESIZE - 1);
+        fontName.copyToUnicode (lf.lfFaceName, LF_FACESIZE - 1);
 
         HDC dc = CreateCompatibleDC (0);
         EnumFontFamiliesEx (dc, &lf,
@@ -179,7 +179,7 @@ public:
             lfw.lfQuality = PROOF_QUALITY;
             lfw.lfItalic = (BYTE) (italic ? TRUE : FALSE);
             lfw.lfWeight = bold ? FW_BOLD : FW_NORMAL;
-            fontName.copyToBuffer (lfw.lfFaceName, LF_FACESIZE - 1);
+            fontName.copyToUnicode (lfw.lfFaceName, LF_FACESIZE - 1);
 
             lfw.lfHeight = size > 0 ? size : -256;
             HFONT standardSizedFont = CreateFontIndirect (&lfw);
@@ -242,7 +242,7 @@ private:
     bool bold, italic;
 
     FontDCHolder (const FontDCHolder&);
-    const FontDCHolder& operator= (const FontDCHolder&);
+    FontDCHolder& operator= (const FontDCHolder&);
 };
 
 juce_ImplementSingleton_SingleThreaded (FontDCHolder);
@@ -302,12 +302,12 @@ public:
 
         if (bufSize > 0)
         {
-            HeapBlock <char> data (bufSize);
+            HeapBlock<char> data (bufSize);
 
             GetGlyphOutline (dc, character, GGO_NATIVE, &gm,
                              bufSize, data, &identityMatrix);
 
-            const TTPOLYGONHEADER* pheader = (TTPOLYGONHEADER*) data;
+            const TTPOLYGONHEADER* pheader = reinterpret_cast<TTPOLYGONHEADER*> (data.getData());
 
             const float scaleX = 1.0f / height;
             const float scaleY = -1.0f / height;

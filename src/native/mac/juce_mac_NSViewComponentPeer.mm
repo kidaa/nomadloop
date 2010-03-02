@@ -34,11 +34,13 @@ END_JUCE_NAMESPACE
 
 #define JuceNSView MakeObjCClassName(JuceNSView)
 
-@interface JuceNSView : NSView
+@interface JuceNSView : NSView<NSTextInput>
 {
 @public
     NSViewComponentPeer* owner;
     NSNotificationCenter* notificationCenter;
+    String* stringBeingComposed;
+    bool textWasInserted;
 }
 
 - (JuceNSView*) initWithOwner: (NSViewComponentPeer*) owner withFrame: (NSRect) frame;
@@ -68,6 +70,21 @@ END_JUCE_NAMESPACE
 
 - (void) keyDown: (NSEvent*) ev;
 - (void) keyUp: (NSEvent*) ev;
+
+// NSTextInput Methods
+- (void) insertText: (id) aString;
+- (void) doCommandBySelector: (SEL) aSelector;
+- (void) setMarkedText: (id) aString selectedRange: (NSRange) selRange;
+- (void) unmarkText;
+- (BOOL) hasMarkedText;
+- (long) conversationIdentifier;
+- (NSAttributedString*) attributedSubstringFromRange: (NSRange) theRange;
+- (NSRange) markedRange;
+- (NSRange) selectedRange;
+- (NSRect) firstRectForCharacterRange: (NSRange) theRange;
+- (unsigned int) characterIndexForPoint: (NSPoint) thePoint;
+- (NSArray*) validAttributesForMarkedText;
+
 - (void) flagsChanged: (NSEvent*) ev;
 #if MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5
 - (BOOL) performKeyEquivalent: (NSEvent*) ev;
@@ -133,17 +150,16 @@ public:
     void setPosition (int x, int y);
     void setSize (int w, int h);
     void setBounds (int x, int y, int w, int h, const bool isNowFullScreen);
-    void getBounds (int& x, int& y, int& w, int& h, const bool global) const;
-    void getBounds (int& x, int& y, int& w, int& h) const;
-    int getScreenX() const;
-    int getScreenY() const;
-    void relativePositionToGlobal (int& x, int& y);
-    void globalPositionToRelative (int& x, int& y);
+    const Rectangle<int> getBounds (const bool global) const;
+    const Rectangle<int> getBounds() const;
+    const Point<int> getScreenPosition() const;
+    const Point<int> relativePositionToGlobal (const Point<int>& relativePosition);
+    const Point<int> globalPositionToRelative (const Point<int>& screenPosition);
     void setMinimised (bool shouldBeMinimised);
     bool isMinimised() const;
     void setFullScreen (bool shouldBeFullScreen);
     bool isFullScreen() const;
-    bool contains (int x, int y, bool trueIfInAChildWindow) const;
+    bool contains (const Point<int>& position, bool trueIfInAChildWindow) const;
     const BorderSize getFrameSize() const;
     bool setAlwaysOnTop (bool alwaysOnTop);
     void toFront (bool makeActiveWindow);
@@ -170,6 +186,7 @@ public:
     virtual void redirectMouseEnter (NSEvent* ev);
     virtual void redirectMouseExit (NSEvent* ev);
     virtual void redirectMouseWheel (NSEvent* ev);
+    void sendMouseEvent (NSEvent* ev);
 
     bool handleKeyEvent (NSEvent* ev, bool isKeyDown);
     virtual bool redirectKeyDown (NSEvent* ev);
@@ -193,13 +210,47 @@ public:
     virtual NSRect constrainRect (NSRect r);
 
     static void showArrowCursorIfNeeded();
+    static void updateModifiers (NSEvent* e);
+    static void updateKeysDown (NSEvent* ev, bool isKeyDown);
+
+    static int getKeyCodeFromEvent (NSEvent* ev)
+    {
+        const String unmodified (nsStringToJuce ([ev charactersIgnoringModifiers]));
+        int keyCode = unmodified[0];
+
+        if (keyCode == 0x19) // (backwards-tab)
+            keyCode = '\t';
+        else if (keyCode == 0x03) // (enter)
+            keyCode = '\r';
+
+        return keyCode;
+    }
+
+    static int64 getMouseTime (NSEvent* e)
+    {
+        return (Time::currentTimeMillis() - Time::getMillisecondCounter())
+                + (int64) ([e timestamp] * 1000.0);
+    }
+
+    static const Point<int> getMousePos (NSEvent* e, NSView* view)
+    {
+        NSPoint p = [view convertPoint: [e locationInWindow] fromView: nil];
+        return Point<int> (roundToInt (p.x), roundToInt ([view frame].size.height - p.y));
+    }
+
+    static int getModifierForButtonNumber (const NSInteger num)
+    {
+        return num == 0 ? ModifierKeys::leftButtonModifier
+                    : (num == 1 ? ModifierKeys::rightButtonModifier
+                                : (num == 2 ? ModifierKeys::middleButtonModifier : 0));
+    }
 
     //==============================================================================
     virtual void viewFocusGain();
     virtual void viewFocusLoss();
     bool isFocused() const;
     void grabFocus();
-    void textInputRequired (int x, int y);
+    void textInputRequired (const Point<int>& position);
 
     //==============================================================================
     void repaint (int x, int y, int w, int h);
@@ -211,6 +262,10 @@ public:
     NSWindow* window;
     JuceNSView* view;
     bool isSharedWindow, fullScreen, insideDrawRect, usingCoreGraphics, recursiveToFrontCall;
+
+    static ModifierKeys currentModifiers;
+    static ComponentPeer* currentlyFocusedPeer;
+    static VoidArray keysCurrentlyDown;
 };
 
 //==============================================================================
@@ -223,6 +278,8 @@ END_JUCE_NAMESPACE
 {
     [super initWithFrame: frame];
     owner = owner_;
+    stringBeingComposed = 0;
+    textWasInserted = false;
 
     notificationCenter = [NSNotificationCenter defaultCenter];
 
@@ -247,6 +304,7 @@ END_JUCE_NAMESPACE
 - (void) dealloc
 {
     [notificationCenter removeObserver: self];
+    delete stringBeingComposed;
     [super dealloc];
 }
 
@@ -387,7 +445,15 @@ END_JUCE_NAMESPACE
 //==============================================================================
 - (void) keyDown: (NSEvent*) ev
 {
-    if (owner == 0 || ! owner->redirectKeyDown (ev))
+    TextInputTarget* const target = owner->findCurrentTextInputTarget();
+    textWasInserted = false;
+
+    if (target != 0)
+        [self interpretKeyEvents: [NSArray arrayWithObject: ev]];
+    else
+        deleteAndZero (stringBeingComposed);
+
+    if ((! textWasInserted) && (owner == 0 || ! owner->redirectKeyDown (ev)))
         [super keyDown: ev];
 }
 
@@ -397,6 +463,134 @@ END_JUCE_NAMESPACE
         [super keyUp: ev];
 }
 
+//==============================================================================
+- (void) insertText: (id) aString
+{
+    // This commits multi-byte text when return is pressed, or after every keypress for western keyboards
+    if ([aString length] > 0)
+    {
+        TextInputTarget* const target = owner->findCurrentTextInputTarget();
+
+        if (target != 0)
+        {
+            target->insertTextAtCaret (nsStringToJuce ([aString isKindOfClass: [NSAttributedString class]] ? [aString string] : aString));
+            textWasInserted = true;
+        }
+    }
+
+    deleteAndZero (stringBeingComposed);
+}
+
+- (void) doCommandBySelector: (SEL) aSelector
+{
+}
+
+- (void) setMarkedText: (id) aString selectedRange: (NSRange) selectionRange
+{
+    if (stringBeingComposed == 0)
+        stringBeingComposed = new String();
+
+    *stringBeingComposed = nsStringToJuce ([aString isKindOfClass:[NSAttributedString class]] ? [aString string] : aString);
+
+    TextInputTarget* const target = owner->findCurrentTextInputTarget();
+
+    if (target != 0)
+    {
+        const Range<int> currentHighlight (target->getHighlightedRegion());
+        target->insertTextAtCaret (*stringBeingComposed);
+        target->setHighlightedRegion (currentHighlight.withLength (stringBeingComposed->length()));
+        textWasInserted = true;
+    }
+}
+
+- (void) unmarkText
+{
+    if (stringBeingComposed != 0)
+    {
+        TextInputTarget* const target = owner->findCurrentTextInputTarget();
+
+        if (target != 0)
+        {
+            target->insertTextAtCaret (*stringBeingComposed);
+            textWasInserted = true;
+        }
+    }
+
+    deleteAndZero (stringBeingComposed);
+}
+
+- (BOOL) hasMarkedText
+{
+    return stringBeingComposed != 0;
+}
+
+- (long) conversationIdentifier
+{
+    return (long) (pointer_sized_int) self;
+}
+
+- (NSAttributedString*) attributedSubstringFromRange: (NSRange) theRange
+{
+    TextInputTarget* const target = owner->findCurrentTextInputTarget();
+
+    if (target != 0)
+    {
+        const Range<int> r ((int) theRange.location,
+                            (int) (theRange.location + theRange.length));
+
+        return [[[NSAttributedString alloc] initWithString: juceStringToNS (target->getTextInRange (r))] autorelease];
+    }
+
+    return nil;
+}
+
+- (NSRange) markedRange
+{
+    return stringBeingComposed != 0 ? NSMakeRange (0, stringBeingComposed->length())
+                                    : NSMakeRange (NSNotFound, 0);
+}
+
+- (NSRange) selectedRange
+{
+    TextInputTarget* const target = owner->findCurrentTextInputTarget();
+
+    if (target != 0)
+    {
+        const Range<int> highlight (target->getHighlightedRegion());
+
+        if (! highlight.isEmpty())
+            return NSMakeRange (highlight.getStart(), highlight.getLength());
+    }
+
+    return NSMakeRange (NSNotFound, 0);
+}
+
+- (NSRect) firstRectForCharacterRange: (NSRange) theRange
+{
+    JUCE_NAMESPACE::Component* const comp = dynamic_cast <JUCE_NAMESPACE::Component*> (owner->findCurrentTextInputTarget());
+
+    if (comp == 0)
+        return NSMakeRect (0, 0, 0, 0);
+
+    const Rectangle<int> bounds (comp->getScreenBounds());
+
+    return NSMakeRect (bounds.getX(),
+                       [[[NSScreen screens] objectAtIndex: 0] frame].size.height - bounds.getY(),
+                       bounds.getWidth(),
+                       bounds.getHeight());
+}
+
+- (unsigned int) characterIndexForPoint: (NSPoint) thePoint
+{
+    return NSNotFound;
+}
+
+- (NSArray*) validAttributesForMarkedText
+{
+    return [NSArray array];
+}
+
+//==============================================================================
 - (void) flagsChanged: (NSEvent*) ev
 {
     if (owner != 0)
@@ -559,61 +753,40 @@ END_JUCE_NAMESPACE
 BEGIN_JUCE_NAMESPACE
 
 //==============================================================================
-static ComponentPeer* currentlyFocusedPeer = 0;
-static VoidArray keysCurrentlyDown;
+ModifierKeys NSViewComponentPeer::currentModifiers;
+ComponentPeer* NSViewComponentPeer::currentlyFocusedPeer = 0;
+VoidArray NSViewComponentPeer::keysCurrentlyDown;
 
+//==============================================================================
 bool KeyPress::isKeyCurrentlyDown (const int keyCode) throw()
 {
-    if (keysCurrentlyDown.contains ((void*) keyCode))
+    if (NSViewComponentPeer::keysCurrentlyDown.contains ((void*) keyCode))
         return true;
 
     if (keyCode >= 'A' && keyCode <= 'Z'
-        && keysCurrentlyDown.contains ((void*) (int) CharacterFunctions::toLowerCase ((tchar) keyCode)))
+        && NSViewComponentPeer::keysCurrentlyDown.contains ((void*) (int) CharacterFunctions::toLowerCase ((tchar) keyCode)))
         return true;
 
     if (keyCode >= 'a' && keyCode <= 'z'
-        && keysCurrentlyDown.contains ((void*) (int) CharacterFunctions::toUpperCase ((tchar) keyCode)))
+        && NSViewComponentPeer::keysCurrentlyDown.contains ((void*) (int) CharacterFunctions::toUpperCase ((tchar) keyCode)))
         return true;
 
     return false;
 }
 
-static int getKeyCodeFromEvent (NSEvent* ev)
+void NSViewComponentPeer::updateModifiers (NSEvent* e)
 {
-    const String unmodified (nsStringToJuce ([ev charactersIgnoringModifiers]));
-    int keyCode = unmodified[0];
+    int m = 0;
 
-    if (keyCode == 0x19) // (backwards-tab)
-        keyCode = '\t';
-    else if (keyCode == 0x03) // (enter)
-        keyCode = '\r';
+    if (([e modifierFlags] & NSShiftKeyMask) != 0)          m |= ModifierKeys::shiftModifier;
+    if (([e modifierFlags] & NSControlKeyMask) != 0)        m |= ModifierKeys::ctrlModifier;
+    if (([e modifierFlags] & NSAlternateKeyMask) != 0)      m |= ModifierKeys::altModifier;
+    if (([e modifierFlags] & NSCommandKeyMask) != 0)        m |= ModifierKeys::commandModifier;
 
-    return keyCode;
+    currentModifiers = currentModifiers.withOnlyMouseButtons().withFlags (m);
 }
 
-static int currentModifiers = 0;
-
-static void updateModifiers (NSEvent* e)
-{
-    int m = currentModifiers & ~(ModifierKeys::shiftModifier | ModifierKeys::ctrlModifier
-                                  | ModifierKeys::altModifier | ModifierKeys::commandModifier);
-
-    if (([e modifierFlags] & NSShiftKeyMask) != 0)
-        m |= ModifierKeys::shiftModifier;
-
-    if (([e modifierFlags] & NSControlKeyMask) != 0)
-        m |= ModifierKeys::ctrlModifier;
-
-    if (([e modifierFlags] & NSAlternateKeyMask) != 0)
-        m |= ModifierKeys::altModifier;
-
-    if (([e modifierFlags] & NSCommandKeyMask) != 0)
-        m |= ModifierKeys::commandModifier;
-
-    currentModifiers = m;
-}
-
-static void updateKeysDown (NSEvent* ev, bool isKeyDown)
+void NSViewComponentPeer::updateKeysDown (NSEvent* ev, bool isKeyDown)
 {
     updateModifiers (ev);
     int keyCode = getKeyCodeFromEvent (ev);
@@ -629,32 +802,12 @@ static void updateKeysDown (NSEvent* ev, bool isKeyDown)
 
 const ModifierKeys ModifierKeys::getCurrentModifiersRealtime() throw()
 {
-    return ModifierKeys (currentModifiers);
+    return NSViewComponentPeer::currentModifiers;
 }
 
 void ModifierKeys::updateCurrentModifiers() throw()
 {
-    currentModifierFlags = currentModifiers;
-}
-
-static int64 getMouseTime (NSEvent* e)
-{
-    return (Time::currentTimeMillis() - Time::getMillisecondCounter())
-            + (int64) ([e timestamp] * 1000.0);
-}
-
-static void getMousePos (NSEvent* e, NSView* view, int& x, int& y)
-{
-    NSPoint p = [view convertPoint: [e locationInWindow] fromView: nil];
-    x = roundToInt (p.x);
-    y = roundToInt ([view frame].size.height - p.y);
-}
-
-static int getModifierForButtonNumber (const NSInteger num)
-{
-    return num == 0 ? ModifierKeys::leftButtonModifier
-                : (num == 1 ? ModifierKeys::rightButtonModifier
-                            : (num == 2 ? ModifierKeys::middleButtonModifier : 0));
+    currentModifiers = NSViewComponentPeer::currentModifiers;
 }
 
 //==============================================================================
@@ -830,7 +983,7 @@ void NSViewComponentPeer::setBounds (int x, int y, int w, int h, const bool isNo
     }
 }
 
-void NSViewComponentPeer::getBounds (int& x, int& y, int& w, int& h, const bool global) const
+const Rectangle<int> NSViewComponentPeer::getBounds (const bool global) const
 {
     NSRect r = [view frame];
 
@@ -840,52 +993,34 @@ void NSViewComponentPeer::getBounds (int& x, int& y, int& w, int& h, const bool 
         NSRect wr = [[view window] frame];
         r.origin.x += wr.origin.x;
         r.origin.y += wr.origin.y;
-
-        y = (int) ([[[NSScreen screens] objectAtIndex:0] frame].size.height - r.origin.y - r.size.height);
+        r.origin.y = [[[NSScreen screens] objectAtIndex: 0] frame].size.height - r.origin.y - r.size.height;
     }
     else
     {
-        y = (int) ([[view superview] frame].size.height - r.origin.y - r.size.height);
+        r.origin.y = [[view superview] frame].size.height - r.origin.y - r.size.height;
     }
 
-    x = (int) r.origin.x;
-    w = (int) r.size.width;
-    h = (int) r.size.height;
+    return Rectangle<int> ((int) r.origin.x, (int) r.origin.y, (int) r.size.width, (int) r.size.height);
 }
 
-void NSViewComponentPeer::getBounds (int& x, int& y, int& w, int& h) const
+const Rectangle<int> NSViewComponentPeer::getBounds() const
 {
-    getBounds (x, y, w, h, ! isSharedWindow);
+    return getBounds (! isSharedWindow);
 }
 
-int NSViewComponentPeer::getScreenX() const
+const Point<int> NSViewComponentPeer::getScreenPosition() const
 {
-    int x, y, w, h;
-    getBounds (x, y, w, h, true);
-    return x;
+    return getBounds (true).getPosition();
 }
 
-int NSViewComponentPeer::getScreenY() const
+const Point<int> NSViewComponentPeer::relativePositionToGlobal (const Point<int>& relativePosition)
 {
-    int x, y, w, h;
-    getBounds (x, y, w, h, true);
-    return y;
+    return relativePosition + getScreenPosition();
 }
 
-void NSViewComponentPeer::relativePositionToGlobal (int& x, int& y)
+const Point<int> NSViewComponentPeer::globalPositionToRelative (const Point<int>& screenPosition)
 {
-    int wx, wy, ww, wh;
-    getBounds (wx, wy, ww, wh, true);
-    x += wx;
-    y += wy;
-}
-
-void NSViewComponentPeer::globalPositionToRelative (int& x, int& y)
-{
-    int wx, wy, ww, wh;
-    getBounds (wx, wy, ww, wh, true);
-    x -= wx;
-    y -= wy;
+    return screenPosition - getScreenPosition();
 }
 
 NSRect NSViewComponentPeer::constrainRect (NSRect r)
@@ -968,15 +1103,15 @@ bool NSViewComponentPeer::isFullScreen() const
     return fullScreen;
 }
 
-bool NSViewComponentPeer::contains (int x, int y, bool trueIfInAChildWindow) const
+bool NSViewComponentPeer::contains (const Point<int>& position, bool trueIfInAChildWindow) const
 {
-    if (((unsigned int) x) >= (unsigned int) component->getWidth()
-        || ((unsigned int) y) >= (unsigned int) component->getHeight())
+    if (((unsigned int) position.getX()) >= (unsigned int) component->getWidth()
+        || ((unsigned int) position.getY()) >= (unsigned int) component->getHeight())
         return false;
 
     NSPoint p;
-    p.x = (float) x;
-    p.y = (float) y;
+    p.x = (float) position.getX();
+    p.y = (float) position.getY();
 
     NSView* v = [view hitTest: p];
 
@@ -1088,19 +1223,19 @@ void NSViewComponentPeer::viewFocusLoss()
 
 void juce_HandleProcessFocusChange()
 {
-    keysCurrentlyDown.clear();
+    NSViewComponentPeer::keysCurrentlyDown.clear();
 
-    if (NSViewComponentPeer::isValidPeer (currentlyFocusedPeer))
+    if (NSViewComponentPeer::isValidPeer (NSViewComponentPeer::currentlyFocusedPeer))
     {
         if (Process::isForegroundProcess())
         {
-            currentlyFocusedPeer->handleFocusGain();
+            NSViewComponentPeer::currentlyFocusedPeer->handleFocusGain();
 
             ComponentPeer::bringModalComponentToFront();
         }
         else
         {
-            currentlyFocusedPeer->handleFocusLoss();
+            NSViewComponentPeer::currentlyFocusedPeer->handleFocusLoss();
 
             // turn kiosk mode off if we lose focus..
             Desktop::getInstance().setKioskModeComponent (0);
@@ -1125,7 +1260,7 @@ void NSViewComponentPeer::grabFocus()
     }
 }
 
-void NSViewComponentPeer::textInputRequired (int /*x*/, int /*y*/)
+void NSViewComponentPeer::textInputRequired (const Point<int>&)
 {
 }
 
@@ -1217,84 +1352,66 @@ bool NSViewComponentPeer::redirectPerformKeyEquivalent (NSEvent* ev)
 #endif
 
 //==============================================================================
-void NSViewComponentPeer::redirectMouseDown (NSEvent* ev)
+void NSViewComponentPeer::sendMouseEvent (NSEvent* ev)
 {
     updateModifiers (ev);
-    currentModifiers |= getModifierForButtonNumber ([ev buttonNumber]);
-    int x, y;
-    getMousePos (ev, view, x, y);
+    handleMouseEvent (0, getMousePos (ev, view), currentModifiers, getMouseTime (ev));
+}
 
-    handleMouseDown (x, y, getMouseTime (ev));
+void NSViewComponentPeer::redirectMouseDown (NSEvent* ev)
+{
+    currentModifiers = currentModifiers.withFlags (getModifierForButtonNumber ([ev buttonNumber]));
+    sendMouseEvent (ev);
 }
 
 void NSViewComponentPeer::redirectMouseUp (NSEvent* ev)
 {
-    const int oldMods = currentModifiers;
-    updateModifiers (ev);
-    currentModifiers &= ~getModifierForButtonNumber ([ev buttonNumber]);
-    int x, y;
-    getMousePos (ev, view, x, y);
-
-    handleMouseUp (oldMods, x, y, getMouseTime (ev));
+    currentModifiers = currentModifiers.withoutFlags (getModifierForButtonNumber ([ev buttonNumber]));
+    sendMouseEvent (ev);
     showArrowCursorIfNeeded();
 }
 
 void NSViewComponentPeer::redirectMouseDrag (NSEvent* ev)
 {
-    updateModifiers (ev);
-    currentModifiers |= getModifierForButtonNumber ([ev buttonNumber]);
-    int x, y;
-    getMousePos (ev, view, x, y);
-
-    handleMouseDrag (x, y, getMouseTime (ev));
+    currentModifiers = currentModifiers.withFlags (getModifierForButtonNumber ([ev buttonNumber]));
+    sendMouseEvent (ev);
 }
 
 void NSViewComponentPeer::redirectMouseMove (NSEvent* ev)
 {
-    updateModifiers (ev);
-    int x, y;
-    getMousePos (ev, view, x, y);
-
-    handleMouseMove (x, y, getMouseTime (ev));
+    currentModifiers = currentModifiers.withoutMouseButtons();
+    sendMouseEvent (ev);
     showArrowCursorIfNeeded();
 }
 
 void NSViewComponentPeer::redirectMouseEnter (NSEvent* ev)
 {
-    updateModifiers (ev);
-    int x, y;
-    getMousePos (ev, view, x, y);
-
-    handleMouseEnter (x, y, getMouseTime (ev));
+    currentModifiers = currentModifiers.withoutMouseButtons();
+    sendMouseEvent (ev);
 }
 
 void NSViewComponentPeer::redirectMouseExit (NSEvent* ev)
 {
-    updateModifiers (ev);
-    int x, y;
-    getMousePos (ev, view, x, y);
-
-    handleMouseExit (x, y, getMouseTime (ev));
+    currentModifiers = currentModifiers.withoutMouseButtons();
+    sendMouseEvent (ev);
 }
 
 void NSViewComponentPeer::redirectMouseWheel (NSEvent* ev)
 {
     updateModifiers (ev);
 
-    handleMouseWheel (roundToInt ([ev deltaX] * 10.0f),
-                      roundToInt ([ev deltaY] * 10.0f),
-                      getMouseTime (ev));
+    handleMouseWheel (0, getMousePos (ev, view), getMouseTime (ev),
+                      [ev deltaX] * 10.0f, [ev deltaY] * 10.0f);
 }
 
 void NSViewComponentPeer::showArrowCursorIfNeeded()
 {
-    if (Component::getComponentUnderMouse() == 0)
-    {
-        int mx, my;
-        Desktop::getInstance().getMousePosition (mx, my);
+    MouseInputSource& mouse = Desktop::getInstance().getMainMouseSource();
 
-        if (Desktop::getInstance().findComponentAt (mx, my) == 0)
-            [[NSCursor arrowCursor] set];
+    if (mouse.getComponentUnderMouse() == 0
+         && Desktop::getInstance().findComponentAt (mouse.getScreenPosition()) == 0)
+    {
+        [[NSCursor arrowCursor] set];
     }
 }
 
@@ -1308,8 +1425,7 @@ BOOL NSViewComponentPeer::sendDragCallback (int type, id <NSDraggingInfo> sender
         return false;
 
     NSPoint p = [view convertPoint: [sender draggingLocation] fromView: nil];
-    int x = (int) p.x;
-    int y = (int) ([view frame].size.height - p.y);
+    const Point<int> pos ((int) p.x, (int) ([view frame].size.height - p.y));
 
     StringArray files;
 
@@ -1329,11 +1445,11 @@ BOOL NSViewComponentPeer::sendDragCallback (int type, id <NSDraggingInfo> sender
         return false;
 
     if (type == 0)
-        handleFileDragMove (files, x, y);
+        handleFileDragMove (files, pos);
     else if (type == 1)
         handleFileDragExit (files);
     else if (type == 2)
-        handleFileDragDrop (files, x, y);
+        handleFileDragDrop (files, pos);
 
     return true;
 }
@@ -1456,6 +1572,12 @@ void NSViewComponentPeer::viewMovedToWindow()
 {
     if (isSharedWindow)
         window = [view window];
+}
+
+//==============================================================================
+void Desktop::createMouseInputSources()
+{
+    mouseSources.add (new MouseInputSource (0, true));
 }
 
 //==============================================================================

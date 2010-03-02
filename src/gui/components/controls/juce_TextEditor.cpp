@@ -28,6 +28,7 @@
 BEGIN_JUCE_NAMESPACE
 
 #include "juce_TextEditor.h"
+#include "../windows/juce_ComponentPeer.h"
 #include "../../graphics/fonts/juce_GlyphArrangement.h"
 #include "../../../utilities/juce_SystemClipboard.h"
 #include "../../../core/juce_Time.h"
@@ -328,7 +329,7 @@ private:
         }
     }
 
-    const UniformTextSection& operator= (const UniformTextSection& other);
+    UniformTextSection& operator= (const UniformTextSection& other);
 };
 
 //==============================================================================
@@ -732,7 +733,7 @@ private:
     const tchar passwordCharacter;
     TextAtom tempAtom;
 
-    const TextEditorIterator& operator= (const TextEditorIterator&);
+    TextEditorIterator& operator= (const TextEditorIterator&);
 
     void moveToEndOfLastAtom()
     {
@@ -765,7 +766,7 @@ class TextEditorInsertAction  : public UndoableAction
     const Colour colour;
 
     TextEditorInsertAction (const TextEditorInsertAction&);
-    const TextEditorInsertAction& operator= (const TextEditorInsertAction&);
+    TextEditorInsertAction& operator= (const TextEditorInsertAction&);
 
 public:
     TextEditorInsertAction (TextEditor& owner_,
@@ -816,7 +817,7 @@ class TextEditorRemoveAction  : public UndoableAction
     VoidArray removedSections;
 
     TextEditorRemoveAction (const TextEditorRemoveAction&);
-    const TextEditorRemoveAction& operator= (const TextEditorRemoveAction&);
+    TextEditorRemoveAction& operator= (const TextEditorRemoveAction&);
 
 public:
     TextEditorRemoveAction (TextEditor& owner_,
@@ -877,7 +878,7 @@ class TextHolderComponent  : public Component,
     TextEditor& owner;
 
     TextHolderComponent (const TextHolderComponent&);
-    const TextHolderComponent& operator= (const TextHolderComponent&);
+    TextHolderComponent& operator= (const TextHolderComponent&);
 
 public:
     TextHolderComponent (TextEditor& owner_)
@@ -922,7 +923,7 @@ class TextEditorViewport  : public Viewport
     float lastWordWrapWidth;
 
     TextEditorViewport (const TextEditorViewport&);
-    const TextEditorViewport& operator= (const TextEditorViewport&);
+    TextEditorViewport& operator= (const TextEditorViewport&);
 
 public:
     TextEditorViewport (TextEditor* const owner_)
@@ -1022,8 +1023,8 @@ void TextEditor::doUndoRedo (const bool isRedo)
 {
     if (! isReadOnly())
     {
-        if ((isRedo) ? undoManager.redo()
-                     : undoManager.undo())
+        if (isRedo ? undoManager.redo()
+                   : undoManager.undo())
         {
             scrollToMakeSureCursorIsVisible();
             repaint();
@@ -1322,7 +1323,7 @@ void TextEditor::repaintText (const Range<int>& range)
 
             if (range.getEnd() >= getTotalNumChars())
             {
-                y2 = getHeight();
+                y2 = textHolder->getHeight();
             }
             else
             {
@@ -1595,7 +1596,7 @@ void TextEditor::insertTextAtCaret (const String& newText_)
     const int newCaretPos = selection.getStart() + newText.length();
     const int insertIndex = selection.getStart();
 
-    remove (selection, &undoManager,
+    remove (selection, getUndoManager(),
             newText.isNotEmpty() ? newCaretPos - 1 : newCaretPos);
 
     if (maxTextLength > 0)
@@ -1606,7 +1607,7 @@ void TextEditor::insertTextAtCaret (const String& newText_)
                 insertIndex,
                 currentFont,
                 findColour (textColourId),
-                &undoManager,
+                getUndoManager(),
                 newCaretPos);
 
     textChanged();
@@ -2063,8 +2064,12 @@ void TextEditor::addPopupMenuItems (PopupMenu& m, const MouseEvent*)
     m.addSeparator();
     m.addItem (baseMenuItemID + 5, TRANS("select all"));
     m.addSeparator();
-    m.addItem (baseMenuItemID + 6, TRANS("undo"), undoManager.canUndo());
-    m.addItem (baseMenuItemID + 7, TRANS("redo"), undoManager.canRedo());
+
+    if (getUndoManager() != 0)
+    {
+        m.addItem (baseMenuItemID + 6, TRANS("undo"), undoManager.canUndo());
+        m.addItem (baseMenuItemID + 7, TRANS("redo"), undoManager.canRedo());
+    }
 }
 
 void TextEditor::performPopupMenuAction (const int menuItemID)
@@ -2126,8 +2131,7 @@ void TextEditor::focusGained (FocusChangeType)
 
     ComponentPeer* const peer = getPeer();
     if (peer != 0 && ! isReadOnly())
-        peer->textInputRequired (getScreenX() - peer->getScreenX(),
-                                 getScreenY() - peer->getScreenY());
+        peer->textInputRequired (getScreenPosition() - peer->getScreenPosition());
 }
 
 void TextEditor::focusLost (FocusChangeType)
@@ -2162,7 +2166,7 @@ void TextEditor::resized()
 
 void TextEditor::handleCommandMessage (const int commandId)
 {
-    const ComponentDeletionWatcher deletionChecker (this);
+    Component::SafePointer<Component> deletionChecker (this);
 
     for (int i = listeners.size(); --i >= 0;)
     {
@@ -2193,7 +2197,7 @@ void TextEditor::handleCommandMessage (const int commandId)
                 break;
             }
 
-            if (i > 0 && deletionChecker.hasBeenDeleted())
+            if (deletionChecker == 0)
                 return;
         }
     }
@@ -2207,6 +2211,11 @@ void TextEditor::enablementChanged()
 }
 
 //==============================================================================
+UndoManager* TextEditor::getUndoManager() throw()
+{
+    return isReadOnly() ? &undoManager : 0;
+}
+
 void TextEditor::clearInternal (UndoManager* const um)
 {
     remove (Range<int> (0, getTotalNumChars()), um, caretPosition);

@@ -43,8 +43,9 @@
 
 #define JUCE_MAJOR_VERSION	  1
 #define JUCE_MINOR_VERSION	  51
+#define JUCE_BUILDNUMBER	6
 
-#define JUCE_VERSION		((JUCE_MAJOR_VERSION << 16) + (JUCE_MINOR_VERSION << 8))
+#define JUCE_VERSION		((JUCE_MAJOR_VERSION << 16) + (JUCE_MINOR_VERSION << 8) + JUCE_BUILDNUMBER)
 
 
 /*** Start of inlined file: juce_TargetPlatform.h ***/
@@ -303,10 +304,6 @@
   #define JUCE_CATCH_UNHANDLED_EXCEPTIONS 1
 #endif
 
-#ifndef JUCE_STRINGS_ARE_UNICODE
-  #define JUCE_STRINGS_ARE_UNICODE 1
-#endif
-
 // If only building the core classes, we can explicitly turn off some features to avoid including them:
 #if JUCE_ONLY_BUILD_CORE_LIBRARY
   #undef  JUCE_QUICKTIME
@@ -494,6 +491,10 @@
 
 // Now we'll include any OS headers we need.. (at this point we are outside the Juce namespace).
 #if JUCE_MSVC
+  #if (defined(_MSC_VER) && (_MSC_VER <= 1200))
+	#pragma warning (disable: 4284)  // (spurious VC6 warning)
+  #endif
+
   #pragma warning (push)
   #pragma warning (disable: 4514 4245 4100)
 #endif
@@ -963,19 +964,8 @@ inline void ByteOrder::bigEndian24BitToChars (const int value, char* const destB
 #ifndef __JUCE_CHARACTERFUNCTIONS_JUCEHEADER__
 #define __JUCE_CHARACTERFUNCTIONS_JUCEHEADER__
 
-#if JUCE_STRINGS_ARE_UNICODE
-
-  #define JUCE_T(stringLiteral)	 (L##stringLiteral)
-  typedef juce_wchar		tchar;
-  #define juce_tcharToWideChar(c)   (c)
-
-#else
-
-  #define JUCE_T(stringLiteral)	 (stringLiteral)
-  typedef char			  tchar;
-  #define juce_tcharToWideChar(c)   ((juce_wchar) (unsigned char) (c))
-
-#endif
+#define JUCE_T(stringLiteral)	 (L##stringLiteral)
+typedef juce_wchar		tchar;
 
 #if ! JUCE_DONT_DEFINE_MACROS
 
@@ -1001,6 +991,8 @@ public:
 
 	static int compare (const char* const s1, const char* const s2) throw();
 	static int compare (const juce_wchar* s1, const juce_wchar* s2) throw();
+	static int compare (const juce_wchar* s1, const char* s2) throw();
+	static int compare (const char* s1, const juce_wchar* s2) throw();
 
 	static int compare (const char* const s1, const char* const s2, const int maxChars) throw();
 	static int compare (const juce_wchar* s1, const juce_wchar* s2, int maxChars) throw();
@@ -1062,7 +1054,7 @@ public:
 	static bool isLetterOrDigit (const char character) throw();
 	static bool isLetterOrDigit (const juce_wchar character) throw();
 
-	static int getHexDigitValue (const tchar digit) throw();
+	static int getHexDigitValue (const juce_wchar digit) throw();
 
 	static int printf (char* const dest, const int maxLength, const char* const format, ...) throw();
 	static int printf (juce_wchar* const dest, const int maxLength, const juce_wchar* const format, ...) throw();
@@ -1073,6 +1065,8 @@ public:
 
 #endif   // __JUCE_CHARACTERFUNCTIONS_JUCEHEADER__
 /*** End of inlined file: juce_CharacterFunctions.h ***/
+
+class OutputStream;
 
 class JUCE_API  String
 {
@@ -1092,7 +1086,7 @@ public:
 	String (const juce_wchar* const unicodeText,
 			const size_t maxChars) throw();
 
-	static const String charToString (const tchar character) throw();
+	static const String charToString (const juce_wchar character) throw();
 
 	~String() throw();
 
@@ -1106,37 +1100,17 @@ public:
 
 	// Assignment and concatenation operators..
 
-	const String& operator= (const tchar* const other) throw();
+	String& operator= (const String& other) throw();
 
-	const String& operator= (const String& other) throw();
-
-	const String& operator+= (const tchar* const textToAppend) throw();
-	const String& operator+= (const String& stringToAppend) throw();
-	const String& operator+= (const char characterToAppend) throw();
-	const String& operator+= (const juce_wchar characterToAppend) throw();
+	String& operator+= (const tchar* const textToAppend);
+	String& operator+= (const String& stringToAppend);
+	String& operator+= (const char characterToAppend);
+	String& operator+= (const juce_wchar characterToAppend);
+	String& operator+= (const int numberToAppend);
+	String& operator+= (const unsigned int numberToAppend);
 
 	void append (const tchar* const textToAppend,
-				 const int maxCharsToTake) throw();
-
-	const String operator+ (const String& stringToAppend) const throw();
-
-	const String operator+ (const tchar* const textToAppend) const throw();
-
-	const String operator+ (const tchar characterToAppend) const throw();
-
-	String& operator<< (const char n) throw();
-	String& operator<< (const juce_wchar n) throw();
-	String& operator<< (const char* const text) throw();
-	String& operator<< (const juce_wchar* const text) throw();
-	String& operator<< (const String& text) throw();
-
-	String& operator<< (const short number) throw();
-	String& operator<< (const int number) throw();
-	String& operator<< (const unsigned int number) throw();
-	String& operator<< (const long number) throw();
-	String& operator<< (const unsigned long number) throw();
-	String& operator<< (const float number) throw();
-	String& operator<< (const double number) throw();
+				 const int maxCharsToTake);
 
 	// Comparison methods..
 
@@ -1144,26 +1118,18 @@ public:
 
 	inline bool isNotEmpty() const throw()		  { return text->text[0] != 0; }
 
-	bool operator== (const String& other) const throw();
-	bool operator== (const tchar* const other) const throw();
-
-	bool operator!= (const String& other) const throw();
-	bool operator!= (const tchar* const other) const throw();
-
 	bool equalsIgnoreCase (const String& other) const throw();
 	bool equalsIgnoreCase (const tchar* const other) const throw();
 
-	bool operator> (const String& other) const throw();
-	bool operator< (const tchar* const other) const throw();
+	int compare (const String& other) const throw();
 
-	bool operator>= (const String& other) const throw();
-	bool operator<= (const tchar* const other) const throw();
+	int compare (const char* other) const throw();
 
-	int compare (const tchar* const other) const throw();
+	int compare (const juce_wchar* other) const throw();
 
-	int compareIgnoreCase (const tchar* const other) const throw();
+	int compareIgnoreCase (const String& other) const throw();
 
-	int compareLexicographically (const tchar* const other) const throw();
+	int compareLexicographically (const String& other) const throw();
 
 	bool startsWith (const tchar* const text) const throw();
 
@@ -1234,11 +1200,11 @@ public:
 
 		No checks are made to see if the index is within a valid range, so be careful!
 	*/
-	inline const tchar& operator[] (const int index) const throw()  { jassert (((unsigned int) index) <= (unsigned int) length()); return text->text [index]; }
+	inline const juce_wchar& operator[] (const int index) const throw()  { jassert (((unsigned int) index) <= (unsigned int) length()); return text->text [index]; }
 
-	tchar& operator[] (const int index) throw();
+	juce_wchar& operator[] (const int index) throw();
 
-	tchar getLastCharacter() const throw();
+	juce_wchar getLastCharacter() const throw();
 
 	const String substring (int startIndex,
 							int endIndex) const throw();
@@ -1361,30 +1327,25 @@ public:
 									 const int size,
 									 const int groupSize = 1) throw();
 
-	// Casting to character arrays..
-
-#if JUCE_STRINGS_ARE_UNICODE
-	operator const char*() const throw();
-
 	inline operator const juce_wchar*() const throw()   { return text->text; }
-#else
-	inline operator const char*() const throw()	 { return text->text; }
 
-	operator const juce_wchar*() const throw();
-#endif
+	inline operator juce_wchar*() throw()		   { return text->text; }
 
-	void copyToBuffer (char* const destBuffer,
-					   const int maxCharsToCopy) const throw();
+	const char* toUTF8() const;
 
-	void copyToBuffer (juce_wchar* const destBuffer,
-					   const int maxCharsToCopy) const throw();
+	static const String fromUTF8 (const char* utf8buffer, int bufferSizeBytes = -1);
 
-	int copyToUTF8 (uint8* const destBuffer, const int maxBufferSizeBytes = 0x7fffffff) const throw();
+	int getNumBytesAsUTF8() const throw();
 
-	const char* toUTF8() const throw();
+	int copyToUTF8 (char* destBuffer, const int maxBufferSizeBytes) const throw();
 
-	static const String fromUTF8 (const uint8* const utf8buffer,
-								  int bufferSizeBytes = -1) throw();
+	const char* toCString() const;
+
+	int getNumBytesAsCString() const throw();
+
+	int copyToCString (char* destBuffer, const int maxBufferSizeBytes) const throw();
+
+	void copyToUnicode (juce_wchar* const destBuffer, const int maxCharsToCopy) const throw();
 
 	void preallocateStorage (const size_t numCharsNeeded) throw();
 
@@ -1401,7 +1362,7 @@ public:
 		int nextIndex;
 
 		Concatenator (const Concatenator&);
-		const Concatenator& operator= (const Concatenator&);
+		Concatenator& operator= (const Concatenator&);
 	};
 
 	juce_UseDebuggingNewOperator // (adds debugging info to find leaked objects)
@@ -1412,12 +1373,7 @@ private:
 	{
 		int refCount;
 		int allocatedNumChars;
-
-#if JUCE_STRINGS_ARE_UNICODE
-		  wchar_t text[1];
-#else
-		  char text[1];
-#endif
+		wchar_t text[1];
 	};
 
 	InternalRefCountedStringHolder* text;
@@ -1433,11 +1389,49 @@ private:
 	void dupeInternalIfMultiplyReferenced() throw();
 };
 
-const String JUCE_PUBLIC_FUNCTION   operator+ (const char* const string1,
-											   const String& string2) throw();
+const String operator+  (const char* string1,	   const String& string2);
+const String operator+  (const juce_wchar* string1, const String& string2);
+const String operator+  (char string1,		  const String& string2);
+const String operator+  (juce_wchar string1,	const String& string2);
 
-const String JUCE_PUBLIC_FUNCTION   operator+ (const juce_wchar* const string1,
-											   const String& string2) throw();
+const String operator+  (String string1, const String& string2);
+const String operator+  (String string1, const char* string2);
+const String operator+  (String string1, const juce_wchar* string2);
+const String operator+  (String string1, char characterToAppend);
+const String operator+  (String string1, juce_wchar characterToAppend);
+
+String& operator<< (String& string1, const char characterToAppend);
+String& operator<< (String& string1, const juce_wchar characterToAppend);
+String& operator<< (String& string1, const char* const string2);
+String& operator<< (String& string1, const juce_wchar* const string2);
+String& operator<< (String& string1, const String& string2);
+
+String& operator<< (String& string1, const short number);
+String& operator<< (String& string1, const int number);
+String& operator<< (String& string1, const unsigned int number);
+String& operator<< (String& string1, const long number);
+String& operator<< (String& string1, const unsigned long number);
+String& operator<< (String& string1, const float number);
+String& operator<< (String& string1, const double number);
+
+bool operator== (const String& string1, const String& string2) throw();
+bool operator== (const String& string1, const char* string2) throw();
+bool operator== (const String& string1, const juce_wchar* string2) throw();
+bool operator!= (const String& string1, const String& string2) throw();
+bool operator!= (const String& string1, const char* string2) throw();
+bool operator!= (const String& string1, const juce_wchar* string2) throw();
+bool operator>  (const String& string1, const String& string2) throw();
+bool operator<  (const String& string1, const String& string2) throw();
+bool operator>= (const String& string1, const String& string2) throw();
+bool operator<= (const String& string1, const String& string2) throw();
+
+template <class charT, class traits>
+std::basic_ostream <charT, traits>& operator<< (std::basic_ostream <charT, traits>& stream, const String& stringToWrite)
+{
+	return stream << stringToWrite.toUTF8();
+}
+
+OutputStream& operator<< (OutputStream& stream, const String& text);
 
 #endif   // __JUCE_STRING_JUCEHEADER__
 /*** End of inlined file: juce_String.h ***/
@@ -1514,7 +1508,7 @@ public:
 	}
 
 	HeapBlock (const size_t numElements)
-		: data ((ElementType*) ::juce_malloc (numElements * sizeof (ElementType)))
+		: data (reinterpret_cast <ElementType*> (::juce_malloc (numElements * sizeof (ElementType))))
 	{
 	}
 
@@ -1525,12 +1519,11 @@ public:
 
 	inline operator ElementType*() const throw()				{ return data; }
 
-	inline operator void*() const throw()				   { return (void*) data; }
+	inline ElementType* getData() const throw()				 { return data; }
+
+	inline operator void*() const throw()				   { return static_cast <void*> (data); }
 
 	inline ElementType* operator->() const  throw()			 { return data; }
-
-	template <class CastType>
-	inline operator CastType*() const throw()				   { return (CastType*) data; }
 
 	template <typename IndexType>
 	inline ElementType& operator[] (IndexType index) const throw()	  { return data [index]; }
@@ -1538,7 +1531,9 @@ public:
 	template <typename IndexType>
 	inline ElementType* operator+ (IndexType index) const throw()	   { return data + index; }
 
-	inline ElementType** operator&() const throw()			  { return (ElementType**) &data; }
+	inline ElementType* const* operator&() const throw()			{ return static_cast <ElementType* const*> (&data); }
+
+	inline ElementType** operator&() throw()				{ return static_cast <ElementType**> (&data); }
 
 	inline bool operator== (const ElementType* const otherPointer) const throw()	{ return otherPointer == data; }
 
@@ -1547,13 +1542,13 @@ public:
 	void malloc (const size_t newNumElements, const size_t elementSize = sizeof (ElementType))
 	{
 		::juce_free (data);
-		data = (ElementType*) ::juce_malloc (newNumElements * elementSize);
+		data = reinterpret_cast <ElementType*> (::juce_malloc (newNumElements * elementSize));
 	}
 
 	void calloc (const size_t newNumElements, const size_t elementSize = sizeof (ElementType))
 	{
 		::juce_free (data);
-		data = (ElementType*) ::juce_calloc (newNumElements * elementSize);
+		data = reinterpret_cast <ElementType*> (::juce_calloc (newNumElements * elementSize));
 	}
 
 	void allocate (const size_t newNumElements, const bool initialiseToZero)
@@ -1561,17 +1556,17 @@ public:
 		::juce_free (data);
 
 		if (initialiseToZero)
-			data = (ElementType*) ::juce_calloc (newNumElements * sizeof (ElementType));
+			data = reinterpret_cast <ElementType*> (::juce_calloc (newNumElements * sizeof (ElementType)));
 		else
-			data = (ElementType*) ::juce_malloc (newNumElements * sizeof (ElementType));
+			data = reinterpret_cast <ElementType*> (::juce_malloc (newNumElements * sizeof (ElementType)));
 	}
 
 	void realloc (const size_t newNumElements, const size_t elementSize = sizeof (ElementType))
 	{
 		if (data == 0)
-			data = (ElementType*) ::juce_malloc (newNumElements * elementSize);
+			data = reinterpret_cast <ElementType*> (::juce_malloc (newNumElements * elementSize));
 		else
-			data = (ElementType*) ::juce_realloc (data, newNumElements * elementSize);
+			data = reinterpret_cast <ElementType*> (::juce_realloc (data, newNumElements * elementSize));
 	}
 
 	void free()
@@ -1590,7 +1585,7 @@ private:
 	ElementType* data;
 
 	HeapBlock (const HeapBlock&);
-	const HeapBlock& operator= (const HeapBlock&);
+	HeapBlock& operator= (const HeapBlock&);
 };
 
 #endif   // __JUCE_HEAPBLOCK_JUCEHEADER__
@@ -1862,6 +1857,9 @@ public:
 #ifndef __JUCE_CRITICALSECTION_JUCEHEADER__
 #define __JUCE_CRITICALSECTION_JUCEHEADER__
 
+class JUCE_API  ScopedLock;
+class JUCE_API  ScopedUnlock;
+
 class JUCE_API  CriticalSection
 {
 public:
@@ -1875,6 +1873,10 @@ public:
 	bool tryEnter() const throw();
 
 	void exit() const throw();
+
+	typedef ScopedLock	  ScopedLockType;
+
+	typedef ScopedUnlock	ScopedUnlockType;
 
 	juce_UseDebuggingNewOperator
 
@@ -1894,7 +1896,7 @@ private:
 #endif
 
 	CriticalSection (const CriticalSection&);
-	const CriticalSection& operator= (const CriticalSection&);
+	CriticalSection& operator= (const CriticalSection&);
 };
 
 class JUCE_API  DummyCriticalSection
@@ -1905,6 +1907,13 @@ public:
 
 	inline void enter() const throw()		 {}
 	inline void exit() const throw()		  {}
+
+	struct ScopedLockType
+	{
+		ScopedLockType (const DummyCriticalSection&) throw() {}
+	};
+
+	typedef ScopedLockType ScopedUnlockType;
 };
 
 #endif   // __JUCE_CRITICALSECTION_JUCEHEADER__
@@ -1923,14 +1932,12 @@ public:
 
 	Array (const Array<ElementType, TypeOfCriticalSectionToUse>& other)
 	{
-		other.lockArray();
+		const ScopedLockType lock (other.getLock());
 		numUsed = other.numUsed;
 		data.setAllocatedSize (other.numUsed);
 
 		for (int i = 0; i < numUsed; ++i)
 			new (data.elements + i) ElementType (other.data.elements[i]);
-
-		other.unlockArray();
 	}
 
 	explicit Array (const ElementType* values)
@@ -1955,7 +1962,7 @@ public:
 			data.elements[i].~ElementType();
 	}
 
-	Array <ElementType, TypeOfCriticalSectionToUse>& operator= (const Array <ElementType, TypeOfCriticalSectionToUse>& other)
+	Array& operator= (const Array& other)
 	{
 		if (this != &other)
 		{
@@ -1969,24 +1976,15 @@ public:
 	template <class OtherArrayType>
 	bool operator== (const OtherArrayType& other) const
 	{
-		data.enter();
+		const ScopedLockType lock (getLock());
 
 		if (numUsed != other.numUsed)
-		{
-			data.exit();
 			return false;
-		}
 
 		for (int i = numUsed; --i >= 0;)
-		{
 			if (data.elements [i] != other.data.elements [i])
-			{
-				data.exit();
 				return false;
-			}
-		}
 
-		data.exit();
 		return true;
 	}
 
@@ -1998,25 +1996,23 @@ public:
 
 	void clear()
 	{
-		data.enter();
+		const ScopedLockType lock (getLock());
 
 		for (int i = 0; i < numUsed; ++i)
 			data.elements[i].~ElementType();
 
 		data.setAllocatedSize (0);
 		numUsed = 0;
-		data.exit();
 	}
 
 	void clearQuick()
 	{
-		data.enter();
+		const ScopedLockType lock (getLock());
 
 		for (int i = 0; i < numUsed; ++i)
 			data.elements[i].~ElementType();
 
 		numUsed = 0;
-		data.exit();
 	}
 
 	inline int size() const throw()
@@ -2026,110 +2022,83 @@ public:
 
 	inline ElementType operator[] (const int index) const
 	{
-		data.enter();
-		const ElementType result ((((unsigned int) index) < (unsigned int) numUsed)
-										? data.elements [index]
-										: ElementType());
-		data.exit();
-
-		return result;
+		const ScopedLockType lock (getLock());
+		return (((unsigned int) index) < (unsigned int) numUsed) ? data.elements [index]
+																 : ElementType();
 	}
 
 	inline const ElementType getUnchecked (const int index) const
 	{
-		data.enter();
+		const ScopedLockType lock (getLock());
 		jassert (((unsigned int) index) < (unsigned int) numUsed);
-		const ElementType result (data.elements [index]);
-		data.exit();
-
-		return result;
+		return data.elements [index];
 	}
 
 	inline ElementType& getReference (const int index) const throw()
 	{
-		data.enter();
+		const ScopedLockType lock (getLock());
 		jassert (((unsigned int) index) < (unsigned int) numUsed);
-		ElementType& result = data.elements [index];
-		data.exit();
-		return result;
+		return data.elements [index];
 	}
 
 	inline ElementType getFirst() const
 	{
-		data.enter();
-		const ElementType result ((numUsed > 0) ? data.elements [0]
-												: ElementType());
-		data.exit();
-
-		return result;
+		const ScopedLockType lock (getLock());
+		return (numUsed > 0) ? data.elements [0]
+							 : ElementType();
 	}
 
 	inline ElementType getLast() const
 	{
-		data.enter();
-		const ElementType result ((numUsed > 0) ? data.elements [numUsed - 1]
-												: ElementType());
-		data.exit();
-
-		return result;
+		const ScopedLockType lock (getLock());
+		return (numUsed > 0) ? data.elements [numUsed - 1]
+							 : ElementType();
 	}
 
 	int indexOf (const ElementType& elementToLookFor) const
 	{
-		int result = -1;
+		const ScopedLockType lock (getLock());
+		const ElementType* e = data.elements.getData();
+		const ElementType* const end = e + numUsed;
 
-		data.enter();
-		const ElementType* e = data.elements;
-
-		for (int i = numUsed; --i >= 0;)
+		while (e != end)
 		{
 			if (elementToLookFor == *e)
-			{
-				result = (int) (e - data.elements);
-				break;
-			}
+				return (int) (e - data.elements.getData());
 
 			++e;
 		}
 
-		data.exit();
-		return result;
+		return -1;
 	}
 
 	bool contains (const ElementType& elementToLookFor) const
 	{
-		data.enter();
+		const ScopedLockType lock (getLock());
+		const ElementType* e = data.elements.getData();
+		const ElementType* const end = e + numUsed;
 
-		const ElementType* e = data.elements;
-		int num = numUsed;
-
-		while (num > 0)
+		while (e != end)
 		{
 			if (elementToLookFor == *e)
-			{
-				data.exit();
 				return true;
-			}
 
-			--num;
 			++e;
 		}
 
-		data.exit();
 		return false;
 	}
 
 	void add (const ElementType& newElement)
 	{
-		data.enter();
+		const ScopedLockType lock (getLock());
 		data.ensureAllocatedSize (numUsed + 1);
 		new (data.elements + numUsed++) ElementType (newElement);
-		data.exit();
 	}
 
 	void insert (int indexToInsertAt, const ElementType& newElement)
 	{
-		data.enter();
+		const ScopedLockType lock (getLock());
 		data.ensureAllocatedSize (numUsed + 1);
 
 		if (((unsigned int) indexToInsertAt) < (unsigned int) numUsed)
@@ -2147,8 +2116,6 @@ public:
 		{
 			new (data.elements + numUsed++) ElementType (newElement);
 		}
-
-		data.exit();
 	}
 
 	void insertMultiple (int indexToInsertAt, const ElementType& newElement,
@@ -2156,7 +2123,7 @@ public:
 	{
 		if (numberOfTimesToInsertIt > 0)
 		{
-			data.enter();
+			const ScopedLockType lock (getLock());
 			data.ensureAllocatedSize (numUsed + numberOfTimesToInsertIt);
 			ElementType* insertPos;
 
@@ -2175,8 +2142,6 @@ public:
 
 			while (--numberOfTimesToInsertIt >= 0)
 				new (insertPos++) ElementType (newElement);
-
-			data.exit();
 		}
 	}
 
@@ -2186,7 +2151,7 @@ public:
 	{
 		if (numberOfElements > 0)
 		{
-			data.enter();
+			const ScopedLockType lock (getLock());
 			data.ensureAllocatedSize (numUsed + numberOfElements);
 			ElementType* insertPos;
 
@@ -2205,26 +2170,21 @@ public:
 
 			while (--numberOfElements >= 0)
 				new (insertPos++) ElementType (*newElements++);
-
-			data.exit();
 		}
 	}
 
 	void addIfNotAlreadyThere (const ElementType& newElement)
 	{
-		data.enter();
+		const ScopedLockType lock (getLock());
 
 		if (! contains (newElement))
 			add (newElement);
-
-		data.exit();
 	}
 
 	void set (const int indexToChange, const ElementType& newValue)
 	{
 		jassert (indexToChange >= 0);
-
-		data.enter();
+		const ScopedLockType lock (getLock());
 
 		if (((unsigned int) indexToChange) < (unsigned int) numUsed)
 		{
@@ -2235,21 +2195,18 @@ public:
 			data.ensureAllocatedSize (numUsed + 1);
 			new (data.elements + numUsed++) ElementType (newValue);
 		}
-
-		data.exit();
 	}
 
 	void setUnchecked (const int indexToChange, const ElementType& newValue)
 	{
-		data.enter();
+		const ScopedLockType lock (getLock());
 		jassert (((unsigned int) indexToChange) < (unsigned int) numUsed);
 		data.elements [indexToChange] = newValue;
-		data.exit();
 	}
 
 	void addArray (const ElementType* elementsToAdd, int numElementsToAdd)
 	{
-		data.enter();
+		const ScopedLockType lock (getLock());
 
 		if (numElementsToAdd > 0)
 		{
@@ -2258,18 +2215,15 @@ public:
 			while (--numElementsToAdd >= 0)
 				new (data.elements + numUsed++) ElementType (*elementsToAdd++);
 		}
-
-		data.exit();
 	}
 
-	void swapWithArray (Array <ElementType>& otherArray) throw()
+	void swapWithArray (Array& otherArray) throw()
 	{
-		data.enter();
-		otherArray.data.enter();
+		const ScopedLockType lock1 (getLock());
+		const ScopedLockType lock2 (otherArray.getLock());
+
 		data.swapWith (otherArray.data);
 		swapVariables (numUsed, otherArray.numUsed);
-		otherArray.data.exit();
-		data.exit();
 	}
 
 	template <class OtherArrayType>
@@ -2277,8 +2231,8 @@ public:
 				   int startIndex = 0,
 				   int numElementsToAdd = -1)
 	{
-		arrayToAddFrom.lockArray();
-		data.enter();
+		const typename OtherArrayType::ScopedLockType lock1 (arrayToAddFrom.getLock());
+		const ScopedLockType lock2 (getLock());
 
 		if (startIndex < 0)
 		{
@@ -2291,17 +2245,13 @@ public:
 
 		while (--numElementsToAdd >= 0)
 			add (arrayToAddFrom.getUnchecked (startIndex++));
-
-		data.exit();
-		arrayToAddFrom.unlockArray();
 	}
 
 	template <class ElementComparator>
 	void addSorted (ElementComparator& comparator, const ElementType& newElement)
 	{
-		data.enter();
-		insert (findInsertIndexInSortedArray (comparator, (ElementType*) data.elements, newElement, 0, numUsed), newElement);
-		data.exit();
+		const ScopedLockType lock (getLock());
+		insert (findInsertIndexInSortedArray (comparator, data.elements.getData(), newElement, 0, numUsed), newElement);
 	}
 
 	template <class ElementComparator>
@@ -2309,8 +2259,8 @@ public:
 	{
 		(void) comparator;  // if you pass in an object with a static compareElements() method, this
 							// avoids getting warning messages about the parameter being unused
-		data.enter();
 
+		const ScopedLockType lock (getLock());
 		int start = 0;
 		int end = numUsed;
 
@@ -2318,12 +2268,10 @@ public:
 		{
 			if (start >= end)
 			{
-				data.exit();
 				return -1;
 			}
 			else if (comparator.compareElements (elementToLookFor, data.elements [start]) == 0)
 			{
-				data.exit();
 				return start;
 			}
 			else
@@ -2331,10 +2279,7 @@ public:
 				const int halfway = (start + end) >> 1;
 
 				if (halfway == start)
-				{
-					data.exit();
 					return -1;
-				}
 				else if (comparator.compareElements (elementToLookFor, data.elements [halfway]) >= 0)
 					start = halfway;
 				else
@@ -2345,7 +2290,7 @@ public:
 
 	ElementType remove (const int indexToRemove)
 	{
-		data.enter();
+		const ScopedLockType lock (getLock());
 
 		if (((unsigned int) indexToRemove) < (unsigned int) numUsed)
 		{
@@ -2362,38 +2307,34 @@ public:
 			if ((numUsed << 1) < data.numAllocated)
 				minimiseStorageOverheads();
 
-			data.exit();
 			return removed;
 		}
 		else
 		{
-			data.exit();
 			return ElementType();
 		}
 	}
 
 	void removeValue (const ElementType& valueToRemove)
 	{
-		data.enter();
+		const ScopedLockType lock (getLock());
 		ElementType* e = data.elements;
 
 		for (int i = numUsed; --i >= 0;)
 		{
 			if (valueToRemove == *e)
 			{
-				remove ((int) (e - data.elements));
+				remove ((int) (e - data.elements.getData()));
 				break;
 			}
 
 			++e;
 		}
-
-		data.exit();
 	}
 
 	void removeRange (int startIndex, int numberToRemove)
 	{
-		data.enter();
+		const ScopedLockType lock (getLock());
 		const int endIndex = jlimit (0, numUsed, startIndex + numberToRemove);
 		startIndex = jlimit (0, numUsed, startIndex);
 
@@ -2414,13 +2355,11 @@ public:
 			if ((numUsed << 1) < data.numAllocated)
 				minimiseStorageOverheads();
 		}
-
-		data.exit();
 	}
 
 	void removeLast (int howManyToRemove = 1)
 	{
-		data.enter();
+		const ScopedLockType lock (getLock());
 
 		if (howManyToRemove > numUsed)
 			howManyToRemove = numUsed;
@@ -2432,15 +2371,13 @@ public:
 
 		if ((numUsed << 1) < data.numAllocated)
 			minimiseStorageOverheads();
-
-		data.exit();
 	}
 
 	template <class OtherArrayType>
 	void removeValuesIn (const OtherArrayType& otherArray)
 	{
-		otherArray.lockArray();
-		data.enter();
+		const typename OtherArrayType::ScopedLockType lock1 (otherArray.getLock());
+		const ScopedLockType lock2 (getLock());
 
 		if (this == &otherArray)
 		{
@@ -2455,16 +2392,13 @@ public:
 						remove (i);
 			}
 		}
-
-		data.exit();
-		otherArray.unlockArray();
 	}
 
 	template <class OtherArrayType>
 	void removeValuesNotIn (const OtherArrayType& otherArray)
 	{
-		otherArray.lockArray();
-		data.enter();
+		const typename OtherArrayType::ScopedLockType lock1 (otherArray.getLock());
+		const ScopedLockType lock2 (getLock());
 
 		if (this != &otherArray)
 		{
@@ -2479,15 +2413,12 @@ public:
 						remove (i);
 			}
 		}
-
-		data.exit();
-		otherArray.unlockArray();
 	}
 
 	void swap (const int index1,
 			   const int index2)
 	{
-		data.enter();
+		const ScopedLockType lock (getLock());
 
 		if (((unsigned int) index1) < (unsigned int) numUsed
 			&& ((unsigned int) index2) < (unsigned int) numUsed)
@@ -2495,15 +2426,13 @@ public:
 			swapVariables (data.elements [index1],
 						   data.elements [index2]);
 		}
-
-		data.exit();
 	}
 
 	void move (const int currentIndex, int newIndex) throw()
 	{
 		if (currentIndex != newIndex)
 		{
-			data.enter();
+			const ScopedLockType lock (getLock());
 
 			if (((unsigned int) currentIndex) < (unsigned int) numUsed)
 			{
@@ -2528,45 +2457,34 @@ public:
 
 				memcpy (data.elements + newIndex, tempCopy, sizeof (ElementType));
 			}
-
-			data.exit();
 		}
 	}
 
 	void minimiseStorageOverheads()
 	{
-		data.enter();
+		const ScopedLockType lock (getLock());
 		data.shrinkToNoMoreThan (numUsed);
-		data.exit();
 	}
 
 	void ensureStorageAllocated (const int minNumElements)
 	{
-		data.enter();
+		const ScopedLockType lock (getLock());
 		data.ensureAllocatedSize (minNumElements);
-		data.exit();
 	}
 
 	template <class ElementComparator>
 	void sort (ElementComparator& comparator,
 			   const bool retainOrderOfEquivalentItems = false) const
 	{
+		const ScopedLockType lock (getLock());
 		(void) comparator;  // if you pass in an object with a static compareElements() method, this
 							// avoids getting warning messages about the parameter being unused
-		data.enter();
-		sortArray (comparator, (ElementType*) data.elements, 0, size() - 1, retainOrderOfEquivalentItems);
-		data.exit();
+		sortArray (comparator, data.elements.getData(), 0, size() - 1, retainOrderOfEquivalentItems);
 	}
 
-	void lockArray() const throw()
-	{
-		data.enter();
-	}
+	inline const TypeOfCriticalSectionToUse& getLock() const throw()	   { return data; }
 
-	void unlockArray() const throw()
-	{
-		data.exit();
-	}
+	typedef typename TypeOfCriticalSectionToUse::ScopedLockType ScopedLockType;
 
 	juce_UseDebuggingNewOperator
 
@@ -2760,9 +2678,6 @@ public:
 
 	bool matches (const void* data, size_t dataSize) const throw();
 
-	template <class DataType>
-	operator DataType*() const throw()				  { return (DataType*) data; }
-
 	void* getData() const throw()				   { return data; }
 
 	template <typename Type>
@@ -2884,6 +2799,10 @@ protected:
 
 class JUCE_API  OutputStream
 {
+protected:
+
+	OutputStream();
+
 public:
 	virtual ~OutputStream();
 
@@ -2928,29 +2847,18 @@ public:
 							const bool asUnicode,
 							const bool writeUnicodeHeaderBytes);
 
-	virtual void printf (const char* format, ...);
-
-	virtual int writeFromInputStream (InputStream& source,
-									  int maxNumBytesToWrite);
-
-	virtual OutputStream& operator<< (const int number);
-
-	virtual OutputStream& operator<< (const double number);
-
-	virtual OutputStream& operator<< (const char character);
-
-	virtual OutputStream& operator<< (const char* const text);
-
-	virtual OutputStream& operator<< (const juce_wchar* const text);
-
-	virtual OutputStream& operator<< (const String& text);
+	virtual int writeFromInputStream (InputStream& source, int maxNumBytesToWrite);
 
 	juce_UseDebuggingNewOperator
-
-protected:
-
-	OutputStream() throw();
 };
+
+OutputStream& operator<< (OutputStream& stream, const int number);
+
+OutputStream& operator<< (OutputStream& stream, const double number);
+
+OutputStream& operator<< (OutputStream& stream, const char character);
+
+OutputStream& operator<< (OutputStream& stream, const char* const text);
 
 #endif   // __JUCE_OUTPUTSTREAM_JUCEHEADER__
 /*** End of inlined file: juce_OutputStream.h ***/
@@ -3007,9 +2915,6 @@ public:
 	bool isObject() const throw()	   { return type == objectType; }
 	bool isMethod() const throw()	   { return type == methodType; }
 
-	bool operator== (const var& other) const throw();
-	bool operator!= (const var& other) const throw();
-
 	void writeToStream (OutputStream& output) const;
 
 	static const var readFromStream (InputStream& input);
@@ -3050,6 +2955,8 @@ public:
 
 	juce_UseDebuggingNewOperator
 
+	bool equals (const var& other) const throw();
+
 private:
 	enum Type
 	{
@@ -3075,6 +2982,11 @@ private:
 	Type type;
 	ValueUnion value;
 };
+
+bool operator== (const var& v1, const var& v2) throw();
+bool operator!= (const var& v1, const var& v2) throw();
+bool operator== (const var& v1, const String& v2) throw();
+bool operator!= (const var& v1, const String& v2) throw();
 
 #endif   // __JUCE_VARIANT_JUCEHEADER__
 /*** End of inlined file: juce_Variant.h ***/
@@ -3272,7 +3184,7 @@ public:
 			referencedObject->incReferenceCount();
 	}
 
-	const ReferenceCountedObjectPtr<ReferenceCountedObjectClass>& operator= (const ReferenceCountedObjectPtr<ReferenceCountedObjectClass>& other)
+	ReferenceCountedObjectPtr<ReferenceCountedObjectClass>& operator= (const ReferenceCountedObjectPtr<ReferenceCountedObjectClass>& other)
 	{
 		ReferenceCountedObjectClass* const newObject = other.referencedObject;
 
@@ -3291,7 +3203,7 @@ public:
 		return *this;
 	}
 
-	const ReferenceCountedObjectPtr<ReferenceCountedObjectClass>& operator= (ReferenceCountedObjectClass* const newObject)
+	ReferenceCountedObjectPtr<ReferenceCountedObjectClass>& operator= (ReferenceCountedObjectClass* const newObject)
 	{
 		if (referencedObject != newObject)
 		{
@@ -3426,13 +3338,13 @@ public:
 
 	inline ~ScopedPointer()							 { delete object; }
 
-	const ScopedPointer& operator= (ScopedPointer& objectToTransferFrom)
+	ScopedPointer& operator= (ScopedPointer& objectToTransferFrom)
 	{
 		if (this != objectToTransferFrom.getAddress())
 		{
 			// Two ScopedPointers should never be able to refer to the same object - if
 			// this happens, you must have done something dodgy!
-			jassert (object != objectToTransferFrom.object);
+			jassert (object == 0 || object != objectToTransferFrom.object);
 
 			ObjectType* const oldObject = object;
 			object = objectToTransferFrom.object;
@@ -3443,7 +3355,7 @@ public:
 		return *this;
 	}
 
-	const ScopedPointer& operator= (ObjectType* const newObjectToTakePossessionOf)
+	ScopedPointer& operator= (ObjectType* const newObjectToTakePossessionOf)
 	{
 		if (object != newObjectToTakePossessionOf)
 		{
@@ -3461,16 +3373,11 @@ public:
 
 	inline ObjectType* operator->() const throw()				   { return object; }
 
-	template <class CastType>
-	inline operator CastType*() const throw()					   { return static_cast <CastType*> (object); }
+	inline ObjectType* const* operator&() const throw()				 { return static_cast <ObjectType* const*> (&object); }
 
-	inline ObjectType** operator&() const throw()				   { return (ObjectType**) &object; }
+	inline ObjectType** operator&() throw()					 { return static_cast <ObjectType**> (&object); }
 
 	ObjectType* release() throw()						   { ObjectType* const o = object; object = 0; return o; }
-
-	inline bool operator== (const ObjectType* const otherPointer) const throw()	 { return otherPointer == object; }
-
-	inline bool operator!= (const ObjectType* const otherPointer) const throw()	 { return otherPointer != object; }
 
 	void swapWith (ScopedPointer <ObjectType>& other) throw()
 	{
@@ -3488,6 +3395,18 @@ private:
 	// (Required as an alternative to the overloaded & operator).
 	const ScopedPointer* getAddress() const throw()				 { return this; }
 };
+
+template <class ObjectType>
+inline bool operator== (const ScopedPointer<ObjectType>& pointer1, const ObjectType* const pointer2) throw()
+{
+	return static_cast <ObjectType*> (pointer1) == pointer2;
+}
+
+template <class ObjectType>
+inline bool operator!= (const ScopedPointer<ObjectType>& pointer1, const ObjectType* const pointer2) throw()
+{
+	return static_cast <ObjectType*> (pointer1) != pointer2;
+}
 
 #endif   // __JUCE_SCOPEDPOINTER_JUCEHEADER__
 /*** End of inlined file: juce_ScopedPointer.h ***/
@@ -3511,7 +3430,7 @@ public:
 
 	void clear (const bool deleteObjects = true)
 	{
-		data.enter();
+		const ScopedLockType lock (getLock());
 
 		if (deleteObjects)
 		{
@@ -3521,7 +3440,6 @@ public:
 
 		data.setAllocatedSize (0);
 		numUsed = 0;
-		data.exit();
 	}
 
 	inline int size() const throw()
@@ -3531,110 +3449,71 @@ public:
 
 	inline ObjectClass* operator[] (const int index) const throw()
 	{
-		data.enter();
-		ObjectClass* const result = (((unsigned int) index) < (unsigned int) numUsed)
-											? data.elements [index]
-											: (ObjectClass*) 0;
-		data.exit();
-
-		return result;
+		const ScopedLockType lock (getLock());
+		return (((unsigned int) index) < (unsigned int) numUsed) ? data.elements [index]
+																 : static_cast <ObjectClass*> (0);
 	}
 
 	inline ObjectClass* getUnchecked (const int index) const throw()
 	{
-		data.enter();
+		const ScopedLockType lock (getLock());
 		jassert (((unsigned int) index) < (unsigned int) numUsed);
-		ObjectClass* const result = data.elements [index];
-		data.exit();
-
-		return result;
+		return data.elements [index];
 	}
 
 	inline ObjectClass* getFirst() const throw()
 	{
-		data.enter();
-		ObjectClass* const result = (numUsed > 0) ? data.elements [0]
-												  : (ObjectClass*) 0;
-		data.exit();
-		return result;
+		const ScopedLockType lock (getLock());
+		return numUsed > 0 ? data.elements [0]
+						   : static_cast <ObjectClass*> (0);
 	}
 
 	inline ObjectClass* getLast() const throw()
 	{
-		data.enter();
-		ObjectClass* const result = (numUsed > 0) ? data.elements [numUsed - 1]
-												  : (ObjectClass*) 0;
-		data.exit();
-
-		return result;
+		const ScopedLockType lock (getLock());
+		return numUsed > 0 ? data.elements [numUsed - 1]
+						   : static_cast <ObjectClass*> (0);
 	}
 
 	int indexOf (const ObjectClass* const objectToLookFor) const throw()
 	{
-		int result = -1;
+		const ScopedLockType lock (getLock());
+		ObjectClass* const* e = data.elements.getData();
+		ObjectClass* const* const end = e + numUsed;
 
-		data.enter();
-		ObjectClass* const* e = data.elements;
-
-		for (int i = numUsed; --i >= 0;)
+		while (e != end)
 		{
 			if (objectToLookFor == *e)
-			{
-				result = (int) (e - data.elements);
-				break;
-			}
+				return (int) (e - data.elements.getData());
 
 			++e;
 		}
 
-		data.exit();
-		return result;
+		return -1;
 	}
 
 	bool contains (const ObjectClass* const objectToLookFor) const throw()
 	{
-		data.enter();
+		const ScopedLockType lock (getLock());
+		ObjectClass* const* e = data.elements.getData();
+		ObjectClass* const* const end = e + numUsed;
 
-		ObjectClass* const* e = data.elements;
-		int i = numUsed;
-
-		while (i >= 4)
-		{
-			if (objectToLookFor == *e
-				 || objectToLookFor == *++e
-				 || objectToLookFor == *++e
-				 || objectToLookFor == *++e)
-			{
-				data.exit();
-				return true;
-			}
-
-			i -= 4;
-			++e;
-		}
-
-		while (i > 0)
+		while (e != end)
 		{
 			if (objectToLookFor == *e)
-			{
-				data.exit();
 				return true;
-			}
 
-			--i;
 			++e;
 		}
 
-		data.exit();
 		return false;
 	}
 
 	void add (const ObjectClass* const newObject) throw()
 	{
-		data.enter();
+		const ScopedLockType lock (getLock());
 		data.ensureAllocatedSize (numUsed + 1);
 		data.elements [numUsed++] = const_cast <ObjectClass*> (newObject);
-		data.exit();
 	}
 
 	void insert (int indexToInsertAt,
@@ -3642,7 +3521,7 @@ public:
 	{
 		if (indexToInsertAt >= 0)
 		{
-			data.enter();
+			const ScopedLockType lock (getLock());
 
 			if (indexToInsertAt > numUsed)
 				indexToInsertAt = numUsed;
@@ -3657,8 +3536,6 @@ public:
 
 			*e = const_cast <ObjectClass*> (newObject);
 			++numUsed;
-
-			data.exit();
 		}
 		else
 		{
@@ -3668,12 +3545,10 @@ public:
 
 	void addIfNotAlreadyThere (const ObjectClass* const newObject) throw()
 	{
-		data.enter();
+		const ScopedLockType lock (getLock());
 
 		if (! contains (newObject))
 			add (newObject);
-
-		data.exit();
 	}
 
 	void set (const int indexToChange,
@@ -3683,7 +3558,7 @@ public:
 		if (indexToChange >= 0)
 		{
 			ScopedPointer <ObjectClass> toDelete;
-			data.enter();
+			const ScopedLockType lock (getLock());
 
 			if (indexToChange < numUsed)
 			{
@@ -3702,8 +3577,6 @@ public:
 				data.ensureAllocatedSize (numUsed + 1);
 				data.elements [numUsed++] = const_cast <ObjectClass*> (newObject);
 			}
-
-			data.exit();
 		}
 	}
 
@@ -3713,9 +3586,8 @@ public:
 	{
 		(void) comparator;  // if you pass in an object with a static compareElements() method, this
 							// avoids getting warning messages about the parameter being unused
-		data.enter();
-		insert (findInsertIndexInSortedArray (comparator, (ObjectClass**) data.elements, newObject, 0, numUsed), newObject);
-		data.exit();
+		const ScopedLockType lock (getLock());
+		insert (findInsertIndexInSortedArray (comparator, data.elements.getData(), newObject, 0, numUsed), newObject);
 	}
 
 	template <class ElementComparator>
@@ -3724,7 +3596,7 @@ public:
 	{
 		(void) comparator;  // if you pass in an object with a static compareElements() method, this
 							// avoids getting warning messages about the parameter being unused
-		data.enter();
+		const ScopedLockType lock (getLock());
 
 		int start = 0;
 		int end = numUsed;
@@ -3733,12 +3605,10 @@ public:
 		{
 			if (start >= end)
 			{
-				data.exit();
 				return -1;
 			}
 			else if (comparator.compareElements (objectToLookFor, data.elements [start]) == 0)
 			{
-				data.exit();
 				return start;
 			}
 			else
@@ -3746,10 +3616,7 @@ public:
 				const int halfway = (start + end) >> 1;
 
 				if (halfway == start)
-				{
-					data.exit();
 					return -1;
-				}
 				else if (comparator.compareElements (objectToLookFor, data.elements [halfway]) >= 0)
 					start = halfway;
 				else
@@ -3762,7 +3629,7 @@ public:
 				 const bool deleteObject = true)
 	{
 		ScopedPointer <ObjectClass> toDelete;
-		data.enter();
+		const ScopedLockType lock (getLock());
 
 		if (((unsigned int) indexToRemove) < (unsigned int) numUsed)
 		{
@@ -3780,35 +3647,31 @@ public:
 			if ((numUsed << 1) < data.numAllocated)
 				minimiseStorageOverheads();
 		}
-
-		data.exit();
 	}
 
 	void removeObject (const ObjectClass* const objectToRemove,
 					   const bool deleteObject = true)
 	{
-		data.enter();
-		ObjectClass** e = data.elements;
+		const ScopedLockType lock (getLock());
+		ObjectClass** e = data.elements.getData();
 
 		for (int i = numUsed; --i >= 0;)
 		{
 			if (objectToRemove == *e)
 			{
-				remove ((int) (e - data.elements), deleteObject);
+				remove ((int) (e - data.elements.getData()), deleteObject);
 				break;
 			}
 
 			++e;
 		}
-
-		data.exit();
 	}
 
 	void removeRange (int startIndex,
 					  const int numberToRemove,
 					  const bool deleteObjects = true)
 	{
-		data.enter();
+		const ScopedLockType lock (getLock());
 		const int endIndex = jlimit (0, numUsed, startIndex + numberToRemove);
 		startIndex = jlimit (0, numUsed, startIndex);
 
@@ -3837,14 +3700,12 @@ public:
 			if ((numUsed << 1) < data.numAllocated)
 				minimiseStorageOverheads();
 		}
-
-		data.exit();
 	}
 
 	void removeLast (int howManyToRemove = 1,
 					 const bool deleteObjects = true)
 	{
-		data.enter();
+		const ScopedLockType lock (getLock());
 
 		if (howManyToRemove >= numUsed)
 		{
@@ -3855,14 +3716,12 @@ public:
 			while (--howManyToRemove >= 0)
 				remove (numUsed - 1, deleteObjects);
 		}
-
-		data.exit();
 	}
 
 	void swap (const int index1,
 			   const int index2) throw()
 	{
-		data.enter();
+		const ScopedLockType lock (getLock());
 
 		if (((unsigned int) index1) < (unsigned int) numUsed
 			 && ((unsigned int) index2) < (unsigned int) numUsed)
@@ -3870,8 +3729,6 @@ public:
 			swapVariables (data.elements [index1],
 						   data.elements [index2]);
 		}
-
-		data.exit();
 	}
 
 	void move (const int currentIndex,
@@ -3879,7 +3736,7 @@ public:
 	{
 		if (currentIndex != newIndex)
 		{
-			data.enter();
+			const ScopedLockType lock (getLock());
 
 			if (((unsigned int) currentIndex) < (unsigned int) numUsed)
 			{
@@ -3903,33 +3760,28 @@ public:
 
 				data.elements [newIndex] = value;
 			}
-
-			data.exit();
 		}
 	}
 
-	void swapWithArray (OwnedArray <ObjectClass>& otherArray) throw()
+	void swapWithArray (OwnedArray& otherArray) throw()
 	{
-		data.enter();
-		otherArray.data.enter();
+		const ScopedLockType lock1 (getLock());
+		const ScopedLockType lock2 (otherArray.getLock());
+
 		data.swapWith (otherArray.data);
 		swapVariables (numUsed, otherArray.numUsed);
-		otherArray.data.exit();
-		data.exit();
 	}
 
 	void minimiseStorageOverheads() throw()
 	{
-		data.enter();
+		const ScopedLockType lock (getLock());
 		data.shrinkToNoMoreThan (numUsed);
-		data.exit();
 	}
 
 	void ensureStorageAllocated (const int minNumElements) throw()
 	{
-		data.enter();
+		const ScopedLockType lock (getLock());
 		data.ensureAllocatedSize (minNumElements);
-		data.exit();
 	}
 
 	template <class ElementComparator>
@@ -3939,20 +3791,13 @@ public:
 		(void) comparator;  // if you pass in an object with a static compareElements() method, this
 							// avoids getting warning messages about the parameter being unused
 
-		data.enter();
-		sortArray (comparator, (ObjectClass**) data.elements, 0, size() - 1, retainOrderOfEquivalentItems);
-		data.exit();
+		const ScopedLockType lock (getLock());
+		sortArray (comparator, data.elements.getData(), 0, size() - 1, retainOrderOfEquivalentItems);
 	}
 
-	void lockArray() const throw()
-	{
-		data.enter();
-	}
+	inline const TypeOfCriticalSectionToUse& getLock() const throw()	   { return data; }
 
-	void unlockArray() const throw()
-	{
-		data.exit();
-	}
+	typedef typename TypeOfCriticalSectionToUse::ScopedLockType ScopedLockType;
 
 	juce_UseDebuggingNewOperator
 
@@ -4012,7 +3857,7 @@ public:
 
 	~StringArray();
 
-	const StringArray& operator= (const StringArray& other);
+	StringArray& operator= (const StringArray& other);
 
 	bool operator== (const StringArray& other) const;
 
@@ -4097,7 +3942,7 @@ public:
 
 	~StringPairArray() throw();
 
-	const StringPairArray& operator= (const StringPairArray& other) throw();
+	StringPairArray& operator= (const StringPairArray& other) throw();
 
 	bool operator== (const StringPairArray& other) const throw();
 
@@ -4168,7 +4013,7 @@ public:
 
 	RelativeTime (const RelativeTime& other) throw();
 
-	const RelativeTime& operator= (const RelativeTime& other) throw();
+	RelativeTime& operator= (const RelativeTime& other) throw();
 
 	~RelativeTime() throw();
 
@@ -4249,7 +4094,7 @@ public:
 
 	~Time() throw();
 
-	const Time& operator= (const Time& other) throw();
+	Time& operator= (const Time& other) throw();
 
 	static const Time JUCE_CALLTYPE getCurrentTime() throw();
 
@@ -4361,9 +4206,9 @@ public:
 
 	~File()  {}
 
-	const File& operator= (const String& newFilePath);
+	File& operator= (const String& newFilePath);
 
-	const File& operator= (const File& otherFile);
+	File& operator= (const File& otherFile);
 
 	static const File nonexistent;
 
@@ -4377,7 +4222,7 @@ public:
 
 	static const String descriptionOfSizeInBytes (const int64 bytes);
 
-	const String& getFullPathName() const		   { return fullPath; }
+	const String& getFullPathName() const throw()	   { return fullPath; }
 
 	const String getFileName() const;
 
@@ -4595,7 +4440,7 @@ public:
 
 	XmlElement (const XmlElement& other) throw();
 
-	const XmlElement& operator= (const XmlElement& other) throw();
+	XmlElement& operator= (const XmlElement& other) throw();
 
 	~XmlElement() throw();
 
@@ -4748,7 +4593,7 @@ private:
 		XmlAttributeNode* next;
 
 	private:
-		const XmlAttributeNode& operator= (const XmlAttributeNode&);
+		XmlAttributeNode& operator= (const XmlAttributeNode&);
 	};
 
 	XmlAttributeNode* attributes;
@@ -4776,7 +4621,7 @@ public:
 
 	PropertySet (const PropertySet& other) throw();
 
-	const PropertySet& operator= (const PropertySet& other) throw();
+	PropertySet& operator= (const PropertySet& other) throw();
 
 	virtual ~PropertySet();
 
@@ -4906,6 +4751,11 @@ public:
 			end = newStart;
 	}
 
+	const Range withStart (const ValueType newStart) const throw()
+	{
+		return Range (newStart, jmax (newStart, end));
+	}
+
 	void setEnd (const ValueType newEnd) throw()
 	{
 		end = newEnd;
@@ -4913,9 +4763,19 @@ public:
 			start = newEnd;
 	}
 
+	const Range withEnd (const ValueType newEnd) const throw()
+	{
+		return Range (jmin (start, newEnd), newEnd);
+	}
+
 	void setLength (const ValueType newLength) throw()
 	{
 		end = start + jmax (ValueType(), newLength);
+	}
+
+	const Range withLength (const ValueType newLength) const throw()
+	{
+		return Range (start, start + newLength);
 	}
 
 	inline const Range& operator+= (const ValueType amountToAdd) throw()
@@ -4998,7 +4858,7 @@ public:
 
 	ReferenceCountedArray (const ReferenceCountedArray<ObjectClass, TypeOfCriticalSectionToUse>& other) throw()
 	{
-		other.lockArray();
+		const ScopedLockType lock (other.getLock());
 		numUsed = other.numUsed;
 		data.setAllocatedSize (numUsed);
 		memcpy (data.elements, other.data.elements, numUsed * sizeof (ObjectClass*));
@@ -5006,8 +4866,6 @@ public:
 		for (int i = numUsed; --i >= 0;)
 			if (data.elements[i] != 0)
 				data.elements[i]->incReferenceCount();
-
-		other.unlockArray();
 	}
 
 	ReferenceCountedArray<ObjectClass, TypeOfCriticalSectionToUse>& operator= (const ReferenceCountedArray<ObjectClass, TypeOfCriticalSectionToUse>& other) throw()
@@ -5028,7 +4886,7 @@ public:
 
 	void clear()
 	{
-		data.enter();
+		const ScopedLockType lock (getLock());
 
 		while (numUsed > 0)
 			if (data.elements [--numUsed] != 0)
@@ -5036,8 +4894,6 @@ public:
 
 		jassert (numUsed == 0);
 		data.setAllocatedSize (0);
-
-		data.exit();
 	}
 
 	inline int size() const throw()
@@ -5047,95 +4903,74 @@ public:
 
 	inline const ReferenceCountedObjectPtr<ObjectClass> operator[] (const int index) const throw()
 	{
-		data.enter();
-		const ReferenceCountedObjectPtr<ObjectClass> result ((((unsigned int) index) < (unsigned int) numUsed)
-																? data.elements [index]
-																: (ObjectClass*) 0);
-		data.exit();
-		return result;
+		const ScopedLockType lock (getLock());
+		return (((unsigned int) index) < (unsigned int) numUsed) ? data.elements [index]
+																 : static_cast <ObjectClass*> (0);
 	}
 
 	inline const ReferenceCountedObjectPtr<ObjectClass> getUnchecked (const int index) const throw()
 	{
-		data.enter();
+		const ScopedLockType lock (getLock());
 		jassert (((unsigned int) index) < (unsigned int) numUsed);
-		const ReferenceCountedObjectPtr<ObjectClass> result (data.elements [index]);
-		data.exit();
-		return result;
+		return data.elements [index];
 	}
 
 	inline const ReferenceCountedObjectPtr<ObjectClass> getFirst() const throw()
 	{
-		data.enter();
-		const ReferenceCountedObjectPtr<ObjectClass> result ((numUsed > 0) ? data.elements [0]
-																		   : (ObjectClass*) 0);
-		data.exit();
-
-		return result;
+		const ScopedLockType lock (getLock());
+		return numUsed > 0 ? data.elements [0]
+						   : static_cast <ObjectClass*> (0);
 	}
 
 	inline const ReferenceCountedObjectPtr<ObjectClass> getLast() const throw()
 	{
-		data.enter();
-		const ReferenceCountedObjectPtr<ObjectClass> result ((numUsed > 0) ? data.elements [numUsed - 1]
-																		   : (ObjectClass*) 0);
-		data.exit();
-
-		return result;
+		const ScopedLockType lock (getLock());
+		return numUsed > 0 ? data.elements [numUsed - 1]
+						   : static_cast <ObjectClass*> (0);
 	}
 
 	int indexOf (const ObjectClass* const objectToLookFor) const throw()
 	{
-		int result = -1;
+		const ScopedLockType lock (getLock());
+		ObjectClass** e = data.elements.getData();
+		ObjectClass** const end = e + numUsed;
 
-		data.enter();
-		ObjectClass** e = data.elements;
-
-		for (int i = numUsed; --i >= 0;)
+		while (e != end)
 		{
 			if (objectToLookFor == *e)
-			{
-				result = (int) (e - data.elements);
-				break;
-			}
+				return (int) (e - data.elements.getData());
 
 			++e;
 		}
 
-		data.exit();
-		return result;
+		return -1;
 	}
 
 	bool contains (const ObjectClass* const objectToLookFor) const throw()
 	{
-		data.enter();
-		ObjectClass** e = data.elements;
+		const ScopedLockType lock (getLock());
+		ObjectClass** e = data.elements.getData();
+		ObjectClass** const end = e + numUsed;
 
-		for (int i = numUsed; --i >= 0;)
+		while (e != end)
 		{
 			if (objectToLookFor == *e)
-			{
-				data.exit();
 				return true;
-			}
 
 			++e;
 		}
 
-		data.exit();
 		return false;
 	}
 
 	void add (ObjectClass* const newObject) throw()
 	{
-		data.enter();
+		const ScopedLockType lock (getLock());
 		data.ensureAllocatedSize (numUsed + 1);
 		data.elements [numUsed++] = newObject;
 
 		if (newObject != 0)
 			newObject->incReferenceCount();
-
-		data.exit();
 	}
 
 	void insert (int indexToInsertAt,
@@ -5143,7 +4978,7 @@ public:
 	{
 		if (indexToInsertAt >= 0)
 		{
-			data.enter();
+			const ScopedLockType lock (getLock());
 
 			if (indexToInsertAt > numUsed)
 				indexToInsertAt = numUsed;
@@ -5162,7 +4997,6 @@ public:
 				newObject->incReferenceCount();
 
 			++numUsed;
-			data.exit();
 		}
 		else
 		{
@@ -5172,12 +5006,9 @@ public:
 
 	void addIfNotAlreadyThere (ObjectClass* const newObject) throw()
 	{
-		data.enter();
-
+		const ScopedLockType lock (getLock());
 		if (! contains (newObject))
 			add (newObject);
-
-		data.exit();
 	}
 
 	void set (const int indexToChange,
@@ -5185,7 +5016,7 @@ public:
 	{
 		if (indexToChange >= 0)
 		{
-			data.enter();
+			const ScopedLockType lock (getLock());
 
 			if (newObject != 0)
 				newObject->incReferenceCount();
@@ -5202,8 +5033,6 @@ public:
 				data.ensureAllocatedSize (numUsed + 1);
 				data.elements [numUsed++] = newObject;
 			}
-
-			data.exit();
 		}
 	}
 
@@ -5212,7 +5041,7 @@ public:
 				   int numElementsToAdd = -1) throw()
 	{
 		arrayToAddFrom.lockArray();
-		data.enter();
+		const ScopedLockType lock (getLock());
 
 		if (startIndex < 0)
 		{
@@ -5231,7 +5060,6 @@ public:
 				add (arrayToAddFrom.getUnchecked (startIndex++));
 		}
 
-		data.exit();
 		arrayToAddFrom.unlockArray();
 	}
 
@@ -5239,29 +5067,26 @@ public:
 	void addSorted (ElementComparator& comparator,
 					ObjectClass* newObject) throw()
 	{
-		data.enter();
-		insert (findInsertIndexInSortedArray (comparator, (ObjectClass**) data.elements, newObject, 0, numUsed), newObject);
-		data.exit();
+		const ScopedLockType lock (getLock());
+		insert (findInsertIndexInSortedArray (comparator, data.elements.getData(), newObject, 0, numUsed), newObject);
 	}
 
 	template <class ElementComparator>
 	void addOrReplaceSorted (ElementComparator& comparator,
 							 ObjectClass* newObject) throw()
 	{
-		data.enter();
-		const int index = findInsertIndexInSortedArray (comparator, (ObjectClass**) data.elements, newObject, 0, numUsed);
+		const ScopedLockType lock (getLock());
+		const int index = findInsertIndexInSortedArray (comparator, data.elements.getData(), newObject, 0, numUsed);
 
 		if (index > 0 && comparator.compareElements (newObject, data.elements [index - 1]) == 0)
 			set (index - 1, newObject); // replace an existing object that matches
 		else
 			insert (index, newObject);  // no match, so insert the new one
-
-		data.exit();
 	}
 
 	void remove (const int indexToRemove)
 	{
-		data.enter();
+		const ScopedLockType lock (getLock());
 
 		if (((unsigned int) indexToRemove) < (unsigned int) numUsed)
 		{
@@ -5279,21 +5104,18 @@ public:
 			if ((numUsed << 1) < data.numAllocated)
 				minimiseStorageOverheads();
 		}
-
-		data.exit();
 	}
 
 	void removeObject (ObjectClass* const objectToRemove)
 	{
-		data.enter();
+		const ScopedLockType lock (getLock());
 		remove (indexOf (objectToRemove));
-		data.exit();
 	}
 
 	void removeRange (const int startIndex,
 					  const int numberToRemove)
 	{
-		data.enter();
+		const ScopedLockType lock (getLock());
 
 		const int start = jlimit (0, numUsed, startIndex);
 		const int end   = jlimit (0, numUsed, startIndex + numberToRemove);
@@ -5324,27 +5146,23 @@ public:
 			if ((numUsed << 1) < data.numAllocated)
 				minimiseStorageOverheads();
 		}
-
-		data.exit();
 	}
 
 	void removeLast (int howManyToRemove = 1)
 	{
-		data.enter();
+		const ScopedLockType lock (getLock());
 
 		if (howManyToRemove > numUsed)
 			howManyToRemove = numUsed;
 
 		while (--howManyToRemove >= 0)
 			remove (numUsed - 1);
-
-		data.exit();
 	}
 
 	void swap (const int index1,
 			   const int index2) throw()
 	{
-		data.enter();
+		const ScopedLockType lock (getLock());
 
 		if (((unsigned int) index1) < (unsigned int) numUsed
 			 && ((unsigned int) index2) < (unsigned int) numUsed)
@@ -5352,8 +5170,6 @@ public:
 			swapVariables (data.elements [index1],
 						   data.elements [index2]);
 		}
-
-		data.exit();
 	}
 
 	void move (const int currentIndex,
@@ -5361,7 +5177,7 @@ public:
 	{
 		if (currentIndex != newIndex)
 		{
-			data.enter();
+			const ScopedLockType lock (getLock());
 
 			if (((unsigned int) currentIndex) < (unsigned int) numUsed)
 			{
@@ -5385,44 +5201,31 @@ public:
 
 				data.elements [newIndex] = value;
 			}
-
-			data.exit();
 		}
 	}
 
-	void swapWithArray (ReferenceCountedArray<ObjectClass, TypeOfCriticalSectionToUse>& otherArray) throw()
+	void swapWithArray (ReferenceCountedArray& otherArray) throw()
 	{
-		data.enter();
-		otherArray.data.enter();
+		const ScopedLockType lock1 (getLock());
+		const ScopedLockType lock2 (otherArray.getLock());
+
 		data.swapWith (otherArray.data);
 		swapVariables (numUsed, otherArray.numUsed);
-		otherArray.data.exit();
-		data.exit();
 	}
 
-	bool operator== (const ReferenceCountedArray<ObjectClass, TypeOfCriticalSectionToUse>& other) const throw()
+	bool operator== (const ReferenceCountedArray& other) const throw()
 	{
-		other.lockArray();
-		data.enter();
+		const ScopedLockType lock2 (other.getLock());
+		const ScopedLockType lock1 (getLock());
 
-		bool result = numUsed == other.numUsed;
+		if (numUsed != other.numUsed)
+			return false;
 
-		if (result)
-		{
-			for (int i = numUsed; --i >= 0;)
-			{
-				if (data.elements [i] != other.data.elements [i])
-				{
-					result = false;
-					break;
-				}
-			}
-		}
+		for (int i = numUsed; --i >= 0;)
+			if (data.elements [i] != other.data.elements [i])
+				return false;
 
-		data.exit();
-		other.unlockArray();
-
-		return result;
+		return true;
 	}
 
 	bool operator!= (const ReferenceCountedArray<ObjectClass, TypeOfCriticalSectionToUse>& other) const throw()
@@ -5437,27 +5240,19 @@ public:
 		(void) comparator;  // if you pass in an object with a static compareElements() method, this
 							// avoids getting warning messages about the parameter being unused
 
-		data.enter();
-		sortArray (comparator, (ObjectClass**) data.elements, 0, size() - 1, retainOrderOfEquivalentItems);
-		data.exit();
+		const ScopedLockType lock (getLock());
+		sortArray (comparator, data.elements.getData(), 0, size() - 1, retainOrderOfEquivalentItems);
 	}
 
 	void minimiseStorageOverheads() throw()
 	{
-		data.enter();
+		const ScopedLockType lock (getLock());
 		data.shrinkToNoMoreThan (numUsed);
-		data.exit();
 	}
 
-	void lockArray() const throw()
-	{
-		data.enter();
-	}
+	inline const TypeOfCriticalSectionToUse& getLock() const throw()	   { return data; }
 
-	void unlockArray() const throw()
-	{
-		data.exit();
-	}
+	typedef typename TypeOfCriticalSectionToUse::ScopedLockType ScopedLockType;
 
 	juce_UseDebuggingNewOperator
 
@@ -5498,33 +5293,29 @@ public:
 	{
 	}
 
-	SortedSet (const SortedSet<ElementType, TypeOfCriticalSectionToUse>& other) throw()
+	SortedSet (const SortedSet& other) throw()
 	{
-		other.lockSet();
+		const ScopedLockType lock (other.getLock());
 		numUsed = other.numUsed;
 		data.setAllocatedSize (other.numUsed);
 		memcpy (data.elements, other.data.elements, numUsed * sizeof (ElementType));
-		other.unlockSet();
 	}
 
 	~SortedSet() throw()
 	{
 	}
 
-	SortedSet <ElementType, TypeOfCriticalSectionToUse>& operator= (const SortedSet <ElementType, TypeOfCriticalSectionToUse>& other) throw()
+	SortedSet& operator= (const SortedSet& other) throw()
 	{
 		if (this != &other)
 		{
-			other.lockSet();
-			data.enter();
+			const ScopedLockType lock1 (other.getLock());
+			const ScopedLockType lock2 (getLock());
 
 			data.ensureAllocatedSize (other.size());
 			numUsed = other.numUsed;
 			memcpy (data.elements, other.data.elements, numUsed * sizeof (ElementType));
 			minimiseStorageOverheads();
-
-			data.exit();
-			other.unlockSet();
 		}
 
 		return *this;
@@ -5532,24 +5323,15 @@ public:
 
 	bool operator== (const SortedSet<ElementType>& other) const throw()
 	{
-		data.enter();
+		const ScopedLockType lock (getLock());
 
 		if (numUsed != other.numUsed)
-		{
-			data.exit();
 			return false;
-		}
 
 		for (int i = numUsed; --i >= 0;)
-		{
-			if (data.elements [i] != other.data.elements [i])
-			{
-				data.exit();
+			if (data.elements[i] != other.data.elements[i])
 				return false;
-			}
-		}
 
-		data.exit();
 		return true;
 	}
 
@@ -5560,17 +5342,15 @@ public:
 
 	void clear() throw()
 	{
-		data.enter();
+		const ScopedLockType lock (getLock());
 		data.setAllocatedSize (0);
 		numUsed = 0;
-		data.exit();
 	}
 
 	void clearQuick() throw()
 	{
-		data.enter();
+		const ScopedLockType lock (getLock());
 		numUsed = 0;
-		data.exit();
 	}
 
 	inline int size() const throw()
@@ -5580,48 +5360,33 @@ public:
 
 	inline ElementType operator[] (const int index) const throw()
 	{
-		data.enter();
-		const ElementType result = (((unsigned int) index) < (unsigned int) numUsed)
-										? data.elements [index]
-										: (ElementType) 0;
-		data.exit();
-
-		return result;
+		const ScopedLockType lock (getLock());
+		return (((unsigned int) index) < (unsigned int) numUsed) ? data.elements [index]
+																 : ElementType();
 	}
 
 	inline ElementType getUnchecked (const int index) const throw()
 	{
-		data.enter();
+		const ScopedLockType lock (getLock());
 		jassert (((unsigned int) index) < (unsigned int) numUsed);
-		const ElementType result = data.elements [index];
-		data.exit();
-
-		return result;
+		return data.elements [index];
 	}
 
 	inline ElementType getFirst() const throw()
 	{
-		data.enter();
-		const ElementType result = (numUsed > 0) ? data.elements [0]
-												 : (ElementType) 0;
-		data.exit();
-
-		return result;
+		const ScopedLockType lock (getLock());
+		return numUsed > 0 ? data.elements [0] : ElementType();
 	}
 
 	inline ElementType getLast() const throw()
 	{
-		data.enter();
-		const ElementType result = (numUsed > 0) ? data.elements [numUsed - 1]
-												 : (ElementType) 0;
-		data.exit();
-
-		return result;
+		const ScopedLockType lock (getLock());
+		return numUsed > 0 ? data.elements [numUsed - 1] : ElementType();
 	}
 
 	int indexOf (const ElementType elementToLookFor) const throw()
 	{
-		data.enter();
+		const ScopedLockType lock (getLock());
 
 		int start = 0;
 		int end = numUsed;
@@ -5630,12 +5395,10 @@ public:
 		{
 			if (start >= end)
 			{
-				data.exit();
 				return -1;
 			}
 			else if (elementToLookFor == data.elements [start])
 			{
-				data.exit();
 				return start;
 			}
 			else
@@ -5643,10 +5406,7 @@ public:
 				const int halfway = (start + end) >> 1;
 
 				if (halfway == start)
-				{
-					data.exit();
 					return -1;
-				}
 				else if (elementToLookFor >= data.elements [halfway])
 					start = halfway;
 				else
@@ -5657,7 +5417,7 @@ public:
 
 	bool contains (const ElementType elementToLookFor) const throw()
 	{
-		data.enter();
+		const ScopedLockType lock (getLock());
 
 		int start = 0;
 		int end = numUsed;
@@ -5666,12 +5426,10 @@ public:
 		{
 			if (start >= end)
 			{
-				data.exit();
 				return false;
 			}
 			else if (elementToLookFor == data.elements [start])
 			{
-				data.exit();
 				return true;
 			}
 			else
@@ -5679,10 +5437,7 @@ public:
 				const int halfway = (start + end) >> 1;
 
 				if (halfway == start)
-				{
-					data.exit();
 					return false;
-				}
 				else if (elementToLookFor >= data.elements [halfway])
 					start = halfway;
 				else
@@ -5693,7 +5448,7 @@ public:
 
 	void add (const ElementType newElement) throw()
 	{
-		data.enter();
+		const ScopedLockType lock (getLock());
 
 		int start = 0;
 		int end = numUsed;
@@ -5729,19 +5484,15 @@ public:
 					end = halfway;
 			}
 		}
-
-		data.exit();
 	}
 
 	void addArray (const ElementType* elementsToAdd,
 				   int numElementsToAdd) throw()
 	{
-		data.enter();
+		const ScopedLockType lock (getLock());
 
 		while (--numElementsToAdd >= 0)
 			add (*elementsToAdd++);
-
-		data.exit();
 	}
 
 	template <class OtherSetType>
@@ -5749,8 +5500,8 @@ public:
 				 int startIndex = 0,
 				 int numElementsToAdd = -1) throw()
 	{
-		setToAddFrom.lockSet();
-		data.enter();
+		const typename OtherSetType::ScopedLockType lock1 (setToAddFrom.getLock());
+		const ScopedLockType lock2 (getLock());
 		jassert (this != &setToAddFrom);
 
 		if (this != &setToAddFrom)
@@ -5766,14 +5517,11 @@ public:
 
 			addArray (setToAddFrom.elements + startIndex, numElementsToAdd);
 		}
-
-		data.exit();
-		setToAddFrom.unlockSet();
 	}
 
 	ElementType remove (const int indexToRemove) throw()
 	{
-		data.enter();
+		const ScopedLockType lock (getLock());
 
 		if (((unsigned int) indexToRemove) < (unsigned int) numUsed)
 		{
@@ -5789,28 +5537,23 @@ public:
 			if ((numUsed << 1) < data.numAllocated)
 				minimiseStorageOverheads();
 
-			data.exit();
 			return removed;
 		}
-		else
-		{
-			data.exit();
-			return 0;
-		}
+
+		return 0;
 	}
 
 	void removeValue (const ElementType valueToRemove) throw()
 	{
-		data.enter();
+		const ScopedLockType lock (getLock());
 		remove (indexOf (valueToRemove));
-		data.exit();
 	}
 
 	template <class OtherSetType>
 	void removeValuesIn (const OtherSetType& otherSet) throw()
 	{
-		otherSet.lockSet();
-		data.enter();
+		const typename OtherSetType::ScopedLockType lock1 (otherSet.getLock());
+		const ScopedLockType lock2 (getLock());
 
 		if (this == &otherSet)
 		{
@@ -5825,16 +5568,13 @@ public:
 						remove (i);
 			}
 		}
-
-		data.exit();
-		otherSet.unlockSet();
 	}
 
 	template <class OtherSetType>
 	void removeValuesNotIn (const OtherSetType& otherSet) throw()
 	{
-		otherSet.lockSet();
-		data.enter();
+		const typename OtherSetType::ScopedLockType lock1 (otherSet.getLock());
+		const ScopedLockType lock2 (getLock());
 
 		if (this != &otherSet)
 		{
@@ -5849,27 +5589,17 @@ public:
 						remove (i);
 			}
 		}
-
-		data.exit();
-		otherSet.lockSet();
 	}
 
 	void minimiseStorageOverheads() throw()
 	{
-		data.enter();
+		const ScopedLockType lock (getLock());
 		data.shrinkToNoMoreThan (numUsed);
-		data.exit();
 	}
 
-	void lockSet() const throw()
-	{
-		data.enter();
-	}
+	inline const TypeOfCriticalSectionToUse& getLock() const throw()	   { return data; }
 
-	void unlockSet() const throw()
-	{
-		data.exit();
-	}
+	typedef typename TypeOfCriticalSectionToUse::ScopedLockType ScopedLockType;
 
 	juce_UseDebuggingNewOperator
 
@@ -6217,7 +5947,7 @@ private:
 	MessageListener* messageRecipient;
 
 	Message (const Message&);
-	const Message& operator= (const Message&);
+	Message& operator= (const Message&);
 };
 
 #endif   // __JUCE_MESSAGE_JUCEHEADER__
@@ -6273,7 +6003,7 @@ private:
 
 	private:
 		AsyncUpdaterInternal (const AsyncUpdaterInternal&);
-		const AsyncUpdaterInternal& operator= (const AsyncUpdaterInternal&);
+		AsyncUpdaterInternal& operator= (const AsyncUpdaterInternal&);
 	};
 
 	AsyncUpdaterInternal internalAsyncHandler;
@@ -6303,7 +6033,7 @@ public:
 
 	void setValue (const var& newValue);
 
-	const Value& operator= (const var& newValue);
+	Value& operator= (const var& newValue);
 
 	void referTo (const Value& valueToReferTo);
 
@@ -6347,7 +6077,7 @@ public:
 		void handleAsyncUpdate();
 
 		ValueSource (const ValueSource&);
-		const ValueSource& operator= (const ValueSource&);
+		ValueSource& operator= (const ValueSource&);
 	};
 
 	explicit Value (ValueSource* const valueSource);
@@ -6364,7 +6094,7 @@ private:
 
 	// This is disallowed to avoid confusion about whether it should
 	// do a by-value or by-reference copy.
-	const Value& operator= (const Value& other);
+	Value& operator= (const Value& other);
 };
 
 #endif   // __JUCE_VALUE_JUCEHEADER__
@@ -6427,7 +6157,7 @@ private:
 	const CriticalSection& lock_;
 
 	ScopedLock (const ScopedLock&);
-	const ScopedLock& operator= (const ScopedLock&);
+	ScopedLock& operator= (const ScopedLock&);
 };
 
 class ScopedUnlock
@@ -6443,7 +6173,7 @@ private:
 	const CriticalSection& lock_;
 
 	ScopedUnlock (const ScopedLock&);
-	const ScopedUnlock& operator= (const ScopedUnlock&);
+	ScopedUnlock& operator= (const ScopedUnlock&);
 };
 
 #endif   // __JUCE_SCOPEDLOCK_JUCEHEADER__
@@ -6480,7 +6210,7 @@ private:
 	bool messagePending;
 
 	ChangeListenerList (const ChangeListenerList&);
-	const ChangeListenerList& operator= (const ChangeListenerList&);
+	ChangeListenerList& operator= (const ChangeListenerList&);
 };
 
 #endif   // __JUCE_CHANGELISTENERLIST_JUCEHEADER__
@@ -6511,7 +6241,7 @@ private:
 	ChangeListenerList changeListenerList;
 
 	ChangeBroadcaster (const ChangeBroadcaster&);
-	const ChangeBroadcaster& operator= (const ChangeBroadcaster&);
+	ChangeBroadcaster& operator= (const ChangeBroadcaster&);
 };
 
 #endif   // __JUCE_CHANGEBROADCASTER_JUCEHEADER__
@@ -6593,7 +6323,7 @@ private:
 
 	// disallow copy constructor
 	UndoManager (const UndoManager&);
-	const UndoManager& operator= (const UndoManager&);
+	UndoManager& operator= (const UndoManager&);
 };
 
 #endif   // __JUCE_UNDOMANAGER_JUCEHEADER__
@@ -6607,7 +6337,7 @@ public:
 
 	ValueTree (const ValueTree& other);
 
-	const ValueTree& operator= (const ValueTree& other);
+	ValueTree& operator= (const ValueTree& other);
 
 	~ValueTree();
 
@@ -6737,7 +6467,7 @@ private:
 		juce_UseDebuggingNewOperator
 
 	private:
-		const SharedObject& operator= (const SharedObject&);
+		SharedObject& operator= (const SharedObject&);
 	};
 
 	template <typename ElementComparator>
@@ -6831,7 +6561,7 @@ private:
 	void trimFileSize (int maxFileSizeBytes) const;
 
 	FileLogger (const FileLogger&);
-	const FileLogger& operator= (const FileLogger&);
+	FileLogger& operator= (const FileLogger&);
 };
 
 #endif   // __JUCE_FILELOGGER_JUCEHEADER__
@@ -7020,7 +6750,7 @@ private:
 	void* pool;
 
 	ScopedAutoReleasePool (const ScopedAutoReleasePool&);
-	const ScopedAutoReleasePool& operator= (const ScopedAutoReleasePool&);
+	ScopedAutoReleasePool& operator= (const ScopedAutoReleasePool&);
 };
 
 #endif
@@ -7083,7 +6813,7 @@ private:
 	bool open (const bool openInExclusiveMode);
 
 	AppleRemoteDevice (const AppleRemoteDevice&);
-	const AppleRemoteDevice& operator= (const AppleRemoteDevice&);
+	AppleRemoteDevice& operator= (const AppleRemoteDevice&);
 };
 
 #endif
@@ -7459,7 +7189,7 @@ public:
 
 	BlowFish (const BlowFish& other);
 
-	const BlowFish& operator= (const BlowFish& other);
+	BlowFish& operator= (const BlowFish& other);
 
 	~BlowFish();
 
@@ -7495,7 +7225,7 @@ public:
 
 	MD5 (const MD5& other);
 
-	const MD5& operator= (const MD5& other);
+	MD5& operator= (const MD5& other);
 
 	MD5 (const MemoryBlock& data);
 
@@ -7638,7 +7368,7 @@ private:
 	ScopedPointer <DirectoryIterator> subIterator;
 
 	DirectoryIterator (const DirectoryIterator&);
-	const DirectoryIterator& operator= (const DirectoryIterator&);
+	DirectoryIterator& operator= (const DirectoryIterator&);
 };
 
 #endif   // __JUCE_DIRECTORYITERATOR_JUCEHEADER__
@@ -7680,7 +7410,7 @@ private:
 	bool needToSeek;
 
 	FileInputStream (const FileInputStream&);
-	const FileInputStream& operator= (const FileInputStream&);
+	FileInputStream& operator= (const FileInputStream&);
 };
 
 #endif   // __JUCE_FILEINPUTSTREAM_JUCEHEADER__
@@ -7745,7 +7475,7 @@ public:
 
 	~FileSearchPath();
 
-	const FileSearchPath& operator= (const String& path);
+	FileSearchPath& operator= (const String& path);
 
 	int getNumPaths() const;
 
@@ -7825,7 +7555,7 @@ private:
 	String currentPipeName;
 
 	NamedPipe (const NamedPipe&);
-	const NamedPipe& operator= (const NamedPipe&);
+	NamedPipe& operator= (const NamedPipe&);
 
 	bool openInternal (const String& pipeName, const bool createPipe);
 };
@@ -7877,7 +7607,7 @@ private:
 	void createTempFile (const File& parentDirectory, String name, const String& suffix, const int optionFlags);
 
 	TemporaryFile (const TemporaryFile&);
-	const TemporaryFile& operator= (const TemporaryFile&);
+	TemporaryFile& operator= (const TemporaryFile&);
 };
 
 #endif   // __JUCE_TEMPORARYFILE_JUCEHEADER__
@@ -7959,6 +7689,9 @@ private:
 	class ZipInputStream;
 	class ZipFilenameComparator;
 	class ZipEntryInfo;
+	friend class ZipInputStream;
+	friend class ZipFilenameComparator;
+	friend class ZipEntryInfo;
 
 	OwnedArray <ZipEntryInfo> entries;
 	CriticalSection lock;
@@ -7975,7 +7708,7 @@ private:
 	static int compareElements (const ZipEntryInfo* first, const ZipEntryInfo* second);
 
 	ZipFile (const ZipFile&);
-	const ZipFile& operator= (const ZipFile&);
+	ZipFile& operator= (const ZipFile&);
 };
 
 #endif   // __JUCE_ZIPFILE_JUCEHEADER__
@@ -8034,7 +7767,7 @@ private:
 
 	StreamingSocket (const String& hostname, const int portNumber, const int handle);
 	StreamingSocket (const StreamingSocket&);
-	const StreamingSocket& operator= (const StreamingSocket&);
+	StreamingSocket& operator= (const StreamingSocket&);
 };
 
 class JUCE_API  DatagramSocket
@@ -8082,7 +7815,7 @@ private:
 
 	DatagramSocket (const String& hostname, const int portNumber, const int handle, const int localPortNumber);
 	DatagramSocket (const DatagramSocket&);
-	const DatagramSocket& operator= (const DatagramSocket&);
+	DatagramSocket& operator= (const DatagramSocket&);
 };
 
 #endif   // __JUCE_SOCKET_JUCEHEADER__
@@ -8108,7 +7841,7 @@ public:
 
 	~URL();
 
-	const URL& operator= (const URL& other);
+	URL& operator= (const URL& other);
 
 	const String toString (const bool includeGetParameters) const;
 
@@ -8211,7 +7944,7 @@ private:
 	void ensureBuffered();
 
 	BufferedInputStream (const BufferedInputStream&);
-	const BufferedInputStream& operator= (const BufferedInputStream&);
+	BufferedInputStream& operator= (const BufferedInputStream&);
 };
 
 #endif   // __JUCE_BUFFEREDINPUTSTREAM_JUCEHEADER__
@@ -8242,7 +7975,7 @@ private:
 	const File file;
 
 	FileInputSource (const FileInputSource&);
-	const FileInputSource& operator= (const FileInputSource&);
+	FileInputSource& operator= (const FileInputSource&);
 };
 
 #endif   // __JUCE_FILEINPUTSOURCE_JUCEHEADER__
@@ -8284,7 +8017,7 @@ private:
 	bool doNextBlock();
 
 	GZIPCompressorOutputStream (const GZIPCompressorOutputStream&);
-	const GZIPCompressorOutputStream& operator= (const GZIPCompressorOutputStream&);
+	GZIPCompressorOutputStream& operator= (const GZIPCompressorOutputStream&);
 };
 
 #endif   // __JUCE_GZIPCOMPRESSOROUTPUTSTREAM_JUCEHEADER__
@@ -8331,7 +8064,7 @@ private:
 	ScopedPointer <GZIPDecompressHelper> helper;
 
 	GZIPDecompressorInputStream (const GZIPDecompressorInputStream&);
-	const GZIPDecompressorInputStream& operator= (const GZIPDecompressorInputStream&);
+	GZIPDecompressorInputStream& operator= (const GZIPDecompressorInputStream&);
 };
 
 #endif   // __JUCE_GZIPDECOMPRESSORINPUTSTREAM_JUCEHEADER__
@@ -8454,7 +8187,7 @@ private:
 	const int64 startPositionInSourceStream, lengthOfSourceStream;
 
 	SubregionStream (const SubregionStream&);
-	const SubregionStream& operator= (const SubregionStream&);
+	SubregionStream& operator= (const SubregionStream&);
 };
 
 #endif   // __JUCE_SUBREGIONSTREAM_JUCEHEADER__
@@ -8624,7 +8357,7 @@ private:
 	int reentrancyLevel;
 
 	InterProcessLock (const InterProcessLock&);
-	const InterProcessLock& operator= (const InterProcessLock&);
+	InterProcessLock& operator= (const InterProcessLock&);
 };
 
 #endif   // __JUCE_INTERPROCESSLOCK_JUCEHEADER__
@@ -8699,7 +8432,7 @@ private:
 	void* internal;
 
 	WaitableEvent (const WaitableEvent&);
-	const WaitableEvent& operator= (const WaitableEvent&);
+	WaitableEvent& operator= (const WaitableEvent&);
 };
 
 #endif   // __JUCE_WAITABLEEVENT_JUCEHEADER__
@@ -8782,9 +8515,11 @@ private:
 
 	friend void JUCE_API juce_threadEntryPoint (void*);
 	static void threadEntryPoint (Thread* thread);
+	static Array<Thread*> runningThreads;
+	static CriticalSection runningThreadsLock;
 
 	Thread (const Thread&);
-	const Thread& operator= (const Thread&);
+	Thread& operator= (const Thread&);
 };
 
 #endif   // __JUCE_THREAD_JUCEHEADER__
@@ -8819,7 +8554,7 @@ private:
 	mutable Array <Thread::ThreadID> readerThreads;
 
 	ReadWriteLock (const ReadWriteLock&);
-	const ReadWriteLock& operator= (const ReadWriteLock&);
+	ReadWriteLock& operator= (const ReadWriteLock&);
 };
 
 #endif   // __JUCE_READWRITELOCK_JUCEHEADER__
@@ -8849,7 +8584,7 @@ private:
 	const ReadWriteLock& lock_;
 
 	ScopedReadLock (const ScopedReadLock&);
-	const ScopedReadLock& operator= (const ScopedReadLock&);
+	ScopedReadLock& operator= (const ScopedReadLock&);
 };
 
 #endif   // __JUCE_SCOPEDREADLOCK_JUCEHEADER__
@@ -8879,7 +8614,7 @@ private:
 	const bool lockWasSuccessful;
 
 	ScopedTryLock (const ScopedTryLock&);
-	const ScopedTryLock& operator= (const ScopedTryLock&);
+	ScopedTryLock& operator= (const ScopedTryLock&);
 };
 
 #endif   // __JUCE_SCOPEDTRYLOCK_JUCEHEADER__
@@ -8906,7 +8641,7 @@ private:
 	const ReadWriteLock& lock_;
 
 	ScopedWriteLock (const ScopedWriteLock&);
-	const ScopedWriteLock& operator= (const ScopedWriteLock&);
+	ScopedWriteLock& operator= (const ScopedWriteLock&);
 };
 
 #endif   // __JUCE_SCOPEDWRITELOCK_JUCEHEADER__
@@ -8968,7 +8703,7 @@ private:
 	bool shouldStop, isActive, shouldBeDeleted;
 
 	ThreadPoolJob (const ThreadPoolJob&);
-	const ThreadPoolJob& operator= (const ThreadPoolJob&);
+	ThreadPoolJob& operator= (const ThreadPoolJob&);
 };
 
 class JUCE_API  ThreadPool
@@ -9032,7 +8767,7 @@ private:
 	bool runNextJob();
 
 	ThreadPool (const ThreadPool&);
-	const ThreadPool& operator= (const ThreadPool&);
+	ThreadPool& operator= (const ThreadPool&);
 };
 
 #endif   // __JUCE_THREADPOOL_JUCEHEADER__
@@ -9082,7 +8817,7 @@ private:
 	bool clientsChanged;
 
 	TimeSliceThread (const TimeSliceThread&);
-	const TimeSliceThread& operator= (const TimeSliceThread&);
+	TimeSliceThread& operator= (const TimeSliceThread&);
 };
 
 #endif   // __JUCE_TIMESLICETHREAD_JUCEHEADER__
@@ -9174,7 +8909,7 @@ public:
 
 	MouseCursor (const MouseCursor& other) throw();
 
-	const MouseCursor& operator= (const MouseCursor& other) throw();
+	MouseCursor& operator= (const MouseCursor& other) throw();
 
 	~MouseCursor() throw();
 
@@ -9191,7 +8926,7 @@ public:
 private:
 	ReferenceCountedObjectPtr <SharedMouseCursorInternal> cursorHandle;
 
-	friend class Component;
+	friend class MouseInputSourceInternal;
 	void showInWindow (ComponentPeer* window) const throw();
 	void showInAllWindows() const throw();
 	void* getHandle() const throw();
@@ -9205,12 +8940,42 @@ private:
 #ifndef __JUCE_MOUSELISTENER_JUCEHEADER__
 #define __JUCE_MOUSELISTENER_JUCEHEADER__
 
+class MouseEvent;
+
+class JUCE_API  MouseListener
+{
+public:
+	virtual ~MouseListener()  {}
+
+	virtual void mouseMove	  (const MouseEvent& e);
+
+	virtual void mouseEnter	 (const MouseEvent& e);
+
+	virtual void mouseExit	  (const MouseEvent& e);
+
+	virtual void mouseDown	  (const MouseEvent& e);
+
+	virtual void mouseDrag	  (const MouseEvent& e);
+
+	virtual void mouseUp		(const MouseEvent& e);
+
+	virtual void mouseDoubleClick   (const MouseEvent& e);
+
+	virtual void mouseWheelMove	 (const MouseEvent& e,
+									 float wheelIncrementX,
+									 float wheelIncrementY);
+};
+
+#endif   // __JUCE_MOUSELISTENER_JUCEHEADER__
+/*** End of inlined file: juce_MouseListener.h ***/
+
 
 /*** Start of inlined file: juce_MouseEvent.h ***/
 #ifndef __JUCE_MOUSEEVENT_JUCEHEADER__
 #define __JUCE_MOUSEEVENT_JUCEHEADER__
 
 class Component;
+class MouseInputSource;
 
 /*** Start of inlined file: juce_ModifierKeys.h ***/
 #ifndef __JUCE_MODIFIERKEYS_JUCEHEADER__
@@ -9224,7 +8989,7 @@ public:
 
 	ModifierKeys (const ModifierKeys& other) throw();
 
-	const ModifierKeys& operator= (const ModifierKeys& other) throw();
+	ModifierKeys& operator= (const ModifierKeys& other) throw();
 
 	inline bool isCommandDown() const throw()	   { return (flags & commandModifier) != 0; }
 
@@ -9275,7 +9040,17 @@ public:
 		allMouseButtonModifiers		 = leftButtonModifier | rightButtonModifier | middleButtonModifier,
 	};
 
+	const ModifierKeys withOnlyMouseButtons() const throw()		 { return ModifierKeys (flags & allMouseButtonModifiers); }
+
+	const ModifierKeys withoutMouseButtons() const throw()		  { return ModifierKeys (flags & ~allMouseButtonModifiers); }
+
+	bool operator== (const ModifierKeys& other) const throw()	   { return flags == other.flags; }
+	bool operator!= (const ModifierKeys& other) const throw()	   { return flags != other.flags; }
+
 	inline int getRawFlags() const throw()				  { return flags; }
+
+	inline const ModifierKeys withoutFlags (int rawFlagsToClear) const throw()  { return ModifierKeys (flags & ~rawFlagsToClear); }
+	inline const ModifierKeys withFlags (int rawFlagsToSet) const throw()	   { return ModifierKeys (flags | rawFlagsToSet); }
 
 	inline bool testFlags (const int flagsToTest) const throw()	 { return (flags & flagsToTest) != 0; }
 
@@ -9289,9 +9064,11 @@ private:
 
 	int flags;
 
-	static int currentModifierFlags;
+	static ModifierKeys currentModifiers;
 
 	friend class ComponentPeer;
+	friend class MouseInputSource;
+	friend class MouseInputSourceInternal;
 	static void updateCurrentModifiers() throw();
 };
 
@@ -9299,37 +9076,184 @@ private:
 /*** End of inlined file: juce_ModifierKeys.h ***/
 
 
+
+/*** Start of inlined file: juce_Point.h ***/
+#ifndef __JUCE_POINT_JUCEHEADER__
+#define __JUCE_POINT_JUCEHEADER__
+
+
+/*** Start of inlined file: juce_AffineTransform.h ***/
+#ifndef __JUCE_AFFINETRANSFORM_JUCEHEADER__
+#define __JUCE_AFFINETRANSFORM_JUCEHEADER__
+
+class JUCE_API  AffineTransform
+{
+public:
+
+	AffineTransform() throw();
+
+	AffineTransform (const AffineTransform& other) throw();
+
+	AffineTransform (const float mat00, const float mat01, const float mat02,
+					 const float mat10, const float mat11, const float mat12) throw();
+
+	AffineTransform& operator= (const AffineTransform& other) throw();
+
+	bool operator== (const AffineTransform& other) const throw();
+
+	bool operator!= (const AffineTransform& other) const throw();
+
+	static const AffineTransform identity;
+
+	void transformPoint (float& x,
+						 float& y) const throw();
+
+	void transformPoint (double& x,
+						 double& y) const throw();
+
+	const AffineTransform translated (const float deltaX,
+									  const float deltaY) const throw();
+
+	static const AffineTransform translation (const float deltaX,
+											  const float deltaY) throw();
+
+	const AffineTransform rotated (const float angleInRadians) const throw();
+
+	const AffineTransform rotated (const float angleInRadians,
+								   const float pivotX,
+								   const float pivotY) const throw();
+
+	static const AffineTransform rotation (const float angleInRadians) throw();
+
+	static const AffineTransform rotation (const float angleInRadians,
+										   const float pivotX,
+										   const float pivotY) throw();
+
+	const AffineTransform scaled (const float factorX,
+								  const float factorY) const throw();
+
+	static const AffineTransform scale (const float factorX,
+										const float factorY) throw();
+
+	const AffineTransform sheared (const float shearX,
+								   const float shearY) const throw();
+
+	const AffineTransform inverted() const throw();
+
+	const AffineTransform followedBy (const AffineTransform& other) const throw();
+
+	bool isIdentity() const throw();
+
+	bool isSingularity() const throw();
+
+	bool isOnlyTranslation() const throw();
+
+	float getTranslationX() const throw()		   { return mat02; }
+
+	float getTranslationY() const throw()		   { return mat12; }
+
+	juce_UseDebuggingNewOperator
+
+	float mat00, mat01, mat02;
+	float mat10, mat11, mat12;
+
+private:
+
+	const AffineTransform followedBy (const float mat00, const float mat01, const float mat02,
+									  const float mat10, const float mat11, const float mat12) const throw();
+};
+
+#endif   // __JUCE_AFFINETRANSFORM_JUCEHEADER__
+/*** End of inlined file: juce_AffineTransform.h ***/
+
+template <typename ValueType>
+class Point
+{
+public:
+
+	Point() throw()  : x (0), y (0) {}
+
+	Point (const Point& other) throw()  : x (other.x), y (other.y)  {}
+
+	Point (const ValueType initialX, const ValueType initialY) throw()  : x (initialX), y (initialY) {}
+
+	~Point() throw() {}
+
+	Point& operator= (const Point& other) throw()			   { x = other.x; y = other.y; return *this; }
+
+	inline ValueType getX() const throw()				   { return x; }
+
+	inline ValueType getY() const throw()				   { return y; }
+
+	inline bool operator== (const Point& other) const throw()	   { return x == other.x && y == other.y; }
+	inline bool operator!= (const Point& other) const throw()	   { return x != other.x || y != other.y; }
+
+	bool isOrigin() const throw()					   { return x == ValueType() && y == ValueType(); }
+
+	void setXY (const ValueType newX, const ValueType newY) throw()	 { x = newX; y = newY; }
+
+	void addXY (const ValueType xToAdd, const ValueType yToAdd) throw() { x += xToAdd; y += yToAdd; }
+
+	const Point operator+ (const Point& other) const throw()		{ return Point (x + other.x, y + other.y); }
+
+	Point& operator+= (const Point& other) throw()			  { x += other.x; y += other.y; return *this; }
+
+	const Point operator- (const Point& other) const throw()		{ return Point (x - other.x, y - other.y); }
+
+	Point& operator-= (const Point& other) throw()			  { x -= other.x; y -= other.y; return *this; }
+
+	const Point operator-() const throw()				   { return Point (-x, -y); }
+
+	ValueType getDistanceFrom (const Point& other) const throw()	{ return (ValueType) juce_hypot (x - other.x, y - other.y); }
+
+	void applyTransform (const AffineTransform& transform) throw()	  { transform.transformPoint (x, y); }
+
+	const String toString() const                                       { return String (x) + ", " + String (y); }
+
+	juce_UseDebuggingNewOperator
+
+private:
+	ValueType x, y;
+};
+
+#endif   // __JUCE_POINT_JUCEHEADER__
+/*** End of inlined file: juce_Point.h ***/
+
 class JUCE_API  MouseEvent
 {
 public:
 
-	MouseEvent (const int x, const int y,
+	MouseEvent (MouseInputSource& source,
+				const Point<int>& position,
 				const ModifierKeys& modifiers,
 				Component* const originator,
 				const Time& eventTime,
-				const int mouseDownX,
-				const int mouseDownY,
+				const Point<int> mouseDownPos,
 				const Time& mouseDownTime,
 				const int numberOfClicks,
 				const bool mouseWasDragged) throw();
 
 	~MouseEvent() throw();
 
-	int x;
+	const int x;
 
-	int y;
+	const int y;
 
-	ModifierKeys mods;
+	const ModifierKeys mods;
 
-	Component* eventComponent;
+	Component* const eventComponent;
 
-	Component* originalComponent;
+	Component* const originalComponent;
 
-	Time eventTime;
+	const Time eventTime;
+
+	MouseInputSource& source;
 
 	int getMouseDownX() const throw();
 
 	int getMouseDownY() const throw();
+
+	const Point<int> getMouseDownPosition() const throw();
 
 	int getDistanceFromDragStart() const throw();
 
@@ -9343,15 +9267,23 @@ public:
 
 	int getLengthOfMousePress() const throw();
 
-	int getScreenX() const throw();
+	const Point<int> getPosition() const throw();
 
-	int getScreenY() const throw();
+	int getScreenX() const;
 
-	int getMouseDownScreenX() const throw();
+	int getScreenY() const;
 
-	int getMouseDownScreenY() const throw();
+	const Point<int> getScreenPosition() const;
+
+	int getMouseDownScreenX() const;
+
+	int getMouseDownScreenY() const;
+
+	const Point<int> getMouseDownScreenPosition() const;
 
 	const MouseEvent getEventRelativeTo (Component* const otherComponent) const throw();
+
+	const MouseEvent withNewPosition (const Point<int>& newPosition) const throw();
 
 	static void setDoubleClickTimeout (const int timeOutMilliseconds) throw();
 
@@ -9360,41 +9292,16 @@ public:
 	juce_UseDebuggingNewOperator
 
 private:
-	int mouseDownX, mouseDownY;
-	Time mouseDownTime;
-	int numberOfClicks;
-	bool wasMovedSinceMouseDown;
+	const Point<int> mouseDownPos;
+	const Time mouseDownTime;
+	const int numberOfClicks;
+	const bool wasMovedSinceMouseDown;
+
+	MouseEvent& operator= (const MouseEvent&);
 };
 
 #endif   // __JUCE_MOUSEEVENT_JUCEHEADER__
 /*** End of inlined file: juce_MouseEvent.h ***/
-
-class JUCE_API  MouseListener
-{
-public:
-	virtual ~MouseListener()  {}
-
-	virtual void mouseMove	  (const MouseEvent& e);
-
-	virtual void mouseEnter	 (const MouseEvent& e);
-
-	virtual void mouseExit	  (const MouseEvent& e);
-
-	virtual void mouseDown	  (const MouseEvent& e);
-
-	virtual void mouseDrag	  (const MouseEvent& e);
-
-	virtual void mouseUp		(const MouseEvent& e);
-
-	virtual void mouseDoubleClick   (const MouseEvent& e);
-
-	virtual void mouseWheelMove	 (const MouseEvent& e,
-									 float wheelIncrementX,
-									 float wheelIncrementY);
-};
-
-#endif   // __JUCE_MOUSELISTENER_JUCEHEADER__
-/*** End of inlined file: juce_MouseListener.h ***/
 
 
 /*** Start of inlined file: juce_ComponentListener.h ***/
@@ -9421,6 +9328,8 @@ public:
 	virtual void componentParentHierarchyChanged (Component& component);
 
 	virtual void componentNameChanged (Component& component);
+
+	virtual void componentBeingDeleted (Component& component);
 };
 
 #endif   // __JUCE_COMPONENTLISTENER_JUCEHEADER__
@@ -9450,7 +9359,7 @@ public:
 
 	KeyPress (const KeyPress& other) throw();
 
-	const KeyPress& operator= (const KeyPress& other) throw();
+	KeyPress& operator= (const KeyPress& other) throw();
 
 	bool operator== (const KeyPress& other) const throw();
 
@@ -9619,138 +9528,6 @@ public:
 #define __JUCE_PATH_JUCEHEADER__
 
 
-/*** Start of inlined file: juce_AffineTransform.h ***/
-#ifndef __JUCE_AFFINETRANSFORM_JUCEHEADER__
-#define __JUCE_AFFINETRANSFORM_JUCEHEADER__
-
-class JUCE_API  AffineTransform
-{
-public:
-
-	AffineTransform() throw();
-
-	AffineTransform (const AffineTransform& other) throw();
-
-	AffineTransform (const float mat00, const float mat01, const float mat02,
-					 const float mat10, const float mat11, const float mat12) throw();
-
-	const AffineTransform& operator= (const AffineTransform& other) throw();
-
-	bool operator== (const AffineTransform& other) const throw();
-
-	bool operator!= (const AffineTransform& other) const throw();
-
-	static const AffineTransform identity;
-
-	void transformPoint (float& x,
-						 float& y) const throw();
-
-	void transformPoint (double& x,
-						 double& y) const throw();
-
-	const AffineTransform translated (const float deltaX,
-									  const float deltaY) const throw();
-
-	static const AffineTransform translation (const float deltaX,
-											  const float deltaY) throw();
-
-	const AffineTransform rotated (const float angleInRadians) const throw();
-
-	const AffineTransform rotated (const float angleInRadians,
-								   const float pivotX,
-								   const float pivotY) const throw();
-
-	static const AffineTransform rotation (const float angleInRadians) throw();
-
-	static const AffineTransform rotation (const float angleInRadians,
-										   const float pivotX,
-										   const float pivotY) throw();
-
-	const AffineTransform scaled (const float factorX,
-								  const float factorY) const throw();
-
-	static const AffineTransform scale (const float factorX,
-										const float factorY) throw();
-
-	const AffineTransform sheared (const float shearX,
-								   const float shearY) const throw();
-
-	const AffineTransform inverted() const throw();
-
-	const AffineTransform followedBy (const AffineTransform& other) const throw();
-
-	bool isIdentity() const throw();
-
-	bool isSingularity() const throw();
-
-	bool isOnlyTranslation() const throw();
-
-	float getTranslationX() const throw()		   { return mat02; }
-
-	float getTranslationY() const throw()		   { return mat12; }
-
-	juce_UseDebuggingNewOperator
-
-	float mat00, mat01, mat02;
-	float mat10, mat11, mat12;
-
-private:
-
-	const AffineTransform followedBy (const float mat00, const float mat01, const float mat02,
-									  const float mat10, const float mat11, const float mat12) const throw();
-};
-
-#endif   // __JUCE_AFFINETRANSFORM_JUCEHEADER__
-/*** End of inlined file: juce_AffineTransform.h ***/
-
-
-/*** Start of inlined file: juce_Point.h ***/
-#ifndef __JUCE_POINT_JUCEHEADER__
-#define __JUCE_POINT_JUCEHEADER__
-
-template <typename ValueType>
-class Point
-{
-public:
-
-	Point() throw()  : x (0), y (0) {}
-
-	Point (const Point& other) throw()  : x (other.x), y (other.y)  {}
-
-	Point (const ValueType initialX, const ValueType initialY) throw()  : x (initialX), y (initialY) {}
-
-	~Point() throw() {}
-
-	Point& operator= (const Point& other) throw()			   { x = other.x; y = other.y; return *this; }
-
-	inline ValueType getX() const throw()				   { return x; }
-
-	inline ValueType getY() const throw()				   { return y; }
-
-	void setXY (const ValueType newX, const ValueType newY) throw()	 { x = newX; y = newY; }
-
-	void addXY (const ValueType xToAdd, const ValueType yToAdd) throw() { x += xToAdd; y += yToAdd; }
-
-	const Point operator+ (const Point& other) const throw()		{ return Point (x + other.x, y + other.y); }
-
-	Point& operator+= (const Point& other) throw()			  { x += other.x; y += other.y; return *this; }
-
-	const Point operator- (const Point& other) const throw()		{ return Point (x - other.x, y - other.y); }
-
-	Point& operator-= (const Point& other) throw()			  { x -= other.x; y -= other.y; return *this; }
-
-	void applyTransform (const AffineTransform& transform) throw()	  { transform.transformPoint (x, y); }
-
-	juce_UseDebuggingNewOperator
-
-private:
-	ValueType x, y;
-};
-
-#endif   // __JUCE_POINT_JUCEHEADER__
-/*** End of inlined file: juce_Point.h ***/
-
-
 /*** Start of inlined file: juce_Rectangle.h ***/
 #ifndef __JUCE_RECTANGLE_JUCEHEADER__
 #define __JUCE_RECTANGLE_JUCEHEADER__
@@ -9794,6 +9571,8 @@ public:
 
 	~Rectangle() throw() {}
 
+	bool isEmpty() const throw()					{ return w <= 0 || h <= 0; }
+
 	inline ValueType getX() const throw()			   { return x; }
 
 	inline ValueType getY() const throw()			   { return y; }
@@ -9806,17 +9585,25 @@ public:
 
 	inline ValueType getBottom() const throw()			  { return y + h; }
 
-	inline ValueType getCentreX() const throw()			 { return x + w / (ValueType) 2; }
+	ValueType getCentreX() const throw()				{ return x + w / (ValueType) 2; }
 
-	inline ValueType getCentreY() const throw()			 { return y + h / (ValueType) 2; }
+	ValueType getCentreY() const throw()				{ return y + h / (ValueType) 2; }
 
-	bool isEmpty() const throw()					{ return w <= 0 || h <= 0; }
+	const Point<ValueType> getCentre() const throw()		{ return Point<ValueType> (x + w / (ValueType) 2, y + h / (ValueType) 2); }
 
-	const Point<ValueType> getPosition() const throw()		  { return Point<ValueType> (x, y); }
+	ValueType getAspectRatio (const bool widthOverHeight = true) const throw()			  { return widthOverHeight ? w / h : h / w; }
 
-	void setPosition (const ValueType newX, const ValueType newY) throw()	   { x = newX; y = newY; }
+	const Point<ValueType> getPosition() const throw()						  { return Point<ValueType> (x, y); }
 
-	void setSize (const ValueType newWidth, const ValueType newHeight) throw()  { w = newWidth; h = newHeight; }
+	void setPosition (const Point<ValueType>& newPos) throw()					   { x = newPos.getX(); y = newPos.getY(); }
+
+	void setPosition (const ValueType newX, const ValueType newY) throw()			   { x = newX; y = newY; }
+
+	const Rectangle withPosition (const Point<ValueType>& newPos) const throw()			 { return Rectangle (newPos.getX(), newPos.getY(), w, h); }
+
+	void setSize (const ValueType newWidth, const ValueType newHeight) throw()			  { w = newWidth; h = newHeight; }
+
+	const Rectangle withSize (const ValueType newWidth, const ValueType newHeight) const throw()	{ return Rectangle (x, y, newWidth, newHeight); }
 
 	void setBounds (const ValueType newX, const ValueType newY,
 					const ValueType newWidth, const ValueType newHeight) throw()
@@ -9910,10 +9697,21 @@ public:
 		return xCoord >= x && yCoord >= y && xCoord < x + w && yCoord < y + h;
 	}
 
+	bool contains (const Point<ValueType> point) const throw()
+	{
+		return point.getX() >= x && point.getY() >= y && point.getX() < x + w && point.getY() < y + h;
+	}
+
 	bool contains (const Rectangle& other) const throw()
 	{
 		return x <= other.x && y <= other.y
 			&& x + w >= other.x + other.w && y + h >= other.y + other.h;
+	}
+
+	const Point<ValueType> getConstrainedPoint (const Point<ValueType>& point) const throw()
+	{
+		return Point<ValueType> (jlimit (x, x + w, point.getX()),
+								 jlimit (y, y + h, point.getY()));
 	}
 
 	bool intersects (const Rectangle& other) const throw()
@@ -10106,7 +9904,7 @@ public:
 
 	Justification (const Justification& other) throw();
 
-	const Justification& operator= (const Justification& other) throw();
+	Justification& operator= (const Justification& other) throw();
 
 	inline int getFlags() const throw()				 { return flags; }
 
@@ -10191,14 +9989,14 @@ public:
 
 	EdgeTable (const EdgeTable& other) throw();
 
-	const EdgeTable& operator= (const EdgeTable& other) throw();
+	EdgeTable& operator= (const EdgeTable& other) throw();
 
 	~EdgeTable() throw();
 
 	void clipToRectangle (const Rectangle<int>& r) throw();
 	void excludeRectangle (const Rectangle<int>& r) throw();
 	void clipToEdgeTable (const EdgeTable& other);
-	void clipLineToMask (int x, int y, uint8* mask, int maskStride, int numPixels) throw();
+	void clipLineToMask (int x, int y, const uint8* mask, int maskStride, int numPixels) throw();
 	bool isEmpty() throw();
 	const Rectangle<int>& getMaximumBounds() const throw()	   { return bounds; }
 	void translate (float dx, int dy) throw();
@@ -10299,6 +10097,7 @@ private:
 	void intersectWithEdgeTableLine (const int y, const int* otherLine) throw();
 	void clipEdgeTableLineToRange (int* line, int x1, int x2) throw();
 	void sanitiseLevels (const bool useNonZeroWinding) throw();
+	static void copyEdgeTableData (int* dest, const int destLineStride, const int* src, const int srcLineStride, int numLines) throw();
 };
 
 #endif   // __JUCE_EDGETABLE_JUCEHEADER__
@@ -10316,7 +10115,7 @@ public:
 
 	~Path() throw();
 
-	const Path& operator= (const Path& other) throw();
+	Path& operator= (const Path& other) throw();
 
 	bool isEmpty() const throw();
 
@@ -10478,7 +10277,7 @@ public:
 		int index;
 
 		Iterator (const Iterator&);
-		const Iterator& operator= (const Iterator&);
+		Iterator& operator= (const Iterator&);
 	};
 
 	void loadPathFromStream (InputStream& source);
@@ -10545,7 +10344,7 @@ protected:
 
 private:
 	Typeface (const Typeface&);
-	const Typeface& operator= (const Typeface&);
+	Typeface& operator= (const Typeface&);
 };
 
 class JUCE_API  CustomTypeface  : public Typeface
@@ -10597,7 +10396,7 @@ private:
 	short lookupTable [128];
 
 	CustomTypeface (const CustomTypeface&);
-	const CustomTypeface& operator= (const CustomTypeface&);
+	CustomTypeface& operator= (const CustomTypeface&);
 
 	GlyphInfo* findGlyph (const juce_wchar character, const bool loadIfNeeded) throw();
 	GlyphInfo* findGlyphSubstituting (const juce_wchar character) throw();
@@ -10633,7 +10432,7 @@ public:
 
 	Font() throw();
 
-	const Font& operator= (const Font& other) throw();
+	Font& operator= (const Font& other) throw();
 
 	bool operator== (const Font& other) const throw();
 	bool operator!= (const Font& other) const throw();
@@ -10767,21 +10566,21 @@ public:
 
 	PathStrokeType (const PathStrokeType& other) throw();
 
-	const PathStrokeType& operator= (const PathStrokeType& other) throw();
+	PathStrokeType& operator= (const PathStrokeType& other) throw();
 
 	~PathStrokeType() throw();
 
 	void createStrokedPath (Path& destPath,
 							const Path& sourcePath,
 							const AffineTransform& transform = AffineTransform::identity,
-							const float extraAccuracy = 1.0f) const throw();
+							const float extraAccuracy = 1.0f) const;
 
 	void createDashedStroke (Path& destPath,
 							 const Path& sourcePath,
 							 const float* dashLengths,
 							 int numDashLengths,
 							 const AffineTransform& transform = AffineTransform::identity,
-							 const float extraAccuracy = 1.0f) const throw();
+							 const float extraAccuracy = 1.0f) const;
 
 	float getStrokeThickness() const throw()			{ return thickness; }
 
@@ -10826,7 +10625,7 @@ public:
 	Line (const Point<float>& start,
 		  const Point<float>& end) throw();
 
-	const Line& operator= (const Line& other) throw();
+	Line& operator= (const Line& other) throw();
 
 	~Line() throw();
 
@@ -11397,7 +11196,7 @@ public:
 
 	~Colour() throw();
 
-	const Colour& operator= (const Colour& other) throw();
+	Colour& operator= (const Colour& other) throw();
 
 	bool operator== (const Colour& other) const throw();
 	bool operator!= (const Colour& other) const throw();
@@ -11624,7 +11423,7 @@ public:
 
 	FillType (const FillType& other) throw();
 
-	const FillType& operator= (const FillType& other) throw();
+	FillType& operator= (const FillType& other) throw();
 
 	~FillType() throw();
 
@@ -11671,7 +11470,7 @@ public:
 
 	RectanglePlacement (const RectanglePlacement& other) throw();
 
-	const RectanglePlacement& operator= (const RectanglePlacement& other) throw();
+	RectanglePlacement& operator= (const RectanglePlacement& other) throw();
 
 	enum
 	{
@@ -11996,8 +11795,8 @@ private:
 	bool saveStatePending;
 	void saveStateIfPending() throw();
 
-	const Graphics& operator= (const Graphics& other);
 	Graphics (const Graphics&);
+	Graphics& operator= (const Graphics& other);
 };
 
 #endif   // __JUCE_GRAPHICS_JUCEHEADER__
@@ -12032,7 +11831,7 @@ public:
 
 	RectangleList (const Rectangle<int>& rect) throw();
 
-	const RectangleList& operator= (const RectangleList& other) throw();
+	RectangleList& operator= (const RectangleList& other) throw();
 
 	~RectangleList() throw();
 
@@ -12100,7 +11899,7 @@ public:
 		int index;
 
 		Iterator (const Iterator&);
-		const Iterator& operator= (const Iterator&);
+		Iterator& operator= (const Iterator&);
 	};
 
 	juce_UseDebuggingNewOperator
@@ -12175,206 +11974,10 @@ private:
 #endif   // __JUCE_BORDERSIZE_JUCEHEADER__
 /*** End of inlined file: juce_BorderSize.h ***/
 
-
-/*** Start of inlined file: juce_ComponentPeer.h ***/
-#ifndef __JUCE_COMPONENTPEER_JUCEHEADER__
-#define __JUCE_COMPONENTPEER_JUCEHEADER__
-
-class Component;
-class Graphics;
-
-class ComponentBoundsConstrainer;
-class ComponentDeletionWatcher;
-
-class JUCE_API  ComponentPeer	: public MessageListener
-{
-public:
-
-	enum StyleFlags
-	{
-		windowAppearsOnTaskbar	  = (1 << 0),	/**< Indicates that the window should have a corresponding
-														entry on the taskbar (ignored on MacOSX) */
-		windowIsTemporary	   = (1 << 1),	/**< Indicates that the window is a temporary popup, like a menu,
-														tooltip, etc. */
-		windowIgnoresMouseClicks	= (1 << 2),	/**< Indicates that the window should let mouse clicks pass
-														through it (may not be possible on some platforms). */
-		windowHasTitleBar	   = (1 << 3),	/**< Indicates that the window should have a normal OS-specific
-														title bar and frame\. if not specified, the window will be
-														borderless. */
-		windowIsResizable	   = (1 << 4),	/**< Indicates that the window should have a resizable border. */
-		windowHasMinimiseButton	 = (1 << 5),	/**< Indicates that if the window has a title bar, it should have a
-														minimise button on it. */
-		windowHasMaximiseButton	 = (1 << 6),	/**< Indicates that if the window has a title bar, it should have a
-														maximise button on it. */
-		windowHasCloseButton	= (1 << 7),	/**< Indicates that if the window has a title bar, it should have a
-														close button on it. */
-		windowHasDropShadow	 = (1 << 8),	/**< Indicates that the window should have a drop-shadow (this may
-														not be possible on all platforms). */
-		windowRepaintedExplictly	= (1 << 9),	/**< Not intended for public use - this tells a window not to
-														do its own repainting, but only to repaint when the
-														performAnyPendingRepaintsNow() method is called. */
-		windowIgnoresKeyPresses	 = (1 << 10),   /**< Tells the window not to catch any keypresses. This can
-														be used for things like plugin windows, to stop them interfering
-														with the host's shortcut keys */
-		windowIsSemiTransparent	 = (1 << 31)	/**< Not intended for public use - makes a window transparent. */
-
-	};
-
-	ComponentPeer (Component* const component,
-				   const int styleFlags) throw();
-
-	virtual ~ComponentPeer();
-
-	Component* getComponent() const throw()		 { return component; }
-
-	int getStyleFlags() const throw()			   { return styleFlags; }
-
-	virtual void* getNativeHandle() const = 0;
-
-	virtual void setVisible (bool shouldBeVisible) = 0;
-
-	virtual void setTitle (const String& title) = 0;
-
-	virtual void setPosition (int x, int y) = 0;
-
-	virtual void setSize (int w, int h) = 0;
-
-	virtual void setBounds (int x, int y, int w, int h, const bool isNowFullScreen) = 0;
-
-	virtual void getBounds (int& x, int& y, int& w, int& h) const = 0;
-
-	virtual int getScreenX() const = 0;
-
-	virtual int getScreenY() const = 0;
-
-	virtual void relativePositionToGlobal (int& x, int& y) = 0;
-
-	virtual void globalPositionToRelative (int& x, int& y) = 0;
-
-	virtual void setMinimised (bool shouldBeMinimised) = 0;
-
-	virtual bool isMinimised() const = 0;
-
-	virtual void setFullScreen (bool shouldBeFullScreen) = 0;
-
-	virtual bool isFullScreen() const = 0;
-
-	void setNonFullScreenBounds (const Rectangle<int>& newBounds) throw();
-
-	const Rectangle<int>& getNonFullScreenBounds() const throw();
-
-	virtual void setIcon (const Image& newIcon) = 0;
-
-	void setConstrainer (ComponentBoundsConstrainer* const newConstrainer) throw();
-
-	ComponentBoundsConstrainer* getConstrainer() const throw()		  { return constrainer; }
-
-	virtual bool contains (int x, int y, bool trueIfInAChildWindow) const = 0;
-
-	virtual const BorderSize getFrameSize() const = 0;
-
-	void handleMovedOrResized();
-
-	void handleScreenSizeChange();
-
-	void handlePaint (LowLevelGraphicsContext& contextToPaintTo);
-
-	virtual bool setAlwaysOnTop (bool alwaysOnTop) = 0;
-
-	virtual void toFront (bool makeActive) = 0;
-
-	virtual void toBehind (ComponentPeer* other) = 0;
-
-	void handleBroughtToFront();
-
-	virtual bool isFocused() const = 0;
-
-	virtual void grabFocus() = 0;
-
-	virtual void textInputRequired (int x, int y) = 0;
-
-	void handleFocusGain();
-	void handleFocusLoss();
-
-	Component* getLastFocusedSubcomponent() const throw();
-
-	bool handleKeyPress (const int keyCode,
-						 const juce_wchar textCharacter);
-
-	bool handleKeyUpOrDown (const bool isKeyDown);
-
-	void handleModifierKeysChange();
-
-	virtual void repaint (int x, int y, int w, int h) = 0;
-
-	virtual void performAnyPendingRepaintsNow() = 0;
-
-	void handleMouseEnter (int x, int y, const int64 time);
-	void handleMouseMove  (int x, int y, const int64 time);
-	void handleMouseDown  (int x, int y, const int64 time);
-	void handleMouseDrag  (int x, int y, const int64 time);
-	void handleMouseUp	(const int oldModifiers, int x, int y, const int64 time);
-	void handleMouseExit  (int x, int y, const int64 time);
-	void handleMouseWheel (const int amountX, const int amountY, const int64 time);
-
-	void sendFakeMouseMove() throw();
-
-	void handleUserClosingWindow();
-
-	void handleFileDragMove (const StringArray& files, int x, int y);
-	void handleFileDragExit (const StringArray& files);
-	void handleFileDragDrop (const StringArray& files, int x, int y);
-
-	void clearMaskedRegion() throw();
-
-	void addMaskedRegion (int x, int y, int w, int h) throw();
-
-	static int getNumPeers() throw();
-
-	static ComponentPeer* getPeer (const int index) throw();
-
-	static bool isValidPeer (const ComponentPeer* const peer) throw();
-
-	static void bringModalComponentToFront();
-
-	virtual const StringArray getAvailableRenderingEngines() throw();
-	virtual int getCurrentRenderingEngine() throw();
-	virtual void setCurrentRenderingEngine (int index) throw();
-
-	juce_UseDebuggingNewOperator
-
-protected:
-	Component* const component;
-	const int styleFlags;
-	RectangleList maskedRegion;
-	Rectangle<int> lastNonFullscreenBounds;
-	uint32 lastPaintTime;
-	ComponentBoundsConstrainer* constrainer;
-
-	static void updateCurrentModifiers() throw();
-
-	void handleMessage (const Message& message);
-
-private:
-
-	Component* lastFocusedComponent;
-	ScopedPointer <ComponentDeletionWatcher> dragAndDropTargetComponent;
-	Component* lastDragAndDropCompUnderMouse;
-	bool fakeMouseMessageSent : 1, isWindowMinimised : 1;
-
-	friend class Component;
-	static ComponentPeer* getPeerFor (const Component* const component) throw();
-
-	void setLastDragDropTarget (Component* comp);
-
-	ComponentPeer (const ComponentPeer&);
-	const ComponentPeer& operator= (const ComponentPeer&);
-};
-
-#endif   // __JUCE_COMPONENTPEER_JUCEHEADER__
-/*** End of inlined file: juce_ComponentPeer.h ***/
-
 class LookAndFeel;
+class MouseInputSource;
+class MouseInputSourceInternal;
+class ComponentPeer;
 
 class JUCE_API  Component  : public MouseListener,
 							 protected MessageListener
@@ -12448,16 +12051,20 @@ public:
 	void getVisibleArea (RectangleList& result,
 						 const bool includeSiblings) const;
 
-	int getScreenX() const throw();
+	int getScreenX() const;
 
-	int getScreenY() const throw();
+	int getScreenY() const;
 
-	void relativePositionToGlobal (int& x, int& y) const throw();
+	const Point<int> getScreenPosition() const;
 
-	void globalPositionToRelative (int& x, int& y) const throw();
+	const Rectangle<int> getScreenBounds() const;
 
-	void relativePositionToOtherComponent (const Component* const targetComponent,
-										   int& x, int& y) const throw();
+	const Point<int> relativePositionToGlobal (const Point<int>& relativePosition) const;
+
+	const Point<int> globalPositionToRelative (const Point<int>& screenPosition) const;
+
+	const Point<int> relativePositionToOtherComponent (const Component* const targetComponent,
+													   const Point<int>& positionRelativeToThis) const;
 
 	void setTopLeftPosition (const int x, const int y);
 
@@ -12555,6 +12162,8 @@ public:
 						 const bool returnTrueIfWithinAChild);
 
 	Component* getComponentAt (const int x, const int y);
+
+	Component* getComponentAt (const Point<int>& position);
 
 	void repaint() throw();
 
@@ -12690,12 +12299,7 @@ public:
 
 	static bool JUCE_CALLTYPE isMouseButtonDownAnywhere() throw();
 
-	void getMouseXYRelative (int& x, int& y) const throw();
-
-	static Component* JUCE_CALLTYPE getComponentUnderMouse() throw();
-
-	void enableUnboundedMouseMovement (bool shouldUnboundedMovementBeEnabled,
-									   bool keepCursorVisibleUntilOffscreen = false) throw();
+	const Point<int> getMouseXYRelative() const;
 
 	virtual void resized();
 
@@ -12753,15 +12357,58 @@ public:
 
 	uint32 getComponentUID() const throw()		{ return componentUID; }
 
+	template <class ComponentType>
+	class JUCE_API  SafePointer   : private ComponentListener
+	{
+	public:
+		SafePointer()					   : comp (0) {}
+
+		SafePointer (ComponentType* const component)	: comp (component)   { attach(); }
+
+		SafePointer (const SafePointer& other)		  : comp (other.comp)  { attach(); }
+
+		~SafePointer()					  { detach(); }
+
+		SafePointer& operator= (const SafePointer& other)   { return operator= (other.comp); }
+
+		SafePointer& operator= (ComponentType* const newComponent)
+		{
+			detach();
+			comp = newComponent;
+			attach();
+			return *this;
+		}
+
+		operator ComponentType*() throw()		   { return comp; }
+
+		operator const ComponentType*() const throw()	   { return comp; }
+
+		/** Returns the component that this pointer refers to, or null if the component no longer exists. */
+		ComponentType* operator->() throw()		 { jassert (comp != 0); return comp; }
+
+		/** Returns the component that this pointer refers to, or null if the component no longer exists. */
+		const ComponentType* operator->() const throw()	 { jassert (comp != 0); return comp; }
+
+		juce_UseDebuggingNewOperator
+
+	private:
+		ComponentType* comp;
+
+		void attach()   { if (comp != 0) comp->addComponentListener (this); }
+		void detach()   { if (comp != 0) comp->removeComponentListener (this); }
+		void componentBeingDeleted (Component&)	 { comp = 0; }
+	};
+
 	juce_UseDebuggingNewOperator
 
 private:
 
 	friend class ComponentPeer;
 	friend class InternalDragRepeater;
+	friend class MouseInputSource;
+	friend class MouseInputSourceInternal;
 
 	static Component* currentlyFocusedComponent;
-	static Component* componentUnderMouse;
 
 	String componentName_;
 	Component* parentComponent_;
@@ -12809,13 +12456,13 @@ private:
 		ComponentFlags flags;
 	};
 
-	void internalMouseEnter (int x, int y, const int64 time);
-	void internalMouseExit  (int x, int y, const int64 time);
-	void internalMouseDown  (int x, int y, const int64 time);
-	void internalMouseUp	(const int oldModifiers, int x, int y, const int64 time);
-	void internalMouseDrag  (int x, int y, const int64 time);
-	void internalMouseMove  (int x, int y, const int64 time);
-	void internalMouseWheel (const int intAmountX, const int intAmountY, const int64 time);
+	void internalMouseEnter (MouseInputSource& source, const Point<int>& relativePos, const Time& time);
+	void internalMouseExit  (MouseInputSource& source, const Point<int>& relativePos, const Time& time);
+	void internalMouseDown  (MouseInputSource& source, const Point<int>& relativePos, const Time& time);
+	void internalMouseUp	(MouseInputSource& source, const Point<int>& relativePos, const Time& time, const ModifierKeys& oldModifiers);
+	void internalMouseDrag  (MouseInputSource& source, const Point<int>& relativePos, const Time& time);
+	void internalMouseMove  (MouseInputSource& source, const Point<int>& relativePos, const Time& time);
+	void internalMouseWheel (MouseInputSource& source, const Point<int>& relativePos, const Time& time, const float amountX, const float amountY);
 	void internalBroughtToFront();
 	void internalFocusGain (const FocusChangeType cause);
 	void internalFocusLoss (const FocusChangeType cause);
@@ -12824,7 +12471,6 @@ private:
 	void internalModifierKeysChanged();
 	void internalChildrenChanged();
 	void internalHierarchyChanged();
-	void internalUpdateMouseCursor (const bool forcedUpdate) throw();
 	void sendMovedResizedMessages (const bool wasMoved, const bool wasResized);
 	void repaintParent() throw();
 	void sendFakeMouseMove() const;
@@ -12834,8 +12480,7 @@ private:
 	void sendEnablementChangeMessage();
 	static void* runModalLoopCallback (void*);
 	static void bringModalComponentToFront();
-	void subtractObscuredRegions (RectangleList& result,
-								  const int deltaX, const int deltaY,
+	void subtractObscuredRegions (RectangleList& result, const Point<int>& delta,
 								  const Rectangle<int>& clipRect,
 								  const Component* const compToAvoid) const throw();
 	void clipObscuredRegions (Graphics& g, const Rectangle<int>& clipRect,
@@ -12856,7 +12501,7 @@ private:
 	// this one to avoid compiler warnings.
 	Component (const Component&);
 
-	const Component& operator= (const Component&);
+	Component& operator= (const Component&);
 
 	// (dummy method to cause a deliberate compile error - if you hit this, you need to update your
 	// subclass to use the new parameters to keyStateChanged)
@@ -13026,7 +12671,7 @@ private:
 		ApplicationCommandTarget* const owner;
 
 		CommandTargetMessageInvoker (const CommandTargetMessageInvoker&);
-		const CommandTargetMessageInvoker& operator= (const CommandTargetMessageInvoker&);
+		CommandTargetMessageInvoker& operator= (const CommandTargetMessageInvoker&);
 	};
 
 	ScopedPointer <CommandTargetMessageInvoker> messageInvoker;
@@ -13035,7 +12680,7 @@ private:
 	bool tryToInvoke (const InvocationInfo& info, const bool async);
 
 	ApplicationCommandTarget (const ApplicationCommandTarget&);
-	const ApplicationCommandTarget& operator= (const ApplicationCommandTarget&);
+	ApplicationCommandTarget& operator= (const ApplicationCommandTarget&);
 };
 
 #endif   // __JUCE_APPLICATIONCOMMANDTARGET_JUCEHEADER__
@@ -13100,7 +12745,7 @@ public:
 	// These are used by the START_JUCE_APPLICATION() macro and aren't for public use.
 
 	static int main (String& commandLine, JUCEApplication* const newApp);
-	static int main (int argc, char* argv[], JUCEApplication* const newApp);
+	static int main (int argc, const char* argv[], JUCEApplication* const newApp);
 
 	static void sendUnhandledException (const std::exception* const e,
 										const char* const sourceFile,
@@ -13117,10 +12762,10 @@ private:
 	String commandLineParameters;
 	int appReturnValue;
 	bool stillInitialising;
-	InterProcessLock* appLock;
+	ScopedPointer<InterProcessLock> appLock;
 
 	JUCEApplication (const JUCEApplication&);
-	const JUCEApplication& operator= (const JUCEApplication&);
+	JUCEApplication& operator= (const JUCEApplication&);
 
 public:
 	bool initialiseApp (String& commandLine);
@@ -13166,7 +12811,7 @@ public:
 
 private:
 	DeletedAtShutdown (const DeletedAtShutdown&);
-	const DeletedAtShutdown& operator= (const DeletedAtShutdown&);
+	DeletedAtShutdown& operator= (const DeletedAtShutdown&);
 };
 
 #endif   // __JUCE_DELETEDATSHUTDOWN_JUCEHEADER__
@@ -13207,11 +12852,15 @@ private:
 	Timer* previous;
 	Timer* next;
 
-	const Timer& operator= (const Timer&);
+	Timer& operator= (const Timer&);
 };
 
 #endif   // __JUCE_TIMER_JUCEHEADER__
 /*** End of inlined file: juce_Timer.h ***/
+
+class MouseInputSource;
+class MouseInputSourceInternal;
+class MouseListener;
 
 class JUCE_API  FocusChangeListener
 {
@@ -13233,13 +12882,13 @@ public:
 
 	const Rectangle<int> getMainMonitorArea (const bool clippedToWorkArea = true) const throw();
 
-	const Rectangle<int> getMonitorAreaContaining (int x, int y, const bool clippedToWorkArea = true) const throw();
+	const Rectangle<int> getMonitorAreaContaining (const Point<int>& position, const bool clippedToWorkArea = true) const throw();
 
-	static void getMousePosition (int& x, int& y) throw();
+	static const Point<int> getMousePosition();
 
-	static void setMousePosition (int x, int y) throw();
+	static void setMousePosition (const Point<int>& newPosition);
 
-	static void getLastMouseDownPosition (int& x, int& y) throw();
+	static const Point<int> getLastMouseDownPosition() throw();
 
 	static int getMouseButtonClickCounter() throw();
 
@@ -13264,8 +12913,17 @@ public:
 
 	Component* getComponent (const int index) const throw();
 
-	Component* findComponentAt (const int screenX,
-								const int screenY) const;
+	Component* findComponentAt (const Point<int>& screenPosition) const;
+
+	int getNumMouseSources() const throw()			  { return mouseSources.size(); }
+
+	MouseInputSource* getMouseSource (int index) const throw()	  { return mouseSources [index]; }
+
+	MouseInputSource& getMainMouseSource() const throw()		{ return *mouseSources.getUnchecked(0); }
+
+	int getNumDraggingMouseSources() const throw();
+
+	MouseInputSource* getDraggingMouseSource (int index) const throw();
 
 	juce_UseDebuggingNewOperator
 
@@ -13279,6 +12937,8 @@ private:
 
 	friend class Component;
 	friend class ComponentPeer;
+	friend class MouseInputSource;
+	friend class MouseInputSourceInternal;
 	SortedSet <void*> mouseListeners, focusListeners;
 	Array <Component*> desktopComponents;
 
@@ -13289,26 +12949,17 @@ private:
 
 	Array <Rectangle<int> > monitorCoordsClipped, monitorCoordsUnclipped;
 
-	int lastFakeMouseMoveX, lastFakeMouseMoveY, mouseClickCounter;
-	bool mouseMovedSignificantlySincePressed;
+	OwnedArray <MouseInputSource> mouseSources;
 
-	struct RecentMouseDown
-	{
-		Point<int> position;
-		int64 time;
-		Component* component;
-	};
-
-	RecentMouseDown mouseDowns[4];
+	Point<int> lastFakeMouseMove;
+	int mouseClickCounter;
 
 	void incrementMouseClickCounter() throw();
-	void registerMouseDown (const Point<int>& position, int64 time, Component* component) throw();
-	void registerMouseDrag (const Point<int>& position) throw();
-	const Time getLastMouseDownTime() const throw();
-	int getNumberOfMultipleClicks() const throw();
 
 	Component* kioskModeComponent;
 	Rectangle<int> kioskComponentOriginalBounds;
+
+	void createMouseInputSources();
 
 	void timerCallback();
 	void sendMouseMove();
@@ -13325,7 +12976,7 @@ private:
 	void handleAsyncUpdate();
 
 	Desktop (const Desktop&);
-	const Desktop& operator= (const Desktop&);
+	Desktop& operator= (const Desktop&);
 };
 
 #endif   // __JUCE_DESKTOP_JUCEHEADER__
@@ -13493,7 +13144,7 @@ private:
 	void timerCallback();
 
 	PropertiesFile (const PropertiesFile&);
-	const PropertiesFile& operator= (const PropertiesFile&);
+	PropertiesFile& operator= (const PropertiesFile&);
 };
 
 #endif   // __JUCE_PROPERTIESFILE_JUCEHEADER__
@@ -13538,7 +13189,7 @@ private:
 	int commonSettingsAreReadOnly;
 
 	ApplicationProperties (const ApplicationProperties&);
-	const ApplicationProperties& operator= (const ApplicationProperties&);
+	ApplicationProperties& operator= (const ApplicationProperties&);
 
 	void openFiles() throw();
 };
@@ -13623,7 +13274,7 @@ private:
 	String formatName;
 
 	AudioFormatReader (const AudioFormatReader&);
-	const AudioFormatReader& operator= (const AudioFormatReader&);
+	AudioFormatReader& operator= (const AudioFormatReader&);
 };
 
 #endif   // __JUCE_AUDIOFORMATREADER_JUCEHEADER__
@@ -13660,7 +13311,7 @@ public:
 
 	AudioSampleBuffer (const AudioSampleBuffer& other) throw();
 
-	const AudioSampleBuffer& operator= (const AudioSampleBuffer& other) throw();
+	AudioSampleBuffer& operator= (const AudioSampleBuffer& other) throw();
 
 	virtual ~AudioSampleBuffer() throw();
 
@@ -13986,7 +13637,7 @@ public:
 
 #if JUCE_USE_CDBURNER
 
-class AudioCDBurner
+class AudioCDBurner	 : public ChangeBroadcaster
 {
 public:
 
@@ -13996,7 +13647,27 @@ public:
 
 	~AudioCDBurner();
 
+	enum DiskState
+	{
+		unknown,		/**< An error condition, if the device isn't responding. */
+		trayOpen,		   /**< The drive is currently open. Note that a slot-loading drive
+									 may seem to be permanently open. */
+		noDisc,		 /**< The drive has no disk in it. */
+		writableDiskPresent,	/**< The drive contains a writeable disk. */
+		readOnlyDiskPresent	 /**< The drive contains a read-only disk. */
+	};
+
+	DiskState getDiskState() const;
+
 	bool isDiskPresent() const;
+
+	bool openTray();
+
+	DiskState waitUntilStateChange (int timeOutMilliseconds);
+
+	const Array<int> getAvailableWriteSpeeds() const;
+
+	bool setBufferUnderrunProtection (const bool shouldBeEnabled);
 
 	int getNumAvailableAudioBlocks() const;
 
@@ -14012,15 +13683,20 @@ public:
 	};
 
 	const String burn (BurnProgressListener* listener,
-					   const bool ejectDiscAfterwards,
-					   const bool peformFakeBurnForTesting);
+					   bool ejectDiscAfterwards,
+					   bool performFakeBurnForTesting,
+					   int writeSpeed);
+
+	void abortBurn();
 
 	juce_UseDebuggingNewOperator
 
 private:
 	AudioCDBurner (const int deviceIndex);
 
-	void* internal;
+	class Pimpl;
+	friend class ScopedPointer<Pimpl>;
+	ScopedPointer<Pimpl> pimpl;
 };
 
 #endif
@@ -14105,7 +13781,7 @@ private:
 #endif
 
 	AudioCDReader (const AudioCDReader&);
-	const AudioCDReader& operator= (const AudioCDReader&);
+	AudioCDReader& operator= (const AudioCDReader&);
 };
 
 #endif
@@ -14207,7 +13883,7 @@ private:
 	const bool deleteSourceWhenDeleted;
 
 	AudioSubsectionReader (const AudioSubsectionReader&);
-	const AudioSubsectionReader& operator= (const AudioSubsectionReader&);
+	AudioSubsectionReader& operator= (const AudioSubsectionReader&);
 };
 
 #endif   // __JUCE_AUDIOSUBSECTIONREADER_JUCEHEADER__
@@ -14595,7 +14271,7 @@ private:
 	void readBufferSection (int start, int length, AudioSampleBuffer& buffer, int startSample);
 
 	AudioFormatReaderSource (const AudioFormatReaderSource&);
-	const AudioFormatReaderSource& operator= (const AudioFormatReaderSource&);
+	AudioFormatReaderSource& operator= (const AudioFormatReaderSource&);
 };
 
 #endif   // __JUCE_AUDIOFORMATREADERSOURCE_JUCEHEADER__
@@ -14742,7 +14418,7 @@ private:
 	float lastGain, gain;
 
 	AudioSourcePlayer (const AudioSourcePlayer&);
-	const AudioSourcePlayer& operator= (const AudioSourcePlayer&);
+	AudioSourcePlayer& operator= (const AudioSourcePlayer&);
 };
 
 #endif   // __JUCE_AUDIOSOURCEPLAYER_JUCEHEADER__
@@ -14803,7 +14479,7 @@ private:
 	void readBufferSection (int start, int length, int bufferOffset);
 
 	BufferingAudioSource (const BufferingAudioSource&);
-	const BufferingAudioSource& operator= (const BufferingAudioSource&);
+	BufferingAudioSource& operator= (const BufferingAudioSource&);
 };
 
 #endif   // __JUCE_BUFFERINGAUDIOSOURCE_JUCEHEADER__
@@ -14857,7 +14533,7 @@ private:
 	void applyFilter (float* samples, int num, FilterState& fs);
 
 	ResamplingAudioSource (const ResamplingAudioSource&);
-	const ResamplingAudioSource& operator= (const ResamplingAudioSource&);
+	ResamplingAudioSource& operator= (const ResamplingAudioSource&);
 };
 
 #endif   // __JUCE_RESAMPLINGAUDIOSOURCE_JUCEHEADER__
@@ -14923,7 +14599,7 @@ private:
 	bool isPrepared, inputStreamEOF;
 
 	AudioTransportSource (const AudioTransportSource&);
-	const AudioTransportSource& operator= (const AudioTransportSource&);
+	AudioTransportSource& operator= (const AudioTransportSource&);
 };
 
 #endif   // __JUCE_AUDIOTRANSPORTSOURCE_JUCEHEADER__
@@ -14986,7 +14662,7 @@ private:
 	CriticalSection lock;
 
 	ChannelRemappingAudioSource (const ChannelRemappingAudioSource&);
-	const ChannelRemappingAudioSource& operator= (const ChannelRemappingAudioSource&);
+	ChannelRemappingAudioSource& operator= (const ChannelRemappingAudioSource&);
 };
 
 #endif   // __JUCE_CHANNELREMAPPINGAUDIOSOURCE_JUCEHEADER__
@@ -15060,7 +14736,7 @@ protected:
 	float x1, x2, y1, y2;
 
 	// (use the copyCoefficientsFrom() method instead of this operator)
-	const IIRFilter& operator= (const IIRFilter&);
+	IIRFilter& operator= (const IIRFilter&);
 };
 
 #endif   // __JUCE_IIRFILTER_JUCEHEADER__
@@ -15090,7 +14766,7 @@ private:
 	OwnedArray <IIRFilter> iirFilters;
 
 	IIRFilterAudioSource (const IIRFilterAudioSource&);
-	const IIRFilterAudioSource& operator= (const IIRFilterAudioSource&);
+	IIRFilterAudioSource& operator= (const IIRFilterAudioSource&);
 };
 
 #endif   // __JUCE_IIRFILTERAUDIOSOURCE_JUCEHEADER__
@@ -15138,7 +14814,7 @@ private:
 	int bufferSizeExpected;
 
 	MixerAudioSource (const MixerAudioSource&);
-	const MixerAudioSource& operator= (const MixerAudioSource&);
+	MixerAudioSource& operator= (const MixerAudioSource&);
 };
 
 #endif   // __JUCE_MIXERAUDIOSOURCE_JUCEHEADER__
@@ -15185,7 +14861,7 @@ private:
 	float amplitude;
 
 	ToneGeneratorAudioSource (const ToneGeneratorAudioSource&);
-	const ToneGeneratorAudioSource& operator= (const ToneGeneratorAudioSource&);
+	ToneGeneratorAudioSource& operator= (const ToneGeneratorAudioSource&);
 };
 
 #endif   // __JUCE_TONEGENERATORAUDIOSOURCE_JUCEHEADER__
@@ -15243,7 +14919,7 @@ private:
 	String typeName;
 
 	AudioIODeviceType (const AudioIODeviceType&);
-	const AudioIODeviceType& operator= (const AudioIODeviceType&);
+	AudioIODeviceType& operator= (const AudioIODeviceType&);
 };
 
 #endif   // __JUCE_AUDIOIODEVICETYPE_JUCEHEADER__
@@ -15292,7 +14968,7 @@ public:
 
 	~MidiMessage() throw();
 
-	const MidiMessage& operator= (const MidiMessage& other) throw();
+	MidiMessage& operator= (const MidiMessage& other) throw();
 
 	uint8* getRawData() const throw()			   { return data; }
 
@@ -15638,7 +15314,7 @@ public:
 
 	MidiBuffer (const MidiBuffer& other) throw();
 
-	const MidiBuffer& operator= (const MidiBuffer& other) throw();
+	MidiBuffer& operator= (const MidiBuffer& other) throw();
 
 	~MidiBuffer() throw();
 
@@ -15693,7 +15369,7 @@ public:
 		const uint8* data;
 
 		Iterator (const Iterator&);
-		const Iterator& operator= (const Iterator&);
+		Iterator& operator= (const Iterator&);
 	};
 
 	juce_UseDebuggingNewOperator
@@ -15703,6 +15379,7 @@ private:
 	MemoryBlock data;
 	int bytesUsed;
 
+	uint8* getData() const throw()	   { return reinterpret_cast <uint8*> (data.getData()); }
 	uint8* findEventAfter (uint8* d, const int samplePosition) const throw();
 };
 
@@ -15781,36 +15458,6 @@ protected:
 /*** Start of inlined file: juce_Label.h ***/
 #ifndef __JUCE_LABEL_JUCEHEADER__
 #define __JUCE_LABEL_JUCEHEADER__
-
-
-/*** Start of inlined file: juce_ComponentDeletionWatcher.h ***/
-#ifndef __JUCE_COMPONENTDELETIONWATCHER_JUCEHEADER__
-#define __JUCE_COMPONENTDELETIONWATCHER_JUCEHEADER__
-
-class JUCE_API  ComponentDeletionWatcher
-{
-public:
-
-	ComponentDeletionWatcher (const Component* const componentToWatch) throw();
-
-	~ComponentDeletionWatcher() throw();
-
-	bool hasBeenDeleted() const throw();
-
-	const Component* getComponent() const throw();
-
-	juce_UseDebuggingNewOperator
-
-private:
-	const Component* const componentToWatch;
-	const uint32 componentUID;
-
-	ComponentDeletionWatcher (const ComponentDeletionWatcher&);
-	const ComponentDeletionWatcher& operator= (const ComponentDeletionWatcher&);
-};
-
-#endif   // __JUCE_COMPONENTDELETIONWATCHER_JUCEHEADER__
-/*** End of inlined file: juce_ComponentDeletionWatcher.h ***/
 
 
 /*** Start of inlined file: juce_TextEditor.h ***/
@@ -15893,7 +15540,8 @@ public:
 private:
 
 	int millisecondsBeforeTipAppears;
-	int mouseX, mouseY, mouseClicks;
+	Point<int> lastMousePos;
+	int mouseClicks;
 	unsigned int lastCompChangeTime, lastHideTime;
 	Component* lastComponentUnderMouse;
 	bool changedCompsSinceShown;
@@ -15908,7 +15556,7 @@ private:
 	void hide();
 
 	TooltipWindow (const TooltipWindow&);
-	const TooltipWindow& operator= (const TooltipWindow&);
+	TooltipWindow& operator= (const TooltipWindow&);
 };
 
 #endif   // __JUCE_TOOLTIPWINDOW_JUCEHEADER__
@@ -16065,6 +15713,7 @@ private:
 	SortedSet <void*> buttonListeners;
 
 	class RepeatTimer;
+	friend class RepeatTimer;
 	friend class ScopedPointer <RepeatTimer>;
 	ScopedPointer <RepeatTimer> repeatTimer;
 	uint32 buttonPressTime, lastTimeCallbackTime;
@@ -16094,7 +15743,7 @@ private:
 	void sendStateMessage();
 
 	Button (const Button&);
-	const Button& operator= (const Button&);
+	Button& operator= (const Button&);
 };
 
 #endif   // __JUCE_BUTTON_JUCEHEADER__
@@ -16200,7 +15849,7 @@ private:
 	void timerCallback();
 
 	ScrollBar (const ScrollBar&);
-	const ScrollBar& operator= (const ScrollBar&);
+	ScrollBar& operator= (const ScrollBar&);
 };
 
 #endif   // __JUCE_SCROLLBAR_JUCEHEADER__
@@ -16283,7 +15932,7 @@ private:
 
 	void updateVisibleRegion();
 	Viewport (const Viewport&);
-	const Viewport& operator= (const Viewport&);
+	Viewport& operator= (const Viewport&);
 };
 
 #endif   // __JUCE_VIEWPORT_JUCEHEADER__
@@ -16306,7 +15955,7 @@ public:
 
 	~PopupMenu();
 
-	const PopupMenu& operator= (const PopupMenu& other);
+	PopupMenu& operator= (const PopupMenu& other);
 
 	void clear();
 
@@ -16415,7 +16064,7 @@ public:
 		int index;
 
 		MenuItemIterator (const MenuItemIterator&);
-		const MenuItemIterator& operator= (const MenuItemIterator&);
+		MenuItemIterator& operator= (const MenuItemIterator&);
 	};
 
 	juce_UseDebuggingNewOperator
@@ -16782,9 +16431,10 @@ private:
 	void timerCallbackInt();
 	void repaintCaret();
 	void repaintText (const Range<int>& range);
+	UndoManager* getUndoManager() throw();
 
 	TextEditor (const TextEditor&);
-	const TextEditor& operator= (const TextEditor&);
+	TextEditor& operator= (const TextEditor&);
 };
 
 #endif   // __JUCE_TEXTEDITOR_JUCEHEADER__
@@ -16845,7 +16495,7 @@ public:
 	void attachToComponent (Component* owner,
 							const bool onLeft);
 
-	Component* getAttachedComponent() const throw()				 { return ownerComponent; }
+	Component* getAttachedComponent() const;
 
 	bool isAttachedOnLeft() const throw()					   { return leftOfOwnerComp; }
 
@@ -16913,8 +16563,7 @@ private:
 	Justification justification;
 	ScopedPointer <TextEditor> editor;
 	SortedSet <void*> listeners;
-	Component* ownerComponent;
-	ScopedPointer <ComponentDeletionWatcher> deletionWatcher;
+	Component::SafePointer<Component> ownerComponent;
 	int horizontalBorderSize, verticalBorderSize;
 	float minimumHorizontalScale;
 	bool editSingleClick : 1;
@@ -16926,7 +16575,7 @@ private:
 	void callChangeListeners();
 
 	Label (const Label&);
-	const Label& operator= (const Label&);
+	Label& operator= (const Label&);
 };
 
 #endif   // __JUCE_LABEL_JUCEHEADER__
@@ -17062,7 +16711,7 @@ private:
 	int lastCurrentId;
 	bool isButtonDown, separatorPending, menuActive, textIsCustom;
 	SortedSet <void*> listeners;
-	Label* label;
+	ScopedPointer<Label> label;
 	String textWhenNothingSelected, noChoicesMessage;
 
 	void showPopup();
@@ -17071,7 +16720,7 @@ private:
 	ItemInfo* getItemForIndex (const int index) const throw();
 
 	ComboBox (const ComboBox&);
-	const ComboBox& operator= (const ComboBox&);
+	ComboBox& operator= (const ComboBox&);
 };
 
 #endif   // __JUCE_COMBOBOX_JUCEHEADER__
@@ -17246,7 +16895,7 @@ private:
 	AudioIODeviceType* findType (const String& inputName, const String& outputName);
 
 	AudioDeviceManager (const AudioDeviceManager&);
-	const AudioDeviceManager& operator= (const AudioDeviceManager&);
+	AudioDeviceManager& operator= (const AudioDeviceManager&);
 };
 
 #endif   // __JUCE_AUDIODEVICEMANAGER_JUCEHEADER__
@@ -17491,7 +17140,7 @@ private:
 	short timeFormat;
 
 	MidiFile (const MidiFile&);
-	const MidiFile& operator= (const MidiFile&);
+	MidiFile& operator= (const MidiFile&);
 
 	void readNextTrack (const char* data, int size);
 	void writeTrack (OutputStream& mainOut, const int trackNum);
@@ -17566,7 +17215,7 @@ private:
 	void noteOffInternal  (const int midiChannel, const int midiNoteNumber);
 
 	MidiKeyboardState (const MidiKeyboardState&);
-	const MidiKeyboardState& operator= (const MidiKeyboardState&);
+	MidiKeyboardState& operator= (const MidiKeyboardState&);
 };
 
 #endif   // __JUCE_MIDIKEYBOARDSTATE_JUCEHEADER__
@@ -17612,7 +17261,7 @@ private:
 	double sampleRate;
 
 	MidiMessageCollector (const MidiMessageCollector&);
-	const MidiMessageCollector& operator= (const MidiMessageCollector&);
+	MidiMessageCollector& operator= (const MidiMessageCollector&);
 };
 
 #endif   // __JUCE_MIDIMESSAGECOLLECTOR_JUCEHEADER__
@@ -17896,7 +17545,7 @@ private:
 #endif
 
 	AudioProcessor (const AudioProcessor&);
-	const AudioProcessor& operator= (const AudioProcessor&);
+	AudioProcessor& operator= (const AudioProcessor&);
 };
 
 #endif   // __JUCE_AUDIOPROCESSOR_JUCEHEADER__
@@ -17913,7 +17562,7 @@ public:
 
 	PluginDescription() throw();
 	PluginDescription (const PluginDescription& other) throw();
-	const PluginDescription& operator= (const PluginDescription& other) throw();
+	PluginDescription& operator= (const PluginDescription& other) throw();
 	~PluginDescription() throw();
 
 	String name;
@@ -17966,7 +17615,7 @@ protected:
 	AudioPluginInstance();
 
 	AudioPluginInstance (const AudioPluginInstance&);
-	const AudioPluginInstance& operator= (const AudioPluginInstance&);
+	AudioPluginInstance& operator= (const AudioPluginInstance&);
 };
 
 #endif   // __JUCE_AUDIOPLUGININSTANCE_JUCEHEADER__
@@ -18004,7 +17653,7 @@ protected:
 	AudioPluginFormat() throw();
 
 	AudioPluginFormat (const AudioPluginFormat&);
-	const AudioPluginFormat& operator= (const AudioPluginFormat&);
+	AudioPluginFormat& operator= (const AudioPluginFormat&);
 };
 
 #endif   // __JUCE_AUDIOPLUGINFORMAT_JUCEHEADER__
@@ -18032,7 +17681,7 @@ public:
 
 private:
 	AudioUnitPluginFormat (const AudioUnitPluginFormat&);
-	const AudioUnitPluginFormat& operator= (const AudioUnitPluginFormat&);
+	AudioUnitPluginFormat& operator= (const AudioUnitPluginFormat&);
 };
 
 #endif
@@ -18070,7 +17719,7 @@ public:
 
 private:
 	DirectXPluginFormat (const DirectXPluginFormat&);
-	const DirectXPluginFormat& operator= (const DirectXPluginFormat&);
+	DirectXPluginFormat& operator= (const DirectXPluginFormat&);
 };
 
 #endif
@@ -18108,7 +17757,7 @@ public:
 
 private:
 	LADSPAPluginFormat (const LADSPAPluginFormat&);
-	const LADSPAPluginFormat& operator= (const LADSPAPluginFormat&);
+	LADSPAPluginFormat& operator= (const LADSPAPluginFormat&);
 };
 
 #endif
@@ -18304,7 +17953,7 @@ public:
 
 private:
 	VSTPluginFormat (const VSTPluginFormat&);
-	const VSTPluginFormat& operator= (const VSTPluginFormat&);
+	VSTPluginFormat& operator= (const VSTPluginFormat&);
 
 	void recursiveFileSearch (StringArray& results, const File& dir, const bool recursive);
 };
@@ -18353,7 +18002,7 @@ private:
 	OwnedArray <AudioPluginFormat> formats;
 
 	AudioPluginFormatManager (const AudioPluginFormatManager&);
-	const AudioPluginFormatManager& operator= (const AudioPluginFormatManager&);
+	AudioPluginFormatManager& operator= (const AudioPluginFormatManager&);
 };
 
 #endif   // __JUCE_AUDIOPLUGINFORMATMANAGER_JUCEHEADER__
@@ -18428,7 +18077,7 @@ private:
 	OwnedArray <PluginDescription> types;
 
 	KnownPluginList (const KnownPluginList&);
-	const KnownPluginList& operator= (const KnownPluginList&);
+	KnownPluginList& operator= (const KnownPluginList&);
 };
 
 #endif   // __JUCE_KNOWNPLUGINLIST_JUCEHEADER__
@@ -18480,7 +18129,7 @@ private:
 	void setDeadMansPedalFile (const StringArray& newContents) throw();
 
 	PluginDirectoryScanner (const PluginDirectoryScanner&);
-	const PluginDirectoryScanner& operator= (const PluginDirectoryScanner&);
+	PluginDirectoryScanner& operator= (const PluginDirectoryScanner&);
 };
 
 #endif   // __JUCE_PLUGINDIRECTORYSCANNER_JUCEHEADER__
@@ -18663,7 +18312,7 @@ private:
 	Component* headerComponent;
 	int totalItems, rowHeight, minimumRowWidth;
 	int outlineThickness;
-	int lastMouseX, lastMouseY, lastRowSelected;
+	int lastRowSelected;
 	bool mouseMoveSelects, multipleSelection, hasDoneInitialUpdate;
 	SparseSet <int> selected;
 
@@ -18673,7 +18322,7 @@ private:
 							bool isMouseClick);
 
 	ListBox (const ListBox&);
-	const ListBox& operator= (const ListBox&);
+	ListBox& operator= (const ListBox&);
 };
 
 #endif   // __JUCE_LISTBOX_JUCEHEADER__
@@ -18717,7 +18366,7 @@ protected:
 
 private:
 	TextButton (const TextButton&);
-	const TextButton& operator= (const TextButton&);
+	TextButton& operator= (const TextButton&);
 };
 
 #endif   // __JUCE_TEXTBUTTON_JUCEHEADER__
@@ -18760,7 +18409,7 @@ private:
 	void scanFor (AudioPluginFormat* format);
 
 	PluginListComponent (const PluginListComponent&);
-	const PluginListComponent& operator= (const PluginListComponent&);
+	PluginListComponent& operator= (const PluginListComponent&);
 };
 
 #endif   // __JUCE_PLUGINLISTCOMPONENT_JUCEHEADER__
@@ -18818,7 +18467,7 @@ public:
 		void unprepare();
 
 		Node (const Node&);
-		const Node& operator= (const Node&);
+		Node& operator= (const Node&);
 	};
 
 	struct JUCE_API  Connection
@@ -18949,7 +18598,7 @@ public:
 		AudioProcessorGraph* graph;
 
 		AudioGraphIOProcessor (const AudioGraphIOProcessor&);
-		const AudioGraphIOProcessor& operator= (const AudioGraphIOProcessor&);
+		AudioGraphIOProcessor& operator= (const AudioGraphIOProcessor&);
 	};
 
 	// AudioProcessor methods:
@@ -19013,7 +18662,7 @@ private:
 					  const int recursionCheck) const;
 
 	AudioProcessorGraph (const AudioProcessorGraph&);
-	const AudioProcessorGraph& operator= (const AudioProcessorGraph&);
+	AudioProcessorGraph& operator= (const AudioProcessorGraph&);
 };
 
 #endif   // __JUCE_AUDIOPROCESSORGRAPH_JUCEHEADER__
@@ -19071,7 +18720,7 @@ private:
 	MidiMessageCollector messageCollector;
 
 	AudioProcessorPlayer (const AudioProcessorPlayer&);
-	const AudioProcessorPlayer& operator= (const AudioProcessorPlayer&);
+	AudioProcessorPlayer& operator= (const AudioProcessorPlayer&);
 };
 
 #endif   // __JUCE_AUDIOPROCESSORPLAYER_JUCEHEADER__
@@ -19195,7 +18844,7 @@ private:
 	PropertyPanel* panel;
 
 	GenericAudioProcessorEditor (const GenericAudioProcessorEditor&);
-	const GenericAudioProcessorEditor& operator= (const GenericAudioProcessorEditor&);
+	GenericAudioProcessorEditor& operator= (const GenericAudioProcessorEditor&);
 };
 
 #endif   // __JUCE_GENERICAUDIOPROCESSOREDITOR_JUCEHEADER__
@@ -19369,7 +19018,7 @@ private:
 	bool shouldStealNotes;
 
 	Synthesiser (const Synthesiser&);
-	const Synthesiser& operator= (const Synthesiser&);
+	Synthesiser& operator= (const Synthesiser&);
 };
 
 #endif   // __JUCE_SYNTHESISER_JUCEHEADER__
@@ -19485,7 +19134,7 @@ private:
 	CriticalSection actionListenerLock_;
 
 	ActionListenerList (const ActionListenerList&);
-	const ActionListenerList& operator= (const ActionListenerList&);
+	ActionListenerList& operator= (const ActionListenerList&);
 };
 
 #endif   // __JUCE_ACTIONLISTENERLIST_JUCEHEADER__
@@ -19512,7 +19161,7 @@ private:
 	ActionListenerList actionListenerList;
 
 	ActionBroadcaster (const ActionBroadcaster&);
-	const ActionBroadcaster& operator= (const ActionBroadcaster&);
+	ActionBroadcaster& operator= (const ActionBroadcaster&);
 };
 
 #endif   // __JUCE_ACTIONBROADCASTER_JUCEHEADER__
@@ -19551,7 +19200,7 @@ public:
 
 private:
 	CallbackMessage (const CallbackMessage&);
-	const CallbackMessage& operator= (const CallbackMessage&);
+	CallbackMessage& operator= (const CallbackMessage&);
 };
 
 #endif   // __JUCE_CALLBACKMESSAGE_JUCEHEADER__
@@ -19640,7 +19289,7 @@ private:
 	void run();
 
 	InterprocessConnection (const InterprocessConnection&);
-	const InterprocessConnection& operator= (const InterprocessConnection&);
+	InterprocessConnection& operator= (const InterprocessConnection&);
 };
 
 #endif   // __JUCE_INTERPROCESSCONNECTION_JUCEHEADER__
@@ -19679,7 +19328,7 @@ private:
 	void run();
 
 	InterprocessConnectionServer (const InterprocessConnectionServer&);
-	const InterprocessConnectionServer& operator= (const InterprocessConnectionServer&);
+	InterprocessConnectionServer& operator= (const InterprocessConnectionServer&);
 };
 
 #endif   // __JUCE_INTERPROCESSCONNECTIONSERVER_JUCEHEADER__
@@ -19723,7 +19372,7 @@ public:
 
 	bool isThisTheMessageThread() const throw();
 
-	void setCurrentMessageThread (const Thread::ThreadID threadId) throw();
+	void setCurrentThreadAsMessageThread();
 
 	Thread::ThreadID getCurrentMessageThread() const throw()		 { return messageThreadId; }
 
@@ -19771,7 +19420,7 @@ private:
 	CriticalSection lockingLock;
 
 	MessageManager (const MessageManager&);
-	const MessageManager& operator= (const MessageManager&);
+	MessageManager& operator= (const MessageManager&);
 };
 
 class JUCE_API MessageManagerLock
@@ -19787,13 +19436,17 @@ public:
 	bool lockWasGained() const throw()			  { return locked; }
 
 private:
-	bool locked, needsUnlocking;
-	void* sharedEvents;
+	class SharedEvents;
+	class BlockingMessage;
+	friend class SharedEvents;
+	friend class BlockingMessage;
+	SharedEvents* sharedEvents;
+	bool locked;
 
 	void init (Thread* const thread, ThreadPoolJob* const job) throw();
 
 	MessageManagerLock (const MessageManagerLock&);
-	const MessageManagerLock& operator= (const MessageManagerLock&);
+	MessageManagerLock& operator= (const MessageManagerLock&);
 };
 
 #endif   // __JUCE_MESSAGEMANAGER_JUCEHEADER__
@@ -19834,7 +19487,7 @@ private:
 	CriticalSection timerListLock;
 	OwnedArray <MultiTimerCallback> timers;
 
-	const MultiTimer& operator= (const MultiTimer&);
+	MultiTimer& operator= (const MultiTimer&);
 };
 
 #endif   // __JUCE_MULTITIMER_JUCEHEADER__
@@ -19908,7 +19561,7 @@ private:
 	int offset;
 
 	ArrowButton (const ArrowButton&);
-	const ArrowButton& operator= (const ArrowButton&);
+	ArrowButton& operator= (const ArrowButton&);
 };
 
 #endif   // __JUCE_ARROWBUTTON_JUCEHEADER__
@@ -19967,7 +19620,7 @@ public:
 		float opacity;
 
 	private:
-		const RenderingContext& operator= (const RenderingContext&);
+		RenderingContext& operator= (const RenderingContext&);
 	};
 
 	virtual void render (const RenderingContext& context) const = 0;
@@ -19996,7 +19649,7 @@ public:
 
 private:
 	Drawable (const Drawable&);
-	const Drawable& operator= (const Drawable&);
+	Drawable& operator= (const Drawable&);
 
 	String name;
 };
@@ -20062,7 +19715,7 @@ private:
 
 	void deleteImages();
 	DrawableButton (const DrawableButton&);
-	const DrawableButton& operator= (const DrawableButton&);
+	DrawableButton& operator= (const DrawableButton&);
 };
 
 #endif   // __JUCE_DRAWABLEBUTTON_JUCEHEADER__
@@ -20118,7 +19771,7 @@ private:
 	const Font getFontToUse() const;
 
 	HyperlinkButton (const HyperlinkButton&);
-	const HyperlinkButton& operator= (const HyperlinkButton&);
+	HyperlinkButton& operator= (const HyperlinkButton&);
 };
 
 #endif   // __JUCE_HYPERLINKBUTTON_JUCEHEADER__
@@ -20183,7 +19836,7 @@ private:
 	void deleteImages();
 
 	ImageButton (const ImageButton&);
-	const ImageButton& operator= (const ImageButton&);
+	ImageButton& operator= (const ImageButton&);
 };
 
 #endif   // __JUCE_IMAGEBUTTON_JUCEHEADER__
@@ -20235,7 +19888,7 @@ private:
 	float outlineWidth;
 
 	ShapeButton (const ShapeButton&);
-	const ShapeButton& operator= (const ShapeButton&);
+	ShapeButton& operator= (const ShapeButton&);
 };
 
 #endif   // __JUCE_SHAPEBUTTON_JUCEHEADER__
@@ -20279,7 +19932,7 @@ protected:
 private:
 
 	ToggleButton (const ToggleButton&);
-	const ToggleButton& operator= (const ToggleButton&);
+	ToggleButton& operator= (const ToggleButton&);
 };
 
 #endif   // __JUCE_TOGGLEBUTTON_JUCEHEADER__
@@ -20549,7 +20202,7 @@ private:
 	ToolbarItemComponent* getNextActiveComponent (int index, const int delta) const;
 
 	Toolbar (const Toolbar&);
-	const Toolbar& operator= (const Toolbar&);
+	Toolbar& operator= (const Toolbar&);
 };
 
 #endif   // __JUCE_TOOLBAR_JUCEHEADER__
@@ -20621,7 +20274,7 @@ private:
 	Rectangle<int> contentArea;
 
 	ToolbarItemComponent (const ToolbarItemComponent&);
-	const ToolbarItemComponent& operator= (const ToolbarItemComponent&);
+	ToolbarItemComponent& operator= (const ToolbarItemComponent&);
 };
 
 #endif   // __JUCE_TOOLBARITEMCOMPONENT_JUCEHEADER__
@@ -20649,7 +20302,7 @@ private:
 	ScopedPointer <Drawable> normalImage, toggledOnImage;
 
 	ToolbarButton (const ToolbarButton&);
-	const ToolbarButton& operator= (const ToolbarButton&);
+	ToolbarButton& operator= (const ToolbarButton&);
 };
 
 #endif   // __JUCE_TOOLBARBUTTON_JUCEHEADER__
@@ -20687,7 +20340,7 @@ public:
 
 		~Position() throw();
 
-		const Position& operator= (const Position& other) throw();
+		Position& operator= (const Position& other) throw();
 		bool operator== (const Position& other) const throw();
 		bool operator!= (const Position& other) const throw();
 
@@ -20782,7 +20435,7 @@ public:
 	public:
 		Iterator (CodeDocument* const document);
 		Iterator (const Iterator& other);
-		const Iterator& operator= (const Iterator& other) throw();
+		Iterator& operator= (const Iterator& other) throw();
 		~Iterator() throw();
 
 		juce_wchar nextChar();
@@ -20830,7 +20483,7 @@ private:
 	void checkLastLineStatus();
 
 	CodeDocument (const CodeDocument&);
-	const CodeDocument& operator= (const CodeDocument&);
+	CodeDocument& operator= (const CodeDocument&);
 };
 
 #endif   // __JUCE_CODEDOCUMENT_JUCEHEADER__
@@ -21031,7 +20684,7 @@ private:
 	int columnToIndex (int line, int column) const throw();
 
 	CodeEditorComponent (const CodeEditorComponent&);
-	const CodeEditorComponent& operator= (const CodeEditorComponent&);
+	CodeEditorComponent& operator= (const CodeEditorComponent&);
 };
 
 #endif   // __JUCE_CODEEDITORCOMPONENT_JUCEHEADER__
@@ -21136,7 +20789,7 @@ private:
 	void timerCallback();
 
 	ProgressBar (const ProgressBar&);
-	const ProgressBar& operator= (const ProgressBar&);
+	ProgressBar& operator= (const ProgressBar&);
 };
 
 #endif   // __JUCE_PROGRESSBAR_JUCEHEADER__
@@ -21452,7 +21105,7 @@ private:
 	bool incDecDragDirectionIsHorizontal() const;
 
 	Slider (const Slider&);
-	const Slider& operator= (const Slider&);
+	Slider& operator= (const Slider&);
 };
 
 #endif   // __JUCE_SLIDER_JUCEHEADER__
@@ -21630,7 +21283,7 @@ private:
 	void resizeColumnsToFit (int firstColumnIndex, int targetTotalWidth);
 
 	TableHeaderComponent (const TableHeaderComponent&);
-	const TableHeaderComponent operator= (const TableHeaderComponent&);
+	TableHeaderComponent operator= (const TableHeaderComponent&);
 };
 
 #endif   // __JUCE_TABLEHEADERCOMPONENT_JUCEHEADER__
@@ -21751,7 +21404,7 @@ private:
 	void updateColumnComponents() const;
 
 	TableListBox (const TableListBox&);
-	const TableListBox& operator= (const TableListBox&);
+	TableListBox& operator= (const TableListBox&);
 };
 
 #endif   // __JUCE_TABLELISTBOX_JUCEHEADER__
@@ -21833,7 +21486,7 @@ private:
 	void replaceComponent (ToolbarItemComponent* const comp);
 
 	ToolbarItemPalette (const ToolbarItemPalette&);
-	const ToolbarItemPalette& operator= (const ToolbarItemPalette&);
+	ToolbarItemPalette& operator= (const ToolbarItemPalette&);
 };
 
 #endif   // __JUCE_TOOLBARITEMPALETTE_JUCEHEADER__
@@ -21999,7 +21652,7 @@ private:
 	TreeViewItem* findItemFromIdentifierString (const String& identifierString);
 
 	TreeViewItem (const TreeViewItem&);
-	const TreeViewItem& operator= (const TreeViewItem&);
+	TreeViewItem& operator= (const TreeViewItem&);
 };
 
 class JUCE_API  TreeView  : public Component,
@@ -22115,7 +21768,7 @@ private:
 									 Component* sourceComponent) const throw();
 
 	TreeView (const TreeView&);
-	const TreeView& operator= (const TreeView&);
+	TreeView& operator= (const TreeView&);
 };
 
 #endif   // __JUCE_TREEVIEW_JUCEHEADER__
@@ -22240,7 +21893,7 @@ public:
 
 	private:
 		BitmapData (const BitmapData&);
-		const BitmapData& operator= (const BitmapData&);
+		BitmapData& operator= (const BitmapData&);
 	};
 
 	virtual void setPixelData (int destX, int destY, int destW, int destH,
@@ -22272,7 +21925,7 @@ protected:
 
 private:
 
-	const Image& operator= (const Image&);
+	Image& operator= (const Image&);
 };
 
 #endif   // __JUCE_IMAGE_JUCEHEADER__
@@ -22355,7 +22008,7 @@ private:
 				  const Time& creationTime, const bool isReadOnly);
 
 	DirectoryContentsList (const DirectoryContentsList&);
-	const DirectoryContentsList& operator= (const DirectoryContentsList&);
+	DirectoryContentsList& operator= (const DirectoryContentsList&);
 };
 
 #endif   // __JUCE_DIRECTORYCONTENTSLIST_JUCEHEADER__
@@ -22417,7 +22070,7 @@ protected:
 	SortedSet <void*> listeners;
 
 	DirectoryContentsDisplayComponent (const DirectoryContentsDisplayComponent&);
-	const DirectoryContentsDisplayComponent& operator= (const DirectoryContentsDisplayComponent&);
+	DirectoryContentsDisplayComponent& operator= (const DirectoryContentsDisplayComponent&);
 };
 
 #endif   // __JUCE_DIRECTORYCONTENTSDISPLAYCOMPONENT_JUCEHEADER__
@@ -22453,7 +22106,7 @@ public:
 
 private:
 	FilePreviewComponent (const FilePreviewComponent&);
-	const FilePreviewComponent& operator= (const FilePreviewComponent&);
+	FilePreviewComponent& operator= (const FilePreviewComponent&);
 };
 
 #endif   // __JUCE_FILEPREVIEWCOMPONENT_JUCEHEADER__
@@ -22558,7 +22211,7 @@ private:
 	bool isFileOrDirSuitable (const File& f) const;
 
 	FileBrowserComponent (const FileBrowserComponent&);
-	const FileBrowserComponent& operator= (const FileBrowserComponent&);
+	FileBrowserComponent& operator= (const FileBrowserComponent&);
 };
 
 #endif   // __JUCE_FILEBROWSERCOMPONENT_JUCEHEADER__
@@ -22694,7 +22347,7 @@ private:
 	void deleteShadowWindows();
 
 	DropShadower (const DropShadower&);
-	const DropShadower& operator= (const DropShadower&);
+	DropShadower& operator= (const DropShadower&);
 };
 
 #endif   // __JUCE_DROPSHADOWER_JUCEHEADER__
@@ -22748,7 +22401,7 @@ private:
 	void setWindowActive (const bool isNowActive) throw();
 
 	TopLevelWindow (const TopLevelWindow&);
-	const TopLevelWindow& operator= (const TopLevelWindow&);
+	TopLevelWindow& operator= (const TopLevelWindow&);
 };
 
 #endif   // __JUCE_TOPLEVELWINDOW_JUCEHEADER__
@@ -22840,7 +22493,7 @@ private:
 	double aspectRatio;
 
 	ComponentBoundsConstrainer (const ComponentBoundsConstrainer&);
-	const ComponentBoundsConstrainer& operator= (const ComponentBoundsConstrainer&);
+	ComponentBoundsConstrainer& operator= (const ComponentBoundsConstrainer&);
 };
 
 #endif   // __JUCE_COMPONENTBOUNDSCONSTRAINER_JUCEHEADER__
@@ -22864,7 +22517,7 @@ public:
 
 private:
 	ComponentBoundsConstrainer* constrainer;
-	int originalX, originalY;
+	Point<int> originalPos;
 };
 
 #endif   // __JUCE_COMPONENTDRAGGER_JUCEHEADER__
@@ -22909,7 +22562,7 @@ private:
 	void updateMouseZone (const MouseEvent& e) throw();
 
 	ResizableBorderComponent (const ResizableBorderComponent&);
-	const ResizableBorderComponent& operator= (const ResizableBorderComponent&);
+	ResizableBorderComponent& operator= (const ResizableBorderComponent&);
 };
 
 #endif   // __JUCE_RESIZABLEBORDERCOMPONENT_JUCEHEADER__
@@ -22945,7 +22598,7 @@ private:
 	int originalX, originalY, originalW, originalH;
 
 	ResizableCornerComponent (const ResizableCornerComponent&);
-	const ResizableCornerComponent& operator= (const ResizableCornerComponent&);
+	ResizableCornerComponent& operator= (const ResizableCornerComponent&);
 };
 
 #endif   // __JUCE_RESIZABLECORNERCOMPONENT_JUCEHEADER__
@@ -23051,7 +22704,7 @@ private:
 	void updateLastPos();
 
 	ResizableWindow (const ResizableWindow&);
-	const ResizableWindow& operator= (const ResizableWindow&);
+	ResizableWindow& operator= (const ResizableWindow&);
 
 	// (xxx remove these eventually)
 	// temporarily here to stop old code compiling, as the parameters for these methods have changed..
@@ -23113,7 +22766,7 @@ public:
 
 	GlyphArrangement (const GlyphArrangement& other);
 
-	const GlyphArrangement& operator= (const GlyphArrangement& other);
+	GlyphArrangement& operator= (const GlyphArrangement& other);
 
 	~GlyphArrangement();
 
@@ -23249,7 +22902,7 @@ private:
 	const bool warnAboutOverwritingExistingFiles;
 
 	FileChooserDialogBox (const FileChooserDialogBox&);
-	const FileChooserDialogBox& operator= (const FileChooserDialogBox&);
+	FileChooserDialogBox& operator= (const FileChooserDialogBox&);
 };
 
 #endif   // __JUCE_FILECHOOSERDIALOGBOX_JUCEHEADER__
@@ -23295,7 +22948,7 @@ public:
 
 private:
 	FileListComponent (const FileListComponent&);
-	const FileListComponent& operator= (const FileListComponent&);
+	FileListComponent& operator= (const FileListComponent&);
 
 	File lastDirectory;
 };
@@ -23393,7 +23046,7 @@ private:
 	void handleAsyncUpdate();
 
 	FilenameComponent (const FilenameComponent&);
-	const FilenameComponent& operator= (const FilenameComponent&);
+	FilenameComponent& operator= (const FilenameComponent&);
 };
 
 #endif   // __JUCE_FILENAMECOMPONENT_JUCEHEADER__
@@ -23464,7 +23117,7 @@ private:
 	void updateButtons() throw();
 
 	FileSearchPathListComponent (const FileSearchPathListComponent&);
-	const FileSearchPathListComponent& operator= (const FileSearchPathListComponent&);
+	FileSearchPathListComponent& operator= (const FileSearchPathListComponent&);
 };
 
 #endif   // __JUCE_FILESEARCHPATHLISTCOMPONENT_JUCEHEADER__
@@ -23503,7 +23156,7 @@ private:
 	String dragAndDropDescription;
 
 	FileTreeComponent (const FileTreeComponent&);
-	const FileTreeComponent& operator= (const FileTreeComponent&);
+	FileTreeComponent& operator= (const FileTreeComponent&);
 };
 
 #endif   // __JUCE_FILETREECOMPONENT_JUCEHEADER__
@@ -23540,7 +23193,7 @@ private:
 	void getThumbSize (int& w, int& h) const;
 
 	ImagePreviewComponent (const ImagePreviewComponent&);
-	const ImagePreviewComponent& operator= (const ImagePreviewComponent&);
+	ImagePreviewComponent& operator= (const ImagePreviewComponent&);
 };
 
 #endif   // __JUCE_IMAGEPREVIEWCOMPONENT_JUCEHEADER__
@@ -23586,6 +23239,36 @@ private:
 
 #endif
 #ifndef __JUCE_COMPONENTDELETIONWATCHER_JUCEHEADER__
+
+/*** Start of inlined file: juce_ComponentDeletionWatcher.h ***/
+#ifndef __JUCE_COMPONENTDELETIONWATCHER_JUCEHEADER__
+#define __JUCE_COMPONENTDELETIONWATCHER_JUCEHEADER__
+
+class JUCE_API  ComponentDeletionWatcher
+{
+public:
+
+	ComponentDeletionWatcher (const Component* const componentToWatch) throw();
+
+	~ComponentDeletionWatcher() throw();
+
+	bool hasBeenDeleted() const throw();
+
+	const Component* getComponent() const throw();
+
+	juce_UseDebuggingNewOperator
+
+private:
+	const Component* const componentToWatch;
+	const uint32 componentUID;
+
+	ComponentDeletionWatcher (const ComponentDeletionWatcher&);
+	ComponentDeletionWatcher& operator= (const ComponentDeletionWatcher&);
+};
+
+#endif   // __JUCE_COMPONENTDELETIONWATCHER_JUCEHEADER__
+/*** End of inlined file: juce_ComponentDeletionWatcher.h ***/
+
 
 #endif
 #ifndef __JUCE_COMPONENTLISTENER_JUCEHEADER__
@@ -23688,7 +23371,7 @@ private:
 						const int millisecsSinceKeyPressed,
 						Component* const originatingComponent) const;
 
-	const KeyPressMappingSet& operator= (const KeyPressMappingSet&);
+	KeyPressMappingSet& operator= (const KeyPressMappingSet&);
 };
 
 #endif   // __JUCE_KEYPRESSMAPPINGSET_JUCEHEADER__
@@ -23745,7 +23428,7 @@ private:
 	void assignNewKey (const CommandID commandID, int index);
 
 	KeyMappingEditorComponent (const KeyMappingEditorComponent&);
-	const KeyMappingEditorComponent& operator= (const KeyMappingEditorComponent&);
+	KeyMappingEditorComponent& operator= (const KeyMappingEditorComponent&);
 };
 
 #endif   // __JUCE_KEYMAPPINGEDITORCOMPONENT_JUCEHEADER__
@@ -23796,20 +23479,17 @@ public:
 
 private:
 
-	Component* const component;
+	Component::SafePointer<Component> component;
 	ComponentPeer* lastPeer;
 	VoidArray registeredParentComps;
 	bool reentrant;
-	int lastX, lastY, lastWidth, lastHeight;
-#ifdef JUCE_DEBUG
-	ScopedPointer <ComponentDeletionWatcher> deletionWatcher;
-#endif
+	Rectangle<int> lastBounds;
 
 	void unregister() throw();
 	void registerWithParentComps() throw();
 
 	ComponentMovementWatcher (const ComponentMovementWatcher&);
-	const ComponentMovementWatcher& operator= (const ComponentMovementWatcher&);
+	ComponentMovementWatcher& operator= (const ComponentMovementWatcher&);
 };
 
 #endif   // __JUCE_COMPONENTMOVEMENTWATCHER_JUCEHEADER__
@@ -23855,7 +23535,7 @@ private:
 	Justification justification;
 
 	GroupComponent (const GroupComponent&);
-	const GroupComponent& operator= (const GroupComponent&);
+	GroupComponent& operator= (const GroupComponent&);
 };
 
 #endif   // __JUCE_GROUPCOMPONENT_JUCEHEADER__
@@ -23909,7 +23589,7 @@ protected:
 
 private:
 	TabBarButton (const TabBarButton&);
-	const TabBarButton& operator= (const TabBarButton&);
+	TabBarButton& operator= (const TabBarButton&);
 };
 
 class JUCE_API  TabbedButtonBar  : public Component,
@@ -24002,7 +23682,7 @@ private:
 	Button* extraTabsButton;
 
 	TabbedButtonBar (const TabbedButtonBar&);
-	const TabbedButtonBar& operator= (const TabbedButtonBar&);
+	TabbedButtonBar& operator= (const TabbedButtonBar&);
 };
 
 #endif   // __JUCE_TABBEDBUTTONBAR_JUCEHEADER__
@@ -24098,7 +23778,7 @@ private:
 	void changeCallback (const int newCurrentTabIndex, const String& newTabName);
 
 	TabbedComponent (const TabbedComponent&);
-	const TabbedComponent& operator= (const TabbedComponent&);
+	TabbedComponent& operator= (const TabbedComponent&);
 };
 
 #endif   // __JUCE_TABBEDCOMPONENT_JUCEHEADER__
@@ -24176,7 +23856,7 @@ private:
 	SortedSet <void*> listeners;
 
 	MenuBarModel (const MenuBarModel&);
-	const MenuBarModel& operator= (const MenuBarModel&);
+	MenuBarModel& operator= (const MenuBarModel&);
 };
 
 #endif   // __JUCE_MENUBARMODEL_JUCEHEADER__
@@ -24230,7 +23910,7 @@ private:
 	void repaintMenuItem (int index);
 
 	MenuBarComponent (const MenuBarComponent&);
-	const MenuBarComponent& operator= (const MenuBarComponent&);
+	MenuBarComponent& operator= (const MenuBarComponent&);
 };
 
 #endif   // __JUCE_MENUBARCOMPONENT_JUCEHEADER__
@@ -24319,7 +23999,7 @@ private:
 	void repaintTitleBar();
 
 	DocumentWindow (const DocumentWindow&);
-	const DocumentWindow& operator= (const DocumentWindow&);
+	DocumentWindow& operator= (const DocumentWindow&);
 };
 
 #endif   // __JUCE_DOCUMENTWINDOW_JUCEHEADER__
@@ -24507,7 +24187,7 @@ private:
 	void updatePrefSizesToMatchCurrentPositions();
 
 	StretchableLayoutManager (const StretchableLayoutManager&);
-	const StretchableLayoutManager& operator= (const StretchableLayoutManager&);
+	StretchableLayoutManager& operator= (const StretchableLayoutManager&);
 };
 
 #endif   // __JUCE_STRETCHABLELAYOUTMANAGER_JUCEHEADER__
@@ -24545,7 +24225,7 @@ private:
 	bool isVertical;
 
 	StretchableLayoutResizerBar (const StretchableLayoutResizerBar&);
-	const StretchableLayoutResizerBar& operator= (const StretchableLayoutResizerBar&);
+	StretchableLayoutResizerBar& operator= (const StretchableLayoutResizerBar&);
 };
 
 #endif   // __JUCE_STRETCHABLELAYOUTRESIZERBAR_JUCEHEADER__
@@ -24592,7 +24272,7 @@ private:
 	OwnedArray <Item> items;
 
 	StretchableObjectResizer (const StretchableObjectResizer&);
-	const StretchableObjectResizer& operator= (const StretchableObjectResizer&);
+	StretchableObjectResizer& operator= (const StretchableObjectResizer&);
 };
 
 #endif   // __JUCE_STRETCHABLEOBJECTRESIZER_JUCEHEADER__
@@ -24639,7 +24319,7 @@ public:
 
 	~TextLayout() throw();
 
-	const TextLayout& operator= (const TextLayout& layoutToCopy) throw();
+	TextLayout& operator= (const TextLayout& layoutToCopy) throw();
 
 	void clear() throw();
 
@@ -24806,7 +24486,7 @@ private:
 
 	// disable copy constructor
 	AlertWindow (const AlertWindow&);
-	const AlertWindow& operator= (const AlertWindow&);
+	AlertWindow& operator= (const AlertWindow&);
 };
 
 #endif   // __JUCE_ALERTWINDOW_JUCEHEADER__
@@ -25285,7 +24965,7 @@ private:
 							   const bool flatOnBottom) throw();
 
 	LookAndFeel (const LookAndFeel&);
-	const LookAndFeel& operator= (const LookAndFeel&);
+	LookAndFeel& operator= (const LookAndFeel&);
 };
 
 #endif   // __JUCE_LOOKANDFEEL_JUCEHEADER__
@@ -25404,7 +25084,7 @@ private:
 	DropShadowEffect scrollbarShadow;
 
 	OldSchoolLookAndFeel (const OldSchoolLookAndFeel&);
-	const OldSchoolLookAndFeel& operator= (const OldSchoolLookAndFeel&);
+	OldSchoolLookAndFeel& operator= (const OldSchoolLookAndFeel&);
 };
 
 #endif   // __JUCE_OLDSCHOOLLOOKANDFEEL_JUCEHEADER__
@@ -25500,7 +25180,7 @@ public:
 	{
 	}
 
-	const SelectedItemSet& operator= (const SelectedItemSet& other)
+	SelectedItemSet& operator= (const SelectedItemSet& other)
 	{
 		if (selectedItems != other.selectedItems)
 		{
@@ -25829,7 +25509,7 @@ private:
 	void checkJustHoveredCallback();
 
 	MouseHoverDetector (const MouseHoverDetector&);
-	const MouseHoverDetector& operator= (const MouseHoverDetector&);
+	MouseHoverDetector& operator= (const MouseHoverDetector&);
 };
 
 #endif   // __JUCE_MOUSEHOVERDETECTOR_JUCEHEADER__
@@ -25882,7 +25562,7 @@ private:
 	void createButton();
 
 	BooleanPropertyComponent (const BooleanPropertyComponent&);
-	const BooleanPropertyComponent& operator= (const BooleanPropertyComponent&);
+	BooleanPropertyComponent& operator= (const BooleanPropertyComponent&);
 };
 
 #endif   // __JUCE_BOOLEANPROPERTYCOMPONENT_JUCEHEADER__
@@ -25919,7 +25599,7 @@ private:
 	TextButton* button;
 
 	ButtonPropertyComponent (const ButtonPropertyComponent&);
-	const ButtonPropertyComponent& operator= (const ButtonPropertyComponent&);
+	ButtonPropertyComponent& operator= (const ButtonPropertyComponent&);
 };
 
 #endif   // __JUCE_BUTTONPROPERTYCOMPONENT_JUCEHEADER__
@@ -25967,7 +25647,7 @@ private:
 	void createComboBox (const Array <int>* choiceIDs);
 
 	ChoicePropertyComponent (const ChoicePropertyComponent&);
-	const ChoicePropertyComponent& operator= (const ChoicePropertyComponent&);
+	ChoicePropertyComponent& operator= (const ChoicePropertyComponent&);
 };
 
 #endif   // __JUCE_CHOICEPROPERTYCOMPONENT_JUCEHEADER__
@@ -26024,7 +25704,7 @@ protected:
 	Slider* slider;
 
 	SliderPropertyComponent (const SliderPropertyComponent&);
-	const SliderPropertyComponent& operator= (const SliderPropertyComponent&);
+	SliderPropertyComponent& operator= (const SliderPropertyComponent&);
 };
 
 #endif   // __JUCE_SLIDERPROPERTYCOMPONENT_JUCEHEADER__
@@ -26069,7 +25749,7 @@ private:
 	void createEditor (const int maxNumChars, const bool isMultiLine);
 
 	TextPropertyComponent (const TextPropertyComponent&);
-	const TextPropertyComponent& operator= (const TextPropertyComponent&);
+	TextPropertyComponent& operator= (const TextPropertyComponent&);
 };
 
 #endif   // __JUCE_TEXTPROPERTYCOMPONENT_JUCEHEADER__
@@ -26111,12 +25791,13 @@ public:
 	juce_UseDebuggingNewOperator
 
 private:
+	class ActiveXControlData;
 	friend class ActiveXControlData;
 	void* control;
 	bool mouseEventsAllowed;
 
 	ActiveXControlComponent (const ActiveXControlComponent&);
-	const ActiveXControlComponent& operator= (const ActiveXControlComponent&);
+	ActiveXControlComponent& operator= (const ActiveXControlComponent&);
 
 	void setControlBounds (const Rectangle<int>& bounds) const;
 	void setControlVisible (const bool b) const;
@@ -26180,7 +25861,7 @@ private:
 	Label* midiOutputLabel;
 
 	AudioDeviceSelectorComponent (const AudioDeviceSelectorComponent&);
-	const AudioDeviceSelectorComponent& operator= (const AudioDeviceSelectorComponent&);
+	AudioDeviceSelectorComponent& operator= (const AudioDeviceSelectorComponent&);
 };
 
 #endif   // __JUCE_AUDIODEVICESELECTORCOMPONENT_JUCEHEADER__
@@ -26239,7 +25920,7 @@ private:
 	DropShadowEffect shadow;
 
 	BubbleComponent (const BubbleComponent&);
-	const BubbleComponent& operator= (const BubbleComponent&);
+	BubbleComponent& operator= (const BubbleComponent&);
 };
 
 #endif   // __JUCE_BUBBLECOMPONENT_JUCEHEADER__
@@ -26291,7 +25972,7 @@ private:
 			   const bool deleteSelfAfterUse);
 
 	BubbleMessageComponent (const BubbleMessageComponent&);
-	const BubbleMessageComponent& operator= (const BubbleMessageComponent&);
+	BubbleMessageComponent& operator= (const BubbleMessageComponent&);
 };
 
 #endif   // __JUCE_BUBBLEMESSAGECOMPONENT_JUCEHEADER__
@@ -26366,7 +26047,7 @@ private:
 	void resized();
 
 	ColourSelector (const ColourSelector&);
-	const ColourSelector& operator= (const ColourSelector&);
+	ColourSelector& operator= (const ColourSelector&);
 
 	// this constructor is here temporarily to prevent old code compiling, because the parameters
 	// have changed - if you get an error here, update your code to use the new constructor instead..
@@ -26387,6 +26068,78 @@ private:
 /*** Start of inlined file: juce_MagnifierComponent.h ***/
 #ifndef __JUCE_MAGNIFIERCOMPONENT_JUCEHEADER__
 #define __JUCE_MAGNIFIERCOMPONENT_JUCEHEADER__
+
+
+/*** Start of inlined file: juce_MouseInputSource.h ***/
+#ifndef __JUCE_MOUSEEVENT_JUCEHEADER__x
+#define __JUCE_MOUSEEVENT_JUCEHEADER__x
+
+class Component;
+class ComponentPeer;
+class MouseInputSourceInternal;
+
+class JUCE_API  MouseInputSource
+{
+public:
+
+	MouseInputSource (int index, bool isMouseDevice);
+
+	~MouseInputSource();
+
+	bool isMouse() const;
+
+	bool isTouch() const;
+
+	bool canHover() const;
+
+	bool hasMouseWheel() const;
+
+	int getIndex() const;
+
+	bool isDragging() const;
+
+	const Point<int> getScreenPosition() const;
+
+	const ModifierKeys getCurrentModifiers() const;
+
+	Component* getComponentUnderMouse() const;
+
+	void triggerFakeMove() const;
+
+	int getNumberOfMultipleClicks() const throw();
+
+	const Time getLastMouseDownTime() const throw();
+
+	const Point<int> getLastMouseDownPosition() const throw();
+
+	bool hasMouseMovedSignificantlySincePressed() const throw();
+
+	bool hasMouseCursor() const throw();
+	void showMouseCursor (const MouseCursor& cursor);
+	void hideCursor();
+	void revealCursor();
+
+	bool canDoUnboundedMovement() const throw();
+
+	void enableUnboundedMouseMovement (bool isEnabled, bool keepCursorVisibleUntilOffscreen = false);
+
+	juce_UseDebuggingNewOperator
+
+	void handleEvent (ComponentPeer* peer, const Point<int>& positionWithinPeer, int64 time, const ModifierKeys& mods);
+	void handleWheel (ComponentPeer* peer, const Point<int>& positionWithinPeer, int64 time, float x, float y);
+
+private:
+	friend class Desktop;
+	friend class ComponentPeer;
+	friend class MouseInputSourceInternal;
+	ScopedPointer<MouseInputSourceInternal> pimpl;
+
+	MouseInputSource (const MouseInputSource&);
+	MouseInputSource& operator= (const MouseInputSource&);
+};
+
+#endif   // __JUCE_MOUSEEVENT_JUCEHEADER__
+/*** End of inlined file: juce_MouseInputSource.h ***/
 
 class JUCE_API  MagnifierComponent	: public Component
 {
@@ -26416,6 +26169,7 @@ private:
 	ComponentPeer* peer;
 	bool deleteContent;
 	Graphics::ResamplingQuality quality;
+	MouseInputSource mouseSource;
 
 	void paint (Graphics& g);
 	void mouseDown (const MouseEvent& e);
@@ -26426,10 +26180,11 @@ private:
 	void mouseExit (const MouseEvent& e);
 	void mouseWheelMove (const MouseEvent& e, float, float);
 
+	void passOnMouseEventToPeer (const MouseEvent& e);
 	int scaleInt (const int n) const;
 
 	MagnifierComponent (const MagnifierComponent&);
-	const MagnifierComponent& operator= (const MagnifierComponent&);
+	MagnifierComponent& operator= (const MagnifierComponent&);
 };
 
 #endif   // __JUCE_MAGNIFIERCOMPONENT_JUCEHEADER__
@@ -26595,14 +26350,14 @@ private:
 	int octaveNumForMiddleC;
 
 	void getKeyPos (int midiNoteNumber, int& x, int& w) const;
-	int xyToNote (int x, int y, float& mousePositionVelocity);
-	int remappedXYToNote (int x, int y, float& mousePositionVelocity) const;
+	int xyToNote (const Point<int>& pos, float& mousePositionVelocity);
+	int remappedXYToNote (const Point<int>& pos, float& mousePositionVelocity) const;
 	void resetAnyKeysInUse();
-	void updateNoteUnderMouse (int x, int y);
+	void updateNoteUnderMouse (const Point<int>& pos);
 	void repaintNote (const int midiNoteNumber);
 
 	MidiKeyboardComponent (const MidiKeyboardComponent&);
-	const MidiKeyboardComponent& operator= (const MidiKeyboardComponent&);
+	MidiKeyboardComponent& operator= (const MidiKeyboardComponent&);
 };
 
 #endif   // __JUCE_MIDIKEYBOARDCOMPONENT_JUCEHEADER__
@@ -26643,7 +26398,7 @@ private:
 	ScopedPointer <NSViewComponentInternal> info;
 
 	NSViewComponent (const NSViewComponent&);
-	const NSViewComponent& operator= (const NSViewComponent&);
+	NSViewComponent& operator= (const NSViewComponent&);
 };
 
 #endif
@@ -26772,6 +26527,7 @@ public:
 
 private:
 	class OpenGLComponentWatcher;
+	friend class OpenGLComponentWatcher;
 	friend class ScopedPointer <OpenGLComponentWatcher>;
 	ScopedPointer <OpenGLComponentWatcher> componentWatcher;
 
@@ -26787,7 +26543,7 @@ private:
 	void internalRepaint (int x, int y, int w, int h);
 
 	OpenGLComponent (const OpenGLComponent&);
-	const OpenGLComponent& operator= (const OpenGLComponent&);
+	OpenGLComponent& operator= (const OpenGLComponent&);
 };
 
 #endif
@@ -26842,7 +26598,7 @@ private:
 	int buttonSize;
 
 	PreferencesPanel (const PreferencesPanel&);
-	const PreferencesPanel& operator= (const PreferencesPanel&);
+	PreferencesPanel& operator= (const PreferencesPanel&);
 };
 
 #endif   // __JUCE_PREFERENCESPANEL_JUCEHEADER__
@@ -26945,7 +26701,7 @@ private:
 #endif
 
 	QuickTimeMovieComponent (const QuickTimeMovieComponent&);
-	const QuickTimeMovieComponent& operator= (const QuickTimeMovieComponent&);
+	QuickTimeMovieComponent& operator= (const QuickTimeMovieComponent&);
 };
 
 #endif
@@ -26983,7 +26739,7 @@ public:
 private:
 
 	SystemTrayIconComponent (const SystemTrayIconComponent&);
-	const SystemTrayIconComponent& operator= (const SystemTrayIconComponent&);
+	SystemTrayIconComponent& operator= (const SystemTrayIconComponent&);
 };
 
 #endif
@@ -27044,7 +26800,7 @@ private:
 	void checkWindowAssociation();
 
 	WebBrowserComponent (const WebBrowserComponent&);
-	const WebBrowserComponent& operator= (const WebBrowserComponent&);
+	WebBrowserComponent& operator= (const WebBrowserComponent&);
 };
 
 #endif
@@ -27057,6 +26813,192 @@ private:
 
 #endif
 #ifndef __JUCE_COMPONENTPEER_JUCEHEADER__
+
+/*** Start of inlined file: juce_ComponentPeer.h ***/
+#ifndef __JUCE_COMPONENTPEER_JUCEHEADER__
+#define __JUCE_COMPONENTPEER_JUCEHEADER__
+
+class ComponentBoundsConstrainer;
+
+class JUCE_API  ComponentPeer
+{
+public:
+
+	enum StyleFlags
+	{
+		windowAppearsOnTaskbar	  = (1 << 0),	/**< Indicates that the window should have a corresponding
+														entry on the taskbar (ignored on MacOSX) */
+		windowIsTemporary	   = (1 << 1),	/**< Indicates that the window is a temporary popup, like a menu,
+														tooltip, etc. */
+		windowIgnoresMouseClicks	= (1 << 2),	/**< Indicates that the window should let mouse clicks pass
+														through it (may not be possible on some platforms). */
+		windowHasTitleBar	   = (1 << 3),	/**< Indicates that the window should have a normal OS-specific
+														title bar and frame\. if not specified, the window will be
+														borderless. */
+		windowIsResizable	   = (1 << 4),	/**< Indicates that the window should have a resizable border. */
+		windowHasMinimiseButton	 = (1 << 5),	/**< Indicates that if the window has a title bar, it should have a
+														minimise button on it. */
+		windowHasMaximiseButton	 = (1 << 6),	/**< Indicates that if the window has a title bar, it should have a
+														maximise button on it. */
+		windowHasCloseButton	= (1 << 7),	/**< Indicates that if the window has a title bar, it should have a
+														close button on it. */
+		windowHasDropShadow	 = (1 << 8),	/**< Indicates that the window should have a drop-shadow (this may
+														not be possible on all platforms). */
+		windowRepaintedExplictly	= (1 << 9),	/**< Not intended for public use - this tells a window not to
+														do its own repainting, but only to repaint when the
+														performAnyPendingRepaintsNow() method is called. */
+		windowIgnoresKeyPresses	 = (1 << 10),   /**< Tells the window not to catch any keypresses. This can
+														be used for things like plugin windows, to stop them interfering
+														with the host's shortcut keys */
+		windowIsSemiTransparent	 = (1 << 31)	/**< Not intended for public use - makes a window transparent. */
+
+	};
+
+	ComponentPeer (Component* const component,
+				   const int styleFlags) throw();
+
+	virtual ~ComponentPeer();
+
+	Component* getComponent() const throw()		 { return component; }
+
+	int getStyleFlags() const throw()			   { return styleFlags; }
+
+	virtual void* getNativeHandle() const = 0;
+
+	virtual void setVisible (bool shouldBeVisible) = 0;
+
+	virtual void setTitle (const String& title) = 0;
+
+	virtual void setPosition (int x, int y) = 0;
+
+	virtual void setSize (int w, int h) = 0;
+
+	virtual void setBounds (int x, int y, int w, int h, const bool isNowFullScreen) = 0;
+
+	virtual const Rectangle<int> getBounds() const = 0;
+
+	virtual const Point<int> getScreenPosition() const = 0;
+
+	virtual const Point<int> relativePositionToGlobal (const Point<int>& relativePosition) = 0;
+
+	virtual const Point<int> globalPositionToRelative (const Point<int>& screenPosition) = 0;
+
+	virtual void setMinimised (bool shouldBeMinimised) = 0;
+
+	virtual bool isMinimised() const = 0;
+
+	virtual void setFullScreen (bool shouldBeFullScreen) = 0;
+
+	virtual bool isFullScreen() const = 0;
+
+	void setNonFullScreenBounds (const Rectangle<int>& newBounds) throw();
+
+	const Rectangle<int>& getNonFullScreenBounds() const throw();
+
+	virtual void setIcon (const Image& newIcon) = 0;
+
+	void setConstrainer (ComponentBoundsConstrainer* const newConstrainer) throw();
+
+	ComponentBoundsConstrainer* getConstrainer() const throw()		  { return constrainer; }
+
+	virtual bool contains (const Point<int>& position, bool trueIfInAChildWindow) const = 0;
+
+	virtual const BorderSize getFrameSize() const = 0;
+
+	void handleMovedOrResized();
+
+	void handleScreenSizeChange();
+
+	void handlePaint (LowLevelGraphicsContext& contextToPaintTo);
+
+	virtual bool setAlwaysOnTop (bool alwaysOnTop) = 0;
+
+	virtual void toFront (bool makeActive) = 0;
+
+	virtual void toBehind (ComponentPeer* other) = 0;
+
+	void handleBroughtToFront();
+
+	virtual bool isFocused() const = 0;
+
+	virtual void grabFocus() = 0;
+
+	virtual void textInputRequired (const Point<int>& position) = 0;
+
+	void handleFocusGain();
+	void handleFocusLoss();
+
+	Component* getLastFocusedSubcomponent() const throw();
+
+	bool handleKeyPress (const int keyCode,
+						 const juce_wchar textCharacter);
+
+	bool handleKeyUpOrDown (const bool isKeyDown);
+
+	void handleModifierKeysChange();
+
+	TextInputTarget* findCurrentTextInputTarget();
+
+	virtual void repaint (int x, int y, int w, int h) = 0;
+
+	virtual void performAnyPendingRepaintsNow() = 0;
+
+	void handleMouseEvent (int touchIndex, const Point<int>& positionWithinPeer, const ModifierKeys& newMods, const int64 time);
+	void handleMouseWheel (int touchIndex, const Point<int>& positionWithinPeer, const int64 time, float x, float y);
+
+	void handleUserClosingWindow();
+
+	void handleFileDragMove (const StringArray& files, const Point<int>& position);
+	void handleFileDragExit (const StringArray& files);
+	void handleFileDragDrop (const StringArray& files, const Point<int>& position);
+
+	void clearMaskedRegion() throw();
+
+	void addMaskedRegion (int x, int y, int w, int h) throw();
+
+	static int getNumPeers() throw();
+
+	static ComponentPeer* getPeer (const int index) throw();
+
+	static bool isValidPeer (const ComponentPeer* const peer) throw();
+
+	static void bringModalComponentToFront();
+
+	virtual const StringArray getAvailableRenderingEngines() throw();
+	virtual int getCurrentRenderingEngine() throw();
+	virtual void setCurrentRenderingEngine (int index) throw();
+
+	juce_UseDebuggingNewOperator
+
+protected:
+	Component* const component;
+	const int styleFlags;
+	RectangleList maskedRegion;
+	Rectangle<int> lastNonFullscreenBounds;
+	uint32 lastPaintTime;
+	ComponentBoundsConstrainer* constrainer;
+
+	static void updateCurrentModifiers() throw();
+
+private:
+
+	Component* lastFocusedComponent;
+	Component::SafePointer<Component> dragAndDropTargetComponent;
+	Component* lastDragAndDropCompUnderMouse;
+	bool fakeMouseMessageSent : 1, isWindowMinimised : 1;
+
+	friend class Component;
+	static ComponentPeer* getPeerFor (const Component* const component) throw();
+
+	void setLastDragDropTarget (Component* comp);
+
+	ComponentPeer (const ComponentPeer&);
+	ComponentPeer& operator= (const ComponentPeer&);
+};
+
+#endif   // __JUCE_COMPONENTPEER_JUCEHEADER__
+/*** End of inlined file: juce_ComponentPeer.h ***/
+
 
 #endif
 #ifndef __JUCE_DIALOGWINDOW_JUCEHEADER__
@@ -27093,7 +27035,7 @@ private:
 	bool escapeKeyTriggersCloseButton;
 
 	DialogWindow (const DialogWindow&);
-	const DialogWindow& operator= (const DialogWindow&);
+	DialogWindow& operator= (const DialogWindow&);
 };
 
 #endif   // __JUCE_DIALOGWINDOW_JUCEHEADER__
@@ -27147,7 +27089,7 @@ private:
 	int originalClickCounter;
 
 	SplashScreen (const SplashScreen&);
-	const SplashScreen& operator= (const SplashScreen&);
+	SplashScreen& operator= (const SplashScreen&);
 };
 
 #endif   // __JUCE_SPLASHSCREEN_JUCEHEADER__
@@ -27194,7 +27136,7 @@ private:
 	const int timeOutMsWhenCancelling;
 
 	ThreadWithProgressWindow (const ThreadWithProgressWindow&);
-	const ThreadWithProgressWindow& operator= (const ThreadWithProgressWindow&);
+	ThreadWithProgressWindow& operator= (const ThreadWithProgressWindow&);
 };
 
 #endif   // __JUCE_THREADWITHPROGRESSWINDOW_JUCEHEADER__
@@ -27360,7 +27302,7 @@ protected:
 		Font font;
 
 	private:
-		const SavedState& operator= (const SavedState&);
+		SavedState& operator= (const SavedState&);
 	};
 
 	OwnedArray <SavedState> stateStack;
@@ -27373,7 +27315,7 @@ protected:
 	void writeImage (const Image& im, const int sx, const int sy, const int maxW, const int maxH) const;
 
 	LowLevelGraphicsPostScriptRenderer (const LowLevelGraphicsPostScriptRenderer& other);
-	const LowLevelGraphicsPostScriptRenderer& operator= (const LowLevelGraphicsPostScriptRenderer&);
+	LowLevelGraphicsPostScriptRenderer& operator= (const LowLevelGraphicsPostScriptRenderer&);
 };
 
 #endif   // __JUCE_LOWLEVELGRAPHICSPOSTSCRIPTRENDERER_JUCEHEADER__
@@ -27443,7 +27385,7 @@ protected:
 	OwnedArray <LLGCSavedState> stateStack;
 
 	LowLevelGraphicsSoftwareRenderer (const LowLevelGraphicsSoftwareRenderer& other);
-	const LowLevelGraphicsSoftwareRenderer& operator= (const LowLevelGraphicsSoftwareRenderer&);
+	LowLevelGraphicsSoftwareRenderer& operator= (const LowLevelGraphicsSoftwareRenderer&);
 };
 
 #endif   // __JUCE_LOWLEVELGRAPHICSSOFTWARERENDERER_JUCEHEADER__
@@ -27503,7 +27445,7 @@ private:
 	OwnedArray <AffineTransform> transforms;
 
 	DrawableComposite (const DrawableComposite&);
-	const DrawableComposite& operator= (const DrawableComposite&);
+	DrawableComposite& operator= (const DrawableComposite&);
 };
 
 #endif   // __JUCE_DRAWABLECOMPOSITE_JUCEHEADER__
@@ -27558,7 +27500,7 @@ private:
 	Colour overlayColour;
 
 	DrawableImage (const DrawableImage&);
-	const DrawableImage& operator= (const DrawableImage&);
+	DrawableImage& operator= (const DrawableImage&);
 };
 
 #endif   // __JUCE_DRAWABLEIMAGE_JUCEHEADER__
@@ -27615,7 +27557,7 @@ private:
 	void updateOutline();
 
 	DrawablePath (const DrawablePath&);
-	const DrawablePath& operator= (const DrawablePath&);
+	DrawablePath& operator= (const DrawablePath&);
 };
 
 #endif   // __JUCE_DRAWABLEPATH_JUCEHEADER__
@@ -27661,7 +27603,7 @@ private:
 	Colour colour;
 
 	DrawableText (const DrawableText&);
-	const DrawableText& operator= (const DrawableText&);
+	DrawableText& operator= (const DrawableText&);
 };
 
 #endif   // __JUCE_DRAWABLETEXT_JUCEHEADER__
@@ -27786,7 +27728,7 @@ public:
 
 	int subPathIndex;
 
-	bool isLastInSubpath() const		{ return stackPos == stackBase
+	bool isLastInSubpath() const		{ return stackPos == stackBase.getData()
 													  && (index >= path.numElements
 														   || points [index] == Path::moveMarker); }
 
@@ -27804,7 +27746,7 @@ private:
 	int index, stackSize;
 
 	PathFlatteningIterator (const PathFlatteningIterator&);
-	const PathFlatteningIterator& operator= (const PathFlatteningIterator&);
+	PathFlatteningIterator& operator= (const PathFlatteningIterator&);
 };
 
 #endif   // __JUCE_PATHITERATOR_JUCEHEADER__
@@ -27834,7 +27776,7 @@ public:
 
 	PositionedRectangle (const PositionedRectangle& other) throw();
 
-	const PositionedRectangle& operator= (const PositionedRectangle& other) throw();
+	PositionedRectangle& operator= (const PositionedRectangle& other) throw();
 
 	~PositionedRectangle() throw();
 
@@ -27919,9 +27861,9 @@ public:
 
 	bool isPositionAbsolute() const throw();
 
-	const bool operator== (const PositionedRectangle& other) const throw();
+	bool operator== (const PositionedRectangle& other) const throw();
 
-	const bool operator!= (const PositionedRectangle& other) const throw();
+	bool operator!= (const PositionedRectangle& other) const throw();
 
 	juce_UseDebuggingNewOperator
 
@@ -27984,7 +27926,7 @@ public:
 
 	Component* createViewerComponent();
 
-	void startRecordingToFile (const File& file);
+	void startRecordingToFile (const File& file, int quality = 2);
 
 	void stopRecording();
 
@@ -28007,7 +27949,7 @@ private:
 	String name;
 
 	CameraDevice (const CameraDevice&);
-	const CameraDevice& operator= (const CameraDevice&);
+	CameraDevice& operator= (const CameraDevice&);
 };
 
 #endif
@@ -28061,7 +28003,7 @@ private:
 
 	ImageCache();
 	ImageCache (const ImageCache&);
-	const ImageCache& operator= (const ImageCache&);
+	ImageCache& operator= (const ImageCache&);
 	~ImageCache();
 
 	void timerCallback();
@@ -28088,9 +28030,9 @@ public:
 
 	void clear();
 
-	void setKernelValue (const int x,
-						 const int y,
-						 const float value);
+	float getKernelValue (int x, int y) const throw();
+
+	void setKernelValue (int x, int y, float value) throw();
 
 	void setOverallSum (const float desiredTotalSum);
 
@@ -28099,8 +28041,6 @@ public:
 	void createGaussianBlur (const float blurRadius);
 
 	int getKernelSize() const		   { return size; }
-
-	float** getValues() const		   { return values; }
 
 	void applyToImage (Image& destImage,
 					   const Image* sourceImage,
@@ -28117,7 +28057,7 @@ private:
 
 	// no reason not to implement these one day..
 	ImageConvolutionKernel (const ImageConvolutionKernel&);
-	const ImageConvolutionKernel& operator= (const ImageConvolutionKernel&);
+	ImageConvolutionKernel& operator= (const ImageConvolutionKernel&);
 };
 
 #endif   // __JUCE_IMAGECONVOLUTIONKERNEL_JUCEHEADER__
@@ -28277,7 +28217,7 @@ private:
 	String fileExtension, fileWildcard, openFileDialogTitle, saveFileDialogTitle;
 
 	FileBasedDocument (const FileBasedDocument&);
-	const FileBasedDocument& operator= (const FileBasedDocument&);
+	FileBasedDocument& operator= (const FileBasedDocument&);
 };
 
 #endif   // __JUCE_FILEBASEDDOCUMENT_JUCEHEADER__
@@ -28466,6 +28406,7 @@ END_JUCE_NAMESPACE
 
 #if JUCE_USE_CAMERA
  #pragma comment (lib, "Strmiids.lib")
+ #pragma comment (lib, "wmvcore.lib")
 #endif
 /*** End of inlined file: juce_win32_AutoLinkLibraries.h ***/
 
@@ -28481,7 +28422,7 @@ END_JUCE_NAMESPACE
   #define START_JUCE_APPLICATION(AppClass) \
 	int main (int argc, char* argv[]) \
 	{ \
-		return JUCE_NAMESPACE::JUCEApplication::main (argc, argv, new AppClass()); \
+		return JUCE_NAMESPACE::JUCEApplication::main (argc, (const char**) argv, new AppClass()); \
 	}
 
 #elif JUCE_WINDOWS

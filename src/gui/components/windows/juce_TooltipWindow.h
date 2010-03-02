@@ -100,7 +100,8 @@ public:
 private:
     //==============================================================================
     int millisecondsBeforeTipAppears;
-    int mouseX, mouseY, mouseClicks;
+    Point<int> lastMousePos;
+    int mouseClicks;
     unsigned int lastCompChangeTime, lastHideTime;
     Component* lastComponentUnderMouse;
     bool changedCompsSinceShown;
@@ -115,7 +116,7 @@ private:
     void hide();
 
     TooltipWindow (const TooltipWindow&);
-    const TooltipWindow& operator= (const TooltipWindow&);
+    TooltipWindow& operator= (const TooltipWindow&);
 };
 
 

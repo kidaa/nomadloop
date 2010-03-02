@@ -236,19 +236,14 @@ public:
 
     void run()
     {
-        MessageManager* const messageManager = MessageManager::getInstance();
-
-        const Thread::ThreadID originalThreadId = messageManager->getCurrentMessageThread();
-        messageManager->setCurrentMessageThread (Thread::getCurrentThreadId());
-
         initialiseJuce_GUI();
         initialised = true;
 
-        while ((! threadShouldExit()) && messageManager->runDispatchLoopUntil (250))
+        MessageManager::getInstance()->setCurrentThreadAsMessageThread();
+
+        while ((! threadShouldExit()) && MessageManager::getInstance()->runDispatchLoopUntil (250))
         {
         }
-
-        messageManager->setCurrentMessageThread (originalThreadId);
     }
 
     juce_DeclareSingleton (SharedMessageThread, false)
@@ -455,7 +450,9 @@ public:
     {
         if (editorComp == 0)
         {
+            checkWhetherWavelabHasChangedThread();
             const MessageManagerLock mmLock;
+
             AudioProcessorEditor* const ed = filter->createEditorIfNeeded();
 
             if (ed != 0)
@@ -472,7 +469,7 @@ public:
 
     void close()
     {
-        const MessageManagerLock mmLock;
+        const NonWavelabMMLock mmLock;
         jassert (! recursionCheck);
 
         stopTimer();
@@ -482,13 +479,13 @@ public:
     //==============================================================================
     bool getEffectName (char* name)
     {
-        String (JucePlugin_Name).copyToBuffer (name, 64);
+        String (JucePlugin_Name).copyToCString (name, 64);
         return true;
     }
 
     bool getVendorString (char* text)
     {
-        String (JucePlugin_Manufacturer).copyToBuffer (text, 64);
+        String (JucePlugin_Manufacturer).copyToCString (text, 64);
         return true;
     }
 
@@ -552,8 +549,8 @@ public:
 
         const String name (filter->getInputChannelName ((int) index));
 
-        name.copyToBuffer (properties->label, kVstMaxLabelLen - 1);
-        name.copyToBuffer (properties->shortLabel, kVstMaxShortLabelLen - 1);
+        name.copyToCString (properties->label, kVstMaxLabelLen - 1);
+        name.copyToCString (properties->shortLabel, kVstMaxShortLabelLen - 1);
 
         if (speakerIn != kSpeakerArrEmpty)
         {
@@ -580,8 +577,8 @@ public:
 
         const String name (filter->getOutputChannelName ((int) index));
 
-        name.copyToBuffer (properties->label, kVstMaxLabelLen - 1);
-        name.copyToBuffer (properties->shortLabel, kVstMaxShortLabelLen - 1);
+        name.copyToCString (properties->label, kVstMaxLabelLen - 1);
+        name.copyToCString (properties->shortLabel, kVstMaxShortLabelLen - 1);
 
         if (speakerOut != kSpeakerArrEmpty)
         {
@@ -941,14 +938,14 @@ public:
     void getProgramName (char* name)
     {
         if (filter != 0)
-            filter->getProgramName (filter->getCurrentProgram()).copyToBuffer (name, 24);
+            filter->getProgramName (filter->getCurrentProgram()).copyToCString (name, 24);
     }
 
     bool getProgramNameIndexed (VstInt32 category, VstInt32 index, char* text)
     {
         if (filter != 0 && ((unsigned int) index) < (unsigned int) filter->getNumPrograms())
         {
-            filter->getProgramName (index).copyToBuffer (text, 24);
+            filter->getProgramName (index).copyToCString (text, 24);
             return true;
         }
 
@@ -979,7 +976,7 @@ public:
         if (filter != 0)
         {
             jassert (((unsigned int) index) < (unsigned int) filter->getNumParameters());
-            filter->getParameterText (index).copyToBuffer (text, 24); // length should technically be kVstMaxParamStrLen, which is 8, but hosts will normally allow a bit more.
+            filter->getParameterText (index).copyToCString (text, 24); // length should technically be kVstMaxParamStrLen, which is 8, but hosts will normally allow a bit more.
         }
     }
 
@@ -988,7 +985,7 @@ public:
         if (filter != 0)
         {
             jassert (((unsigned int) index) < (unsigned int) filter->getNumParameters());
-            filter->getParameterName (index).copyToBuffer (text, 16); // length should technically be kVstMaxParamStrLen, which is 8, but hosts will normally allow a bit more.
+            filter->getParameterName (index).copyToCString (text, 16); // length should technically be kVstMaxParamStrLen, which is 8, but hosts will normally allow a bit more.
         }
     }
 
@@ -1252,6 +1249,7 @@ public:
         }
         else if (opCode == effEditOpen)
         {
+            checkWhetherWavelabHasChangedThread();
             const MessageManagerLock mmLock;
             jassert (! recursionCheck);
 
@@ -1287,12 +1285,14 @@ public:
         }
         else if (opCode == effEditClose)
         {
+            checkWhetherWavelabHasChangedThread();
             const MessageManagerLock mmLock;
             deleteEditor (true);
             return 0;
         }
         else if (opCode == effEditGetRect)
         {
+            checkWhetherWavelabHasChangedThread();
             const MessageManagerLock mmLock;
             createEditorComp();
 
@@ -1321,7 +1321,7 @@ public:
         if (editorComp != 0)
         {
 #if ! JUCE_LINUX // linux hosts shouldn't be trusted!
-            if (! (canHostDo ("sizeWindow") && sizeWindow (newWidth, newHeight)))
+            if (! (canHostDo (const_cast <char*> ("sizeWindow")) && sizeWindow (newWidth, newHeight)))
 #endif
             {
                 // some hosts don't support the sizeWindow call, so do it manually..
@@ -1419,6 +1419,35 @@ private:
     bool hasCreatedTempChannels;
     bool shouldDeleteEditor;
 
+    //==============================================================================
+    static PluginHostType& getHostType()
+    {
+        static PluginHostType hostType;
+        return hostType;
+    }
+
+#if JUCE_WINDOWS   // Workarounds for Wavelab's happy-go-lucky use of threads.
+    class NonWavelabMMLock
+    {
+    public:
+        NonWavelabMMLock() : mm (getHostType().isWavelab() ? 0 : new MessageManagerLock())  {}
+        ~NonWavelabMMLock() {}
+
+    private:
+        ScopedPointer <MessageManagerLock> mm;
+    };
+
+    static void checkWhetherWavelabHasChangedThread()
+    {
+        if (getHostType().isWavelab())
+            MessageManager::getInstance()->setCurrentThreadAsMessageThread();
+    }
+#else
+    typedef MessageManagerLock NonWavelabMMLock;
+    static void checkWhetherWavelabHasChangedThread() {}
+#endif
+
+    //==============================================================================
     void deleteTempChannels()
     {
         for (int i = tempChannels.size(); --i >= 0;)

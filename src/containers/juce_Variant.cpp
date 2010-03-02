@@ -134,7 +134,7 @@ var::operator int() const
         case voidType:      break;
         case intType:       return value.intValue;
         case boolType:      return value.boolValue ? 1 : 0;
-        case doubleType:    return (int) value.doubleValue;
+        case doubleType:    return static_cast <int> (value.doubleValue);
         case stringType:    return value.stringValue->getIntValue();
         case objectType:    break;
         default:            jassertfalse; break;
@@ -209,14 +209,15 @@ DynamicObject* var::getObject() const
     return type == objectType ? value.objectValue : 0;
 }
 
-bool var::operator== (const var& other) const throw()
+//==============================================================================
+bool var::equals (const var& other) const throw()
 {
     switch (type)
     {
         case voidType:      return other.isVoid();
-        case intType:       return value.intValue == (int) other;
-        case boolType:      return value.boolValue == (bool) other;
-        case doubleType:    return value.doubleValue == (double) other;
+        case intType:       return value.intValue == static_cast <int> (other);
+        case boolType:      return value.boolValue == static_cast <bool> (other);
+        case doubleType:    return value.doubleValue == static_cast <double> (other);
         case stringType:    return (*(value.stringValue)) == other.toString();
         case objectType:    return value.objectValue == other.getObject();
         case methodType:    return value.methodValue == other.value.methodValue && other.isMethod();
@@ -226,11 +227,12 @@ bool var::operator== (const var& other) const throw()
     return false;
 }
 
-bool var::operator!= (const var& other) const throw()
-{
-    return ! operator== (other);
-}
+bool operator== (const var& v1, const var& v2) throw()      { return v1.equals (v2); }
+bool operator!= (const var& v1, const var& v2) throw()      { return ! v1.equals (v2); }
+bool operator== (const var& v1, const String& v2) throw()   { return v1.toString() == v2; }
+bool operator!= (const var& v1, const String& v2) throw()   { return v1.toString() != v2; }
 
+//==============================================================================
 void var::writeToStream (OutputStream& output) const
 {
     switch (type)
@@ -241,11 +243,11 @@ void var::writeToStream (OutputStream& output) const
         case doubleType:    output.writeCompressedInt (9); output.writeByte (4); output.writeDouble (value.doubleValue); break;
         case stringType:
         {
-            const int len = value.stringValue->copyToUTF8 (0);
+            const int len = value.stringValue->getNumBytesAsUTF8() + 1;
             output.writeCompressedInt (len + 1);
             output.writeByte (5);
-            HeapBlock <uint8> temp (len);
-            value.stringValue->copyToUTF8 (temp);
+            HeapBlock<char> temp (len);
+            value.stringValue->copyToUTF8 (temp, len);
             output.write (temp, len);
             break;
         }
@@ -271,7 +273,7 @@ const var var::readFromStream (InputStream& input)
             {
                 MemoryBlock mb;
                 input.readIntoMemoryBlock (mb, numBytes - 1);
-                return var (String::fromUTF8 ((const uint8*) mb.getData(), (int) mb.getSize()));
+                return var (String::fromUTF8 ((const char*) mb.getData(), (int) mb.getSize()));
             }
 
             default:    input.skipNextBytes (numBytes - 1); break;

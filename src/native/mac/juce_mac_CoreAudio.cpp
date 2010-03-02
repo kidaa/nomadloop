@@ -153,7 +153,7 @@ public:
                         String name;
 
                         {
-                            uint8 channelName [256];
+                            char channelName [256];
                             zerostruct (channelName);
                             UInt32 nameSize = sizeof (channelName);
                             UInt32 channelNum = chanNum + 1;
@@ -538,9 +538,10 @@ public:
 
     void stop (bool leaveInterruptRunning)
     {
-        callbackLock.enter();
-        callback = 0;
-        callbackLock.exit();
+        {
+            const ScopedLock sl (callbackLock);
+            callback = 0;
+        }
 
         if (started
              && (deviceID != 0)
@@ -556,8 +557,7 @@ public:
 #endif
             started = false;
 
-            callbackLock.enter();
-            callbackLock.exit();
+            { const ScopedLock sl (callbackLock); }
 
             // wait until it's definately stopped calling back..
             for (int i = 40; --i >= 0;)
@@ -578,8 +578,7 @@ public:
                     break;
             }
 
-            callbackLock.enter();
-            callbackLock.exit();
+            const ScopedLock sl (callbackLock);
         }
 
         if (inputDevice != 0)
@@ -629,7 +628,7 @@ public:
             {
                 if (inputDevice == 0)
                 {
-                    callback->audioDeviceIOCallback ((const float**) tempInputBuffers,
+                    callback->audioDeviceIOCallback (const_cast<const float**> (inputDevice->tempInputBuffers.getData()),
                                                      numInputChans,
                                                      tempOutputBuffers,
                                                      numOutputChans,
@@ -644,7 +643,7 @@ public:
                     // changed while inside our callback..
                     const ScopedLock sl2 (inputDevice->callbackLock);
 
-                    callback->audioDeviceIOCallback ((const float**) inputDevice->tempInputBuffers,
+                    callback->audioDeviceIOCallback (const_cast<const float**> (inputDevice->tempInputBuffers.getData()),
                                                      inputDevice->numInputChans,
                                                      tempOutputBuffers,
                                                      numOutputChans,
@@ -796,7 +795,7 @@ private:
     HeapBlock <float*> tempInputBuffers, tempOutputBuffers;
 
     CoreAudioInternal (const CoreAudioInternal&);
-    const CoreAudioInternal& operator= (const CoreAudioInternal&);
+    CoreAudioInternal& operator= (const CoreAudioInternal&);
 
     //==============================================================================
     static OSStatus audioIOProc (AudioDeviceID inDevice,
@@ -1109,7 +1108,7 @@ private:
     }
 
     CoreAudioIODevice (const CoreAudioIODevice&);
-    const CoreAudioIODevice& operator= (const CoreAudioIODevice&);
+    CoreAudioIODevice& operator= (const CoreAudioIODevice&);
 };
 
 //==============================================================================
@@ -1161,7 +1160,7 @@ public:
 
                     if (OK (AudioObjectGetPropertyData (devs[i], &pa, 0, 0, &size, name)))
                     {
-                        const String nameString (String::fromUTF8 ((const uint8*) name, (int) strlen (name)));
+                        const String nameString (String::fromUTF8 (name, (int) strlen (name)));
 
                         if (! alreadyLogged)
                             log (T("CoreAudio device: ") + nameString);
@@ -1311,7 +1310,7 @@ private:
     }
 
     CoreAudioIODeviceType (const CoreAudioIODeviceType&);
-    const CoreAudioIODeviceType& operator= (const CoreAudioIODeviceType&);
+    CoreAudioIODeviceType& operator= (const CoreAudioIODeviceType&);
 };
 
 //==============================================================================

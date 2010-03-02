@@ -95,7 +95,7 @@ public:
     int subPathIndex;
 
     /** Returns true if the current segment is the last in the current sub-path. */
-    bool isLastInSubpath() const            { return stackPos == stackBase
+    bool isLastInSubpath() const            { return stackPos == stackBase.getData()
                                                       && (index >= path.numElements
                                                            || points [index] == Path::moveMarker); }
 
@@ -115,7 +115,7 @@ private:
     int index, stackSize;
 
     PathFlatteningIterator (const PathFlatteningIterator&);
-    const PathFlatteningIterator& operator= (const PathFlatteningIterator&);
+    PathFlatteningIterator& operator= (const PathFlatteningIterator&);
 };
 
 

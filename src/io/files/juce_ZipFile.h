@@ -149,6 +149,9 @@ private:
     class ZipInputStream;
     class ZipFilenameComparator;
     class ZipEntryInfo;
+    friend class ZipInputStream;
+    friend class ZipFilenameComparator;
+    friend class ZipEntryInfo;
 
     OwnedArray <ZipEntryInfo> entries;
     CriticalSection lock;
@@ -165,7 +168,7 @@ private:
     static int compareElements (const ZipEntryInfo* first, const ZipEntryInfo* second);
 
     ZipFile (const ZipFile&);
-    const ZipFile& operator= (const ZipFile&);
+    ZipFile& operator= (const ZipFile&);
 };
 
 #endif   // __JUCE_ZIPFILE_JUCEHEADER__

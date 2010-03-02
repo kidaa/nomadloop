@@ -572,7 +572,7 @@ private:
     Component* headerComponent;
     int totalItems, rowHeight, minimumRowWidth;
     int outlineThickness;
-    int lastMouseX, lastMouseY, lastRowSelected;
+    int lastRowSelected;
     bool mouseMoveSelects, multipleSelection, hasDoneInitialUpdate;
     SparseSet <int> selected;
 
@@ -582,7 +582,7 @@ private:
                             bool isMouseClick);
 
     ListBox (const ListBox&);
-    const ListBox& operator= (const ListBox&);
+    ListBox& operator= (const ListBox&);
 };
 
 

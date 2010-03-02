@@ -332,6 +332,7 @@ public:
 
 private:
     class OpenGLComponentWatcher;
+    friend class OpenGLComponentWatcher;
     friend class ScopedPointer <OpenGLComponentWatcher>;
     ScopedPointer <OpenGLComponentWatcher> componentWatcher;
 
@@ -347,7 +348,7 @@ private:
     void internalRepaint (int x, int y, int w, int h);
 
     OpenGLComponent (const OpenGLComponent&);
-    const OpenGLComponent& operator= (const OpenGLComponent&);
+    OpenGLComponent& operator= (const OpenGLComponent&);
 };
 
 

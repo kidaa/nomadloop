@@ -896,7 +896,7 @@ void SubviewComponent::mouseDown(const MouseEvent &e)
 		else if (choice == 8)
 		{
 			LoopComponent* lc = new LoopComponent();
-			lc->setBounds(e.x, e.y, 128, 128);
+			lc->setBounds(e.x, e.y, 192, 96);
 			addAndMakeVisible(lc);
 		}
 	}

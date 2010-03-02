@@ -28,9 +28,10 @@
 BEGIN_JUCE_NAMESPACE
 
 #include "juce_ColourSelector.h"
-#include "../../../text/juce_LocalisedStrings.h"
 #include "../menus/juce_PopupMenu.h"
+#include "../mouse/juce_MouseEvent.h"
 #include "../../graphics/imaging/juce_Image.h"
+#include "../../../text/juce_LocalisedStrings.h"
 
 static const int swatchesPerRow = 8;
 static const int swatchHeight = 22;
@@ -61,7 +62,7 @@ public:
 
 private:
     ColourComponentSlider (const ColourComponentSlider&);
-    const ColourComponentSlider& operator= (const ColourComponentSlider&);
+    ColourComponentSlider& operator= (const ColourComponentSlider&);
 };
 
 //==============================================================================
@@ -87,7 +88,7 @@ public:
 
 private:
     ColourSpaceMarker (const ColourSpaceMarker&);
-    const ColourSpaceMarker& operator= (const ColourSpaceMarker&);
+    ColourSpaceMarker& operator= (const ColourSpaceMarker&);
 };
 
 //==============================================================================
@@ -191,7 +192,7 @@ private:
     }
 
     ColourSpaceView (const ColourSpaceView&);
-    const ColourSpaceView& operator= (const ColourSpaceView&);
+    ColourSpaceView& operator= (const ColourSpaceView&);
 };
 
 //==============================================================================
@@ -227,7 +228,7 @@ public:
 
 private:
     HueSelectorMarker (const HueSelectorMarker&);
-    const HueSelectorMarker& operator= (const HueSelectorMarker&);
+    HueSelectorMarker& operator= (const HueSelectorMarker&);
 };
 
 //==============================================================================
@@ -296,7 +297,7 @@ private:
     const int edge;
 
     HueSelectorComp (const HueSelectorComp&);
-    const HueSelectorComp& operator= (const HueSelectorComp&);
+    HueSelectorComp& operator= (const HueSelectorComp&);
 };
 
 //==============================================================================
@@ -351,7 +352,7 @@ private:
     const int index;
 
     SwatchComponent (const SwatchComponent&);
-    const SwatchComponent& operator= (const SwatchComponent&);
+    SwatchComponent& operator= (const SwatchComponent&);
 };
 
 //==============================================================================

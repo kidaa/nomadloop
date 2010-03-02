@@ -698,9 +698,10 @@ private:
     void timerCallbackInt();
     void repaintCaret();
     void repaintText (const Range<int>& range);
+    UndoManager* getUndoManager() throw();
 
     TextEditor (const TextEditor&);
-    const TextEditor& operator= (const TextEditor&);
+    TextEditor& operator= (const TextEditor&);
 };
 
 #endif   // __JUCE_TEXTEDITOR_JUCEHEADER__

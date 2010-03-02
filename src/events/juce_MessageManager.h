@@ -111,12 +111,12 @@ public:
     /** Returns true if the caller-thread is the message thread. */
     bool isThisTheMessageThread() const throw();
 
-    /** Called to tell the manager which thread is the one that's running the dispatch loop.
+    /** Called to tell the manager that the current thread is the one that's running the dispatch loop.
 
         (Best to ignore this method unless you really know what you're doing..)
         @see getCurrentMessageThread
     */
-    void setCurrentMessageThread (const Thread::ThreadID threadId) throw();
+    void setCurrentThreadAsMessageThread();
 
     /** Returns the ID of the current message thread, as set by setCurrentMessageThread().
 
@@ -196,7 +196,7 @@ private:
     CriticalSection lockingLock;
 
     MessageManager (const MessageManager&);
-    const MessageManager& operator= (const MessageManager&);
+    MessageManager& operator= (const MessageManager&);
 };
 
 
@@ -305,13 +305,17 @@ public:
 
 
 private:
-    bool locked, needsUnlocking;
-    void* sharedEvents;
+    class SharedEvents;
+    class BlockingMessage;
+    friend class SharedEvents;
+    friend class BlockingMessage;
+    SharedEvents* sharedEvents;
+    bool locked;
 
     void init (Thread* const thread, ThreadPoolJob* const job) throw();
 
     MessageManagerLock (const MessageManagerLock&);
-    const MessageManagerLock& operator= (const MessageManagerLock&);
+    MessageManagerLock& operator= (const MessageManagerLock&);
 };
 
 

@@ -60,7 +60,7 @@ static String juce_readWindowProperty (Window window, Atom prop,
                                        bool deleteAfterReading)
 {
     String returnData;
-    uint8 *clipData;
+    char* clipData;
     Atom actualType;
     int  actualFormat;
     unsigned long numItems, bytesLeft;
@@ -69,7 +69,7 @@ static String juce_readWindowProperty (Window window, Atom prop,
                             0L /* offset */, 1000000 /* length (max) */, False,
                             AnyPropertyType /* format */,
                             &actualType, &actualFormat, &numItems, &bytesLeft,
-                            &clipData) == Success)
+                            (unsigned char**) &clipData) == Success)
     {
         if (actualType == atom_UTF8_STRING && actualFormat == 8)
         {
@@ -77,7 +77,7 @@ static String juce_readWindowProperty (Window window, Atom prop,
         }
         else if (actualType == XA_STRING && actualFormat == 8)
         {
-            returnData = String ((const char*) clipData, numItems);
+            returnData = String (clipData, numItems);
         }
 
         if (clipData != 0)
@@ -162,17 +162,17 @@ void juce_handleSelectionRequest (XSelectionRequestEvent &evt)
         if (evt.target == XA_STRING)
         {
             // format data according to system locale
-            numDataItems = localClipboardContent.length();
-            data.calloc (numDataItems + 2);
-            localClipboardContent.copyToBuffer ((char*) data, numDataItems + 1);
+            numDataItems = localClipboardContent.getNumBytesAsCString() + 1;
+            data.calloc (numDataItems + 1);
+            localClipboardContent.copyToCString (data, numDataItems);
             propertyFormat = 8; // bits/item
         }
         else if (evt.target == atom_UTF8_STRING)
         {
             // translate to utf8
-            numDataItems = localClipboardContent.copyToUTF8 (0);
-            data.calloc (numDataItems + 2);
-            localClipboardContent.copyToUTF8 (data, numDataItems + 1);
+            numDataItems = localClipboardContent.getNumBytesAsUTF8() + 1;
+            data.calloc (numDataItems + 1);
+            localClipboardContent.copyToUTF8 (data, numDataItems);
             propertyFormat = 8; // bits/item
         }
         else if (evt.target == atom_TARGETS)
@@ -181,8 +181,9 @@ void juce_handleSelectionRequest (XSelectionRequestEvent &evt)
             numDataItems = 2;
             propertyFormat = 32; // atoms are 32-bit
             data.calloc (numDataItems * 4);
-            ((Atom*) data)[0] = atom_UTF8_STRING;
-            ((Atom*) data)[1] = XA_STRING;
+            Atom* atoms = reinterpret_cast<Atom*> (data.getData());
+            atoms[0] = atom_UTF8_STRING;
+            atoms[1] = XA_STRING;
         }
     }
     else
@@ -200,7 +201,7 @@ void juce_handleSelectionRequest (XSelectionRequestEvent &evt)
             XChangeProperty (evt.display, evt.requestor,
                              evt.property, evt.target,
                              propertyFormat /* 8 or 32 */, PropModeReplace,
-                             (const unsigned char*) data, numDataItems);
+                             reinterpret_cast<const unsigned char*> (data.getData()), numDataItems);
             reply.property = evt.property; // " == success"
         }
     }

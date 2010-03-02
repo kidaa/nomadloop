@@ -28,19 +28,21 @@
 
 #include "mouse/juce_MouseCursor.h"
 #include "mouse/juce_MouseListener.h"
+#include "mouse/juce_MouseEvent.h"
 #include "juce_ComponentListener.h"
 #include "keyboard/juce_KeyListener.h"
 #include "keyboard/juce_KeyboardFocusTraverser.h"
 #include "../graphics/effects/juce_ImageEffectFilter.h"
 #include "../graphics/geometry/juce_RectangleList.h"
 #include "../graphics/geometry/juce_BorderSize.h"
-#include "windows/juce_ComponentPeer.h"
 #include "../../events/juce_MessageListener.h"
 #include "../../text/juce_StringArray.h"
 #include "../../containers/juce_VoidArray.h"
 #include "../../containers/juce_NamedValueSet.h"
 class LookAndFeel;
-
+class MouseInputSource;
+class MouseInputSourceInternal;
+class ComponentPeer;
 
 //==============================================================================
 /**
@@ -340,36 +342,44 @@ public:
 
     //==============================================================================
     /** Returns this component's x co-ordinate relative the the screen's top-left origin.
-
         @see getX, relativePositionToGlobal
     */
-    int getScreenX() const throw();
+    int getScreenX() const;
 
     /** Returns this component's y co-ordinate relative the the screen's top-left origin.
-
         @see getY, relativePositionToGlobal
     */
-    int getScreenY() const throw();
+    int getScreenY() const;
+
+    /** Returns the position of this component's top-left corner relative to the screen's top-left.
+        @see getScreenBounds
+    */
+    const Point<int> getScreenPosition() const;
+
+    /** Returns the bounds of this component, relative to the screen's top-left.
+        @see getScreenPosition
+    */
+    const Rectangle<int> getScreenBounds() const;
 
     /** Converts a position relative to this component's top-left into a screen co-ordinate.
 
         @see globalPositionToRelative, relativePositionToOtherComponent
     */
-    void relativePositionToGlobal (int& x, int& y) const throw();
+    const Point<int> relativePositionToGlobal (const Point<int>& relativePosition) const;
 
     /** Converts a screen co-ordinate into a position relative to this component's top-left.
 
         @see relativePositionToGlobal, relativePositionToOtherComponent
     */
-    void globalPositionToRelative (int& x, int& y) const throw();
+    const Point<int> globalPositionToRelative (const Point<int>& screenPosition) const;
 
     /** Converts a position relative to this component's top-left into a position
         relative to another component's top-left.
 
         @see relativePositionToGlobal, globalPositionToRelative
     */
-    void relativePositionToOtherComponent (const Component* const targetComponent,
-                                           int& x, int& y) const throw();
+    const Point<int> relativePositionToOtherComponent (const Component* const targetComponent,
+                                                       const Point<int>& positionRelativeToThis) const;
 
     //==============================================================================
     /** Moves the component to a new position.
@@ -765,6 +775,17 @@ public:
         @see hitTest, contains, reallyContains
     */
     Component* getComponentAt (const int x, const int y);
+
+    /** Returns the component at a certain point within this one.
+
+        @param position  the co-ordinates to test, relative to this component's top-left.
+        @returns    the component that is at this position - which may be 0, this component,
+                    or one of its children. Note that overlapping siblings that might actually
+                    be in the way are not taken into account by this method - to account for these,
+                    instead call getComponentAt on the top-level parent of this component.
+        @see hitTest, contains, reallyContains
+    */
+    Component* getComponentAt (const Point<int>& position);
 
     //==============================================================================
     /** Marks the whole component as needing to be redrawn.
@@ -1578,35 +1599,7 @@ public:
 
         The co-ordinates are relative to the component's top-left corner.
     */
-    void getMouseXYRelative (int& x, int& y) const throw();
-
-    /** Returns the component that's currently underneath the mouse.
-
-        @returns the component or 0 if there isn't one.
-        @see contains, getComponentAt
-    */
-    static Component* JUCE_CALLTYPE getComponentUnderMouse() throw();
-
-    /** Allows the mouse to move beyond the edges of the screen.
-
-        Calling this method when the mouse button is currently pressed inside this component
-        will remove the cursor from the screen and allow the mouse to (seem to) move beyond
-        the edges of the screen.
-
-        This means that the co-ordinates returned to mouseDrag() will be unbounded, and this
-        can be used for things like custom slider controls or dragging objects around, where
-        movement would be otherwise be limited by the mouse hitting the edges of the screen.
-
-        The unbounded mode is automatically turned off when the mouse button is released, or
-        it can be turned off explicitly by calling this method again.
-
-        @param shouldUnboundedMovementBeEnabled     whether to turn this mode on or off
-        @param keepCursorVisibleUntilOffscreen      if set to false, the cursor will immediately be
-                                                    hidden; if true, it will only be hidden when it
-                                                    is moved beyond the edge of the screen
-    */
-    void enableUnboundedMouseMovement (bool shouldUnboundedMovementBeEnabled,
-                                       bool keepCursorVisibleUntilOffscreen = false) throw();
+    const Point<int> getMouseXYRelative() const;
 
     //==============================================================================
     /** Called when this component's size has been changed.
@@ -1896,15 +1889,81 @@ public:
     uint32 getComponentUID() const throw()                { return componentUID; }
 
     //==============================================================================
+    /** Holds a pointer to some type of Component, which automatically becomes null if
+        the component is deleted.
+
+        If you're using a component which may be deleted by another event that's outside
+        of your control, use a SafePointer instead of a normal pointer to refer to it,
+        and you can test whether it's null before using it to see if something has deleted
+        it.
+
+        The ComponentType typedef must be Component, or some subclass of Component.
+
+        Note that this class isn't thread-safe, and assumes that all the code that uses
+        it is running on the message thread.
+    */
+    template <class ComponentType>
+    class JUCE_API  SafePointer   : private ComponentListener
+    {
+    public:
+        /** Creates a null SafePointer. */
+        SafePointer()                                       : comp (0) {}
+
+        /** Creates a SafePointer that points at the given component. */
+        SafePointer (ComponentType* const component)        : comp (component)   { attach(); }
+
+        /** Creates a copy of another SafePointer. */
+        SafePointer (const SafePointer& other)              : comp (other.comp)  { attach(); }
+
+        /** Destructor. */
+        ~SafePointer()                                      { detach(); }
+
+        /** Copies another pointer to this one. */
+        SafePointer& operator= (const SafePointer& other)   { return operator= (other.comp); }
+
+        /** Copies another pointer to this one. */
+        SafePointer& operator= (ComponentType* const newComponent)
+        {
+            detach();
+            comp = newComponent;
+            attach();
+            return *this;
+        }
+
+        /** Returns the component that this pointer refers to, or null if the component no longer exists. */
+        operator ComponentType*() throw()                   { return comp; }
+
+        /** Returns the component that this pointer refers to, or null if the component no longer exists. */
+        operator const ComponentType*() const throw()       { return comp; }
+
+        /** Returns the component that this pointer refers to, or null if the component no longer exists. */
+        ComponentType* operator->() throw()                 { jassert (comp != 0); return comp; }
+
+        /** Returns the component that this pointer refers to, or null if the component no longer exists. */
+        const ComponentType* operator->() const throw()     { jassert (comp != 0); return comp; }
+
+        //==============================================================================
+        juce_UseDebuggingNewOperator
+
+    private:
+        ComponentType* comp;
+
+        void attach()   { if (comp != 0) comp->addComponentListener (this); }
+        void detach()   { if (comp != 0) comp->removeComponentListener (this); }
+        void componentBeingDeleted (Component&)     { comp = 0; }
+    };
+
+    //==============================================================================
     juce_UseDebuggingNewOperator
 
 private:
     //==============================================================================
     friend class ComponentPeer;
     friend class InternalDragRepeater;
+    friend class MouseInputSource;
+    friend class MouseInputSourceInternal;
 
     static Component* currentlyFocusedComponent;
-    static Component* componentUnderMouse;
 
     //==============================================================================
     String componentName_;
@@ -1954,13 +2013,13 @@ private:
     };
 
     //==============================================================================
-    void internalMouseEnter (int x, int y, const int64 time);
-    void internalMouseExit  (int x, int y, const int64 time);
-    void internalMouseDown  (int x, int y, const int64 time);
-    void internalMouseUp    (const int oldModifiers, int x, int y, const int64 time);
-    void internalMouseDrag  (int x, int y, const int64 time);
-    void internalMouseMove  (int x, int y, const int64 time);
-    void internalMouseWheel (const int intAmountX, const int intAmountY, const int64 time);
+    void internalMouseEnter (MouseInputSource& source, const Point<int>& relativePos, const Time& time);
+    void internalMouseExit  (MouseInputSource& source, const Point<int>& relativePos, const Time& time);
+    void internalMouseDown  (MouseInputSource& source, const Point<int>& relativePos, const Time& time);
+    void internalMouseUp    (MouseInputSource& source, const Point<int>& relativePos, const Time& time, const ModifierKeys& oldModifiers);
+    void internalMouseDrag  (MouseInputSource& source, const Point<int>& relativePos, const Time& time);
+    void internalMouseMove  (MouseInputSource& source, const Point<int>& relativePos, const Time& time);
+    void internalMouseWheel (MouseInputSource& source, const Point<int>& relativePos, const Time& time, const float amountX, const float amountY);
     void internalBroughtToFront();
     void internalFocusGain (const FocusChangeType cause);
     void internalFocusLoss (const FocusChangeType cause);
@@ -1969,7 +2028,6 @@ private:
     void internalModifierKeysChanged();
     void internalChildrenChanged();
     void internalHierarchyChanged();
-    void internalUpdateMouseCursor (const bool forcedUpdate) throw();
     void sendMovedResizedMessages (const bool wasMoved, const bool wasResized);
     void repaintParent() throw();
     void sendFakeMouseMove() const;
@@ -1979,8 +2037,7 @@ private:
     void sendEnablementChangeMessage();
     static void* runModalLoopCallback (void*);
     static void bringModalComponentToFront();
-    void subtractObscuredRegions (RectangleList& result,
-                                  const int deltaX, const int deltaY,
+    void subtractObscuredRegions (RectangleList& result, const Point<int>& delta,
                                   const Rectangle<int>& clipRect,
                                   const Component* const compToAvoid) const throw();
     void clipObscuredRegions (Graphics& g, const Rectangle<int>& clipRect,
@@ -2002,7 +2059,7 @@ private:
     // this one to avoid compiler warnings.
     Component (const Component&);
 
-    const Component& operator= (const Component&);
+    Component& operator= (const Component&);
 
     // (dummy method to cause a deliberate compile error - if you hit this, you need to update your
     // subclass to use the new parameters to keyStateChanged)

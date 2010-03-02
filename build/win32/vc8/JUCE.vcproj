@@ -1126,6 +1126,10 @@
 					>
 				</File>
 				<File
+					RelativePath="..\..\..\src\containers\juce_Range.h"
+					>
+				</File>
+				<File
 					RelativePath="..\..\..\src\containers\juce_ReferenceCountedArray.h"
 					>
 				</File>
@@ -1699,6 +1703,10 @@
 							RelativePath="..\..\..\src\gui\components\keyboard\juce_ModifierKeys.h"
 							>
 						</File>
+						<File
+							RelativePath="..\..\..\src\gui\components\keyboard\juce_TextInputTarget.h"
+							>
+						</File>
 					</Filter>
 					<Filter
 						Name="layout"
@@ -1921,6 +1929,14 @@
 						</File>
 						<File
 							RelativePath="..\..\..\src\gui\components\mouse\juce_MouseHoverDetector.h"
+							>
+						</File>
+						<File
+							RelativePath="..\..\..\src\gui\components\mouse\juce_MouseInputSource.cpp"
+							>
+						</File>
+						<File
+							RelativePath="..\..\..\src\gui\components\mouse\juce_MouseInputSource.h"
 							>
 						</File>
 						<File
@@ -2923,4 +2939,3 @@
 	<Globals>
 	</Globals>
 </VisualStudioProject>
-
