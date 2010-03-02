@@ -46,6 +46,11 @@ void LoopComponent::mouseDown(const MouseEvent& e)
 	{
 		PopupMenu m;
 
+		m.addItem(-1, T("Move"));
+		m.addItem(-2, T("Resize"));
+		m.addItem(-3, T("Delete"));
+		m.addSeparator();
+		
 		GraphDocumentComponent* graphDoc = dynamic_cast<MainHostWindow*>(getTopLevelComponent())->getGraphEditor();
 
 		for (int i=0; i<graphDoc->graph.getNumFilters(); ++i)
@@ -57,9 +62,21 @@ void LoopComponent::mouseDown(const MouseEvent& e)
 			}
 		}
 
-		int choice = m.show() - 1;
-		if (choice >= 0)
-			this->loop = dynamic_cast<LoopProcessor*>(graphDoc->graph.getNode(choice)->processor);
+		int choice = m.show();
+		if (choice > 0)
+			this->loop = dynamic_cast<LoopProcessor*>(graphDoc->graph.getNode(choice-1)->processor);
+		else if (choice == -1)
+		{
+			static_cast<SubviewComponent*>(this->getParentComponent())->setMovingComponent(this);
+		}
+		else if (choice == -2)
+		{
+			static_cast<SubviewComponent*>(this->getParentComponent())->setResizingComponent(this);
+		}
+		else if (choice == -3)
+		{
+			delete this;
+		}
 	}
 }
 
