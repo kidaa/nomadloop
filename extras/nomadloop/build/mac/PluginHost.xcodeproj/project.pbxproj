@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		8108F01D113D790C00AEFD8E /* Analysis.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 8108F016113D790C00AEFD8E /* Analysis.cpp */; };
+		8108F01E113D790C00AEFD8E /* LoopControls.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 8108F019113D790C00AEFD8E /* LoopControls.cpp */; };
 		81F9E8FF1122F0A400FBEFA4 /* ControlActions.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 81F9E8F91122F0A400FBEFA4 /* ControlActions.cpp */; };
 		81F9E9001122F0A400FBEFA4 /* ControlSurface.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 81F9E8FA1122F0A400FBEFA4 /* ControlSurface.cpp */; };
 		81F9E9011122F0A400FBEFA4 /* Looper.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 81F9E8FB1122F0A400FBEFA4 /* Looper.cpp */; };
@@ -35,6 +37,13 @@
 
 /* Begin PBXFileReference section */
 		508344B209E5C41E0093A071 /* PluginHost.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PluginHost.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		8108F016113D790C00AEFD8E /* Analysis.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Analysis.cpp; path = ../../src/host/Analysis.cpp; sourceTree = SOURCE_ROOT; };
+		8108F017113D790C00AEFD8E /* Analysis.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Analysis.h; path = ../../src/host/Analysis.h; sourceTree = SOURCE_ROOT; };
+		8108F018113D790C00AEFD8E /* ControlSurface.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ControlSurface.h; path = ../../src/host/ControlSurface.h; sourceTree = SOURCE_ROOT; };
+		8108F019113D790C00AEFD8E /* LoopControls.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = LoopControls.cpp; path = ../../src/host/LoopControls.cpp; sourceTree = SOURCE_ROOT; };
+		8108F01A113D790C00AEFD8E /* LoopControls.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = LoopControls.h; path = ../../src/host/LoopControls.h; sourceTree = SOURCE_ROOT; };
+		8108F01B113D790C00AEFD8E /* Looper.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Looper.h; path = ../../src/host/Looper.h; sourceTree = SOURCE_ROOT; };
+		8108F01C113D790C00AEFD8E /* SyncPlayHead.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = SyncPlayHead.h; path = ../../src/host/SyncPlayHead.h; sourceTree = SOURCE_ROOT; };
 		81F9E8F91122F0A400FBEFA4 /* ControlActions.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = ControlActions.cpp; path = ../../src/host/ControlActions.cpp; sourceTree = SOURCE_ROOT; };
 		81F9E8FA1122F0A400FBEFA4 /* ControlSurface.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = ControlSurface.cpp; path = ../../src/host/ControlSurface.cpp; sourceTree = SOURCE_ROOT; };
 		81F9E8FB1122F0A400FBEFA4 /* Looper.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Looper.cpp; path = ../../src/host/Looper.cpp; sourceTree = SOURCE_ROOT; };
@@ -114,6 +123,13 @@
 		20286C2AFDCF999611CA2CEA /* Sources */ = {
 			isa = PBXGroup;
 			children = (
+				8108F016113D790C00AEFD8E /* Analysis.cpp */,
+				8108F017113D790C00AEFD8E /* Analysis.h */,
+				8108F018113D790C00AEFD8E /* ControlSurface.h */,
+				8108F019113D790C00AEFD8E /* LoopControls.cpp */,
+				8108F01A113D790C00AEFD8E /* LoopControls.h */,
+				8108F01B113D790C00AEFD8E /* Looper.h */,
+				8108F01C113D790C00AEFD8E /* SyncPlayHead.h */,
 				81F9E8F91122F0A400FBEFA4 /* ControlActions.cpp */,
 				81F9E8FA1122F0A400FBEFA4 /* ControlSurface.cpp */,
 				81F9E8FB1122F0A400FBEFA4 /* Looper.cpp */,
@@ -229,6 +245,8 @@
 				81F9E9011122F0A400FBEFA4 /* Looper.cpp in Sources */,
 				81F9E9021122F0A400FBEFA4 /* ProjectDocument.cpp in Sources */,
 				81F9E9031122F0A400FBEFA4 /* SyncPlayHead.cpp in Sources */,
+				8108F01D113D790C00AEFD8E /* Analysis.cpp in Sources */,
+				8108F01E113D790C00AEFD8E /* LoopControls.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
