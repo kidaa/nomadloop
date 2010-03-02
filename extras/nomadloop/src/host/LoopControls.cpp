@@ -27,6 +27,9 @@ void LoopComponent::paint(Graphics &g)
 		{
 			g.setColour(Colours::white);
 			g.drawText(midiLoop->getEstimatedKey().getName(), 4, 4, getWidth()-8, 16, Justification::centredLeft, true);
+
+			g.setColour(Colours::lightcyan);
+			midiLoop->drawMidiBuffer(g, getWidth(), getHeight());
 		}
 	}
 

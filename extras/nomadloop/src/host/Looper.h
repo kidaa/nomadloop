@@ -65,6 +65,8 @@ public:
 	int getScrubPositionInSamples() const;
 	double getScrubPositionInSeconds() const;
 
+	void drawMidiBuffer(Graphics& g, int width, int height) const;
+
 	inline const Key& getEstimatedKey() const { return estimatedKey; }
 };
 
