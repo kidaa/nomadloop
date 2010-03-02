@@ -31,6 +31,63 @@ void MidiLoopProcessor::fillInPluginDescription(PluginDescription &looperDesc) c
 	looperDesc.numOutputChannels = 0;
 }
 
+// TODO: this is disgustingly inefficient, and furthermore only works for one-note-per-channel
+// sequences, a la MIDI guitar.  FIX IT!
+void MidiLoopProcessor::drawMidiBuffer(Graphics &g, int width, int height) const
+{
+	MidiBuffer::Iterator itor(sequence);
+	MidiMessage message(0x80, 1, 1);
+	int samplePosition = 0;
+
+	// for now, we limit ourselves to one note per channel... guitar input!
+	bool channelsOn[16] = {0};
+	int channelsNote[16] = {0};
+	int channelsBend[16] = {0};
+	double lastDrawTime = 0.0;
+
+	while (itor.getNextEvent(message, samplePosition))
+	{
+		if (message.isNoteOn())
+		{
+			channelsOn[message.getChannel()] = true;
+			channelsNote[message.getChannel()] = message.getNoteNumber();
+		}
+		else if (message.isNoteOff())
+		{			
+			for (int c=0; c<16; ++c)
+			{
+				if (channelsOn[c])
+				{
+					g.drawLine(
+						(width*lastDrawTime)/getLengthInSamples(),
+						height*(1.0f-(channelsNote[c] + (channelsBend[c])/(8192.0f/12))/128.0f),
+						(width*message.getTimeStamp())/getLengthInSamples(),
+						height*(1.0f-(channelsNote[c] + (channelsBend[c])/(8192.0f/12))/128.0f)
+						);
+				}
+			}
+			channelsOn[message.getChannel()] = false;
+		}
+		else if (message.isPitchWheel())
+		{
+			for (int c=0; c<16; ++c)
+			{
+				if (channelsOn[c])
+				{
+					g.drawLine(
+						(width*lastDrawTime)/getLengthInSamples(),
+						height*(1.0f-(channelsNote[c] + (channelsBend[c])/(8192.0f/12))/128.0f),
+						(width*message.getTimeStamp())/getLengthInSamples(),
+						height*(1.0f-(channelsNote[c] + (channelsBend[c])/(8192.0f/12))/128.0f)
+						);
+				}
+			}
+			channelsBend[message.getChannel()] = message.getPitchWheelValue();			
+		}
+		lastDrawTime = message.getTimeStamp();
+	}
+}
+
 const String MidiLoopProcessor::getName() const
 {
 	return T("Midi Looper");
