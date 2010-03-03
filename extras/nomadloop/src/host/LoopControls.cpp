@@ -31,6 +31,12 @@ void LoopComponent::paint(Graphics &g)
 			g.setColour(Colours::lightcyan);
 			midiLoop->drawMidiBuffer(g, getWidth(), getHeight());
 		}
+
+		if (loop == LoopManager::getInstance()->getMasterLoop())
+		{
+			g.setColour(Colours::red);
+			g.drawText(T("Master"), 4, 4, getWidth()-8, 16, Justification::centredRight, false);
+		}
 	}
 
 }
