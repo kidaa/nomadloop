@@ -330,6 +330,7 @@ void AudioLoopProcessor::processBlock(AudioSampleBuffer& sampleBuffer, MidiBuffe
 		{
 			sampleData.push_back(sampleBuffer.getSampleData(0)[i]);
 		}
+		sampleBuffer.clear();
 	}
 	else if (!sampleData.empty())
 	{
@@ -342,19 +343,23 @@ void AudioLoopProcessor::processBlock(AudioSampleBuffer& sampleBuffer, MidiBuffe
 			int samplesLeftInLoop = sampleData.size() - sampleScrub;
 			if (samplesToCopy <= samplesLeftInLoop)
 			{
-				sampleBuffer.addFrom(0, destStartSample, &sampleData[sampleScrub], samplesToCopy);
+				sampleBuffer.copyFrom(0, destStartSample, &sampleData[sampleScrub], samplesToCopy);
 				sampleScrub += samplesToCopy;
 				samplesToCopy = 0;
 			}
 			else
 			{
-				sampleBuffer.addFrom(0, destStartSample, &sampleData[sampleScrub], samplesLeftInLoop);
+				sampleBuffer.copyFrom(0, destStartSample, &sampleData[sampleScrub], samplesLeftInLoop);				
 				sampleScrub = 0;  // reset to beginning of loop
 				destStartSample += samplesLeftInLoop;
 			}
 
 			sampleScrub = sampleScrub % sampleData.size();
 		}
+	}
+	else
+	{
+		sampleBuffer.clear();
 	}
 }
 
