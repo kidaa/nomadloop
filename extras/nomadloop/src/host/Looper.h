@@ -18,6 +18,8 @@ public:
 
 	virtual int getScrubPositionInSamples() const = 0;
 	virtual double getScrubPositionInSeconds() const = 0;
+
+	virtual void drawContent(Graphics&, int width, int height) const = 0;
 };
 
 class MidiLoopProcessor : public LoopProcessor
@@ -65,7 +67,7 @@ public:
 	int getScrubPositionInSamples() const;
 	double getScrubPositionInSeconds() const;
 
-	void drawMidiBuffer(Graphics& g, int width, int height) const;
+	void drawContent(Graphics& g, int width, int height) const;
 
 	inline const Key& getEstimatedKey() const { return estimatedKey; }
 };
@@ -114,6 +116,7 @@ public:
 	int getScrubPositionInSamples() const;
 	double getScrubPositionInSeconds() const;
 
+	void drawContent(Graphics& g, int width, int height) const;
 };
 
 // Holder of the global loop state, used to sync loops together, i.e. keep track of master loop
