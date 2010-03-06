@@ -293,6 +293,18 @@
 					>
 				</File>
 			</Filter>
+			<Filter
+				Name="filters"
+				>
+				<File
+					RelativePath="..\..\src\filters\UtilityFilters.cpp"
+					>
+				</File>
+				<File
+					RelativePath="..\..\src\filters\UtilityFilters.h"
+					>
+				</File>
+			</Filter>
 		</Filter>
 	</Files>
 	<Globals>
