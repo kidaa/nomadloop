@@ -937,6 +937,7 @@ ControlSurfaceComponent::ControlSurfaceComponent()
 	overlayComponent->addMouseListener(this, false);
 	overlayComponent->setTopLeftPosition(0, 0);
 	overlayComponent->toBack();*/
+	addAndMakeVisible(dashboard = new DashboardComponent());
 	addAndMakeVisible(view = new SubviewComponent());
 }
 
@@ -953,7 +954,8 @@ void ControlSurfaceComponent::paint(Graphics &g)
 
 void ControlSurfaceComponent::resized()
 {
-	view->setSize(getWidth(), getHeight());
+	dashboard->setBounds(0,0, getWidth(), 128);
+	view->setBounds(0,128, getWidth(), getHeight()-128);
 	//overlayComponent->setSize(getWidth(), getHeight());
 }
 

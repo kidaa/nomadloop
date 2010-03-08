@@ -229,6 +229,14 @@
 					>
 				</File>
 				<File
+					RelativePath="..\..\src\host\Dashboard.cpp"
+					>
+				</File>
+				<File
+					RelativePath="..\..\src\host\Dashboard.h"
+					>
+				</File>
+				<File
 					RelativePath="..\..\src\host\FilterGraph.cpp"
 					>
 				</File>

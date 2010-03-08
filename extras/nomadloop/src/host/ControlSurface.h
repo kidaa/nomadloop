@@ -3,6 +3,7 @@
 
 #include "GraphEditorPanel.h"
 #include "ControlActions.h"
+#include "Dashboard.h"
 
 class SubviewComponent : public Component
 {
@@ -31,6 +32,8 @@ class ControlSurfaceComponent : public Component
 	/*Component* overlayComponent;
 	Component* movingComp;
 	Component* resizingComp;*/
+
+	DashboardComponent* dashboard;
 
 	SubviewComponent* view;
 

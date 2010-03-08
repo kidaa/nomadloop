@@ -88,6 +88,9 @@ public:
 	// TODO: should this be public, really? refactor maybe?
 	GraphDocumentComponent* getGraphEditor() const;
 
+	// TODO: same deal, refactor if it shouldn't be public or should live elsewhere
+	const AudioDeviceManager* getAudioDeviceManager() const;
+
     //==============================================================================
     juce_UseDebuggingNewOperator
 
