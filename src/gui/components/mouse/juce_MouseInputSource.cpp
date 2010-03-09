@@ -59,7 +59,7 @@ public:
 
     Component* getComponentUnderMouse() const
     {
-        return const_cast<Component*> (static_cast <const Component*> (componentUnderMouse));
+        return static_cast <Component*> (componentUnderMouse);
     }
 
     const ModifierKeys getCurrentModifiers() const
@@ -422,7 +422,7 @@ public:
 
     void hideCursor()
     {
-        showMouseCursor (MouseCursor (MouseCursor::NoCursor), true);
+        showMouseCursor (MouseCursor::NoCursor, true);
     }
 
     void revealCursor (bool forcedUpdate)
