@@ -954,8 +954,8 @@ void ControlSurfaceComponent::paint(Graphics &g)
 
 void ControlSurfaceComponent::resized()
 {
-	dashboard->setBounds(0,0, getWidth(), 128);
-	view->setBounds(0,128, getWidth(), getHeight()-128);
+	dashboard->setBounds(0,0, getWidth(), 96);
+	view->setBounds(0,96, getWidth(), getHeight()-96);
 	//overlayComponent->setSize(getWidth(), getHeight());
 }
 

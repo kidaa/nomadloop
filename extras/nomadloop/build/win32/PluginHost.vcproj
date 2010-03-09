@@ -293,6 +293,14 @@
 					>
 				</File>
 				<File
+					RelativePath="..\..\src\host\SettingsSnapshot.cpp"
+					>
+				</File>
+				<File
+					RelativePath="..\..\src\host\SettingsSnapshot.h"
+					>
+				</File>
+				<File
 					RelativePath="..\..\src\host\SyncPlayHead.cpp"
 					>
 				</File>
