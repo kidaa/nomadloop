@@ -771,38 +771,5 @@ int CharacterFunctions::getHexDigitValue (const juce_wchar digit) throw()
     return -1;
 }
 
-//==============================================================================
-int CharacterFunctions::printf (char* const dest, const int maxLength, const char* const format, ...) throw()
-{
-    va_list list;
-    va_start (list, format);
-    return vprintf (dest, maxLength, format, list);
-}
-
-int CharacterFunctions::printf (juce_wchar* const dest, const int maxLength, const juce_wchar* const format, ...) throw()
-{
-    va_list list;
-    va_start (list, format);
-    return vprintf (dest, maxLength, format, list);
-}
-
-int CharacterFunctions::vprintf (char* const dest, const int maxLength, const char* const format, va_list& args) throw()
-{
-#if JUCE_WIN32
-    return (int) _vsnprintf (dest, maxLength, format, args);
-#else
-    return (int) vsnprintf (dest, maxLength, format, args);
-#endif
-}
-
-int CharacterFunctions::vprintf (juce_wchar* const dest, const int maxLength, const juce_wchar* const format, va_list& args) throw()
-{
-#if defined (JUCE_WIN32)
-    return (int) _vsnwprintf (dest, maxLength, format, args);
-#else
-    return (int) vswprintf (dest, maxLength, format, args);
-#endif
-}
-
 
 END_JUCE_NAMESPACE
