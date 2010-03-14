@@ -1065,8 +1065,9 @@ void ControlSurfaceComponent::restoreFromXml(const XmlElement& xml)
 	deleteAllChildren();
 
 	// recreate the component mover layer
-	addAndMakeVisible(view = new SubviewComponent());
-	view->setBounds(0, 0, getWidth(), getHeight());
+	addAndMakeVisible(dashboard = new DashboardComponent());
+	addAndMakeVisible(view = new SubviewComponent());	
+	resized();
 	/*addAndMakeVisible(overlayComponent = new Component());
 	overlayComponent->addMouseListener(this, false);
 	overlayComponent->setBounds(0, 0, getWidth(), getHeight());
