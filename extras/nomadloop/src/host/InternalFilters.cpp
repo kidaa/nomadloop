@@ -66,6 +66,11 @@ InternalPluginFormat::InternalPluginFormat()
 		GainCut p;
 		p.fillInPluginDescription (gainCutDesc);
 	}
+
+	{
+		Arpeggiator p;
+		p.fillInPluginDescription (arpeggiatorDesc);
+	}
 }
 
 AudioPluginInstance* InternalPluginFormat::createInstanceFromDescription (const PluginDescription& desc)
@@ -98,6 +103,10 @@ AudioPluginInstance* InternalPluginFormat::createInstanceFromDescription (const 
 	{
 		return new GainCut();
 	}
+	else if (desc.name == arpeggiatorDesc.name)
+	{
+		return new Arpeggiator();
+	}
 
     return 0;
 }
@@ -120,6 +129,8 @@ const PluginDescription* InternalPluginFormat::getDescriptionFor (const Internal
 		return &midiLooperDesc;
 	case gainCutFilter:
 		return &gainCutDesc;
+	case arpeggiatorFilter:
+		return &arpeggiatorDesc;
     }
 
     return 0;

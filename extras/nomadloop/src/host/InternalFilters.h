@@ -28,6 +28,7 @@
 
 #include "FilterGraph.h"
 #include "../filters/UtilityFilters.h"
+#include "../filters/Arpeggiator.h"
 
 
 //==============================================================================
@@ -52,6 +53,7 @@ public:
 		midiLooperFilter,
 
 		gainCutFilter,
+		arpeggiatorFilter,
 
         endOfFilterTypes
     };
@@ -81,6 +83,7 @@ private:
 	PluginDescription looperDesc;
 	PluginDescription midiLooperDesc;
 	PluginDescription gainCutDesc;
+	PluginDescription arpeggiatorDesc;
 };
 
 

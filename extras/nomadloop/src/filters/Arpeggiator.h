@@ -5,6 +5,16 @@
 
 class Arpeggiator : public AudioPluginInstance
 {
+	float lastPpqPosition;
+
+	double sampleRate;
+
+	float rate;
+	
+	Array<int> activeInputNotes;
+	int activeOutputNoteCount;
+	int outputIndex;
+
 public:
 	Arpeggiator();
 	

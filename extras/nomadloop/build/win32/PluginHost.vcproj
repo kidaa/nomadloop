@@ -313,6 +313,14 @@
 				Name="filters"
 				>
 				<File
+					RelativePath="..\..\src\filters\Arpeggiator.cpp"
+					>
+				</File>
+				<File
+					RelativePath="..\..\src\filters\Arpeggiator.h"
+					>
+				</File>
+				<File
 					RelativePath="..\..\src\filters\UtilityFilters.cpp"
 					>
 				</File>
