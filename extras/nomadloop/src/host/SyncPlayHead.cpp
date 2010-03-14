@@ -84,7 +84,7 @@ void SyncPlayHead::handleIncomingMidiMessage (MidiInput *source, const MidiMessa
 
 void SyncPlayHead::handlePartialSysexMessage (MidiInput *source, const uint8 *messageData, const int numBytesSoFar, const double timestamp)
 {
-	Logger::outputDebugPrintf(T("Sysex from mobius!!"));
+	Logger::outputDebugString(T("Received partial Sysex message in sync playhead"));	
 }
 
 
@@ -104,7 +104,7 @@ void SyncPlayHead::audioDeviceIOCallback(const float **inputChannelData, int num
 	{
 		if (message.isMidiClock())
 		{
-			Logger::outputDebugPrintf(T("MIDI clock %i this frame at sample pos %i"), i, samplePos);
+			Logger::outputDebugString(String(T("MIDI clock ")) + String(i) + String(T(" this frame at sample pos ")) + String(samplePos));
 			i++;
 		}
 	}

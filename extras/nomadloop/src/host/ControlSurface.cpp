@@ -170,7 +170,11 @@ public:
 			int filterIndex = filterSelectionComboBox->getSelectedId() - 1;
 			int paramIndex = paramSelectionComboBox->getSelectedId() - 1;
 
-			Logger::outputDebugPrintf(T("Selected filter %i and parameter %i"), filterIndex, paramIndex);
+			{
+				String debug;
+				debug << T("Selected filter ") << filterIndex << T(" and parameter ") << paramIndex;
+				Logger::outputDebugString(debug);
+			}
 			if (filterIndex == -1 || paramIndex == -1)
 				return 0;
 			return new PluginParameterControlAction(graphDoc->graph.getNode(filterIndex), paramIndex);
@@ -241,7 +245,11 @@ void ControlSurfaceMappableComponent::showContextMenu()
 		int filterIndex = choice/itemsPerFilter;
 		int paramIndex = choice%itemsPerFilter;
 
-		Logger::outputDebugPrintf(T("Selected filter %i and parameter %i"), filterIndex, paramIndex);
+		{
+			String debug;
+			debug << T("Selected filter ") << filterIndex << T(" and parameter ") << paramIndex;
+			Logger::outputDebugString(debug);
+		}
 		PluginParameterControlAction* action = new PluginParameterControlAction(graphDoc->graph.getNode(filterIndex), paramIndex);
 		action->setMappedComponent(this);
 		controlActions.add(action);
@@ -483,7 +491,6 @@ public:
 				// begin dragging the knob
 				draggingKnob = true;
 				knobClickOffsetY = e.y - knobTop;
-				Logger::outputDebugPrintf(T("beginning drag"));
 			}
 
 		}
@@ -559,7 +566,6 @@ public:
 				// begin dragging the knob
 				draggingKnob = true;
 				knobClickOffsetX = e.x - knobLeft;
-				Logger::outputDebugPrintf(T("beginning drag"));
 			}
 		}
 	}
