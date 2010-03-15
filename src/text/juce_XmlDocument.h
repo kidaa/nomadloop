@@ -131,7 +131,7 @@ public:
 
 private:
     String originalText;
-    const tchar* input;
+    const juce_wchar* input;
     bool outOfData, errorOccurred;
 
     bool identifierLookupTable [128];
@@ -143,19 +143,22 @@ private:
     void setLastError (const String& desc, const bool carryOn) throw();
     void skipHeader() throw();
     void skipNextWhiteSpace() throw();
-    tchar readNextChar() throw();
+    juce_wchar readNextChar() throw();
     XmlElement* readNextElement (const bool alsoParseSubElements) throw();
     void readChildElements (XmlElement* parent) throw();
     int findNextTokenLength() throw();
     void readQuotedString (String& result) throw();
     void readEntity (String& result) throw();
-    static bool isXmlIdentifierCharSlow (const tchar c) throw();
-    bool isXmlIdentifierChar (const tchar c) const throw();
+    static bool isXmlIdentifierCharSlow (juce_wchar c) throw();
+    bool isXmlIdentifierChar (juce_wchar c) const throw();
 
     const String getFileContents (const String& filename) const;
     const String expandEntity (const String& entity);
     const String expandExternalEntity (const String& entity);
     const String getParameterEntity (const String& entity);
+
+    XmlDocument (const XmlDocument&);
+    XmlDocument& operator= (const XmlDocument&);
 };
 
 

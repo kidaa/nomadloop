@@ -726,10 +726,10 @@ template <typename Type>
 inline Type jmax (const Type a, const Type b, const Type c, const Type d)		   { return jmax (a, jmax (b, c, d)); }
 
 template <typename Type>
-inline Type jmin (const Type a, const Type b)						   { return (a > b) ? b : a; }
+inline Type jmin (const Type a, const Type b)						   { return (b < a) ? b : a; }
 
 template <typename Type>
-inline Type jmin (const Type a, const Type b, const Type c)				 { return (a > b) ? ((b > c) ? c : b) : ((a > c) ? c : a); }
+inline Type jmin (const Type a, const Type b, const Type c)				 { return (b < a) ? ((c < b) ? c : b) : ((c < a) ? c : a); }
 
 template <typename Type>
 inline Type jmin (const Type a, const Type b, const Type c, const Type d)		   { return jmin (a, jmin (b, c, d)); }
@@ -742,7 +742,7 @@ inline Type jlimit (const Type lowerLimit,
 	jassert (lowerLimit <= upperLimit); // if these are in the wrong order, results are unpredictable..
 
 	return (valueToConstrain < lowerLimit) ? lowerLimit
-										   : ((valueToConstrain > upperLimit) ? upperLimit
+										   : ((upperLimit < valueToConstrain) ? upperLimit
 																			  : valueToConstrain);
 }
 
@@ -755,7 +755,7 @@ inline void swapVariables (Type& variable1, Type& variable2)
 }
 
 template <typename Type>
-inline int numElementsInArray (Type& array)	 { return (int) (sizeof (array) / sizeof (array[0])); }
+inline int numElementsInArray (Type& array)	 { return static_cast<int> (sizeof (array) / sizeof (array[0])); }
 
 // Some useful maths functions that aren't always present with all compilers and build settings.
 
@@ -842,33 +842,33 @@ public:
 
 	static uint64 swap (uint64 value);
 
-	static uint16 swapIfBigEndian (const uint16 value);
+	static uint16 swapIfBigEndian (uint16 value);
 
-	static uint32 swapIfBigEndian (const uint32 value);
+	static uint32 swapIfBigEndian (uint32 value);
 
-	static uint64 swapIfBigEndian (const uint64 value);
+	static uint64 swapIfBigEndian (uint64 value);
 
-	static uint16 swapIfLittleEndian (const uint16 value);
+	static uint16 swapIfLittleEndian (uint16 value);
 
-	static uint32 swapIfLittleEndian (const uint32 value);
+	static uint32 swapIfLittleEndian (uint32 value);
 
-	static uint64 swapIfLittleEndian (const uint64 value);
+	static uint64 swapIfLittleEndian (uint64 value);
 
-	static uint32 littleEndianInt (const char* const bytes);
+	static uint32 littleEndianInt (const char* bytes);
 
-	static uint16 littleEndianShort (const char* const bytes);
+	static uint16 littleEndianShort (const char* bytes);
 
-	static uint32 bigEndianInt (const char* const bytes);
+	static uint32 bigEndianInt (const char* bytes);
 
-	static uint16 bigEndianShort (const char* const bytes);
+	static uint16 bigEndianShort (const char* bytes);
 
-	static int littleEndian24Bit (const char* const bytes);
+	static int littleEndian24Bit (const char* bytes);
 
-	static int bigEndian24Bit (const char* const bytes);
+	static int bigEndian24Bit (const char* bytes);
 
-	static void littleEndian24BitToChars (const int value, char* const destBytes);
+	static void littleEndian24BitToChars (int value, char* destBytes);
 
-	static void bigEndian24BitToChars (const int value, char* const destBytes);
+	static void bigEndian24BitToChars (int value, char* destBytes);
 
 	static bool isBigEndian();
 };
@@ -880,9 +880,9 @@ public:
 inline uint16 ByteOrder::swap (uint16 n)
 {
 #if JUCE_USE_INTRINSICSxxx // agh - the MS compiler has an internal error when you try to use this intrinsic!
-	return (uint16) _byteswap_ushort (n);
+	return static_cast <uint16> (_byteswap_ushort (n));
 #else
-	return (uint16) ((n << 8) | (n >> 8));
+	return static_cast <uint16> ((n << 8) | (n >> 8));
 #endif
 }
 
@@ -1071,15 +1071,15 @@ public:
 
 	String (const String& other) throw();
 
-	String (const char* text) throw();
+	String (const char* text);
 
-	String (const char* text, size_t maxChars) throw();
+	String (const char* text, size_t maxChars);
 
-	String (const juce_wchar* unicodeText) throw();
+	String (const juce_wchar* unicodeText);
 
-	String (const juce_wchar* unicodeText, size_t maxChars) throw();
+	String (const juce_wchar* unicodeText, size_t maxChars);
 
-	static const String charToString (juce_wchar character) throw();
+	static const String charToString (juce_wchar character);
 
 	~String() throw();
 
@@ -1196,73 +1196,73 @@ public:
 	*/
 	inline const juce_wchar& operator[] (int index) const throw()  { jassert (((unsigned int) index) <= (unsigned int) length()); return text [index]; }
 
-	juce_wchar& operator[] (int index) throw();
+	juce_wchar& operator[] (int index);
 
 	juce_wchar getLastCharacter() const throw();
 
-	const String substring (int startIndex, int endIndex) const throw();
+	const String substring (int startIndex, int endIndex) const;
 
-	const String substring (int startIndex) const throw();
+	const String substring (int startIndex) const;
 
-	const String dropLastCharacters (int numberToDrop) const throw();
+	const String dropLastCharacters (int numberToDrop) const;
 
-	const String getLastCharacters (int numCharacters) const throw();
+	const String getLastCharacters (int numCharacters) const;
 
 	const String fromFirstOccurrenceOf (const juce_wchar* substringToStartFrom,
 										bool includeSubStringInResult,
-										bool ignoreCase) const throw();
+										bool ignoreCase) const;
 
 	const String fromLastOccurrenceOf (const juce_wchar* substringToFind,
 									   bool includeSubStringInResult,
-									   bool ignoreCase) const throw();
+									   bool ignoreCase) const;
 
 	const String upToFirstOccurrenceOf (const juce_wchar* substringToEndWith,
 										bool includeSubStringInResult,
-										bool ignoreCase) const throw();
+										bool ignoreCase) const;
 
 	const String upToLastOccurrenceOf (const juce_wchar* substringToFind,
 									   bool includeSubStringInResult,
-									   bool ignoreCase) const throw();
+									   bool ignoreCase) const;
 
-	const String trim() const throw();
-	const String trimStart() const throw();
-	const String trimEnd() const throw();
+	const String trim() const;
+	const String trimStart() const;
+	const String trimEnd() const;
 
-	const String trimCharactersAtStart (const juce_wchar* charactersToTrim) const throw();
+	const String trimCharactersAtStart (const juce_wchar* charactersToTrim) const;
 
-	const String trimCharactersAtEnd (const juce_wchar* charactersToTrim) const throw();
+	const String trimCharactersAtEnd (const juce_wchar* charactersToTrim) const;
 
-	const String toUpperCase() const throw();
+	const String toUpperCase() const;
 
-	const String toLowerCase() const throw();
+	const String toLowerCase() const;
 
 	const String replaceSection (int startIndex,
 								 int numCharactersToReplace,
-								 const juce_wchar* stringToInsert) const throw();
+								 const juce_wchar* stringToInsert) const;
 
 	const String replace (const juce_wchar* stringToReplace,
 						  const juce_wchar* stringToInsertInstead,
-						  bool ignoreCase = false) const throw();
+						  bool ignoreCase = false) const;
 
 	const String replaceCharacter (juce_wchar characterToReplace,
-								   juce_wchar characterToInsertInstead) const throw();
+								   juce_wchar characterToInsertInstead) const;
 
 	const String replaceCharacters (const String& charactersToReplace,
-									const juce_wchar* charactersToInsertInstead) const throw();
+									const juce_wchar* charactersToInsertInstead) const;
 
-	const String retainCharacters (const juce_wchar* charactersToRetain) const throw();
+	const String retainCharacters (const juce_wchar* charactersToRetain) const;
 
-	const String removeCharacters (const juce_wchar* charactersToRemove) const throw();
+	const String removeCharacters (const juce_wchar* charactersToRemove) const;
 
-	const String initialSectionContainingOnly (const juce_wchar* permittedCharacters) const throw();
+	const String initialSectionContainingOnly (const juce_wchar* permittedCharacters) const;
 
-	const String initialSectionNotContaining (const juce_wchar* charactersToStopAt) const throw();
+	const String initialSectionNotContaining (const juce_wchar* charactersToStopAt) const;
 
-	bool isQuotedString() const throw();
+	bool isQuotedString() const;
 
-	const String unquoted() const throw();
+	const String unquoted() const;
 
-	const String quoted (juce_wchar quoteCharacter = JUCE_T('"')) const throw();
+	const String quoted (juce_wchar quoteCharacter = JUCE_T('"')) const;
 
 	static const String repeatedString (const juce_wchar* stringToRepeat,
 										int numberOfTimesToRepeat);
@@ -1271,28 +1271,27 @@ public:
 
 	const String paddedRight (juce_wchar padCharacter, int minimumLength) const;
 
-	static const String createStringFromData (const void* data,
-											  int size) throw();
+	static const String createStringFromData (const void* data, int size);
 
 	// Numeric conversions..
 
-	explicit String (int decimalInteger) throw();
+	explicit String (int decimalInteger);
 
-	explicit String (unsigned int decimalInteger) throw();
+	explicit String (unsigned int decimalInteger);
 
-	explicit String (short decimalInteger) throw();
+	explicit String (short decimalInteger);
 
-	explicit String (unsigned short decimalInteger) throw();
+	explicit String (unsigned short decimalInteger);
 
-	explicit String (int64 largeIntegerValue) throw();
+	explicit String (int64 largeIntegerValue);
 
-	explicit String (uint64 largeIntegerValue) throw();
+	explicit String (uint64 largeIntegerValue);
 
 	explicit String (float floatValue,
-					 int numberOfDecimalPlaces = 0) throw();
+					 int numberOfDecimalPlaces = 0);
 
 	explicit String (double doubleValue,
-					 int numberOfDecimalPlaces = 0) throw();
+					 int numberOfDecimalPlaces = 0);
 
 	int getIntValue() const throw();
 
@@ -1308,15 +1307,15 @@ public:
 
 	int64 getHexValue64() const throw();
 
-	static const String toHexString (int number) throw();
+	static const String toHexString (int number);
 
-	static const String toHexString (int64 number) throw();
+	static const String toHexString (int64 number);
 
-	static const String toHexString (short number) throw();
+	static const String toHexString (short number);
 
 	static const String toHexString (const unsigned char* data,
 									 int size,
-									 int groupSize = 1) throw();
+									 int groupSize = 1);
 
 	inline operator const juce_wchar*() const throw()   { return text; }
 
@@ -1339,6 +1338,8 @@ public:
 	void copyToUnicode (juce_wchar* destBuffer, int maxCharsToCopy) const throw();
 
 	void preallocateStorage (size_t numCharsNeeded);
+
+	void swapWith (String& other) throw();
 
 	class JUCE_API  Concatenator
 	{
@@ -1893,6 +1894,10 @@ public:
 	};
 
 	typedef ScopedLockType ScopedUnlockType;
+
+private:
+	DummyCriticalSection (const DummyCriticalSection&);
+	DummyCriticalSection& operator= (const DummyCriticalSection&);
 };
 
 #endif   // __JUCE_CRITICALSECTION_JUCEHEADER__
@@ -3886,14 +3891,14 @@ public:
 				   int startIndex = 0,
 				   int numElementsToAdd = -1);
 
-	int addTokens (const tchar* const stringToTokenise,
+	int addTokens (const String& stringToTokenise,
 				   const bool preserveQuotedStrings);
 
-	int addTokens (const tchar* const stringToTokenise,
-				   const tchar* breakCharacters,
-				   const tchar* quoteCharacters);
+	int addTokens (const String& stringToTokenise,
+				   const String& breakCharacters,
+				   const String& quoteCharacters);
 
-	int addLines (const tchar* stringToBreakUp);
+	int addLines (const String& stringToBreakUp);
 
 	void clear();
 
@@ -7039,13 +7044,13 @@ class JUCE_API  Random
 {
 public:
 
-	Random (const int64 seedValue) throw();
+	Random (int64 seedValue) throw();
 
 	~Random() throw();
 
 	int nextInt() throw();
 
-	int nextInt (const int maxValue) throw();
+	int nextInt (int maxValue) throw();
 
 	int64 nextInt64() throw();
 
@@ -7061,9 +7066,9 @@ public:
 
 	static Random& getSystemRandom() throw();
 
-	void setSeed (const int64 newSeed) throw();
+	void setSeed (int64 newSeed) throw();
 
-	void combineSeed (const int64 seedValue) throw();
+	void combineSeed (int64 seedValue) throw();
 
 	void setSeedRandomly();
 
@@ -7658,6 +7663,9 @@ private:
 	int64 currentPosition;
 	int bufferSize, bytesInBuffer;
 	HeapBlock <char> buffer;
+
+	FileOutputStream (const FileOutputStream&);
+	FileOutputStream& operator= (const FileOutputStream&);
 };
 
 #endif   // __JUCE_FILEOUTPUTSTREAM_JUCEHEADER__
@@ -8203,10 +8211,10 @@ class JUCE_API  GZIPCompressorOutputStream  : public OutputStream
 {
 public:
 
-	GZIPCompressorOutputStream (OutputStream* const destStream,
+	GZIPCompressorOutputStream (OutputStream* destStream,
 								int compressionLevel = 0,
-								const bool deleteDestStreamWhenDestroyed = false,
-								const bool noWrap = false);
+								bool deleteDestStreamWhenDestroyed = false,
+								bool noWrap = false);
 
 	~GZIPCompressorOutputStream();
 
@@ -8245,10 +8253,10 @@ class JUCE_API  GZIPDecompressorInputStream  : public InputStream
 {
 public:
 
-	GZIPDecompressorInputStream (InputStream* const sourceStream,
-								 const bool deleteSourceWhenDestroyed,
-								 const bool noWrap = false,
-								 const int64 uncompressedStreamLength = -1);
+	GZIPDecompressorInputStream (InputStream* sourceStream,
+								 bool deleteSourceWhenDestroyed,
+								 bool noWrap = false,
+								 int64 uncompressedStreamLength = -1);
 
 	~GZIPDecompressorInputStream();
 
@@ -8296,9 +8304,12 @@ class JUCE_API  MemoryInputStream  : public InputStream
 {
 public:
 
-	MemoryInputStream (const void* const sourceData,
-					   const size_t sourceDataSize,
-					   const bool keepInternalCopyOfData);
+	MemoryInputStream (const void* sourceData,
+					   size_t sourceDataSize,
+					   bool keepInternalCopyOfData);
+
+	MemoryInputStream (const MemoryBlock& data,
+					   bool keepInternalCopyOfData);
 
 	~MemoryInputStream();
 
@@ -8314,6 +8325,9 @@ private:
 	const char* data;
 	size_t dataSize, position;
 	MemoryBlock internalCopy;
+
+	MemoryInputStream (const MemoryInputStream&);
+	MemoryInputStream& operator= (const MemoryInputStream&);
 };
 
 #endif   // __JUCE_MEMORYINPUTSTREAM_JUCEHEADER__
@@ -8331,11 +8345,11 @@ class JUCE_API  MemoryOutputStream  : public OutputStream
 {
 public:
 
-	MemoryOutputStream (const size_t initialSize = 256,
-						const size_t granularity = 256,
-						MemoryBlock* const memoryBlockToWriteTo = 0) throw();
+	MemoryOutputStream (size_t initialSize = 256,
+						size_t granularity = 256,
+						MemoryBlock* memoryBlockToWriteTo = 0);
 
-	~MemoryOutputStream() throw();
+	~MemoryOutputStream();
 
 	const char* getData() const throw();
 
@@ -8354,6 +8368,9 @@ private:
 	MemoryBlock* data;
 	ScopedPointer <MemoryBlock> dataToDelete;
 	size_t position, size, blockSize;
+
+	MemoryOutputStream (const MemoryOutputStream&);
+	MemoryOutputStream& operator= (const MemoryOutputStream&);
 };
 
 #endif   // __JUCE_MEMORYOUTPUTSTREAM_JUCEHEADER__
@@ -8493,7 +8510,7 @@ public:
 
 private:
 	String originalText;
-	const tchar* input;
+	const juce_wchar* input;
 	bool outOfData, errorOccurred;
 
 	bool identifierLookupTable [128];
@@ -8505,19 +8522,22 @@ private:
 	void setLastError (const String& desc, const bool carryOn) throw();
 	void skipHeader() throw();
 	void skipNextWhiteSpace() throw();
-	tchar readNextChar() throw();
+	juce_wchar readNextChar() throw();
 	XmlElement* readNextElement (const bool alsoParseSubElements) throw();
 	void readChildElements (XmlElement* parent) throw();
 	int findNextTokenLength() throw();
 	void readQuotedString (String& result) throw();
 	void readEntity (String& result) throw();
-	static bool isXmlIdentifierCharSlow (const tchar c) throw();
-	bool isXmlIdentifierChar (const tchar c) const throw();
+	static bool isXmlIdentifierCharSlow (juce_wchar c) throw();
+	bool isXmlIdentifierChar (juce_wchar c) const throw();
 
 	const String getFileContents (const String& filename) const;
 	const String expandEntity (const String& entity);
 	const String expandExternalEntity (const String& entity);
 	const String getParameterEntity (const String& entity);
+
+	XmlDocument (const XmlDocument&);
+	XmlDocument& operator= (const XmlDocument&);
 };
 
 #endif   // __JUCE_XMLDOCUMENT_JUCEHEADER__
@@ -13287,6 +13307,9 @@ private:
 	// xxx this is just here to cause a compile error in old code that hasn't been changed to use the new
 	// version of this method.
 	virtual short getFirstCommandTarget() { return 0; }
+
+	ApplicationCommandManager (const ApplicationCommandManager&);
+	ApplicationCommandManager& operator= (const ApplicationCommandManager&);
 };
 
 class JUCE_API  ApplicationCommandManagerListener
@@ -13773,6 +13796,9 @@ protected:
 
 private:
 	String formatName;
+
+	AudioFormatWriter (const AudioFormatWriter&);
+	AudioFormatWriter& operator= (const AudioFormatWriter&);
 };
 
 #endif   // __JUCE_AUDIOFORMATWRITER_JUCEHEADER__
@@ -15518,7 +15544,10 @@ protected:
 	void* internal;
 
 	MidiInput (const String& name);
+
+private:
 	MidiInput (const MidiInput&);
+	MidiInput& operator= (const MidiInput&);
 };
 
 #endif   // __JUCE_MIDIINPUT_JUCEHEADER__
@@ -15644,13 +15673,13 @@ public:
 
 	virtual void sendBlockOfMessages (const MidiBuffer& buffer,
 									  const double millisecondCounterToStartAt,
-									  double samplesPerSecondForBuffer) throw();
+									  double samplesPerSecondForBuffer);
 
-	virtual void clearAllPendingMessages() throw();
+	virtual void clearAllPendingMessages();
 
-	virtual void startBackgroundThread() throw();
+	virtual void startBackgroundThread();
 
-	virtual void stopBackgroundThread() throw();
+	virtual void stopBackgroundThread();
 
 	juce_UseDebuggingNewOperator
 
@@ -15659,7 +15688,7 @@ protected:
 
 	struct PendingMessage
 	{
-		PendingMessage (const uint8* const data, const int len, const double sampleNumber) throw();
+		PendingMessage (const uint8* data, int len, double sampleNumber);
 
 		MidiMessage message;
 		PendingMessage* next;
@@ -15670,10 +15699,12 @@ protected:
 	CriticalSection lock;
 	PendingMessage* firstMessage;
 
-	MidiOutput() throw();
-	MidiOutput (const MidiOutput&);
-
+	MidiOutput();
 	void run();
+
+private:
+	MidiOutput (const MidiOutput&);
+	MidiOutput& operator= (const MidiOutput&);
 };
 
 #endif   // __JUCE_MIDIOUTPUT_JUCEHEADER__
@@ -17544,6 +17575,9 @@ public:
 private:
 
 	AudioProcessor* const owner;
+
+	AudioProcessorEditor (const AudioProcessorEditor&);
+	AudioProcessorEditor& operator= (const AudioProcessorEditor&);
 };
 
 #endif   // __JUCE_AUDIOPROCESSOREDITOR_JUCEHEADER__
@@ -22751,6 +22785,9 @@ public:
 private:
 	ComponentBoundsConstrainer* constrainer;
 	Point<int> originalPos;
+
+	ComponentDragger (const ComponentDragger&);
+	ComponentDragger& operator= (const ComponentDragger&);
 };
 
 #endif   // __JUCE_COMPONENTDRAGGER_JUCEHEADER__
