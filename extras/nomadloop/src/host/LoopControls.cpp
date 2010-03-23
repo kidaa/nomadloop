@@ -31,6 +31,12 @@ void LoopComponent::paint(Graphics &g)
 
 		g.setColour(Colours::lightcyan);
 		loop->drawContent(g, getWidth(), getHeight());
+
+		if (loop == LoopManager::getInstance()->getMasterLoop())
+		{
+			g.setColour(Colours::red);
+			g.drawText(T("Master"), 4, 4, getWidth()-8, 16, Justification::centredRight, true);
+		}
 	}
 
 }
