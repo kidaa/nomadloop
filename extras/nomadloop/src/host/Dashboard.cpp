@@ -44,7 +44,7 @@ void DashboardComponent::resized()
 void DashboardComponent::timerCallback()
 {
 	const AudioDeviceManager* manager = static_cast<MainHostWindow*>(getTopLevelComponent())->getAudioDeviceManager();
-	cpuUsageLabel->setText(T("CPU: ") + String(manager->getCpuUsage(), 2) + T("%"), false);
+	cpuUsageLabel->setText(T("CPU: ") + String(manager->getCpuUsage() * 100, 2) + T("%"), false);
 	repaint();
 }
 
