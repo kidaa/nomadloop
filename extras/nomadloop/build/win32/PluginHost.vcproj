@@ -229,6 +229,14 @@
 					>
 				</File>
 				<File
+					RelativePath="..\..\src\host\Dashboard.cpp"
+					>
+				</File>
+				<File
+					RelativePath="..\..\src\host\Dashboard.h"
+					>
+				</File>
+				<File
 					RelativePath="..\..\src\host\FilterGraph.cpp"
 					>
 				</File>
@@ -285,11 +293,39 @@
 					>
 				</File>
 				<File
+					RelativePath="..\..\src\host\SettingsSnapshot.cpp"
+					>
+				</File>
+				<File
+					RelativePath="..\..\src\host\SettingsSnapshot.h"
+					>
+				</File>
+				<File
 					RelativePath="..\..\src\host\SyncPlayHead.cpp"
 					>
 				</File>
 				<File
 					RelativePath="..\..\src\host\SyncPlayHead.h"
+					>
+				</File>
+			</Filter>
+			<Filter
+				Name="filters"
+				>
+				<File
+					RelativePath="..\..\src\filters\Arpeggiator.cpp"
+					>
+				</File>
+				<File
+					RelativePath="..\..\src\filters\Arpeggiator.h"
+					>
+				</File>
+				<File
+					RelativePath="..\..\src\filters\UtilityFilters.cpp"
+					>
+				</File>
+				<File
+					RelativePath="..\..\src\filters\UtilityFilters.h"
 					>
 				</File>
 			</Filter>

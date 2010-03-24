@@ -23,8 +23,8 @@
   ==============================================================================
 */
 
-#ifndef __JUCE_MOUSEEVENT_JUCEHEADER__x
-#define __JUCE_MOUSEEVENT_JUCEHEADER__x
+#ifndef __JUCE_MOUSEINPUTSOURCE_JUCEHEADER__
+#define __JUCE_MOUSEINPUTSOURCE_JUCEHEADER__
 
 class Component;
 class ComponentPeer;
@@ -136,6 +136,7 @@ public:
     void showMouseCursor (const MouseCursor& cursor);
     void hideCursor();
     void revealCursor();
+    void forceMouseCursorUpdate();
 
     bool canDoUnboundedMovement() const throw();
 
@@ -177,4 +178,4 @@ private:
 };
 
 
-#endif   // __JUCE_MOUSEEVENT_JUCEHEADER__
+#endif   // __JUCE_MOUSEINPUTSOURCE_JUCEHEADER__

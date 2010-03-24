@@ -59,7 +59,7 @@ public:
 
     Component* getComponentUnderMouse() const
     {
-        return const_cast<Component*> (static_cast <const Component*> (componentUnderMouse));
+        return static_cast <Component*> (componentUnderMouse);
     }
 
     const ModifierKeys getCurrentModifiers() const
@@ -422,7 +422,7 @@ public:
 
     void hideCursor()
     {
-        showMouseCursor (MouseCursor (MouseCursor::NoCursor), true);
+        showMouseCursor (MouseCursor::NoCursor, true);
     }
 
     void revealCursor (bool forcedUpdate)
@@ -510,6 +510,7 @@ bool MouseInputSource::hasMouseCursor() const throw()                   { return
 void MouseInputSource::showMouseCursor (const MouseCursor& cursor)      { pimpl->showMouseCursor (cursor, false); }
 void MouseInputSource::hideCursor()                                     { pimpl->hideCursor(); }
 void MouseInputSource::revealCursor()                                   { pimpl->revealCursor (false); }
+void MouseInputSource::forceMouseCursorUpdate()                         { pimpl->revealCursor (true); }
 
 void MouseInputSource::handleEvent (ComponentPeer* peer, const Point<int>& positionWithinPeer, const int64 time, const ModifierKeys& mods)
 {

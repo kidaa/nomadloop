@@ -27,6 +27,8 @@
 #define __JUCE_MAINHOSTWINDOW_JUCEHEADER__xxxxx
 
 #include "FilterGraph.h"
+#include "../filters/UtilityFilters.h"
+#include "../filters/Arpeggiator.h"
 
 
 //==============================================================================
@@ -49,6 +51,9 @@ public:
 		midiOutputFilter,
 		looperFilter,
 		midiLooperFilter,
+
+		gainCutFilter,
+		arpeggiatorFilter,
 
         endOfFilterTypes
     };
@@ -77,6 +82,8 @@ private:
 	PluginDescription midiOutDesc;
 	PluginDescription looperDesc;
 	PluginDescription midiLooperDesc;
+	PluginDescription gainCutDesc;
+	PluginDescription arpeggiatorDesc;
 };
 
 

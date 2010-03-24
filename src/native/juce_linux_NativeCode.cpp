@@ -30,10 +30,15 @@
     the rest of the codebase.
 */
 
+#include "../core/juce_TargetPlatform.h"
+
+#if JUCE_LINUX
+
 #include "linux/juce_linux_NativeIncludes.h"
 
 BEGIN_JUCE_NAMESPACE
 
+//==============================================================================
 #include "../io/files/juce_FileInputStream.h"
 #include "../io/files/juce_FileOutputStream.h"
 #include "../core/juce_SystemStats.h"
@@ -73,6 +78,7 @@ BEGIN_JUCE_NAMESPACE
 #include "../gui/components/windows/juce_AlertWindow.h"
 #include "../gui/components/special/juce_OpenGLComponent.h"
 #include "../gui/components/juce_Desktop.h"
+#include "../gui/components/mouse/juce_MouseInputSource.h"
 #include "../gui/graphics/geometry/juce_RectangleList.h"
 #include "../gui/graphics/imaging/juce_ImageFileFormat.h"
 #include "../gui/graphics/contexts/juce_LowLevelGraphicsSoftwareRenderer.h"
@@ -114,3 +120,5 @@ BEGIN_JUCE_NAMESPACE
 #endif
 
 END_JUCE_NAMESPACE
+
+#endif

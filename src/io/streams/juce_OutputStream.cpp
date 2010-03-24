@@ -239,7 +239,7 @@ int OutputStream::writeFromInputStream (InputStream& source, int numBytesToWrite
     {
         char buffer [8192];
 
-        const int num = source.read (buffer, (int) jmin ((size_t) numBytesToWrite, sizeof (buffer)));
+        const int num = (int) source.read (buffer, (int) jmin ((size_t) numBytesToWrite, sizeof (buffer)));
 
         if (num == 0)
             break;
@@ -254,23 +254,23 @@ int OutputStream::writeFromInputStream (InputStream& source, int numBytesToWrite
 }
 
 //==============================================================================
-OutputStream& operator<< (OutputStream& stream, const int number)
+OutputStream& JUCE_CALLTYPE operator<< (OutputStream& stream, const int number)
 {
     return stream << String (number);
 }
 
-OutputStream& operator<< (OutputStream& stream, const double number)
+OutputStream& JUCE_CALLTYPE operator<< (OutputStream& stream, const double number)
 {
     return stream << String (number);
 }
 
-OutputStream& operator<< (OutputStream& stream, const char character)
+OutputStream& JUCE_CALLTYPE operator<< (OutputStream& stream, const char character)
 {
     stream.writeByte (character);
     return stream;
 }
 
-OutputStream& operator<< (OutputStream& stream, const char* const text)
+OutputStream& JUCE_CALLTYPE operator<< (OutputStream& stream, const char* const text)
 {
     stream.write (text, (int) strlen (text));
     return stream;

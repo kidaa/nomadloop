@@ -612,3 +612,8 @@ GraphDocumentComponent* MainHostWindow::getGraphEditor() const
 	ContentComp* contentComp = dynamic_cast <ContentComp*> (getContentComponent());
 	return contentComp == 0 ? 0 : contentComp->graphDocument;
 }
+
+const AudioDeviceManager* MainHostWindow::getAudioDeviceManager() const
+{
+	return &deviceManager;
+}

@@ -33,7 +33,7 @@ void MidiLoopProcessor::fillInPluginDescription(PluginDescription &looperDesc) c
 
 // TODO: this is disgustingly inefficient, and furthermore only works for one-note-per-channel
 // sequences, a la MIDI guitar.  FIX IT!
-void MidiLoopProcessor::drawMidiBuffer(Graphics &g, int width, int height) const
+void MidiLoopProcessor::drawContent(Graphics &g, int width, int height) const
 {
 	MidiBuffer::Iterator itor(sequence);
 	MidiMessage message(0x80, 1, 1);
@@ -487,6 +487,18 @@ int AudioLoopProcessor::getScrubPositionInSamples() const
 double AudioLoopProcessor::getScrubPositionInSeconds() const
 {
 	return sampleScrub / getSampleRate();
+}
+
+void AudioLoopProcessor::drawContent(Graphics& g, int width, int height) const
+{
+	if (!sampleData.empty())
+	{
+		float lastY = 0.f;
+		for (int i=1; i<width; ++i)
+		{
+			g.drawLine(i-1, height*0.5f*(1 + sampleData[(i-1)*(sampleData.size()-1)/width]), i, height*0.5f*(1 + sampleData[i*(sampleData.size()-1)/width]));
+		}
+	}
 }
 
 juce_ImplementSingleton (LoopManager);

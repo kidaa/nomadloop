@@ -52,7 +52,7 @@ public:
 
     const String getTextFromValue (double value)
     {
-        return String::formatted (T("%02X"), (int) value);
+        return String::toHexString ((int) value).toUpperCase().paddedLeft ('0', 2);
     }
 
     double getValueFromText (const String& text)
@@ -495,16 +495,7 @@ void ColourSelector::paint (Graphics& g)
 
         g.setColour (Colours::white.overlaidWith (colour).contrasting());
         g.setFont (14.0f, true);
-        g.drawText (((flags & showAlphaChannel) != 0)
-                       ? String::formatted (T("#%02X%02X%02X%02X"),
-                                            (int) colour.getAlpha(),
-                                            (int) colour.getRed(),
-                                            (int) colour.getGreen(),
-                                            (int) colour.getBlue())
-                       : String::formatted (T("#%02X%02X%02X"),
-                                            (int) colour.getRed(),
-                                            (int) colour.getGreen(),
-                                            (int) colour.getBlue()),
+        g.drawText (colour.toDisplayString ((flags & showAlphaChannel) != 0),
                     0, edgeGap, getWidth(), topSpace - edgeGap * 2,
                     Justification::centred, false);
     }

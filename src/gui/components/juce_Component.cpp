@@ -28,7 +28,6 @@
 BEGIN_JUCE_NAMESPACE
 
 #include "juce_Component.h"
-#include "juce_ComponentDeletionWatcher.h"
 #include "juce_Desktop.h"
 #include "windows/juce_ComponentPeer.h"
 #include "keyboard/juce_KeyListener.h"
@@ -50,9 +49,11 @@ Component* Component::currentlyFocusedComponent = 0;
 static Array <Component*> modalComponentStack, modalComponentReturnValueKeys;
 static Array <int> modalReturnValues;
 
-static const int customCommandMessage   = 0x7fff0001;
-static const int exitModalStateMessage  = 0x7fff0002;
-
+enum ComponentMessageNumbers
+{
+    customCommandMessage   = 0x7fff0001,
+    exitModalStateMessage  = 0x7fff0002
+};
 
 //==============================================================================
 #define checkMessageManagerIsLocked     jassert (MessageManager::getInstance()->currentThreadHasLockedMessageManager());
@@ -61,7 +62,7 @@ static uint32 nextComponentUID = 0;
 
 
 //==============================================================================
-Component::Component() throw()
+Component::Component()
   : parentComponent_ (0),
     componentUID (++nextComponentUID),
     numDeepMouseListeners (0),
@@ -70,12 +71,11 @@ Component::Component() throw()
     bufferedImage_ (0),
     mouseListeners_ (0),
     keyListeners_ (0),
-    componentListeners_ (0),
     componentFlags_ (0)
 {
 }
 
-Component::Component (const String& name) throw()
+Component::Component (const String& name)
   : componentName_ (name),
     parentComponent_ (0),
     componentUID (++nextComponentUID),
@@ -85,23 +85,13 @@ Component::Component (const String& name) throw()
     bufferedImage_ (0),
     mouseListeners_ (0),
     keyListeners_ (0),
-    componentListeners_ (0),
     componentFlags_ (0)
 {
 }
 
 Component::~Component()
 {
-    if (componentListeners_ != 0)
-    {
-        for (int i = componentListeners_->size(); --i >= 0;)
-        {
-            ((ComponentListener*) componentListeners_->getUnchecked (i))
-                ->componentBeingDeleted (*this);
-
-            i = jmin (i, componentListeners_->size());
-        }
-    }
+    componentListeners.call (&ComponentListener::componentBeingDeleted, *this);
 
     if (parentComponent_ != 0)
     {
@@ -124,7 +114,6 @@ Component::~Component()
     delete bufferedImage_;
     delete mouseListeners_;
     delete keyListeners_;
-    delete componentListeners_;
 }
 
 //==============================================================================
@@ -147,22 +136,8 @@ void Component::setName (const String& name)
                 peer->setTitle (name);
         }
 
-        if (componentListeners_ != 0)
-        {
-            SafePointer<Component> safePointer (this);
-
-            for (int i = componentListeners_->size(); --i >= 0;)
-            {
-                ((ComponentListener*) componentListeners_->getUnchecked (i))
-                    ->componentNameChanged (*this);
-
-                if (safePointer == 0)
-                    return;
-
-                i = jmin (i, componentListeners_->size());
-            }
-        }
-
+        BailOutChecker checker (this);
+        componentListeners.callChecked (checker, &ComponentListener::componentNameChanged, *this);
     }
 }
 
@@ -216,26 +191,15 @@ void Component::visibilityChanged()
 
 void Component::sendVisibilityChangeMessage()
 {
-    SafePointer<Component> safePointer (this);
+    BailOutChecker checker (this);
 
     visibilityChanged();
 
-    if (safePointer != 0 && componentListeners_ != 0)
-    {
-        for (int i = componentListeners_->size(); --i >= 0;)
-        {
-            ((ComponentListener*) componentListeners_->getUnchecked (i))
-                ->componentVisibilityChanged (*this);
-
-            if (safePointer == 0)
-                return;
-
-            i = jmin (i, componentListeners_->size());
-        }
-    }
+    if (! checker.shouldBailOut())
+        componentListeners.callChecked (checker, &ComponentListener::componentVisibilityChanged, *this);
 }
 
-bool Component::isShowing() const throw()
+bool Component::isShowing() const
 {
     if (flags.visibleFlag)
     {
@@ -368,12 +332,12 @@ void Component::fadeOutComponent (const int millisecondsToFade,
 
 
 //==============================================================================
-bool Component::isValidComponent() const throw()
+bool Component::isValidComponent() const
 {
     return (this != 0) && isValidMessageListener();
 }
 
-void* Component::getWindowHandle() const throw()
+void* Component::getWindowHandle() const
 {
     const ComponentPeer* const peer = getPeer();
 
@@ -513,7 +477,7 @@ void Component::minimisationStateChanged (bool)
 }
 
 //==============================================================================
-void Component::setOpaque (const bool shouldBeOpaque) throw()
+void Component::setOpaque (const bool shouldBeOpaque)
 {
     if (shouldBeOpaque != flags.opaqueFlag)
     {
@@ -540,7 +504,7 @@ bool Component::isOpaque() const throw()
 }
 
 //==============================================================================
-void Component::setBufferedToImage (const bool shouldBeBuffered) throw()
+void Component::setBufferedToImage (const bool shouldBeBuffered)
 {
     if (shouldBeBuffered != flags.bufferToImageFlag)
     {
@@ -903,24 +867,14 @@ void Component::sendMovedResizedMessages (const bool wasMoved, const bool wasRes
             }
         }
 
+        BailOutChecker checker (this);
+
         if (parentComponent_ != 0)
             parentComponent_->childBoundsChanged (this);
 
-        if (componentListeners_ != 0)
-        {
-            SafePointer<Component> safePointer (this);
-
-            for (int i = componentListeners_->size(); --i >= 0;)
-            {
-                ((ComponentListener*) componentListeners_->getUnchecked (i))
-                    ->componentMovedOrResized (*this, wasMoved, wasResized);
-
-                if (safePointer == 0)
-                    return;
-
-                i = jmin (i, componentListeners_->size());
-            }
-        }
+        if (! checker.shouldBailOut())
+            componentListeners.callChecked (checker, &ComponentListener::componentMovedOrResized,
+                                            *this, wasMoved, wasResized);
     }
     JUCE_CATCH_EXCEPTION
 }
@@ -1283,12 +1237,18 @@ Component* Component::getTopLevelComponent() const throw()
     while (comp->parentComponent_ != 0)
         comp = comp->parentComponent_;
 
-    return (Component*) comp;
+    return const_cast <Component*> (comp);
 }
 
 bool Component::isParentOf (const Component* possibleChild) const throw()
 {
-    while (possibleChild->isValidComponent())
+    if (! possibleChild->isValidComponent())
+    {
+        jassert (possibleChild == 0);
+        return false;
+    }
+
+    while (possibleChild != 0)
     {
         possibleChild = possibleChild->parentComponent_;
 
@@ -1310,58 +1270,46 @@ void Component::childrenChanged()
 
 void Component::internalChildrenChanged()
 {
-    SafePointer<Component> safePointer (this);
-    const bool hasListeners = componentListeners_ != 0;
-
-    childrenChanged();
-
-    if (hasListeners)
+    if (componentListeners.isEmpty())
     {
-        if (safePointer == 0)
-            return;
+        childrenChanged();
+    }
+    else
+    {
+        BailOutChecker checker (this);
 
-        for (int i = componentListeners_->size(); --i >= 0;)
-        {
-            ((ComponentListener*) componentListeners_->getUnchecked (i))
-                ->componentChildrenChanged (*this);
+        childrenChanged();
 
-            if (safePointer == 0)
-                return;
-
-            i = jmin (i, componentListeners_->size());
-        }
+        if (! checker.shouldBailOut())
+            componentListeners.callChecked (checker, &ComponentListener::componentChildrenChanged, *this);
     }
 }
 
 void Component::internalHierarchyChanged()
 {
+    BailOutChecker checker (this);
+
     parentHierarchyChanged();
 
-    SafePointer<Component> safePointer (this);
+    if (checker.shouldBailOut())
+        return;
 
-    if (componentListeners_ != 0)
-    {
-        for (int i = componentListeners_->size(); --i >= 0;)
-        {
-            ((ComponentListener*) componentListeners_->getUnchecked (i))
-                ->componentParentHierarchyChanged (*this);
+    componentListeners.callChecked (checker, &ComponentListener::componentParentHierarchyChanged, *this);
 
-            if (safePointer == 0)
-                return;
-
-            i = jmin (i, componentListeners_->size());
-        }
-    }
+    if (checker.shouldBailOut())
+        return;
 
     for (int i = childComponentList_.size(); --i >= 0;)
     {
         childComponentList_.getUnchecked (i)->internalHierarchyChanged();
 
-        // you really shouldn't delete the parent component during a callback telling you
-        // that it's changed..
-        jassert (safePointer != 0);
-        if (safePointer == 0)
+        if (checker.shouldBailOut())
+        {
+            // you really shouldn't delete the parent component during a callback telling you
+            // that it's changed..
+            jassertfalse;
             return;
+        }
 
         i = jmin (i, childComponentList_.size());
     }
@@ -1491,7 +1439,7 @@ bool Component::isCurrentlyModal() const throw()
             && getCurrentlyModalComponent() == this;
 }
 
-bool Component::isCurrentlyBlockedByAnotherModalComponent() const throw()
+bool Component::isCurrentlyBlockedByAnotherModalComponent() const
 {
     Component* const mc = getCurrentlyModalComponent();
 
@@ -1508,7 +1456,7 @@ int JUCE_CALLTYPE Component::getNumCurrentlyModalComponents() throw()
 
 Component* JUCE_CALLTYPE Component::getCurrentlyModalComponent (int index) throw()
 {
-    Component* const c = (Component*) (modalComponentStack [modalComponentStack.size() - index - 1]);
+    Component* const c = static_cast <Component*> (modalComponentStack [modalComponentStack.size() - index - 1]);
 
     return c->isValidComponent() ? c : 0;
 }
@@ -1553,7 +1501,7 @@ bool Component::isBroughtToFrontOnMouseClick() const throw()
 }
 
 //==============================================================================
-void Component::setMouseCursor (const MouseCursor& cursor) throw()
+void Component::setMouseCursor (const MouseCursor& cursor)
 {
     cursor_ = cursor;
 
@@ -1566,7 +1514,7 @@ const MouseCursor Component::getMouseCursor()
     return cursor_;
 }
 
-void Component::updateMouseCursor() const throw()
+void Component::updateMouseCursor() const
 {
     sendFakeMouseMove();
 }
@@ -1578,19 +1526,19 @@ void Component::setRepaintsOnMouseActivity (const bool shouldRepaint) throw()
 }
 
 //==============================================================================
-void Component::repaintParent() throw()
+void Component::repaintParent()
 {
     if (flags.visibleFlag)
         internalRepaint (0, 0, getWidth(), getHeight());
 }
 
-void Component::repaint() throw()
+void Component::repaint()
 {
     repaint (0, 0, getWidth(), getHeight());
 }
 
 void Component::repaint (const int x, const int y,
-                         const int w, const int h) throw()
+                         const int w, const int h)
 {
     deleteAndZero (bufferedImage_);
 
@@ -1646,108 +1594,95 @@ void Component::internalRepaint (int x, int y, int w, int h)
 }
 
 //==============================================================================
-void Component::paintEntireComponent (Graphics& originalContext)
+void Component::renderComponent (Graphics& g)
 {
-    jassert (! originalContext.isClipEmpty());
+    const Rectangle<int> clipBounds (g.getClipBounds());
 
-#ifdef JUCE_DEBUG
-    flags.isInsidePaintCall = true;
-#endif
+    g.saveState();
+    clipObscuredRegions (g, clipBounds, 0, 0);
 
-    Graphics* g = &originalContext;
-    Image* effectImage = 0;
-
-    if (effect_ != 0)
+    if (! g.isClipEmpty())
     {
-        effectImage = Image::createNativeImage (flags.opaqueFlag ? Image::RGB : Image::ARGB,
-                                                getWidth(), getHeight(),
-                                                ! flags.opaqueFlag);
-
-        g = new Graphics (*effectImage);
-    }
-
-    g->saveState();
-    clipObscuredRegions (*g, g->getClipBounds(), 0, 0);
-
-    if (! g->isClipEmpty())
-    {
-        if (bufferedImage_ != 0)
+        if (flags.bufferToImageFlag)
         {
-            g->setColour (Colours::black);
-            g->drawImageAt (bufferedImage_, 0, 0);
+            if (bufferedImage_ == 0)
+            {
+                bufferedImage_ = Image::createNativeImage (flags.opaqueFlag ? Image::RGB : Image::ARGB,
+                                                           getWidth(), getHeight(), ! flags.opaqueFlag);
+
+                Graphics imG (*bufferedImage_);
+                paint (imG);
+            }
+
+            g.setColour (Colours::black);
+            g.drawImageAt (bufferedImage_, 0, 0);
         }
         else
         {
-            if (flags.bufferToImageFlag)
-            {
-                if (bufferedImage_ == 0)
-                {
-                    bufferedImage_ = Image::createNativeImage (flags.opaqueFlag ? Image::RGB : Image::ARGB,
-                                                               getWidth(), getHeight(), ! flags.opaqueFlag);
-
-                    Graphics imG (*bufferedImage_);
-                    paint (imG);
-                }
-
-                g->setColour (Colours::black);
-                g->drawImageAt (bufferedImage_, 0, 0);
-            }
-            else
-            {
-                paint (*g);
-                g->resetToDefaultState();
-            }
+            paint (g);
         }
     }
 
-    g->restoreState();
+    g.restoreState();
 
     for (int i = 0; i < childComponentList_.size(); ++i)
     {
         Component* const child = childComponentList_.getUnchecked (i);
 
-        if (child->isVisible())
+        if (child->isVisible() && clipBounds.intersects (child->getBounds()))
         {
-            g->saveState();
+            g.saveState();
 
-            if (g->reduceClipRegion (child->getX(), child->getY(),
-                                     child->getWidth(), child->getHeight()))
+            if (g.reduceClipRegion (child->getX(), child->getY(),
+                                    child->getWidth(), child->getHeight()))
             {
                 for (int j = i + 1; j < childComponentList_.size(); ++j)
                 {
                     const Component* const sibling = childComponentList_.getUnchecked (j);
 
                     if (sibling->flags.opaqueFlag && sibling->isVisible())
-                        g->excludeClipRegion (sibling->getX(), sibling->getY(),
-                                              sibling->getWidth(), sibling->getHeight());
+                        g.excludeClipRegion (sibling->getBounds());
                 }
 
-                if (! g->isClipEmpty())
+                if (! g.isClipEmpty())
                 {
-                    g->setOrigin (child->getX(), child->getY());
-
-                    child->paintEntireComponent (*g);
+                    g.setOrigin (child->getX(), child->getY());
+                    child->paintEntireComponent (g);
                 }
             }
 
-            g->restoreState();
+            g.restoreState();
         }
     }
 
-    JUCE_TRY
-    {
-        g->saveState();
-        paintOverChildren (*g);
-        g->restoreState();
-    }
-    JUCE_CATCH_EXCEPTION
+    g.saveState();
+    paintOverChildren (g);
+    g.restoreState();
+}
+
+void Component::paintEntireComponent (Graphics& g)
+{
+    jassert (! g.isClipEmpty());
+
+#ifdef JUCE_DEBUG
+    flags.isInsidePaintCall = true;
+#endif
 
     if (effect_ != 0)
     {
-        delete g;
+        ScopedPointer<Image> effectImage (Image::createNativeImage (flags.opaqueFlag ? Image::RGB : Image::ARGB,
+                                                                    getWidth(), getHeight(),
+                                                                    ! flags.opaqueFlag));
+        {
+            Graphics g2 (*effectImage);
+            renderComponent (g2);
+        }
 
-        effect_->applyEffect (*effectImage, originalContext);
-        delete effectImage;
+        effect_->applyEffect (*effectImage, g);
+    }
+    else
+    {
+        renderComponent (g);
     }
 
 #ifdef JUCE_DEBUG
@@ -1764,18 +1699,16 @@ Image* Component::createComponentSnapshot (const Rectangle<int>& areaToGrab,
     if (clipImageToComponentBounds)
         r = r.getIntersection (Rectangle<int> (0, 0, getWidth(), getHeight()));
 
-    Image* const componentImage = Image::createNativeImage (flags.opaqueFlag ? Image::RGB : Image::ARGB,
-                                                            jmax (1, r.getWidth()),
-                                                            jmax (1, r.getHeight()),
-                                                            true);
+    ScopedPointer<Image> componentImage (Image::createNativeImage (flags.opaqueFlag ? Image::RGB : Image::ARGB,
+                                                                   jmax (1, r.getWidth()),
+                                                                   jmax (1, r.getHeight()),
+                                                                   true));
 
     Graphics imageContext (*componentImage);
-    imageContext.setOrigin (-r.getX(),
-                            -r.getY());
-
+    imageContext.setOrigin (-r.getX(), -r.getY());
     paintEntireComponent (imageContext);
 
-    return componentImage;
+    return componentImage.release();
 }
 
 void Component::setComponentEffect (ImageEffectFilter* const effect)
@@ -1849,7 +1782,7 @@ static const var::identifier getColourPropertyId (const int colourId)
     return s;
 }
 
-const Colour Component::findColour (const int colourId, const bool inheritFromParent) const throw()
+const Colour Component::findColour (const int colourId, const bool inheritFromParent) const
 {
     var* v = properties.getItem (getColourPropertyId (colourId));
 
@@ -1862,7 +1795,7 @@ const Colour Component::findColour (const int colourId, const bool inheritFromPa
     return getLookAndFeel().findColour (colourId);
 }
 
-bool Component::isColourSpecified (const int colourId) const throw()
+bool Component::isColourSpecified (const int colourId) const
 {
     return properties.contains (getColourPropertyId (colourId));
 }
@@ -1879,7 +1812,7 @@ void Component::setColour (const int colourId, const Colour& colour)
         colourChanged();
 }
 
-void Component::copyAllExplicitColoursTo (Component& target) const throw()
+void Component::copyAllExplicitColoursTo (Component& target) const
 {
     bool changed = false;
 
@@ -1923,7 +1856,7 @@ const Rectangle<int> Component::getUnclippedArea() const
 }
 
 void Component::clipObscuredRegions (Graphics& g, const Rectangle<int>& clipRect,
-                                     const int deltaX, const int deltaY) const throw()
+                                     const int deltaX, const int deltaY) const
 {
     for (int i = childComponentList_.size(); --i >= 0;)
     {
@@ -1931,21 +1864,17 @@ void Component::clipObscuredRegions (Graphics& g, const Rectangle<int>& clipRect
 
         if (c->isVisible())
         {
-            Rectangle<int> newClip (clipRect.getIntersection (c->bounds_));
+            const Rectangle<int> newClip (clipRect.getIntersection (c->bounds_));
 
             if (! newClip.isEmpty())
             {
                 if (c->isOpaque())
                 {
-                    g.excludeClipRegion (deltaX + newClip.getX(),
-                                         deltaY + newClip.getY(),
-                                         newClip.getWidth(),
-                                         newClip.getHeight());
+                    g.excludeClipRegion (newClip.translated (deltaX, deltaY));
                 }
                 else
                 {
-                    newClip.translate (-c->getX(), -c->getY());
-                    c->clipObscuredRegions (g, newClip,
+                    c->clipObscuredRegions (g, newClip.translated (-c->getX(), -c->getY()),
                                             c->getX() + deltaX,
                                             c->getY() + deltaY);
                 }
@@ -1981,7 +1910,7 @@ void Component::getVisibleArea (RectangleList& result,
 void Component::subtractObscuredRegions (RectangleList& result,
                                          const Point<int>& delta,
                                          const Rectangle<int>& clipRect,
-                                         const Component* const compToAvoid) const throw()
+                                         const Component* const compToAvoid) const
 {
     for (int i = childComponentList_.size(); --i >= 0;)
     {
@@ -2075,20 +2004,16 @@ void Component::parentSizeChanged()
     // base class does nothing
 }
 
-void Component::addComponentListener (ComponentListener* const newListener) throw()
+void Component::addComponentListener (ComponentListener* const newListener)
 {
-    if (componentListeners_ == 0)
-        componentListeners_ = new VoidArray();
-
-    componentListeners_->addIfNotAlreadyThere (newListener);
+    componentListeners.add (newListener);
 }
 
-void Component::removeComponentListener (ComponentListener* const listenerToRemove) throw()
+void Component::removeComponentListener (ComponentListener* const listenerToRemove)
 {
     jassert (isValidComponent());
 
-    if (componentListeners_ != 0)
-        componentListeners_->removeValue (listenerToRemove);
+    componentListeners.remove (listenerToRemove);
 }
 
 //==============================================================================
@@ -2139,7 +2064,7 @@ void Component::handleMessage (const Message& message)
 }
 
 //==============================================================================
-void Component::postCommandMessage (const int commandId) throw()
+void Component::postCommandMessage (const int commandId)
 {
     postMessage (new Message (customCommandMessage, commandId, 0, 0));
 }
@@ -2151,7 +2076,7 @@ void Component::handleCommandMessage (int)
 
 //==============================================================================
 void Component::addMouseListener (MouseListener* const newListener,
-                                  const bool wantsEventsForAllNestedChildComponents) throw()
+                                  const bool wantsEventsForAllNestedChildComponents)
 {
     // if component methods are being called from threads other than the message
     // thread, you'll need to use a MessageManagerLock object to make sure it's thread-safe.
@@ -2174,7 +2099,7 @@ void Component::addMouseListener (MouseListener* const newListener,
     }
 }
 
-void Component::removeMouseListener (MouseListener* const listenerToRemove) throw()
+void Component::removeMouseListener (MouseListener* const listenerToRemove)
 {
     // if component methods are being called from threads other than the message
     // thread, you'll need to use a MessageManagerLock object to make sure it's thread-safe.
@@ -2204,13 +2129,13 @@ void Component::internalMouseEnter (MouseInputSource& source, const Point<int>& 
         return;
     }
 
-    if (isValidComponent() && ! flags.mouseInsideFlag)
+    if (! flags.mouseInsideFlag)
     {
         flags.mouseInsideFlag = true;
         flags.mouseOverFlag = true;
         flags.draggingFlag = false;
 
-        SafePointer<Component> safePointer (this);
+        BailOutChecker checker (this);
 
         if (flags.repaintOnMouseActivityFlag)
             repaint();
@@ -2221,20 +2146,14 @@ void Component::internalMouseEnter (MouseInputSource& source, const Point<int>& 
 
         mouseEnter (me);
 
-        if (safePointer == 0)
+        if (checker.shouldBailOut())
             return;
 
         Desktop::getInstance().resetTimer();
+        Desktop::getInstance().mouseListeners.callChecked (checker, &MouseListener::mouseEnter, me);
 
-        for (int i = Desktop::getInstance().mouseListeners.size(); --i >= 0;)
-        {
-            ((MouseListener*) Desktop::getInstance().mouseListeners[i])->mouseEnter (me);
-
-            if (safePointer == 0)
-                return;
-
-            i = jmin (i, Desktop::getInstance().mouseListeners.size());
-        }
+        if (checker.shouldBailOut())
+            return;
 
         if (mouseListeners_ != 0)
         {
@@ -2242,7 +2161,7 @@ void Component::internalMouseEnter (MouseInputSource& source, const Point<int>& 
             {
                 ((MouseListener*) mouseListeners_->getUnchecked(i))->mouseEnter (me);
 
-                if (safePointer == 0)
+                if (checker.shouldBailOut())
                     return;
 
                 i = jmin (i, mouseListeners_->size());
@@ -2253,16 +2172,19 @@ void Component::internalMouseEnter (MouseInputSource& source, const Point<int>& 
 
         while (p != 0)
         {
-            SafePointer<Component> parentPointer (p);
-
-            for (int i = p->numDeepMouseListeners; --i >= 0;)
+            if (p->numDeepMouseListeners > 0)
             {
-                ((MouseListener*) (p->mouseListeners_->getUnchecked(i)))->mouseEnter (me);
+                BailOutChecker checker (this, p);
 
-                if (safePointer == 0 || parentPointer == 0)
-                    return;
+                for (int i = p->numDeepMouseListeners; --i >= 0;)
+                {
+                    ((MouseListener*) (p->mouseListeners_->getUnchecked(i)))->mouseEnter (me);
 
-                i = jmin (i, p->numDeepMouseListeners);
+                    if (checker.shouldBailOut())
+                        return;
+
+                    i = jmin (i, p->numDeepMouseListeners);
+                }
             }
 
             p = p->parentComponent_;
@@ -2272,13 +2194,13 @@ void Component::internalMouseEnter (MouseInputSource& source, const Point<int>& 
 
 void Component::internalMouseExit (MouseInputSource& source, const Point<int>& relativePos, const Time& time)
 {
-    SafePointer<Component> safePointer (this);
+    BailOutChecker checker (this);
 
     if (flags.draggingFlag)
     {
         internalMouseUp (source, relativePos, time, source.getCurrentModifiers().getRawFlags());
 
-        if (safePointer == 0)
+        if (checker.shouldBailOut())
             return;
     }
 
@@ -2296,20 +2218,14 @@ void Component::internalMouseExit (MouseInputSource& source, const Point<int>& r
                              time, 0, false);
         mouseExit (me);
 
-        if (safePointer == 0)
+        if (checker.shouldBailOut())
             return;
 
         Desktop::getInstance().resetTimer();
+        Desktop::getInstance().mouseListeners.callChecked (checker, &MouseListener::mouseExit, me);
 
-        for (int i = Desktop::getInstance().mouseListeners.size(); --i >= 0;)
-        {
-            ((MouseListener*) Desktop::getInstance().mouseListeners[i])->mouseExit (me);
-
-            if (safePointer == 0)
-                return;
-
-            i = jmin (i, Desktop::getInstance().mouseListeners.size());
-        }
+        if (checker.shouldBailOut())
+            return;
 
         if (mouseListeners_ != 0)
         {
@@ -2317,7 +2233,7 @@ void Component::internalMouseExit (MouseInputSource& source, const Point<int>& r
             {
                 ((MouseListener*) mouseListeners_->getUnchecked (i))->mouseExit (me);
 
-                if (safePointer == 0)
+                if (checker.shouldBailOut())
                     return;
 
                 i = jmin (i, mouseListeners_->size());
@@ -2328,16 +2244,19 @@ void Component::internalMouseExit (MouseInputSource& source, const Point<int>& r
 
         while (p != 0)
         {
-            SafePointer<Component> parentPointer (p);
-
-            for (int i = p->numDeepMouseListeners; --i >= 0;)
+            if (p->numDeepMouseListeners > 0)
             {
-                ((MouseListener*) (p->mouseListeners_->getUnchecked (i)))->mouseExit (me);
+                BailOutChecker checker (this, p);
 
-                if (safePointer == 0 || parentPointer == 0)
-                    return;
+                for (int i = p->numDeepMouseListeners; --i >= 0;)
+                {
+                    ((MouseListener*) (p->mouseListeners_->getUnchecked (i)))->mouseExit (me);
 
-                i = jmin (i, p->numDeepMouseListeners);
+                    if (checker.shouldBailOut())
+                        return;
+
+                    i = jmin (i, p->numDeepMouseListeners);
+                }
             }
 
             p = p->parentComponent_;
@@ -2406,13 +2325,13 @@ void Component::internalMouseDown (MouseInputSource& source, const Point<int>& r
 {
     Desktop& desktop = Desktop::getInstance();
 
-    SafePointer<Component> safePointer (this);
+    BailOutChecker checker (this);
 
     if (isCurrentlyBlockedByAnotherModalComponent())
     {
         internalModalInputAttempt();
 
-        if (safePointer == 0)
+        if (checker.shouldBailOut())
             return;
 
         // If processing the input attempt has exited the modal loop, we'll allow the event
@@ -2425,17 +2344,7 @@ void Component::internalMouseDown (MouseInputSource& source, const Point<int>& r
                                  source.getNumberOfMultipleClicks(), false);
 
             desktop.resetTimer();
-
-            for (int i = desktop.mouseListeners.size(); --i >= 0;)
-            {
-                ((MouseListener*) desktop.mouseListeners[i])->mouseDown (me);
-
-                if (safePointer == 0)
-                    return;
-
-                i = jmin (i, desktop.mouseListeners.size());
-            }
-
+            desktop.mouseListeners.callChecked (checker, &MouseListener::mouseDown, me);
             return;
         }
     }
@@ -2449,7 +2358,7 @@ void Component::internalMouseDown (MouseInputSource& source, const Point<int>& r
             {
                 c->toFront (true);
 
-                if (safePointer == 0)
+                if (checker.shouldBailOut())
                     return;
             }
 
@@ -2461,7 +2370,7 @@ void Component::internalMouseDown (MouseInputSource& source, const Point<int>& r
     {
         grabFocusInternal (focusChangedByMouseClick);
 
-        if (safePointer == 0)
+        if (checker.shouldBailOut())
             return;
     }
 
@@ -2476,20 +2385,14 @@ void Component::internalMouseDown (MouseInputSource& source, const Point<int>& r
                          source.getNumberOfMultipleClicks(), false);
     mouseDown (me);
 
-    if (safePointer == 0)
+    if (checker.shouldBailOut())
         return;
 
     desktop.resetTimer();
+    desktop.mouseListeners.callChecked (checker, &MouseListener::mouseDown, me);
 
-    for (int i = desktop.mouseListeners.size(); --i >= 0;)
-    {
-        ((MouseListener*) desktop.mouseListeners[i])->mouseDown (me);
-
-        if (safePointer == 0)
-            return;
-
-        i = jmin (i, desktop.mouseListeners.size());
-    }
+    if (checker.shouldBailOut())
+        return;
 
     if (mouseListeners_ != 0)
     {
@@ -2497,7 +2400,7 @@ void Component::internalMouseDown (MouseInputSource& source, const Point<int>& r
         {
             ((MouseListener*) mouseListeners_->getUnchecked (i))->mouseDown (me);
 
-            if (safePointer == 0)
+            if (checker.shouldBailOut())
                 return;
 
             i = jmin (i, mouseListeners_->size());
@@ -2508,16 +2411,19 @@ void Component::internalMouseDown (MouseInputSource& source, const Point<int>& r
 
     while (p != 0)
     {
-        SafePointer<Component> parentPointer (p);
-
-        for (int i = p->numDeepMouseListeners; --i >= 0;)
+        if (p->numDeepMouseListeners > 0)
         {
-            ((MouseListener*) (p->mouseListeners_->getUnchecked (i)))->mouseDown (me);
+            BailOutChecker checker (this, p);
 
-            if (safePointer == 0 || parentPointer == 0)
-                return;
+            for (int i = p->numDeepMouseListeners; --i >= 0;)
+            {
+                ((MouseListener*) (p->mouseListeners_->getUnchecked (i)))->mouseDown (me);
 
-            i = jmin (i, p->numDeepMouseListeners);
+                if (checker.shouldBailOut())
+                    return;
+
+                i = jmin (i, p->numDeepMouseListeners);
+            }
         }
 
         p = p->parentComponent_;
@@ -2527,13 +2433,13 @@ void Component::internalMouseDown (MouseInputSource& source, const Point<int>& r
 //==============================================================================
 void Component::internalMouseUp (MouseInputSource& source, const Point<int>& relativePos, const Time& time, const ModifierKeys& oldModifiers)
 {
-    if (isValidComponent() && flags.draggingFlag)
+    if (flags.draggingFlag)
     {
         Desktop& desktop = Desktop::getInstance();
 
         flags.draggingFlag = false;
 
-        SafePointer<Component> safePointer (this);
+        BailOutChecker checker (this);
 
         if (flags.repaintOnMouseActivityFlag)
             repaint();
@@ -2547,20 +2453,14 @@ void Component::internalMouseUp (MouseInputSource& source, const Point<int>& rel
 
         mouseUp (me);
 
-        if (safePointer == 0)
+        if (checker.shouldBailOut())
             return;
 
         desktop.resetTimer();
+        desktop.mouseListeners.callChecked (checker, &MouseListener::mouseUp, me);
 
-        for (int i = desktop.mouseListeners.size(); --i >= 0;)
-        {
-            ((MouseListener*) desktop.mouseListeners[i])->mouseUp (me);
-
-            if (safePointer == 0)
-                return;
-
-            i = jmin (i, desktop.mouseListeners.size());
-        }
+        if (checker.shouldBailOut())
+            return;
 
         if (mouseListeners_ != 0)
         {
@@ -2568,7 +2468,7 @@ void Component::internalMouseUp (MouseInputSource& source, const Point<int>& rel
             {
                 ((MouseListener*) mouseListeners_->getUnchecked (i))->mouseUp (me);
 
-                if (safePointer == 0)
+                if (checker.shouldBailOut())
                     return;
 
                 i = jmin (i, mouseListeners_->size());
@@ -2580,16 +2480,19 @@ void Component::internalMouseUp (MouseInputSource& source, const Point<int>& rel
 
             while (p != 0)
             {
-                SafePointer<Component> parentPointer (p);
-
-                for (int i = p->numDeepMouseListeners; --i >= 0;)
+                if (p->numDeepMouseListeners > 0)
                 {
-                    ((MouseListener*) (p->mouseListeners_->getUnchecked (i)))->mouseUp (me);
+                    BailOutChecker checker (this, p);
 
-                    if (safePointer == 0 || parentPointer == 0)
-                        return;
+                    for (int i = p->numDeepMouseListeners; --i >= 0;)
+                    {
+                        ((MouseListener*) (p->mouseListeners_->getUnchecked (i)))->mouseUp (me);
 
-                    i = jmin (i, p->numDeepMouseListeners);
+                        if (checker.shouldBailOut())
+                            return;
+
+                        i = jmin (i, p->numDeepMouseListeners);
+                    }
                 }
 
                 p = p->parentComponent_;
@@ -2603,20 +2506,17 @@ void Component::internalMouseUp (MouseInputSource& source, const Point<int>& rel
 
             mouseDoubleClick (me);
 
-            int i;
-            for (i = desktop.mouseListeners.size(); --i >= 0;)
+            if (checker.shouldBailOut())
+                return;
+
+            desktop.mouseListeners.callChecked (checker, &MouseListener::mouseDoubleClick, me);
+
+            if (checker.shouldBailOut())
+                return;
+
+            for (int i = numListeners; --i >= 0;)
             {
-                ((MouseListener*) desktop.mouseListeners[i])->mouseDoubleClick (me);
-
-                if (safePointer == 0)
-                    return;
-
-                i = jmin (i, desktop.mouseListeners.size());
-            }
-
-            for (i = numListeners; --i >= 0;)
-            {
-                if (safePointer == 0 || mouseListeners_ == 0)
+                if (checker.shouldBailOut())
                     return;
 
                 MouseListener* const ml = (MouseListener*)((*mouseListeners_)[i]);
@@ -2624,23 +2524,26 @@ void Component::internalMouseUp (MouseInputSource& source, const Point<int>& rel
                     ml->mouseDoubleClick (me);
             }
 
-            if (safePointer == 0)
+            if (checker.shouldBailOut())
                 return;
 
             Component* p = parentComponent_;
 
             while (p != 0)
             {
-                SafePointer<Component> parentPointer (p);
-
-                for (i = p->numDeepMouseListeners; --i >= 0;)
+                if (p->numDeepMouseListeners > 0)
                 {
-                    ((MouseListener*) (p->mouseListeners_->getUnchecked (i)))->mouseDoubleClick (me);
+                    BailOutChecker checker (this, p);
 
-                    if (safePointer == 0 || parentPointer == 0)
-                        return;
+                    for (int i = p->numDeepMouseListeners; --i >= 0;)
+                    {
+                        ((MouseListener*) (p->mouseListeners_->getUnchecked (i)))->mouseDoubleClick (me);
 
-                    i = jmin (i, p->numDeepMouseListeners);
+                        if (checker.shouldBailOut())
+                            return;
+
+                        i = jmin (i, p->numDeepMouseListeners);
+                    }
                 }
 
                 p = p->parentComponent_;
@@ -2651,13 +2554,13 @@ void Component::internalMouseUp (MouseInputSource& source, const Point<int>& rel
 
 void Component::internalMouseDrag (MouseInputSource& source, const Point<int>& relativePos, const Time& time)
 {
-    if (isValidComponent() && flags.draggingFlag)
+    if (flags.draggingFlag)
     {
         Desktop& desktop = Desktop::getInstance();
 
         flags.mouseOverFlag = reallyContains (relativePos.getX(), relativePos.getY(), false);
 
-        SafePointer<Component> safePointer (this);
+        BailOutChecker checker (this);
 
         const MouseEvent me (source, relativePos,
                              source.getCurrentModifiers(), this, time,
@@ -2668,20 +2571,14 @@ void Component::internalMouseDrag (MouseInputSource& source, const Point<int>& r
 
         mouseDrag (me);
 
-        if (safePointer == 0)
+        if (checker.shouldBailOut())
             return;
 
         desktop.resetTimer();
+        desktop.mouseListeners.callChecked (checker, &MouseListener::mouseDrag, me);
 
-        for (int i = desktop.mouseListeners.size(); --i >= 0;)
-        {
-            ((MouseListener*) desktop.mouseListeners[i])->mouseDrag (me);
-
-            if (safePointer == 0)
-                return;
-
-            i = jmin (i, desktop.mouseListeners.size());
-        }
+        if (checker.shouldBailOut())
+            return;
 
         if (mouseListeners_ != 0)
         {
@@ -2689,7 +2586,7 @@ void Component::internalMouseDrag (MouseInputSource& source, const Point<int>& r
             {
                 ((MouseListener*) mouseListeners_->getUnchecked (i))->mouseDrag (me);
 
-                if (safePointer == 0)
+                if (checker.shouldBailOut())
                     return;
 
                 i = jmin (i, mouseListeners_->size());
@@ -2700,16 +2597,19 @@ void Component::internalMouseDrag (MouseInputSource& source, const Point<int>& r
 
         while (p != 0)
         {
-            SafePointer<Component> parentPointer (p);
-
-            for (int i = p->numDeepMouseListeners; --i >= 0;)
+            if (p->numDeepMouseListeners > 0)
             {
-                ((MouseListener*) (p->mouseListeners_->getUnchecked (i)))->mouseDrag (me);
+                BailOutChecker checker (this, p);
 
-                if (safePointer == 0 || parentPointer == 0)
-                    return;
+                for (int i = p->numDeepMouseListeners; --i >= 0;)
+                {
+                    ((MouseListener*) (p->mouseListeners_->getUnchecked (i)))->mouseDrag (me);
 
-                i = jmin (i, p->numDeepMouseListeners);
+                    if (checker.shouldBailOut())
+                        return;
+
+                    i = jmin (i, p->numDeepMouseListeners);
+                }
             }
 
             p = p->parentComponent_;
@@ -2719,73 +2619,66 @@ void Component::internalMouseDrag (MouseInputSource& source, const Point<int>& r
 
 void Component::internalMouseMove (MouseInputSource& source, const Point<int>& relativePos, const Time& time)
 {
-    SafePointer<Component> safePointer (this);
+    Desktop& desktop = Desktop::getInstance();
+    BailOutChecker checker (this);
 
-    if (isValidComponent())
+    const MouseEvent me (source, relativePos, source.getCurrentModifiers(),
+                         this, time, relativePos,
+                         time, 0, false);
+
+    if (isCurrentlyBlockedByAnotherModalComponent())
     {
-        Desktop& desktop = Desktop::getInstance();
+        // allow blocked mouse-events to go to global listeners..
+        desktop.sendMouseMove();
+    }
+    else
+    {
+        flags.mouseOverFlag = true;
 
-        const MouseEvent me (source, relativePos, source.getCurrentModifiers(),
-                             this, time, relativePos,
-                             time, 0, false);
+        mouseMove (me);
 
-        if (isCurrentlyBlockedByAnotherModalComponent())
+        if (checker.shouldBailOut())
+            return;
+
+        desktop.resetTimer();
+        desktop.mouseListeners.callChecked (checker, &MouseListener::mouseMove, me);
+
+        if (checker.shouldBailOut())
+            return;
+
+        if (mouseListeners_ != 0)
         {
-            // allow blocked mouse-events to go to global listeners..
-            desktop.sendMouseMove();
-        }
-        else
-        {
-            flags.mouseOverFlag = true;
-
-            mouseMove (me);
-
-            if (safePointer == 0)
-                return;
-
-            desktop.resetTimer();
-
-            for (int i = desktop.mouseListeners.size(); --i >= 0;)
+            for (int i = mouseListeners_->size(); --i >= 0;)
             {
-                ((MouseListener*) desktop.mouseListeners[i])->mouseMove (me);
+                ((MouseListener*) mouseListeners_->getUnchecked (i))->mouseMove (me);
 
-                if (safePointer == 0)
+                if (checker.shouldBailOut())
                     return;
 
-                i = jmin (i, desktop.mouseListeners.size());
+                i = jmin (i, mouseListeners_->size());
             }
+        }
 
-            if (mouseListeners_ != 0)
+        Component* p = parentComponent_;
+
+        while (p != 0)
+        {
+            if (p->numDeepMouseListeners > 0)
             {
-                for (int i = mouseListeners_->size(); --i >= 0;)
-                {
-                    ((MouseListener*) mouseListeners_->getUnchecked (i))->mouseMove (me);
-
-                    if (safePointer == 0)
-                        return;
-
-                    i = jmin (i, mouseListeners_->size());
-                }
-            }
-
-            Component* p = parentComponent_;
-
-            while (p != 0)
-            {
-                SafePointer<Component> parentPointer (p);
+                BailOutChecker checker (this, p);
 
                 for (int i = p->numDeepMouseListeners; --i >= 0;)
                 {
                     ((MouseListener*) (p->mouseListeners_->getUnchecked (i)))->mouseMove (me);
 
-                    if (safePointer == 0 || parentPointer == 0)
+                    if (checker.shouldBailOut())
                         return;
 
                     i = jmin (i, p->numDeepMouseListeners);
                 }
-
-                p = p->parentComponent_;
             }
+
+            p = p->parentComponent_;
         }
     }
 }
@@ -2794,7 +2687,7 @@ void Component::internalMouseWheel (MouseInputSource& source, const Point<int>& 
                                     const Time& time, const float amountX, const float amountY)
 {
     Desktop& desktop = Desktop::getInstance();
-    SafePointer<Component> safePointer (this);
+    BailOutChecker checker (this);
 
     const float wheelIncrementX = amountX * (1.0f / 256.0f);
     const float wheelIncrementY = amountY * (1.0f / 256.0f);
@@ -2805,32 +2698,19 @@ void Component::internalMouseWheel (MouseInputSource& source, const Point<int>& 
     if (isCurrentlyBlockedByAnotherModalComponent())
     {
         // allow blocked mouse-events to go to global listeners..
-        for (int i = desktop.mouseListeners.size(); --i >= 0;)
-        {
-            ((MouseListener*) desktop.mouseListeners[i])->mouseWheelMove (me, wheelIncrementX, wheelIncrementY);
-
-            if (safePointer == 0)
-                return;
-
-            i = jmin (i, desktop.mouseListeners.size());
-        }
+        desktop.mouseListeners.callChecked (checker, &MouseListener::mouseWheelMove, me, wheelIncrementX, wheelIncrementY);
     }
     else
     {
         mouseWheelMove (me, wheelIncrementX, wheelIncrementY);
 
-        if (safePointer == 0)
+        if (checker.shouldBailOut())
             return;
 
-        for (int i = desktop.mouseListeners.size(); --i >= 0;)
-        {
-            ((MouseListener*) desktop.mouseListeners[i])->mouseWheelMove (me, wheelIncrementX, wheelIncrementY);
+        desktop.mouseListeners.callChecked (checker, &MouseListener::mouseWheelMove, me, wheelIncrementX, wheelIncrementY);
 
-            if (safePointer == 0)
-                return;
-
-            i = jmin (i, desktop.mouseListeners.size());
-        }
+        if (checker.shouldBailOut())
+            return;
 
         if (mouseListeners_ != 0)
         {
@@ -2838,7 +2718,7 @@ void Component::internalMouseWheel (MouseInputSource& source, const Point<int>& 
             {
                 ((MouseListener*) mouseListeners_->getUnchecked (i))->mouseWheelMove (me, wheelIncrementX, wheelIncrementY);
 
-                if (safePointer == 0)
+                if (checker.shouldBailOut())
                     return;
 
                 i = jmin (i, mouseListeners_->size());
@@ -2849,16 +2729,19 @@ void Component::internalMouseWheel (MouseInputSource& source, const Point<int>& 
 
         while (p != 0)
         {
-            SafePointer<Component> parentPointer (p);
-
-            for (int i = p->numDeepMouseListeners; --i >= 0;)
+            if (p->numDeepMouseListeners > 0)
             {
-                ((MouseListener*) (p->mouseListeners_->getUnchecked (i)))->mouseWheelMove (me, wheelIncrementX, wheelIncrementY);
+                BailOutChecker checker (this, p);
 
-                if (safePointer == 0 || parentPointer == 0)
-                    return;
+                for (int i = p->numDeepMouseListeners; --i >= 0;)
+                {
+                    ((MouseListener*) (p->mouseListeners_->getUnchecked (i)))->mouseWheelMove (me, wheelIncrementX, wheelIncrementY);
 
-                i = jmin (i, p->numDeepMouseListeners);
+                    if (checker.shouldBailOut())
+                        return;
+
+                    i = jmin (i, p->numDeepMouseListeners);
+                }
             }
 
             p = p->parentComponent_;
@@ -2877,39 +2760,29 @@ void Component::broughtToFront()
 
 void Component::internalBroughtToFront()
 {
-    if (isValidComponent())
-    {
-        if (flags.hasHeavyweightPeerFlag)
-            Desktop::getInstance().componentBroughtToFront (this);
+    if (! isValidComponent())
+        return;
 
-        SafePointer<Component> safePointer (this);
-        broughtToFront();
+    if (flags.hasHeavyweightPeerFlag)
+        Desktop::getInstance().componentBroughtToFront (this);
 
-        if (safePointer == 0)
-            return;
+    BailOutChecker checker (this);
+    broughtToFront();
 
-        if (componentListeners_ != 0)
-        {
-            for (int i = componentListeners_->size(); --i >= 0;)
-            {
-                ((ComponentListener*) componentListeners_->getUnchecked (i))
-                    ->componentBroughtToFront (*this);
+    if (checker.shouldBailOut())
+        return;
 
-                if (safePointer == 0)
-                    return;
+    componentListeners.callChecked (checker, &ComponentListener::componentBroughtToFront, *this);
 
-                i = jmin (i, componentListeners_->size());
-            }
-        }
+    if (checker.shouldBailOut())
+        return;
 
-        // when brought to the front and there's a modal component blocking this one,
-        // we need to bring the modal one to the front instead..
+    // When brought to the front and there's a modal component blocking this one,
+    // we need to bring the modal one to the front instead..
+    Component* const cm = getCurrentlyModalComponent();
 
-        Component* const cm = getCurrentlyModalComponent();
-
-        if (cm != 0 && cm->getTopLevelComponent() != getTopLevelComponent())
-            bringModalComponentToFront();
-    }
+    if (cm != 0 && cm->getTopLevelComponent() != getTopLevelComponent())
+        bringModalComponentToFront();
 }
 
 void Component::focusGained (FocusChangeType)
@@ -3044,12 +2917,12 @@ bool Component::isFocusContainer() const throw()
     return flags.isFocusContainerFlag;
 }
 
-int Component::getExplicitFocusOrder() const throw()
+int Component::getExplicitFocusOrder() const
 {
     return properties ["_jexfo"];
 }
 
-void Component::setExplicitFocusOrder (const int newFocusOrderIndex) throw()
+void Component::setExplicitFocusOrder (const int newFocusOrderIndex)
 {
     properties.set ("_jexfo", newFocusOrderIndex);
 }
@@ -3206,7 +3079,7 @@ void Component::moveKeyboardFocusToSibling (const bool moveToNext)
     }
 }
 
-bool Component::hasKeyboardFocus (const bool trueIfChildIsFocused) const throw()
+bool Component::hasKeyboardFocus (const bool trueIfChildIsFocused) const
 {
     return (currentlyFocusedComponent == this)
             || (trueIfChildIsFocused && isParentOf (currentlyFocusedComponent));
@@ -3255,7 +3128,7 @@ const Point<int> Component::getMouseXYRelative() const
 }
 
 //==============================================================================
-const Rectangle<int> Component::getParentMonitorArea() const throw()
+const Rectangle<int> Component::getParentMonitorArea() const
 {
     return Desktop::getInstance()
             .getMonitorAreaContaining (relativePositionToGlobal (Point<int> (getWidth() / 2,
@@ -3263,7 +3136,7 @@ const Rectangle<int> Component::getParentMonitorArea() const throw()
 }
 
 //==============================================================================
-void Component::addKeyListener (KeyListener* const newListener) throw()
+void Component::addKeyListener (KeyListener* const newListener)
 {
     if (keyListeners_ == 0)
         keyListeners_ = new VoidArray();
@@ -3271,7 +3144,7 @@ void Component::addKeyListener (KeyListener* const newListener) throw()
     keyListeners_->addIfNotAlreadyThere (newListener);
 }
 
-void Component::removeKeyListener (KeyListener* const listenerToRemove) throw()
+void Component::removeKeyListener (KeyListener* const listenerToRemove)
 {
     if (keyListeners_ != 0)
         keyListeners_->removeValue (listenerToRemove);
@@ -3301,7 +3174,7 @@ void Component::internalModifierKeysChanged()
 }
 
 //==============================================================================
-ComponentPeer* Component::getPeer() const throw()
+ComponentPeer* Component::getPeer() const
 {
     if (flags.hasHeavyweightPeerFlag)
         return ComponentPeer::getPeerFor (this);
@@ -3312,25 +3185,15 @@ ComponentPeer* Component::getPeer() const throw()
 }
 
 //==============================================================================
-ComponentDeletionWatcher::ComponentDeletionWatcher (const Component* const componentToWatch_) throw()
-    : componentToWatch (componentToWatch_),
-      componentUID (componentToWatch_->getComponentUID())
+Component::BailOutChecker::BailOutChecker (Component* const component1, Component* const component2_)
+    : safePointer1 (component1), safePointer2 (component2_), component2 (component2_)
 {
-    // not possible to check on an already-deleted object..
-    jassert (componentToWatch_->isValidComponent());
+    jassert (component1 != 0);
 }
 
-ComponentDeletionWatcher::~ComponentDeletionWatcher() throw() {}
-
-bool ComponentDeletionWatcher::hasBeenDeleted() const throw()
+bool Component::BailOutChecker::shouldBailOut() const throw()
 {
-    return ! (componentToWatch->isValidComponent()
-                && componentToWatch->getComponentUID() == componentUID);
-}
-
-const Component* ComponentDeletionWatcher::getComponent() const throw()
-{
-    return hasBeenDeleted() ? 0 : componentToWatch;
+    return safePointer1 == 0 || safePointer2.getComponent() != component2;
 }
 
 

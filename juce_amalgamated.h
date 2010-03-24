@@ -43,7 +43,7 @@
 
 #define JUCE_MAJOR_VERSION	  1
 #define JUCE_MINOR_VERSION	  51
-#define JUCE_BUILDNUMBER	6
+#define JUCE_BUILDNUMBER	10
 
 #define JUCE_VERSION		((JUCE_MAJOR_VERSION << 16) + (JUCE_MINOR_VERSION << 8) + JUCE_BUILDNUMBER)
 
@@ -256,6 +256,10 @@
   #define JUCE_USE_XSHM 1
 #endif
 
+#ifndef JUCE_USE_XRENDER
+  //#define JUCE_USE_XRENDER 1
+#endif
+
 #ifndef JUCE_PLUGINHOST_VST
 //  #define JUCE_PLUGINHOST_VST 1
 #endif
@@ -358,7 +362,7 @@
 #if JUCE_LOG_ASSERTIONS
   #define juce_LogCurrentAssertion	juce_LogAssertion (__FILE__, __LINE__);
 #elif defined (JUCE_DEBUG)
-  #define juce_LogCurrentAssertion    fprintf (stderr, "JUCE Assertion failure in %s, line %d\n", __FILE__, __LINE__);
+  #define juce_LogCurrentAssertion    std::cerr << "JUCE Assertion failure in " << __FILE__ << ", line " << __LINE__ << std::endl;
 #else
   #define juce_LogCurrentAssertion
 #endif
@@ -368,8 +372,6 @@
   // If debugging is enabled..
 
   #define DBG(dbgtext)		  Logger::outputDebugString (dbgtext);
-
-  #define DBG_PRINTF(dbgprintf)	 Logger::outputDebugPrintf dbgprintf;
 
   // Assertions..
 
@@ -419,7 +421,6 @@
   // If debugging is disabled, these dummy debug and assertion macros are used..
 
   #define DBG(dbgtext)
-  #define DBG_PRINTF(dbgprintf)
 
   #define jassertfalse		  { juce_LogCurrentAssertion }
 
@@ -492,7 +493,7 @@
 // Now we'll include any OS headers we need.. (at this point we are outside the Juce namespace).
 #if JUCE_MSVC
   #if (defined(_MSC_VER) && (_MSC_VER <= 1200))
-	#pragma warning (disable: 4284)  // (spurious VC6 warning)
+	#pragma warning (disable: 4284 4786)  // (spurious VC6 warnings)
   #endif
 
   #pragma warning (push)
@@ -1055,12 +1056,6 @@ public:
 	static bool isLetterOrDigit (const juce_wchar character) throw();
 
 	static int getHexDigitValue (const juce_wchar digit) throw();
-
-	static int printf (char* const dest, const int maxLength, const char* const format, ...) throw();
-	static int printf (juce_wchar* const dest, const int maxLength, const juce_wchar* const format, ...) throw();
-
-	static int vprintf (char* const dest, const int maxLength, const char* const format, va_list& args) throw();
-	static int vprintf (juce_wchar* const dest, const int maxLength, const juce_wchar* const format, va_list& args) throw();
 };
 
 #endif   // __JUCE_CHARACTERFUNCTIONS_JUCEHEADER__
@@ -1076,20 +1071,19 @@ public:
 
 	String (const String& other) throw();
 
-	String (const char* const text) throw();
+	String (const char* text) throw();
 
-	String (const char* const text,
-			const size_t maxChars) throw();
+	String (const char* text, size_t maxChars) throw();
 
-	String (const juce_wchar* const unicodeText) throw();
+	String (const juce_wchar* unicodeText) throw();
 
-	String (const juce_wchar* const unicodeText,
-			const size_t maxChars) throw();
+	String (const juce_wchar* unicodeText, size_t maxChars) throw();
 
-	static const String charToString (const juce_wchar character) throw();
+	static const String charToString (juce_wchar character) throw();
 
 	~String() throw();
 
+	//========================juce_wchar======================================================
 	static const String empty;
 
 	int hashCode() const throw();
@@ -1102,24 +1096,24 @@ public:
 
 	String& operator= (const String& other) throw();
 
-	String& operator+= (const tchar* const textToAppend);
+	String& operator+= (const juce_wchar* textToAppend);
 	String& operator+= (const String& stringToAppend);
-	String& operator+= (const char characterToAppend);
-	String& operator+= (const juce_wchar characterToAppend);
-	String& operator+= (const int numberToAppend);
-	String& operator+= (const unsigned int numberToAppend);
+	String& operator+= (char characterToAppend);
+	String& operator+= (juce_wchar characterToAppend);
+	String& operator+= (int numberToAppend);
+	String& operator+= (unsigned int numberToAppend);
 
-	void append (const tchar* const textToAppend,
-				 const int maxCharsToTake);
+	void append (const juce_wchar* textToAppend, int maxCharsToTake);
 
 	// Comparison methods..
 
-	inline bool isEmpty() const throw()			 { return text->text[0] == 0; }
+	inline bool isEmpty() const throw()			 { return text[0] == 0; }
 
-	inline bool isNotEmpty() const throw()		  { return text->text[0] != 0; }
+	inline bool isNotEmpty() const throw()		  { return text[0] != 0; }
 
 	bool equalsIgnoreCase (const String& other) const throw();
-	bool equalsIgnoreCase (const tchar* const other) const throw();
+
+	bool equalsIgnoreCase (const juce_wchar* other) const throw();
 
 	int compare (const String& other) const throw();
 
@@ -1131,68 +1125,68 @@ public:
 
 	int compareLexicographically (const String& other) const throw();
 
-	bool startsWith (const tchar* const text) const throw();
+	bool startsWith (const juce_wchar* text) const throw();
 
-	bool startsWithChar (const tchar character) const throw();
+	bool startsWithChar (juce_wchar character) const throw();
 
-	bool startsWithIgnoreCase (const tchar* const text) const throw();
+	bool startsWithIgnoreCase (const juce_wchar* text) const throw();
 
-	bool endsWith (const tchar* const text) const throw();
+	bool endsWith (const juce_wchar* text) const throw();
 
-	bool endsWithChar (const tchar character) const throw();
+	bool endsWithChar (juce_wchar character) const throw();
 
-	bool endsWithIgnoreCase (const tchar* const text) const throw();
+	bool endsWithIgnoreCase (const juce_wchar* text) const throw();
 
-	bool contains (const tchar* const text) const throw();
+	bool contains (const juce_wchar* text) const throw();
 
-	bool containsChar (const tchar character) const throw();
+	bool containsChar (juce_wchar character) const throw();
 
-	bool containsIgnoreCase (const tchar* const text) const throw();
+	bool containsIgnoreCase (const juce_wchar* text) const throw();
 
-	bool containsWholeWord (const tchar* const wordToLookFor) const throw();
+	bool containsWholeWord (const juce_wchar* wordToLookFor) const throw();
 
-	bool containsWholeWordIgnoreCase (const tchar* const wordToLookFor) const throw();
+	bool containsWholeWordIgnoreCase (const juce_wchar* wordToLookFor) const throw();
 
-	int indexOfWholeWord (const tchar* const wordToLookFor) const throw();
+	int indexOfWholeWord (const juce_wchar* wordToLookFor) const throw();
 
-	int indexOfWholeWordIgnoreCase (const tchar* const wordToLookFor) const throw();
+	int indexOfWholeWordIgnoreCase (const juce_wchar* wordToLookFor) const throw();
 
-	bool containsAnyOf (const tchar* const charactersItMightContain) const throw();
+	bool containsAnyOf (const juce_wchar* charactersItMightContain) const throw();
 
-	bool containsOnly (const tchar* const charactersItMightContain) const throw();
+	bool containsOnly (const juce_wchar* charactersItMightContain) const throw();
 
 	bool containsNonWhitespaceChars() const throw();
 
-	bool matchesWildcard (const tchar* wildcard, const bool ignoreCase) const throw();
+	bool matchesWildcard (const juce_wchar* wildcard, bool ignoreCase) const throw();
 
 	// Substring location methods..
 
-	int indexOfChar (const tchar characterToLookFor) const throw();
+	int indexOfChar (juce_wchar characterToLookFor) const throw();
 
-	int indexOfChar (const int startIndex, const tchar characterToLookFor) const throw();
+	int indexOfChar (int startIndex, juce_wchar characterToLookFor) const throw();
 
-	int indexOfAnyOf (const tchar* const charactersToLookFor,
-					  const int startIndex = 0,
-					  const bool ignoreCase = false) const throw();
+	int indexOfAnyOf (const juce_wchar* charactersToLookFor,
+					  int startIndex = 0,
+					  bool ignoreCase = false) const throw();
 
-	int indexOf (const tchar* const text) const throw();
+	int indexOf (const juce_wchar* text) const throw();
 
-	int indexOf (const int startIndex,
-				 const tchar* const textToLookFor) const throw();
+	int indexOf (int startIndex,
+				 const juce_wchar* textToLookFor) const throw();
 
-	int indexOfIgnoreCase (const tchar* const textToLookFor) const throw();
+	int indexOfIgnoreCase (const juce_wchar* textToLookFor) const throw();
 
-	int indexOfIgnoreCase (const int startIndex,
-						   const tchar* const textToLookFor) const throw();
+	int indexOfIgnoreCase (int startIndex,
+						   const juce_wchar* textToLookFor) const throw();
 
-	int lastIndexOfChar (const tchar character) const throw();
+	int lastIndexOfChar (juce_wchar character) const throw();
 
-	int lastIndexOf (const tchar* const textToLookFor) const throw();
+	int lastIndexOf (const juce_wchar* textToLookFor) const throw();
 
-	int lastIndexOfIgnoreCase (const tchar* const textToLookFor) const throw();
+	int lastIndexOfIgnoreCase (const juce_wchar* textToLookFor) const throw();
 
-	int lastIndexOfAnyOf (const tchar* const charactersToLookFor,
-						  const bool ignoreCase = false) const throw();
+	int lastIndexOfAnyOf (const juce_wchar* charactersToLookFor,
+						  bool ignoreCase = false) const throw();
 
 	// Substring extraction and manipulation methods..
 
@@ -1200,44 +1194,43 @@ public:
 
 		No checks are made to see if the index is within a valid range, so be careful!
 	*/
-	inline const juce_wchar& operator[] (const int index) const throw()  { jassert (((unsigned int) index) <= (unsigned int) length()); return text->text [index]; }
+	inline const juce_wchar& operator[] (int index) const throw()  { jassert (((unsigned int) index) <= (unsigned int) length()); return text [index]; }
 
-	juce_wchar& operator[] (const int index) throw();
+	juce_wchar& operator[] (int index) throw();
 
 	juce_wchar getLastCharacter() const throw();
 
-	const String substring (int startIndex,
-							int endIndex) const throw();
+	const String substring (int startIndex, int endIndex) const throw();
 
-	const String substring (const int startIndex) const throw();
+	const String substring (int startIndex) const throw();
 
-	const String dropLastCharacters (const int numberToDrop) const throw();
+	const String dropLastCharacters (int numberToDrop) const throw();
 
-	const String getLastCharacters (const int numCharacters) const throw();
+	const String getLastCharacters (int numCharacters) const throw();
 
-	const String fromFirstOccurrenceOf (const tchar* const substringToStartFrom,
-										const bool includeSubStringInResult,
-										const bool ignoreCase) const throw();
+	const String fromFirstOccurrenceOf (const juce_wchar* substringToStartFrom,
+										bool includeSubStringInResult,
+										bool ignoreCase) const throw();
 
-	const String fromLastOccurrenceOf (const tchar* const substringToFind,
-									   const bool includeSubStringInResult,
-									   const bool ignoreCase) const throw();
+	const String fromLastOccurrenceOf (const juce_wchar* substringToFind,
+									   bool includeSubStringInResult,
+									   bool ignoreCase) const throw();
 
-	const String upToFirstOccurrenceOf (const tchar* const substringToEndWith,
-										const bool includeSubStringInResult,
-										const bool ignoreCase) const throw();
+	const String upToFirstOccurrenceOf (const juce_wchar* substringToEndWith,
+										bool includeSubStringInResult,
+										bool ignoreCase) const throw();
 
-	const String upToLastOccurrenceOf (const tchar* substringToFind,
-									   const bool includeSubStringInResult,
-									   const bool ignoreCase) const throw();
+	const String upToLastOccurrenceOf (const juce_wchar* substringToFind,
+									   bool includeSubStringInResult,
+									   bool ignoreCase) const throw();
 
 	const String trim() const throw();
 	const String trimStart() const throw();
 	const String trimEnd() const throw();
 
-	const String trimCharactersAtStart (const tchar* charactersToTrim) const throw();
+	const String trimCharactersAtStart (const juce_wchar* charactersToTrim) const throw();
 
-	const String trimCharactersAtEnd (const tchar* charactersToTrim) const throw();
+	const String trimCharactersAtEnd (const juce_wchar* charactersToTrim) const throw();
 
 	const String toUpperCase() const throw();
 
@@ -1245,63 +1238,61 @@ public:
 
 	const String replaceSection (int startIndex,
 								 int numCharactersToReplace,
-								 const tchar* const stringToInsert) const throw();
+								 const juce_wchar* stringToInsert) const throw();
 
-	const String replace (const tchar* const stringToReplace,
-						  const tchar* const stringToInsertInstead,
-						  const bool ignoreCase = false) const throw();
+	const String replace (const juce_wchar* stringToReplace,
+						  const juce_wchar* stringToInsertInstead,
+						  bool ignoreCase = false) const throw();
 
-	const String replaceCharacter (const tchar characterToReplace,
-								   const tchar characterToInsertInstead) const throw();
+	const String replaceCharacter (juce_wchar characterToReplace,
+								   juce_wchar characterToInsertInstead) const throw();
 
 	const String replaceCharacters (const String& charactersToReplace,
-									const tchar* const charactersToInsertInstead) const throw();
+									const juce_wchar* charactersToInsertInstead) const throw();
 
-	const String retainCharacters (const tchar* const charactersToRetain) const throw();
+	const String retainCharacters (const juce_wchar* charactersToRetain) const throw();
 
-	const String removeCharacters (const tchar* const charactersToRemove) const throw();
+	const String removeCharacters (const juce_wchar* charactersToRemove) const throw();
 
-	const String initialSectionContainingOnly (const tchar* const permittedCharacters) const throw();
+	const String initialSectionContainingOnly (const juce_wchar* permittedCharacters) const throw();
 
-	const String initialSectionNotContaining (const tchar* const charactersToStopAt) const throw();
+	const String initialSectionNotContaining (const juce_wchar* charactersToStopAt) const throw();
 
 	bool isQuotedString() const throw();
 
 	const String unquoted() const throw();
 
-	const String quoted (const tchar quoteCharacter = JUCE_T('"')) const throw();
+	const String quoted (juce_wchar quoteCharacter = JUCE_T('"')) const throw();
 
-	void printf (const tchar* const format, ...) throw();
+	static const String repeatedString (const juce_wchar* stringToRepeat,
+										int numberOfTimesToRepeat);
 
-	static const String formatted (const tchar* const format, ...) throw();
+	const String paddedLeft (juce_wchar padCharacter, int minimumLength) const;
 
-	void vprintf (const tchar* const format, va_list& args) throw();
+	const String paddedRight (juce_wchar padCharacter, int minimumLength) const;
 
-	static const String repeatedString (const tchar* const stringToRepeat,
-										int numberOfTimesToRepeat) throw();
-
-	static const String createStringFromData (const void* const data,
-											  const int size) throw();
+	static const String createStringFromData (const void* data,
+											  int size) throw();
 
 	// Numeric conversions..
 
-	explicit String (const int decimalInteger) throw();
+	explicit String (int decimalInteger) throw();
 
-	explicit String (const unsigned int decimalInteger) throw();
+	explicit String (unsigned int decimalInteger) throw();
 
-	explicit String (const short decimalInteger) throw();
+	explicit String (short decimalInteger) throw();
 
-	explicit String (const unsigned short decimalInteger) throw();
+	explicit String (unsigned short decimalInteger) throw();
 
-	explicit String (const int64 largeIntegerValue) throw();
+	explicit String (int64 largeIntegerValue) throw();
 
-	explicit String (const uint64 largeIntegerValue) throw();
+	explicit String (uint64 largeIntegerValue) throw();
 
-	explicit String (const float floatValue,
-					 const int numberOfDecimalPlaces = 0) throw();
+	explicit String (float floatValue,
+					 int numberOfDecimalPlaces = 0) throw();
 
-	explicit String (const double doubleValue,
-					 const int numberOfDecimalPlaces = 0) throw();
+	explicit String (double doubleValue,
+					 int numberOfDecimalPlaces = 0) throw();
 
 	int getIntValue() const throw();
 
@@ -1317,19 +1308,19 @@ public:
 
 	int64 getHexValue64() const throw();
 
-	static const String toHexString (const int number) throw();
+	static const String toHexString (int number) throw();
 
-	static const String toHexString (const int64 number) throw();
+	static const String toHexString (int64 number) throw();
 
-	static const String toHexString (const short number) throw();
+	static const String toHexString (short number) throw();
 
 	static const String toHexString (const unsigned char* data,
-									 const int size,
-									 const int groupSize = 1) throw();
+									 int size,
+									 int groupSize = 1) throw();
 
-	inline operator const juce_wchar*() const throw()   { return text->text; }
+	inline operator const juce_wchar*() const throw()   { return text; }
 
-	inline operator juce_wchar*() throw()		   { return text->text; }
+	inline operator juce_wchar*() throw()		   { return text; }
 
 	const char* toUTF8() const;
 
@@ -1337,17 +1328,17 @@ public:
 
 	int getNumBytesAsUTF8() const throw();
 
-	int copyToUTF8 (char* destBuffer, const int maxBufferSizeBytes) const throw();
+	int copyToUTF8 (char* destBuffer, int maxBufferSizeBytes) const throw();
 
 	const char* toCString() const;
 
 	int getNumBytesAsCString() const throw();
 
-	int copyToCString (char* destBuffer, const int maxBufferSizeBytes) const throw();
+	int copyToCString (char* destBuffer, int maxBufferSizeBytes) const throw();
 
-	void copyToUnicode (juce_wchar* const destBuffer, const int maxCharsToCopy) const throw();
+	void copyToUnicode (juce_wchar* destBuffer, int maxCharsToCopy) const throw();
 
-	void preallocateStorage (const size_t numCharsNeeded) throw();
+	void preallocateStorage (size_t numCharsNeeded);
 
 	class JUCE_API  Concatenator
 	{
@@ -1369,69 +1360,59 @@ public:
 
 private:
 
-	struct InternalRefCountedStringHolder
-	{
-		int refCount;
-		int allocatedNumChars;
-		wchar_t text[1];
-	};
-
-	InternalRefCountedStringHolder* text;
-	static InternalRefCountedStringHolder emptyString;
+	juce_wchar* text;
 
 	// internal constructor that preallocates a certain amount of memory
-	String (const int numChars, const int dummyVariable) throw();
+	String (size_t numChars, int dummyVariable);
 
-	void createInternal (const int numChars) throw();
-	void createInternal (const tchar* const text, const tchar* const textEnd) throw();
-	void appendInternal (const tchar* const text, const int numExtraChars) throw();
-	void doubleToStringWithDecPlaces (double n, int numDecPlaces) throw();
-	void dupeInternalIfMultiplyReferenced() throw();
+	void createInternal (const juce_wchar* text, size_t numChars);
+	void appendInternal (const juce_wchar* text, int numExtraChars);
+	void dupeInternalIfMultiplyReferenced();
 };
 
-const String operator+  (const char* string1,	   const String& string2);
-const String operator+  (const juce_wchar* string1, const String& string2);
-const String operator+  (char string1,		  const String& string2);
-const String operator+  (juce_wchar string1,	const String& string2);
+const String JUCE_CALLTYPE operator+  (const char* string1,	   const String& string2);
+const String JUCE_CALLTYPE operator+  (const juce_wchar* string1, const String& string2);
+const String JUCE_CALLTYPE operator+  (char string1,		  const String& string2);
+const String JUCE_CALLTYPE operator+  (juce_wchar string1,	const String& string2);
 
-const String operator+  (String string1, const String& string2);
-const String operator+  (String string1, const char* string2);
-const String operator+  (String string1, const juce_wchar* string2);
-const String operator+  (String string1, char characterToAppend);
-const String operator+  (String string1, juce_wchar characterToAppend);
+const String JUCE_CALLTYPE operator+  (String string1, const String& string2);
+const String JUCE_CALLTYPE operator+  (String string1, const char* string2);
+const String JUCE_CALLTYPE operator+  (String string1, const juce_wchar* string2);
+const String JUCE_CALLTYPE operator+  (String string1, char characterToAppend);
+const String JUCE_CALLTYPE operator+  (String string1, juce_wchar characterToAppend);
 
-String& operator<< (String& string1, const char characterToAppend);
-String& operator<< (String& string1, const juce_wchar characterToAppend);
-String& operator<< (String& string1, const char* const string2);
-String& operator<< (String& string1, const juce_wchar* const string2);
-String& operator<< (String& string1, const String& string2);
+String& JUCE_CALLTYPE operator<< (String& string1, char characterToAppend);
+String& JUCE_CALLTYPE operator<< (String& string1, juce_wchar characterToAppend);
+String& JUCE_CALLTYPE operator<< (String& string1, const char* string2);
+String& JUCE_CALLTYPE operator<< (String& string1, const juce_wchar* string2);
+String& JUCE_CALLTYPE operator<< (String& string1, const String& string2);
 
-String& operator<< (String& string1, const short number);
-String& operator<< (String& string1, const int number);
-String& operator<< (String& string1, const unsigned int number);
-String& operator<< (String& string1, const long number);
-String& operator<< (String& string1, const unsigned long number);
-String& operator<< (String& string1, const float number);
-String& operator<< (String& string1, const double number);
+String& JUCE_CALLTYPE operator<< (String& string1, short number);
+String& JUCE_CALLTYPE operator<< (String& string1, int number);
+String& JUCE_CALLTYPE operator<< (String& string1, unsigned int number);
+String& JUCE_CALLTYPE operator<< (String& string1, long number);
+String& JUCE_CALLTYPE operator<< (String& string1, unsigned long number);
+String& JUCE_CALLTYPE operator<< (String& string1, float number);
+String& JUCE_CALLTYPE operator<< (String& string1, double number);
 
-bool operator== (const String& string1, const String& string2) throw();
-bool operator== (const String& string1, const char* string2) throw();
-bool operator== (const String& string1, const juce_wchar* string2) throw();
-bool operator!= (const String& string1, const String& string2) throw();
-bool operator!= (const String& string1, const char* string2) throw();
-bool operator!= (const String& string1, const juce_wchar* string2) throw();
-bool operator>  (const String& string1, const String& string2) throw();
-bool operator<  (const String& string1, const String& string2) throw();
-bool operator>= (const String& string1, const String& string2) throw();
-bool operator<= (const String& string1, const String& string2) throw();
+bool JUCE_CALLTYPE operator== (const String& string1, const String& string2) throw();
+bool JUCE_CALLTYPE operator== (const String& string1, const char* string2) throw();
+bool JUCE_CALLTYPE operator== (const String& string1, const juce_wchar* string2) throw();
+bool JUCE_CALLTYPE operator!= (const String& string1, const String& string2) throw();
+bool JUCE_CALLTYPE operator!= (const String& string1, const char* string2) throw();
+bool JUCE_CALLTYPE operator!= (const String& string1, const juce_wchar* string2) throw();
+bool JUCE_CALLTYPE operator>  (const String& string1, const String& string2) throw();
+bool JUCE_CALLTYPE operator<  (const String& string1, const String& string2) throw();
+bool JUCE_CALLTYPE operator>= (const String& string1, const String& string2) throw();
+bool JUCE_CALLTYPE operator<= (const String& string1, const String& string2) throw();
 
 template <class charT, class traits>
-std::basic_ostream <charT, traits>& operator<< (std::basic_ostream <charT, traits>& stream, const String& stringToWrite)
+std::basic_ostream <charT, traits>& JUCE_CALLTYPE operator<< (std::basic_ostream <charT, traits>& stream, const String& stringToWrite)
 {
 	return stream << stringToWrite.toUTF8();
 }
 
-OutputStream& operator<< (OutputStream& stream, const String& text);
+OutputStream& JUCE_CALLTYPE operator<< (OutputStream& stream, const String& text);
 
 #endif   // __JUCE_STRING_JUCEHEADER__
 /*** End of inlined file: juce_String.h ***/
@@ -1448,8 +1429,6 @@ public:
 	static void JUCE_CALLTYPE writeToLog (const String& message);
 
 	static void JUCE_CALLTYPE outputDebugString (const String& text) throw();
-
-	static void JUCE_CALLTYPE outputDebugPrintf (const tchar* format, ...) throw();
 
 protected:
 
@@ -2852,13 +2831,13 @@ public:
 	juce_UseDebuggingNewOperator
 };
 
-OutputStream& operator<< (OutputStream& stream, const int number);
+OutputStream& JUCE_CALLTYPE operator<< (OutputStream& stream, const int number);
 
-OutputStream& operator<< (OutputStream& stream, const double number);
+OutputStream& JUCE_CALLTYPE operator<< (OutputStream& stream, const double number);
 
-OutputStream& operator<< (OutputStream& stream, const char character);
+OutputStream& JUCE_CALLTYPE operator<< (OutputStream& stream, const char character);
 
-OutputStream& operator<< (OutputStream& stream, const char* const text);
+OutputStream& JUCE_CALLTYPE operator<< (OutputStream& stream, const char* const text);
 
 #endif   // __JUCE_OUTPUTSTREAM_JUCEHEADER__
 /*** End of inlined file: juce_OutputStream.h ***/
@@ -3578,6 +3557,27 @@ public:
 				data.elements [numUsed++] = const_cast <ObjectClass*> (newObject);
 			}
 		}
+	}
+
+	template <class OtherArrayType>
+	void addArray (const OtherArrayType& arrayToAddFrom,
+				   int startIndex = 0,
+				   int numElementsToAdd = -1)
+	{
+		const typename OtherArrayType::ScopedLockType lock1 (arrayToAddFrom.getLock());
+		const ScopedLockType lock2 (getLock());
+
+		if (startIndex < 0)
+		{
+			jassertfalse
+			startIndex = 0;
+		}
+
+		if (numElementsToAdd < 0 || startIndex + numElementsToAdd > arrayToAddFrom.size())
+			numElementsToAdd = arrayToAddFrom.size() - startIndex;
+
+		while (--numElementsToAdd >= 0)
+			add (arrayToAddFrom.getUnchecked (startIndex++));
 	}
 
 	template <class ElementComparator>
@@ -6013,6 +6013,216 @@ private:
 #endif   // __JUCE_ASYNCUPDATER_JUCEHEADER__
 /*** End of inlined file: juce_AsyncUpdater.h ***/
 
+
+/*** Start of inlined file: juce_ListenerList.h ***/
+#ifndef __JUCE_LISTENERLIST_JUCEHEADER__
+#define __JUCE_LISTENERLIST_JUCEHEADER__
+
+template <class ListenerClass,
+		  class ArrayType = Array <ListenerClass*> >
+class ListenerList
+{
+public:
+
+	ListenerList()
+	{
+	}
+
+	~ListenerList()
+	{
+	}
+
+	void add (ListenerClass* const listenerToAdd)
+	{
+		// Listeners can't be null pointers!
+		jassert (listenerToAdd != 0);
+
+		if (listenerToAdd != 0)
+			listeners.add (listenerToAdd);
+	}
+
+	void remove (ListenerClass* const listenerToRemove)
+	{
+		// Listeners can't be null pointers!
+		jassert (listenerToRemove != 0);
+
+		listeners.removeValue (listenerToRemove);
+	}
+
+	int size() const throw()
+	{
+		return listeners.size();
+	}
+
+	bool isEmpty() const throw()
+	{
+		return listeners.size() == 0;
+	}
+
+	bool contains (ListenerClass* const listener) const throw()
+	{
+		return listeners.contains (listener);
+	}
+
+	void call (void (ListenerClass::*callbackFunction) ())
+	{
+		callChecked (static_cast <const DummyBailOutChecker&> (DummyBailOutChecker()), callbackFunction);
+	}
+
+	template <class BailOutCheckerType>
+	void callChecked (const BailOutCheckerType& bailOutChecker,
+					  void (ListenerClass::*callbackFunction) ())
+	{
+		for (Iterator<BailOutCheckerType, ThisType> iter (*this, bailOutChecker); iter.next();)
+			(iter.getListener()->*callbackFunction) ();
+	}
+
+	template <typename P1, typename P2>
+	void call (void (ListenerClass::*callbackFunction) (P1),
+			   P2& param1)
+	{
+		for (Iterator<DummyBailOutChecker, ThisType> iter (*this, DummyBailOutChecker()); iter.next();)
+			(iter.getListener()->*callbackFunction) (param1);
+	}
+
+	template <class BailOutCheckerType, typename P1, typename P2>
+	void callChecked (const BailOutCheckerType& bailOutChecker,
+					  void (ListenerClass::*callbackFunction) (P1),
+					  P2& param1)
+	{
+		for (Iterator<BailOutCheckerType, ThisType> iter (*this, bailOutChecker); iter.next();)
+			(iter.getListener()->*callbackFunction) (param1);
+	}
+
+	template <typename P1, typename P2, typename P3, typename P4>
+	void call (void (ListenerClass::*callbackFunction) (P1, P2),
+			   P3& param1, P4& param2)
+	{
+		for (Iterator<DummyBailOutChecker, ThisType> iter (*this, DummyBailOutChecker()); iter.next();)
+			(iter.getListener()->*callbackFunction) (param1, param2);
+	}
+
+	template <class BailOutCheckerType, typename P1, typename P2, typename P3, typename P4>
+	void callChecked (const BailOutCheckerType& bailOutChecker,
+					  void (ListenerClass::*callbackFunction) (P1, P2),
+					  P3& param1, P4& param2)
+	{
+		for (Iterator<BailOutCheckerType, ThisType> iter (*this, bailOutChecker); iter.next();)
+			(iter.getListener()->*callbackFunction) (param1, param2);
+	}
+
+	template <typename P1, typename P2, typename P3, typename P4, typename P5, typename P6>
+	void call (void (ListenerClass::*callbackFunction) (P1, P2, P3),
+			   P4& param1, P5& param2, P6& param3)
+	{
+		for (Iterator<DummyBailOutChecker, ThisType> iter (*this, DummyBailOutChecker()); iter.next();)
+			(iter.getListener()->*callbackFunction) (param1, param2, param3);
+	}
+
+	template <class BailOutCheckerType, typename P1, typename P2, typename P3, typename P4, typename P5, typename P6>
+	void callChecked (const BailOutCheckerType& bailOutChecker,
+					  void (ListenerClass::*callbackFunction) (P1, P2, P3),
+					  P4& param1, P5& param2, P6& param3)
+	{
+		for (Iterator<BailOutCheckerType, ThisType> iter (*this, bailOutChecker); iter.next();)
+			(iter.getListener()->*callbackFunction) (param1, param2, param3);
+	}
+
+	template <typename P1, typename P2, typename P3, typename P4, typename P5, typename P6, typename P7, typename P8>
+	void call (void (ListenerClass::*callbackFunction) (P1, P2, P3, P4),
+			   P5& param1, P6& param2, P7& param3, P8& param4)
+	{
+		for (Iterator<DummyBailOutChecker, ThisType> iter (*this, DummyBailOutChecker()); iter.next();)
+			(iter.getListener()->*callbackFunction) (param1, param2, param3, param4);
+	}
+
+	template <class BailOutCheckerType, typename P1, typename P2, typename P3, typename P4, typename P5, typename P6, typename P7, typename P8>
+	void callChecked (const BailOutCheckerType& bailOutChecker,
+					  void (ListenerClass::*callbackFunction) (P1, P2, P3, P4),
+					  P5& param1, P6& param2, P7& param3, P8& param4)
+	{
+		for (Iterator<BailOutCheckerType, ThisType> iter (*this, bailOutChecker); iter.next();)
+			(iter.getListener()->*callbackFunction) (param1, param2, param3, param4);
+	}
+
+	template <typename P1, typename P2, typename P3, typename P4, typename P5, typename P6, typename P7, typename P8, typename P9, typename P10>
+	void call (void (ListenerClass::*callbackFunction) (P1, P2, P3, P4, P5),
+			   P6& param1, P7& param2, P8& param3, P9& param4, P10& param5)
+	{
+		for (Iterator<DummyBailOutChecker, ThisType> iter (*this, DummyBailOutChecker()); iter.next();)
+			(iter.getListener()->*callbackFunction) (param1, param2, param3, param4, param5);
+	}
+
+	template <class BailOutCheckerType, typename P1, typename P2, typename P3, typename P4, typename P5, typename P6, typename P7, typename P8, typename P9, typename P10>
+	void callChecked (const BailOutCheckerType& bailOutChecker,
+					  void (ListenerClass::*callbackFunction) (P1, P2, P3, P4, P5),
+					  P6& param1, P7& param2, P8& param3, P9& param4, P10& param5)
+	{
+		for (Iterator<BailOutCheckerType, ThisType> iter (*this, bailOutChecker); iter.next();)
+			(iter.getListener()->*callbackFunction) (param1, param2, param3, param4, param5);
+	}
+
+	class DummyBailOutChecker
+	{
+	public:
+		inline bool shouldBailOut() const throw()	  { return false; }
+	};
+
+	template <class BailOutCheckerType, class ListType>
+	class Iterator
+	{
+	public:
+
+		Iterator (const ListType& list_, const BailOutCheckerType& bailOutChecker_)
+			: list (list_), bailOutChecker (bailOutChecker_), index (list_.size())
+		{}
+
+		~Iterator() {}
+
+		bool next()
+		{
+			if (index <= 0 || bailOutChecker.shouldBailOut())
+				return false;
+
+			const int listSize = list.size();
+
+			if (--index < listSize)
+				return true;
+
+			index = listSize - 1;
+			return index >= 0;
+		}
+
+		typename ListType::ListenerType* getListener() const throw()
+		{
+			return list.getListeners().getUnchecked (index);
+		}
+
+	private:
+		const ListType& list;
+		const BailOutCheckerType& bailOutChecker;
+		int index;
+
+		Iterator (const Iterator&);
+		Iterator& operator= (const Iterator&);
+	};
+
+	typedef ListenerList<ListenerClass, ArrayType> ThisType;
+	typedef ListenerClass ListenerType;
+
+	const ArrayType& getListeners() const throw()	   { return listeners; }
+
+private:
+
+	ArrayType listeners;
+
+	ListenerList (const ListenerList&);
+	ListenerList& operator= (const ListenerList&);
+};
+
+#endif   // __JUCE_LISTENERLIST_JUCEHEADER__
+/*** End of inlined file: juce_ListenerList.h ***/
+
 class JUCE_API  Value
 {
 public:
@@ -6088,7 +6298,7 @@ public:
 private:
 	friend class ValueSource;
 	ReferenceCountedObjectPtr <ValueSource> value;
-	SortedSet <Listener*> listeners;
+	ListenerList <Listener> listeners;
 
 	void callListeners();
 
@@ -6490,11 +6700,7 @@ private:
 	typedef ReferenceCountedObjectPtr <SharedObject> SharedObjectPtr;
 
 	ReferenceCountedObjectPtr <SharedObject> object;
-	SortedSet <Listener*> listeners;
-
-	void deliverPropertyChangeMessage (ValueTree& tree, const var::identifier& property);
-	void deliverChildChangeMessage (ValueTree& tree);
-	void deliverParentChangeMessage (ValueTree& tree);
+	ListenerList <Listener> listeners;
 
 	ValueTree (SharedObject* const object_);
 };
@@ -7102,10 +7308,12 @@ public:
 
 	static int getMACAddresses (int64* addresses, int maxNum,
 #if JUCE_MAC
-								const bool littleEndian = true) throw();
+								const bool littleEndian = true);
 #else
-								const bool littleEndian = false) throw();
+								const bool littleEndian = false);
 #endif
+
+	static const StringArray getMACAddressStrings();
 
 	// not-for-public-use platform-specific method gets called at startup to initialise things.
 	static void initialiseStats() throw();
@@ -9261,6 +9469,8 @@ public:
 
 	int getDistanceFromDragStartY() const throw();
 
+	const Point<int> getOffsetFromDragStart() const throw();
+
 	bool mouseWasClicked() const throw();
 
 	int getNumberOfClicks() const throw()				   { return numberOfClicks; }
@@ -9978,20 +10188,20 @@ public:
 
 	EdgeTable (const Rectangle<int>& clipLimits,
 			   const Path& pathToAdd,
-			   const AffineTransform& transform) throw();
+			   const AffineTransform& transform);
 
-	EdgeTable (const Rectangle<int>& rectangleToAdd) throw();
+	EdgeTable (const Rectangle<int>& rectangleToAdd);
 
-	EdgeTable (const RectangleList& rectanglesToAdd) throw();
+	EdgeTable (const RectangleList& rectanglesToAdd);
 
 	EdgeTable (const float x, const float y,
-			   const float w, const float h) throw();
+			   const float w, const float h);
 
-	EdgeTable (const EdgeTable& other) throw();
+	EdgeTable (const EdgeTable& other);
 
-	EdgeTable& operator= (const EdgeTable& other) throw();
+	EdgeTable& operator= (const EdgeTable& other);
 
-	~EdgeTable() throw();
+	~EdgeTable();
 
 	void clipToRectangle (const Rectangle<int>& r) throw();
 	void excludeRectangle (const Rectangle<int>& r) throw();
@@ -11268,9 +11478,11 @@ public:
 
 	static const Colour greyLevel (const float brightness) throw();
 
-	const String toString() const throw();
+	const String toString() const;
 
 	static const Colour fromString (const String& encodedColourString);
+
+	const String toDisplayString (bool includeAlphaValue) const;
 
 	juce_UseDebuggingNewOperator
 
@@ -11765,8 +11977,7 @@ public:
 	bool reduceClipRegion (const Image& image, const Rectangle<int>& sourceClipRegion,
 						   const AffineTransform& transform) throw();
 
-	void excludeClipRegion (const int x, const int y,
-							const int width, const int height) throw();
+	void excludeClipRegion (const Rectangle<int>& rectangleToExclude) throw();
 
 	bool isClipEmpty() const throw();
 
@@ -11984,17 +12195,17 @@ class JUCE_API  Component  : public MouseListener,
 {
 public:
 
-	Component() throw();
+	Component();
 
 	virtual ~Component();
 
-	Component (const String& componentName) throw();
+	Component (const String& componentName);
 
 	const String& getName() const throw()		   { return componentName_; }
 
 	virtual void setName (const String& newName);
 
-	bool isValidComponent() const throw();
+	bool isValidComponent() const;
 
 	virtual void setVisible (bool shouldBeVisible);
 
@@ -12002,7 +12213,7 @@ public:
 
 	virtual void visibilityChanged();
 
-	bool isShowing() const throw();
+	bool isShowing() const;
 
 	void fadeOutComponent (const int lengthOfFadeOutInMilliseconds,
 						   const int deltaXToMove = 0,
@@ -12016,7 +12227,7 @@ public:
 
 	bool isOnDesktop() const throw();
 
-	ComponentPeer* getPeer() const throw();
+	ComponentPeer* getPeer() const;
 
 	virtual void userTriedToCloseWindow();
 
@@ -12099,7 +12310,7 @@ public:
 
 	int getParentHeight() const throw();
 
-	const Rectangle<int> getParentMonitorArea() const throw();
+	const Rectangle<int> getParentMonitorArea() const;
 
 	int getNumChildComponents() const throw();
 
@@ -12165,12 +12376,12 @@ public:
 
 	Component* getComponentAt (const Point<int>& position);
 
-	void repaint() throw();
+	void repaint();
 
 	void repaint (const int x, const int y,
-				  const int width, const int height) throw();
+				  const int width, const int height);
 
-	void setBufferedToImage (const bool shouldBeBuffered) throw();
+	void setBufferedToImage (const bool shouldBeBuffered);
 
 	Image* createComponentSnapshot (const Rectangle<int>& areaToGrab,
 									const bool clipImageToComponentBounds = true);
@@ -12189,7 +12400,7 @@ public:
 
 	void sendLookAndFeelChange();
 
-	void setOpaque (const bool shouldBeOpaque) throw();
+	void setOpaque (const bool shouldBeOpaque);
 
 	bool isOpaque() const throw();
 
@@ -12209,7 +12420,7 @@ public:
 
 	void grabKeyboardFocus();
 
-	bool hasKeyboardFocus (const bool trueIfChildIsFocused) const throw();
+	bool hasKeyboardFocus (const bool trueIfChildIsFocused) const;
 
 	static Component* JUCE_CALLTYPE getCurrentlyFocusedComponent() throw();
 
@@ -12217,9 +12428,9 @@ public:
 
 	virtual KeyboardFocusTraverser* createFocusTraverser();
 
-	int getExplicitFocusOrder() const throw();
+	int getExplicitFocusOrder() const;
 
-	void setExplicitFocusOrder (const int newFocusOrderIndex) throw();
+	void setExplicitFocusOrder (const int newFocusOrderIndex);
 
 	void setFocusContainer (const bool shouldBeFocusContainer) throw();
 
@@ -12231,11 +12442,11 @@ public:
 
 	virtual void enablementChanged();
 
-	void setMouseCursor (const MouseCursor& cursorType) throw();
+	void setMouseCursor (const MouseCursor& cursorType);
 
 	virtual const MouseCursor getMouseCursor();
 
-	void updateMouseCursor() const throw();
+	void updateMouseCursor() const;
 
 	virtual void paint (Graphics& g);
 
@@ -12264,13 +12475,13 @@ public:
 	void setRepaintsOnMouseActivity (const bool shouldRepaint) throw();
 
 	void addMouseListener (MouseListener* const newListener,
-						   const bool wantsEventsForAllNestedChildComponents) throw();
+						   const bool wantsEventsForAllNestedChildComponents);
 
-	void removeMouseListener (MouseListener* const listenerToRemove) throw();
+	void removeMouseListener (MouseListener* const listenerToRemove);
 
-	void addKeyListener (KeyListener* const newListener) throw();
+	void addKeyListener (KeyListener* const newListener);
 
-	void removeKeyListener (KeyListener* const listenerToRemove) throw();
+	void removeKeyListener (KeyListener* const listenerToRemove);
 
 	virtual bool keyPressed (const KeyPress& key);
 
@@ -12311,11 +12522,11 @@ public:
 
 	virtual void broughtToFront();
 
-	void addComponentListener (ComponentListener* const newListener) throw();
+	void addComponentListener (ComponentListener* const newListener);
 
-	void removeComponentListener (ComponentListener* const listenerToRemove) throw();
+	void removeComponentListener (ComponentListener* const listenerToRemove);
 
-	void postCommandMessage (const int commandId) throw();
+	void postCommandMessage (const int commandId);
 
 	virtual void handleCommandMessage (int commandId);
 
@@ -12331,7 +12542,7 @@ public:
 
 	static Component* JUCE_CALLTYPE getCurrentlyModalComponent (int index = 0) throw();
 
-	bool isCurrentlyBlockedByAnotherModalComponent() const throw();
+	bool isCurrentlyBlockedByAnotherModalComponent() const;
 
 	virtual bool canModalEventBeSentToComponent (const Component* targetComponent);
 
@@ -12341,24 +12552,24 @@ public:
 
 	const NamedValueSet& getProperties() const throw()		  { return properties; }
 
-	const Colour findColour (const int colourId, const bool inheritFromParent = false) const throw();
+	const Colour findColour (const int colourId, const bool inheritFromParent = false) const;
 
 	void setColour (const int colourId, const Colour& colour);
 
 	void removeColour (const int colourId);
 
-	bool isColourSpecified (const int colourId) const throw();
+	bool isColourSpecified (const int colourId) const;
 
-	void copyAllExplicitColoursTo (Component& target) const throw();
+	void copyAllExplicitColoursTo (Component& target) const;
 
 	virtual void colourChanged();
 
-	void* getWindowHandle() const throw();
+	void* getWindowHandle() const;
 
 	uint32 getComponentUID() const throw()		{ return componentUID; }
 
 	template <class ComponentType>
-	class JUCE_API  SafePointer   : private ComponentListener
+	class SafePointer   : private ComponentListener
 	{
 	public:
 		SafePointer()					   : comp (0) {}
@@ -12379,9 +12590,9 @@ public:
 			return *this;
 		}
 
-		operator ComponentType*() throw()		   { return comp; }
+		operator ComponentType*() const throw()		 { return comp; }
 
-		operator const ComponentType*() const throw()	   { return comp; }
+		ComponentType* getComponent() const throw()	 { return comp; }
 
 		/** Returns the component that this pointer refers to, or null if the component no longer exists. */
 		ComponentType* operator->() throw()		 { jassert (comp != 0); return comp; }
@@ -12397,6 +12608,23 @@ public:
 		void attach()   { if (comp != 0) comp->addComponentListener (this); }
 		void detach()   { if (comp != 0) comp->removeComponentListener (this); }
 		void componentBeingDeleted (Component&)	 { comp = 0; }
+	};
+
+	class BailOutChecker
+	{
+	public:
+		BailOutChecker (Component* const component1,
+						Component* const component2 = 0);
+
+		bool shouldBailOut() const throw();
+
+	private:
+		typedef SafePointer<Component> SafeComponentPtr;
+		SafeComponentPtr safePointer1, safePointer2;
+		Component* const component2;
+
+		BailOutChecker (const BailOutChecker&);
+		BailOutChecker& operator= (const BailOutChecker&);
 	};
 
 	juce_UseDebuggingNewOperator
@@ -12422,7 +12650,7 @@ private:
 	Image* bufferedImage_;
 	VoidArray* mouseListeners_;
 	VoidArray* keyListeners_;
-	VoidArray* componentListeners_;
+	ListenerList <ComponentListener> componentListeners;
 	NamedValueSet properties;
 
 	struct ComponentFlags
@@ -12471,8 +12699,9 @@ private:
 	void internalModifierKeysChanged();
 	void internalChildrenChanged();
 	void internalHierarchyChanged();
+	void renderComponent (Graphics& context);
 	void sendMovedResizedMessages (const bool wasMoved, const bool wasResized);
-	void repaintParent() throw();
+	void repaintParent();
 	void sendFakeMouseMove() const;
 	void takeKeyboardFocus (const FocusChangeType cause);
 	void grabFocusInternal (const FocusChangeType cause, const bool canTryParent = true);
@@ -12482,9 +12711,9 @@ private:
 	static void bringModalComponentToFront();
 	void subtractObscuredRegions (RectangleList& result, const Point<int>& delta,
 								  const Rectangle<int>& clipRect,
-								  const Component* const compToAvoid) const throw();
+								  const Component* const compToAvoid) const;
 	void clipObscuredRegions (Graphics& g, const Rectangle<int>& clipRect,
-							  const int deltaX, const int deltaY) const throw();
+							  const int deltaX, const int deltaY) const;
 
 	// how much of the component is not off the edges of its parents
 	const Rectangle<int> getUnclippedArea() const;
@@ -12876,13 +13105,13 @@ class JUCE_API  Desktop  : private DeletedAtShutdown,
 {
 public:
 
-	static Desktop& JUCE_CALLTYPE getInstance() throw();
+	static Desktop& JUCE_CALLTYPE getInstance();
 
 	const RectangleList getAllMonitorDisplayAreas (const bool clippedToWorkArea = true) const throw();
 
 	const Rectangle<int> getMainMonitorArea (const bool clippedToWorkArea = true) const throw();
 
-	const Rectangle<int> getMonitorAreaContaining (const Point<int>& position, const bool clippedToWorkArea = true) const throw();
+	const Rectangle<int> getMonitorAreaContaining (const Point<int>& position, const bool clippedToWorkArea = true) const;
 
 	static const Point<int> getMousePosition();
 
@@ -12896,18 +13125,18 @@ public:
 
 	static bool isScreenSaverEnabled() throw();
 
-	void addGlobalMouseListener (MouseListener* const listener) throw();
+	void addGlobalMouseListener (MouseListener* const listener);
 
-	void removeGlobalMouseListener (MouseListener* const listener) throw();
+	void removeGlobalMouseListener (MouseListener* const listener);
 
-	void addFocusChangeListener (FocusChangeListener* const listener) throw();
+	void addFocusChangeListener (FocusChangeListener* const listener);
 
-	void removeFocusChangeListener (FocusChangeListener* const listener) throw();
+	void removeFocusChangeListener (FocusChangeListener* const listener);
 
 	void setKioskModeComponent (Component* componentToUse,
 								const bool allowMenusAndBars = true);
 
-	Component* getKioskModeComponent() const		 { return kioskModeComponent; }
+	Component* getKioskModeComponent() const throw()		{ return kioskModeComponent; }
 
 	int getNumComponents() const throw();
 
@@ -12927,7 +13156,7 @@ public:
 
 	juce_UseDebuggingNewOperator
 
-	void refreshMonitorSizes() throw();
+	void refreshMonitorSizes();
 
 	static bool canUseSemiTransparentWindows() throw();
 
@@ -12939,41 +13168,42 @@ private:
 	friend class ComponentPeer;
 	friend class MouseInputSource;
 	friend class MouseInputSourceInternal;
-	SortedSet <void*> mouseListeners, focusListeners;
-	Array <Component*> desktopComponents;
-
 	friend class DeletedAtShutdown;
 	friend class TopLevelWindowManager;
-	Desktop() throw();
-	~Desktop() throw();
-
-	Array <Rectangle<int> > monitorCoordsClipped, monitorCoordsUnclipped;
 
 	OwnedArray <MouseInputSource> mouseSources;
+	void createMouseInputSources();
+
+	ListenerList <MouseListener> mouseListeners;
+	ListenerList <FocusChangeListener> focusListeners;
+
+	Array <Component*> desktopComponents;
+	Array <Rectangle<int> > monitorCoordsClipped, monitorCoordsUnclipped;
 
 	Point<int> lastFakeMouseMove;
-	int mouseClickCounter;
+	void sendMouseMove();
 
+	int mouseClickCounter;
 	void incrementMouseClickCounter() throw();
 
 	Component* kioskModeComponent;
 	Rectangle<int> kioskComponentOriginalBounds;
 
-	void createMouseInputSources();
-
 	void timerCallback();
-	void sendMouseMove();
-	void resetTimer() throw();
+	void resetTimer();
 
 	int getNumDisplayMonitors() const throw();
 	const Rectangle<int> getDisplayMonitorCoordinates (const int index, const bool clippedToWorkArea) const throw();
 
-	void addDesktopComponent (Component* const c) throw();
-	void removeDesktopComponent (Component* const c) throw();
-	void componentBroughtToFront (Component* const c) throw();
+	void addDesktopComponent (Component* const c);
+	void removeDesktopComponent (Component* const c);
+	void componentBroughtToFront (Component* const c);
 
-	void triggerFocusCallback() throw();
+	void triggerFocusCallback();
 	void handleAsyncUpdate();
+
+	Desktop();
+	~Desktop();
 
 	Desktop (const Desktop&);
 	Desktop& operator= (const Desktop&);
@@ -13046,11 +13276,11 @@ public:
 private:
 
 	OwnedArray <ApplicationCommandInfo> commands;
-	SortedSet <void*> listeners;
+	ListenerList <ApplicationCommandManagerListener> listeners;
 	ScopedPointer <KeyPressMappingSet> keyMappings;
 	ApplicationCommandTarget* firstTarget;
 
-	void sendListenerInvokeCallback (const ApplicationCommandTarget::InvocationInfo& info) const;
+	void sendListenerInvokeCallback (const ApplicationCommandTarget::InvocationInfo& info);
 	void handleAsyncUpdate();
 	void globalFocusChanged (Component*);
 
@@ -15708,9 +15938,9 @@ protected:
 private:
 
 	Array <KeyPress> shortcuts;
-	Component* keySource;
+	Component::SafePointer<Component> keySource;
 	String text;
-	SortedSet <void*> buttonListeners;
+	ListenerList <ButtonListener> buttonListeners;
 
 	class RepeatTimer;
 	friend class RepeatTimer;
@@ -15757,7 +15987,7 @@ public:
 	virtual ~ScrollBarListener() {}
 
 	virtual void scrollBarMoved (ScrollBar* scrollBarThatHasMoved,
-								 const double newRangeStart) = 0;
+								 double newRangeStart) = 0;
 };
 
 class JUCE_API  ScrollBar  : public Component,
@@ -15843,7 +16073,7 @@ private:
 	bool vertical, isDraggingThumb, alwaysVisible;
 	Button* upButton;
 	Button* downButton;
-	SortedSet <void*> listeners;
+	ListenerList <ScrollBarListener> listeners;
 
 	void updateThumbPosition() throw();
 	void timerCallback();
@@ -15914,14 +16144,14 @@ public:
 	juce_UseDebuggingNewOperator
 
 	void resized();
-	void scrollBarMoved (ScrollBar* scrollBarThatHasMoved, const double newRangeStart);
+	void scrollBarMoved (ScrollBar* scrollBarThatHasMoved, double newRangeStart);
 	void mouseWheelMove (const MouseEvent& e, float wheelIncrementX, float wheelIncrementY);
 	bool keyPressed (const KeyPress& key);
 	void componentMovedOrResized (Component& component, bool wasMoved, bool wasResized);
 	bool useMouseWheelMoveIfNeeded (const MouseEvent& e, float wheelIncrementX, float wheelIncrementY);
 
 private:
-	Component* contentComp;
+	Component::SafePointer<Component> contentComp;
 	int lastVX, lastVY, lastVW, lastVH;
 	int scrollBarThickness;
 	int singleStepX, singleStepY;
@@ -16385,7 +16615,7 @@ private:
 	} dragType;
 
 	String allowedCharacters;
-	SortedSet <void*> listeners;
+	ListenerList <TextEditorListener> listeners;
 
 	friend class TextEditorInsertAction;
 	friend class TextEditorRemoveAction;
@@ -16562,7 +16792,7 @@ private:
 	Font font;
 	Justification justification;
 	ScopedPointer <TextEditor> editor;
-	SortedSet <void*> listeners;
+	ListenerList <LabelListener> listeners;
 	Component::SafePointer<Component> ownerComponent;
 	int horizontalBorderSize, verticalBorderSize;
 	float minimumHorizontalScale;
@@ -16710,7 +16940,7 @@ private:
 	Value currentId;
 	int lastCurrentId;
 	bool isButtonDown, separatorPending, menuActive, textIsCustom;
-	SortedSet <void*> listeners;
+	ListenerList <ComboBoxListener> listeners;
 	ScopedPointer<Label> label;
 	String textWhenNothingSelected, noChoicesMessage;
 
@@ -19336,6 +19566,9 @@ private:
 
 
 #endif
+#ifndef __JUCE_LISTENERLIST_JUCEHEADER__
+
+#endif
 #ifndef __JUCE_MESSAGE_JUCEHEADER__
 
 #endif
@@ -20629,7 +20862,7 @@ public:
 	void mouseDoubleClick (const MouseEvent& e);
 	void mouseWheelMove (const MouseEvent& e, float wheelIncrementX, float wheelIncrementY);
 	void timerCallback();
-	void scrollBarMoved (ScrollBar* scrollBarThatHasMoved, const double newRangeStart);
+	void scrollBarMoved (ScrollBar* scrollBarThatHasMoved, double newRangeStart);
 	void handleAsyncUpdate();
 	void codeDocumentChanged (const CodeDocument::Position& affectedTextStart,
 							  const CodeDocument::Position& affectedTextEnd);
@@ -21063,7 +21296,7 @@ protected:
 	void valueChanged (Value& value);
 
 private:
-	SortedSet <void*> listeners;
+	ListenerList <SliderListener> listeners;
 	Value currentValue, valueMin, valueMax;
 	double lastCurrentValue, lastValueMin, lastValueMax;
 	double minimum, maximum, interval, doubleClickReturnValue;
@@ -22067,7 +22300,7 @@ public:
 
 protected:
 	DirectoryContentsList& fileList;
-	SortedSet <void*> listeners;
+	ListenerList <FileBrowserListener> listeners;
 
 	DirectoryContentsDisplayComponent (const DirectoryContentsDisplayComponent&);
 	DirectoryContentsDisplayComponent& operator= (const DirectoryContentsDisplayComponent&);
@@ -22197,7 +22430,7 @@ private:
 	int flags;
 	File currentRoot;
 	Array<File> chosenFiles;
-	SortedSet <void*> listeners;
+	ListenerList <FileBrowserListener> listeners;
 
 	DirectoryContentsDisplayComponent* fileListComponent;
 	FilePreviewComponent* previewComp;
@@ -22537,9 +22770,9 @@ public:
 
 	~ResizableBorderComponent();
 
-	void setBorderThickness (const BorderSize& newBorderSize) throw();
+	void setBorderThickness (const BorderSize& newBorderSize);
 
-	const BorderSize getBorderThickness() const throw();
+	const BorderSize getBorderThickness() const;
 
 	juce_UseDebuggingNewOperator
 
@@ -22553,13 +22786,13 @@ protected:
 	bool hitTest (int x, int y);
 
 private:
-	Component* const component;
+	Component::SafePointer<Component> component;
 	ComponentBoundsConstrainer* constrainer;
 	BorderSize borderSize;
-	int originalX, originalY, originalW, originalH;
+	Rectangle<int> originalBounds;
 	int mouseZone;
 
-	void updateMouseZone (const MouseEvent& e) throw();
+	void updateMouseZone (const MouseEvent& e);
 
 	ResizableBorderComponent (const ResizableBorderComponent&);
 	ResizableBorderComponent& operator= (const ResizableBorderComponent&);
@@ -22593,9 +22826,9 @@ protected:
 
 private:
 
-	Component* const component;
+	Component::SafePointer<Component> component;
 	ComponentBoundsConstrainer* constrainer;
-	int originalX, originalY, originalW, originalH;
+	Rectangle<int> originalBounds;
 
 	ResizableCornerComponent (const ResizableCornerComponent&);
 	ResizableCornerComponent& operator= (const ResizableCornerComponent&);
@@ -22755,7 +22988,8 @@ private:
 	juce_wchar character;
 	int glyph;
 
-	PositionedGlyph();
+	PositionedGlyph (float x, float y, float w, const Font& font, juce_wchar character, int glyph);
+	PositionedGlyph (const PositionedGlyph& other);
 };
 
 class JUCE_API  GlyphArrangement
@@ -23038,7 +23272,7 @@ private:
 	int maxRecentFiles;
 	bool isDir, isSaving, isFileDragOver;
 	String wildcard, enforcedSuffix, browseButtonText;
-	SortedSet <void*> listeners;
+	ListenerList <FilenameComponentListener> listeners;
 	File defaultBrowseFile;
 
 	void comboBoxChanged (ComboBox*);
@@ -23236,39 +23470,6 @@ private:
 
 #endif
 #ifndef __JUCE_COMPONENT_JUCEHEADER__
-
-#endif
-#ifndef __JUCE_COMPONENTDELETIONWATCHER_JUCEHEADER__
-
-/*** Start of inlined file: juce_ComponentDeletionWatcher.h ***/
-#ifndef __JUCE_COMPONENTDELETIONWATCHER_JUCEHEADER__
-#define __JUCE_COMPONENTDELETIONWATCHER_JUCEHEADER__
-
-class JUCE_API  ComponentDeletionWatcher
-{
-public:
-
-	ComponentDeletionWatcher (const Component* const componentToWatch) throw();
-
-	~ComponentDeletionWatcher() throw();
-
-	bool hasBeenDeleted() const throw();
-
-	const Component* getComponent() const throw();
-
-	juce_UseDebuggingNewOperator
-
-private:
-	const Component* const componentToWatch;
-	const uint32 componentUID;
-
-	ComponentDeletionWatcher (const ComponentDeletionWatcher&);
-	ComponentDeletionWatcher& operator= (const ComponentDeletionWatcher&);
-};
-
-#endif   // __JUCE_COMPONENTDELETIONWATCHER_JUCEHEADER__
-/*** End of inlined file: juce_ComponentDeletionWatcher.h ***/
-
 
 #endif
 #ifndef __JUCE_COMPONENTLISTENER_JUCEHEADER__
@@ -23853,7 +24054,7 @@ public:
 
 private:
 	ApplicationCommandManager* manager;
-	SortedSet <void*> listeners;
+	ListenerList <MenuBarModelListener> listeners;
 
 	MenuBarModel (const MenuBarModel&);
 	MenuBarModel& operator= (const MenuBarModel&);
@@ -25517,6 +25718,82 @@ private:
 
 
 #endif
+#ifndef __JUCE_MOUSEINPUTSOURCE_JUCEHEADER__
+
+/*** Start of inlined file: juce_MouseInputSource.h ***/
+#ifndef __JUCE_MOUSEINPUTSOURCE_JUCEHEADER__
+#define __JUCE_MOUSEINPUTSOURCE_JUCEHEADER__
+
+class Component;
+class ComponentPeer;
+class MouseInputSourceInternal;
+
+class JUCE_API  MouseInputSource
+{
+public:
+
+	MouseInputSource (int index, bool isMouseDevice);
+
+	~MouseInputSource();
+
+	bool isMouse() const;
+
+	bool isTouch() const;
+
+	bool canHover() const;
+
+	bool hasMouseWheel() const;
+
+	int getIndex() const;
+
+	bool isDragging() const;
+
+	const Point<int> getScreenPosition() const;
+
+	const ModifierKeys getCurrentModifiers() const;
+
+	Component* getComponentUnderMouse() const;
+
+	void triggerFakeMove() const;
+
+	int getNumberOfMultipleClicks() const throw();
+
+	const Time getLastMouseDownTime() const throw();
+
+	const Point<int> getLastMouseDownPosition() const throw();
+
+	bool hasMouseMovedSignificantlySincePressed() const throw();
+
+	bool hasMouseCursor() const throw();
+	void showMouseCursor (const MouseCursor& cursor);
+	void hideCursor();
+	void revealCursor();
+	void forceMouseCursorUpdate();
+
+	bool canDoUnboundedMovement() const throw();
+
+	void enableUnboundedMouseMovement (bool isEnabled, bool keepCursorVisibleUntilOffscreen = false);
+
+	juce_UseDebuggingNewOperator
+
+	void handleEvent (ComponentPeer* peer, const Point<int>& positionWithinPeer, int64 time, const ModifierKeys& mods);
+	void handleWheel (ComponentPeer* peer, const Point<int>& positionWithinPeer, int64 time, float x, float y);
+
+private:
+	friend class Desktop;
+	friend class ComponentPeer;
+	friend class MouseInputSourceInternal;
+	ScopedPointer<MouseInputSourceInternal> pimpl;
+
+	MouseInputSource (const MouseInputSource&);
+	MouseInputSource& operator= (const MouseInputSource&);
+};
+
+#endif   // __JUCE_MOUSEINPUTSOURCE_JUCEHEADER__
+/*** End of inlined file: juce_MouseInputSource.h ***/
+
+
+#endif
 #ifndef __JUCE_MOUSELISTENER_JUCEHEADER__
 
 #endif
@@ -26068,78 +26345,6 @@ private:
 /*** Start of inlined file: juce_MagnifierComponent.h ***/
 #ifndef __JUCE_MAGNIFIERCOMPONENT_JUCEHEADER__
 #define __JUCE_MAGNIFIERCOMPONENT_JUCEHEADER__
-
-
-/*** Start of inlined file: juce_MouseInputSource.h ***/
-#ifndef __JUCE_MOUSEEVENT_JUCEHEADER__x
-#define __JUCE_MOUSEEVENT_JUCEHEADER__x
-
-class Component;
-class ComponentPeer;
-class MouseInputSourceInternal;
-
-class JUCE_API  MouseInputSource
-{
-public:
-
-	MouseInputSource (int index, bool isMouseDevice);
-
-	~MouseInputSource();
-
-	bool isMouse() const;
-
-	bool isTouch() const;
-
-	bool canHover() const;
-
-	bool hasMouseWheel() const;
-
-	int getIndex() const;
-
-	bool isDragging() const;
-
-	const Point<int> getScreenPosition() const;
-
-	const ModifierKeys getCurrentModifiers() const;
-
-	Component* getComponentUnderMouse() const;
-
-	void triggerFakeMove() const;
-
-	int getNumberOfMultipleClicks() const throw();
-
-	const Time getLastMouseDownTime() const throw();
-
-	const Point<int> getLastMouseDownPosition() const throw();
-
-	bool hasMouseMovedSignificantlySincePressed() const throw();
-
-	bool hasMouseCursor() const throw();
-	void showMouseCursor (const MouseCursor& cursor);
-	void hideCursor();
-	void revealCursor();
-
-	bool canDoUnboundedMovement() const throw();
-
-	void enableUnboundedMouseMovement (bool isEnabled, bool keepCursorVisibleUntilOffscreen = false);
-
-	juce_UseDebuggingNewOperator
-
-	void handleEvent (ComponentPeer* peer, const Point<int>& positionWithinPeer, int64 time, const ModifierKeys& mods);
-	void handleWheel (ComponentPeer* peer, const Point<int>& positionWithinPeer, int64 time, float x, float y);
-
-private:
-	friend class Desktop;
-	friend class ComponentPeer;
-	friend class MouseInputSourceInternal;
-	ScopedPointer<MouseInputSourceInternal> pimpl;
-
-	MouseInputSource (const MouseInputSource&);
-	MouseInputSource& operator= (const MouseInputSource&);
-};
-
-#endif   // __JUCE_MOUSEEVENT_JUCEHEADER__
-/*** End of inlined file: juce_MouseInputSource.h ***/
 
 class JUCE_API  MagnifierComponent	: public Component
 {
@@ -26695,7 +26900,10 @@ private:
 
 	void createControlIfNeeded();
 	bool isControlCreated() const;
-	void* internal;
+
+	class Pimpl;
+	friend class ScopedPointer <Pimpl>;
+	ScopedPointer <Pimpl> pimpl;
 #else
 	void* movie;
 #endif
@@ -26982,8 +27190,7 @@ protected:
 
 private:
 
-	Component* lastFocusedComponent;
-	Component::SafePointer<Component> dragAndDropTargetComponent;
+	Component::SafePointer<Component> lastFocusedComponent, dragAndDropTargetComponent;
 	Component* lastDragAndDropCompUnderMouse;
 	bool fakeMouseMessageSent : 1, isWindowMinimised : 1;
 

@@ -52,7 +52,6 @@ private:
 //==============================================================================
 Button::Button (const String& name)
   : Component (name),
-    keySource (0),
     text (name),
     buttonPressTime (0),
     lastTimeCallbackTime (0),
@@ -352,23 +351,17 @@ void Button::handleCommandMessage (int commandId)
 //==============================================================================
 void Button::addButtonListener (ButtonListener* const newListener)
 {
-    jassert (newListener != 0);
-    jassert (! buttonListeners.contains (newListener)); // trying to add a listener to the list twice!
-
-    if (newListener != 0)
-        buttonListeners.add (newListener);
+    buttonListeners.add (newListener);
 }
 
 void Button::removeButtonListener (ButtonListener* const listener)
 {
-    jassert (buttonListeners.contains (listener)); // trying to remove a listener that isn't on the list!
-
-    buttonListeners.removeValue (listener);
+    buttonListeners.remove (listener);
 }
 
 void Button::sendClickMessage (const ModifierKeys& modifiers)
 {
-    Component::SafePointer<Component> deletionWatcher (this);
+    Component::BailOutChecker checker (this);
 
     if (commandManagerToUse != 0 && commandID != 0)
     {
@@ -381,44 +374,18 @@ void Button::sendClickMessage (const ModifierKeys& modifiers)
 
     clicked (modifiers);
 
-    if (deletionWatcher != 0)
-    {
-        for (int i = buttonListeners.size(); --i >= 0;)
-        {
-            ButtonListener* const bl = (ButtonListener*) buttonListeners[i];
-
-            if (bl != 0)
-            {
-                bl->buttonClicked (this);
-
-                if (deletionWatcher == 0)
-                    return;
-            }
-        }
-    }
+    if (! checker.shouldBailOut())
+        buttonListeners.callChecked (checker, &ButtonListener::buttonClicked, this);
 }
 
 void Button::sendStateMessage()
 {
-    Component::SafePointer<Component> deletionWatcher (this);
+    Component::BailOutChecker checker (this);
 
     buttonStateChanged();
 
-    if (deletionWatcher == 0)
-        return;
-
-    for (int i = buttonListeners.size(); --i >= 0;)
-    {
-        ButtonListener* const bl = (ButtonListener*) buttonListeners[i];
-
-        if (bl != 0)
-        {
-            bl->buttonStateChanged (this);
-
-            if (deletionWatcher == 0)
-                return;
-        }
-    }
+    if (! checker.shouldBailOut())
+        buttonListeners.callChecked (checker, &ButtonListener::buttonStateChanged, this);
 }
 
 //==============================================================================
@@ -510,14 +477,14 @@ void Button::parentHierarchyChanged()
 {
     Component* const newKeySource = (shortcuts.size() == 0) ? 0 : getTopLevelComponent();
 
-    if (newKeySource != keySource)
+    if (newKeySource != keySource.getComponent())
     {
-        if (keySource->isValidComponent())
+        if (keySource != 0)
             keySource->removeKeyListener (this);
 
         keySource = newKeySource;
 
-        if (keySource->isValidComponent())
+        if (keySource != 0)
             keySource->addKeyListener (this);
     }
 }

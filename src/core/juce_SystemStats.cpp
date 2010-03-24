@@ -37,7 +37,6 @@ BEGIN_JUCE_NAMESPACE
 #include "juce_PlatformUtilities.h"
 #include "../io/streams/juce_MemoryOutputStream.h"
 #include "../io/streams/juce_MemoryInputStream.h"
-void juce_initialiseStrings();
 
 
 //==============================================================================
@@ -46,6 +45,26 @@ const String SystemStats::getJUCEVersion() throw()
     return "JUCE v" + String (JUCE_MAJOR_VERSION)
               + "." + String (JUCE_MINOR_VERSION)
               + "." + String (JUCE_BUILDNUMBER);
+}
+
+const StringArray SystemStats::getMACAddressStrings()
+{
+    int64 macAddresses [16];
+    const int numAddresses = getMACAddresses (macAddresses, numElementsInArray (macAddresses), false);
+
+    StringArray s;
+
+    for (int i = 0; i < numAddresses; ++i)
+    {
+        s.add (String::toHexString (0xff & (int) (macAddresses [i] >> 40)).paddedLeft ('0', 2)
+                + "-" + String::toHexString (0xff & (int) (macAddresses [i] >> 32)).paddedLeft ('0', 2)
+                + "-" + String::toHexString (0xff & (int) (macAddresses [i] >> 24)).paddedLeft ('0', 2)
+                + "-" + String::toHexString (0xff & (int) (macAddresses [i] >> 16)).paddedLeft ('0', 2)
+                + "-" + String::toHexString (0xff & (int) (macAddresses [i] >> 8)).paddedLeft ('0', 2)
+                + "-" + String::toHexString (0xff & (int) (macAddresses [i] >> 0)).paddedLeft ('0', 2));
+    }
+
+    return s;
 }
 
 //==============================================================================
@@ -114,7 +133,6 @@ void JUCE_PUBLIC_FUNCTION initialiseJuce_NonGUI()
         juceInitialisedNonGUI = true;
 
         DBG (SystemStats::getJUCEVersion());
-        juce_initialiseStrings();
         SystemStats::initialiseStats();
         Random::getSystemRandom().setSeedRandomly(); // (mustn't call this before initialiseStats() because it relies on the time being set up)
     }

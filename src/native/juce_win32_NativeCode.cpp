@@ -23,7 +23,6 @@
   ==============================================================================
 */
 
-//==============================================================================
 /*
     This file wraps together all the win32-specific code, so that
     we can include all the native headers just once, and compile all our
@@ -31,9 +30,11 @@
     the rest of the codebase.
 */
 
-//==============================================================================
-#include "windows/juce_win32_NativeIncludes.h"
+#include "../core/juce_TargetPlatform.h"
 
+#if JUCE_WINDOWS
+
+#include "windows/juce_win32_NativeIncludes.h"
 #include "../core/juce_StandardHeader.h"
 
 BEGIN_JUCE_NAMESPACE
@@ -64,6 +65,7 @@ BEGIN_JUCE_NAMESPACE
 #include "../gui/components/special/juce_OpenGLComponent.h"
 #include "../gui/components/special/juce_QuickTimeMovieComponent.h"
 #include "../gui/components/mouse/juce_DragAndDropContainer.h"
+#include "../gui/components/mouse/juce_MouseInputSource.h"
 #include "../gui/components/keyboard/juce_KeyPressMappingSet.h"
 #include "../gui/components/layout/juce_ComponentMovementWatcher.h"
 #include "../gui/components/special/juce_ActiveXControlComponent.h"
@@ -117,3 +119,5 @@ BEGIN_JUCE_NAMESPACE
 #endif
 
 END_JUCE_NAMESPACE
+
+#endif

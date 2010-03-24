@@ -170,7 +170,11 @@ public:
 			int filterIndex = filterSelectionComboBox->getSelectedId() - 1;
 			int paramIndex = paramSelectionComboBox->getSelectedId() - 1;
 
-			Logger::outputDebugPrintf(T("Selected filter %i and parameter %i"), filterIndex, paramIndex);
+			{
+				String debug;
+				debug << T("Selected filter ") << filterIndex << T(" and parameter ") << paramIndex;
+				Logger::outputDebugString(debug);
+			}
 			if (filterIndex == -1 || paramIndex == -1)
 				return 0;
 			return new PluginParameterControlAction(graphDoc->graph.getNode(filterIndex), paramIndex);
@@ -241,7 +245,11 @@ void ControlSurfaceMappableComponent::showContextMenu()
 		int filterIndex = choice/itemsPerFilter;
 		int paramIndex = choice%itemsPerFilter;
 
-		Logger::outputDebugPrintf(T("Selected filter %i and parameter %i"), filterIndex, paramIndex);
+		{
+			String debug;
+			debug << T("Selected filter ") << filterIndex << T(" and parameter ") << paramIndex;
+			Logger::outputDebugString(debug);
+		}
 		PluginParameterControlAction* action = new PluginParameterControlAction(graphDoc->graph.getNode(filterIndex), paramIndex);
 		action->setMappedComponent(this);
 		controlActions.add(action);
@@ -483,7 +491,6 @@ public:
 				// begin dragging the knob
 				draggingKnob = true;
 				knobClickOffsetY = e.y - knobTop;
-				Logger::outputDebugPrintf(T("beginning drag"));
 			}
 
 		}
@@ -559,7 +566,6 @@ public:
 				// begin dragging the knob
 				draggingKnob = true;
 				knobClickOffsetX = e.x - knobLeft;
-				Logger::outputDebugPrintf(T("beginning drag"));
 			}
 		}
 	}
@@ -937,6 +943,7 @@ ControlSurfaceComponent::ControlSurfaceComponent()
 	overlayComponent->addMouseListener(this, false);
 	overlayComponent->setTopLeftPosition(0, 0);
 	overlayComponent->toBack();*/
+	addAndMakeVisible(dashboard = new DashboardComponent());
 	addAndMakeVisible(view = new SubviewComponent());
 }
 
@@ -953,7 +960,8 @@ void ControlSurfaceComponent::paint(Graphics &g)
 
 void ControlSurfaceComponent::resized()
 {
-	view->setSize(getWidth(), getHeight());
+	dashboard->setBounds(0,0, getWidth(), 96);
+	view->setBounds(0,96, getWidth(), getHeight()-96);
 	//overlayComponent->setSize(getWidth(), getHeight());
 }
 
@@ -1057,8 +1065,9 @@ void ControlSurfaceComponent::restoreFromXml(const XmlElement& xml)
 	deleteAllChildren();
 
 	// recreate the component mover layer
-	addAndMakeVisible(view = new SubviewComponent());
-	view->setBounds(0, 0, getWidth(), getHeight());
+	addAndMakeVisible(dashboard = new DashboardComponent());
+	addAndMakeVisible(view = new SubviewComponent());	
+	resized();
 	/*addAndMakeVisible(overlayComponent = new Component());
 	overlayComponent->addMouseListener(this, false);
 	overlayComponent->setBounds(0, 0, getWidth(), getHeight());

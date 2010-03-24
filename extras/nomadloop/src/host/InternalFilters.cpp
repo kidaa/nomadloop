@@ -27,6 +27,7 @@
 #include "InternalFilters.h"
 #include "FilterGraph.h"
 #include "Looper.h"
+#include "../filters/UtilityFilters.h"
 
 //==============================================================================
 InternalPluginFormat::InternalPluginFormat()
@@ -60,6 +61,16 @@ InternalPluginFormat::InternalPluginFormat()
 		MidiLoopProcessor p;
 		p.fillInPluginDescription (midiLooperDesc);
 	}
+
+	{
+		GainCut p;
+		p.fillInPluginDescription (gainCutDesc);
+	}
+
+	{
+		Arpeggiator p;
+		p.fillInPluginDescription (arpeggiatorDesc);
+	}
 }
 
 AudioPluginInstance* InternalPluginFormat::createInstanceFromDescription (const PluginDescription& desc)
@@ -88,6 +99,14 @@ AudioPluginInstance* InternalPluginFormat::createInstanceFromDescription (const 
 	{
 		return new MidiLoopProcessor();
 	}
+	else if (desc.name == gainCutDesc.name)
+	{
+		return new GainCut();
+	}
+	else if (desc.name == arpeggiatorDesc.name)
+	{
+		return new Arpeggiator();
+	}
 
     return 0;
 }
@@ -108,6 +127,10 @@ const PluginDescription* InternalPluginFormat::getDescriptionFor (const Internal
 		return &looperDesc;
 	case midiLooperFilter:
 		return &midiLooperDesc;
+	case gainCutFilter:
+		return &gainCutDesc;
+	case arpeggiatorFilter:
+		return &arpeggiatorDesc;
     }
 
     return 0;

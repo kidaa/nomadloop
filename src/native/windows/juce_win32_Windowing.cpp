@@ -54,8 +54,6 @@ extern bool juce_IsRunningInWine();
   #define AC_SRC_ALPHA  0x01
 #endif
 
-#define DEBUG_REPAINT_TIMES 0
-
 static HPALETTE palette = 0;
 static bool createPaletteIfNeeded = true;
 static bool shouldDeactivateTitleBar = true;
@@ -82,10 +80,6 @@ bool Desktop::canUseSemiTransparentWindows() throw()
 
     return updateLayeredWindow != 0;
 }
-
-//==============================================================================
-#undef DefWindowProc
-#define DefWindowProc DefWindowProcW
 
 //==============================================================================
 const int extendedKeyModifier               = 0x10000;
@@ -1094,9 +1088,6 @@ private:
     //==============================================================================
     void handlePaintMessage()
     {
-#if DEBUG_REPAINT_TIMES
-        const double paintStart = Time::getMillisecondCounterHiRes();
-#endif
         HRGN rgn = CreateRectRgn (0, 0, 0, 0);
         const int regionType = GetUpdateRgn (hwnd, rgn, false);
 
@@ -1233,11 +1224,6 @@ private:
 #endif
 
         lastPaintTime = Time::getMillisecondCounter();
-
-#if DEBUG_REPAINT_TIMES
-        const double elapsed = Time::getMillisecondCounterHiRes() - paintStart;
-        Logger::outputDebugString (T("repaint time: ") + String (elapsed, 2));
-#endif
     }
 
     //==============================================================================
@@ -1261,6 +1247,8 @@ private:
 
             if (! TrackMouseEvent (&tme))
                 jassertfalse;
+
+            Desktop::getInstance().getMainMouseSource().forceMouseCursorUpdate();
         }
         else if (! isDragging)
         {
@@ -1268,7 +1256,16 @@ private:
                 return;
         }
 
-        doMouseEvent (position);
+        // (Throttling the incoming queue of mouse-events seems to still be required in XP..)
+        static uint32 lastMouseTime = 0;
+        const uint32 now = Time::getMillisecondCounter();
+        const int maxMouseMovesPerSecond = 60;
+
+        if (now > lastMouseTime + 1000 / maxMouseMovesPerSecond)
+        {
+            lastMouseTime = now;
+            doMouseEvent (position);
+        }
     }
 
     void doMouseDown (const Point<int>& position, const WPARAM wParam)
@@ -1312,7 +1309,7 @@ private:
     {
         updateKeyModifiers();
 
-        const float amount = jlimit (-1000.0f, 1000.0f, 0.75f * HIWORD (wParam));
+        const float amount = jlimit (-1000.0f, 1000.0f, 0.75f * (short) HIWORD (wParam));
 
         handleMouseWheel (0, position, getMouseEventTime(),
                           isVertical ? 0.0f : amount,
@@ -1674,7 +1671,7 @@ public:
         if (peer != 0)
             return peer->peerWindowProc (h, message, wParam, lParam);
 
-        return DefWindowProc (h, message, wParam, lParam);
+        return DefWindowProcW (h, message, wParam, lParam);
     }
 
 private:
@@ -2103,7 +2100,7 @@ private:
             }
         }
 
-        return DefWindowProc (h, message, wParam, lParam);
+        return DefWindowProcW (h, message, wParam, lParam);
     }
 
     bool sendInputAttemptWhenModalMessage()

@@ -76,13 +76,11 @@ void Viewport::visibleAreaChanged (int, int, int, int)
 //==============================================================================
 void Viewport::setViewedComponent (Component* const newViewedComponent)
 {
-    if (contentComp != newViewedComponent)
+    if (contentComp.getComponent() != newViewedComponent)
     {
-        if (contentComp->isValidComponent())
         {
-            Component* const oldComp = contentComp;
+            ScopedPointer<Component> oldCompDeleter (contentComp);
             contentComp = 0;
-            delete oldComp;
         }
 
         contentComp = newViewedComponent;
@@ -286,7 +284,7 @@ void Viewport::setScrollBarButtonVisibility (const bool buttonsVisible)
     horizontalScrollBar->setButtonVisibility (buttonsVisible);
 }
 
-void Viewport::scrollBarMoved (ScrollBar* scrollBarThatHasMoved, const double newRangeStart)
+void Viewport::scrollBarMoved (ScrollBar* scrollBarThatHasMoved, double newRangeStart)
 {
     if (scrollBarThatHasMoved == horizontalScrollBar)
     {

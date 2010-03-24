@@ -1286,6 +1286,10 @@
 					>
 				</File>
 				<File
+					RelativePath="..\..\..\src\events\juce_ListenerList.h"
+					>
+				</File>
+				<File
 					RelativePath="..\..\..\src\events\juce_Message.cpp"
 					>
 				</File>
@@ -1338,10 +1342,6 @@
 					</File>
 					<File
 						RelativePath="..\..\..\src\gui\components\juce_Component.h"
-						>
-					</File>
-					<File
-						RelativePath="..\..\..\src\gui\components\juce_ComponentDeletionWatcher.h"
 						>
 					</File>
 					<File
@@ -2811,10 +2811,6 @@
 				>
 				<File
 					RelativePath="..\..\..\src\threads\juce_CriticalSection.h"
-					>
-				</File>
-				<File
-					RelativePath="..\..\..\src\threads\juce_InterProcessLock.cpp"
 					>
 				</File>
 				<File
