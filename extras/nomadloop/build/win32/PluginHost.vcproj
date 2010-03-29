@@ -174,10 +174,6 @@
 			UniqueIdentifier="{4FC737F1-C7A5-4376-A066-2A32D752A2FF}"
 			>
 			<File
-				RelativePath="..\..\Changelist.txt"
-				>
-			</File>
-			<File
 				RelativePath="..\..\src\HostStartup.cpp"
 				>
 			</File>
