@@ -68,7 +68,7 @@ public:
         The text doesn't actually get parsed until the getDocumentElement() method is
         called.
     */
-    XmlDocument (const String& documentText) throw();
+    XmlDocument (const String& documentText);
 
     /** Creates an XmlDocument from a file.
 
@@ -78,7 +78,7 @@ public:
     XmlDocument (const File& file);
 
     /** Destructor. */
-    ~XmlDocument() throw();
+    ~XmlDocument();
 
     /** Creates an XmlElement object to represent the main document node.
 
@@ -131,7 +131,7 @@ public:
 
 private:
     String originalText;
-    const tchar* input;
+    const juce_wchar* input;
     bool outOfData, errorOccurred;
 
     bool identifierLookupTable [128];
@@ -140,22 +140,25 @@ private:
     bool needToLoadDTD, ignoreEmptyTextElements;
     ScopedPointer <InputSource> inputSource;
 
-    void setLastError (const String& desc, const bool carryOn) throw();
-    void skipHeader() throw();
-    void skipNextWhiteSpace() throw();
-    tchar readNextChar() throw();
-    XmlElement* readNextElement (const bool alsoParseSubElements) throw();
-    void readChildElements (XmlElement* parent) throw();
+    void setLastError (const String& desc, const bool carryOn);
+    void skipHeader();
+    void skipNextWhiteSpace();
+    juce_wchar readNextChar() throw();
+    XmlElement* readNextElement (const bool alsoParseSubElements);
+    void readChildElements (XmlElement* parent);
     int findNextTokenLength() throw();
-    void readQuotedString (String& result) throw();
-    void readEntity (String& result) throw();
-    static bool isXmlIdentifierCharSlow (const tchar c) throw();
-    bool isXmlIdentifierChar (const tchar c) const throw();
+    void readQuotedString (String& result);
+    void readEntity (String& result);
+    static bool isXmlIdentifierCharSlow (juce_wchar c) throw();
+    bool isXmlIdentifierChar (juce_wchar c) const throw();
 
     const String getFileContents (const String& filename) const;
     const String expandEntity (const String& entity);
     const String expandExternalEntity (const String& entity);
     const String getParameterEntity (const String& entity);
+
+    XmlDocument (const XmlDocument&);
+    XmlDocument& operator= (const XmlDocument&);
 };
 
 

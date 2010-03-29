@@ -71,7 +71,7 @@
     info about this.
 */
 #ifndef JUCE_ASIO
-  #define JUCE_ASIO 1
+  #define JUCE_ASIO 0
 #endif
 
 /** JUCE_WASAPI: Enables WASAPI audio devices (Windows Vista and above).
@@ -105,6 +105,9 @@
   #define JUCE_QUICKTIME 0
 #endif
 
+#if (JUCE_IPHONE || JUCE_LINUX) && JUCE_QUICKTIME
+  #undef JUCE_QUICKTIME
+#endif
 
 //=============================================================================
 /** JUCE_OPENGL: Enables the OpenGLComponent class (available on all platforms).
@@ -137,7 +140,7 @@
     reduce code size.
 */
 #if (! defined (JUCE_USE_CDBURNER)) && ! (JUCE_WINDOWS && ! JUCE_MSVC)
-  #define JUCE_USE_CDBURNER 1
+  #define JUCE_USE_CDBURNER 0
 #endif
 
 /** JUCE_USE_CDREADER: Enables the audio CD reader code (Mac and Windows only).
@@ -151,7 +154,7 @@
 //=============================================================================
 /** JUCE_USE_CAMERA: Enables web-cam support using the CameraDevice class (Mac and Windows).
 */
-#if JUCE_QUICKTIME && ! defined (JUCE_USE_CAMERA)
+#if (JUCE_QUICKTIME || JUCE_WINDOWS) && ! defined (JUCE_USE_CAMERA)
 //  #define JUCE_USE_CAMERA 1
 #endif
 
@@ -183,6 +186,13 @@
 */
 #ifndef JUCE_USE_XRENDER
   //#define JUCE_USE_XRENDER 1
+#endif
+
+/** JUCE_USE_XCURSOR: Uses XCursor to allow ARGB cursor on Linux. This is best left turned on
+    unless you have a good reason to disable it.
+*/
+#ifndef JUCE_USE_XCURSOR
+  #define JUCE_USE_XCURSOR 1
 #endif
 
 //=============================================================================

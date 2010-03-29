@@ -182,7 +182,7 @@ public:
 
     bool isOk() const throw()     { return defaultBufferSize > 0 && defaultSampleRate > 0; }
 
-    bool openClient (const double newSampleRate, const BitArray& newChannels)
+    bool openClient (const double newSampleRate, const BigInteger& newChannels)
     {
         sampleRate = newSampleRate;
         channels = newChannels;
@@ -232,7 +232,7 @@ public:
     const bool useExclusiveMode;
     Array <double> rates;
     HANDLE clientEvent;
-    BitArray channels;
+    BigInteger channels;
     AudioDataConverters::DataFormat dataFormat;
     Array <int> channelMaps;
     UINT32 actualBufferSize;
@@ -338,7 +338,7 @@ public:
         close();
     }
 
-    bool open (const double newSampleRate, const BitArray& newChannels)
+    bool open (const double newSampleRate, const BigInteger& newChannels)
     {
         reservoirSize = 0;
         reservoirCapacity = 16384;
@@ -483,7 +483,7 @@ public:
         close();
     }
 
-    bool open (const double newSampleRate, const BitArray& newChannels)
+    bool open (const double newSampleRate, const BigInteger& newChannels)
     {
         return openClient (newSampleRate, newChannels)
                 && (numChannels == 0 || OK (client->GetService (__uuidof (IAudioRenderClient), (void**) &renderClient)));
@@ -674,12 +674,12 @@ public:
     int getCurrentBitDepth()                            { return 32; }
     int getOutputLatencyInSamples()                     { return latencyOut; }
     int getInputLatencyInSamples()                      { return latencyIn; }
-    const BitArray getActiveOutputChannels() const      { return outputDevice != 0 ? outputDevice->channels : BitArray(); }
-    const BitArray getActiveInputChannels() const       { return inputDevice != 0 ? inputDevice->channels : BitArray(); }
+    const BigInteger getActiveOutputChannels() const    { return outputDevice != 0 ? outputDevice->channels : BigInteger(); }
+    const BigInteger getActiveInputChannels() const     { return inputDevice != 0 ? inputDevice->channels : BigInteger(); }
     const String getLastError() { return lastError; }
 
 
-    const String open (const BitArray& inputChannels, const BitArray& outputChannels,
+    const String open (const BigInteger& inputChannels, const BigInteger& outputChannels,
                        double sampleRate, int bufferSizeSamples)
     {
         close();
@@ -947,7 +947,7 @@ class WASAPIAudioIODeviceType  : public AudioIODeviceType
 {
 public:
     WASAPIAudioIODeviceType()
-        : AudioIODeviceType (T("Windows Audio")),
+        : AudioIODeviceType ("Windows Audio"),
           hasScanned (false)
     {
     }
@@ -1030,7 +1030,7 @@ public:
         outputDeviceNames.appendNumbersToDuplicates (false, false);
     }
 
-    const StringArray getDeviceNames (const bool wantInputNames) const
+    const StringArray getDeviceNames (bool wantInputNames) const
     {
         jassert (hasScanned); // need to call scanForDevices() before doing this
 
@@ -1038,13 +1038,13 @@ public:
                               : outputDeviceNames;
     }
 
-    int getDefaultDeviceIndex (const bool /*forInput*/) const
+    int getDefaultDeviceIndex (bool /*forInput*/) const
     {
         jassert (hasScanned); // need to call scanForDevices() before doing this
         return 0;
     }
 
-    int getIndexOfDevice (AudioIODevice* device, const bool asInput) const
+    int getIndexOfDevice (AudioIODevice* device, bool asInput) const
     {
         jassert (hasScanned); // need to call scanForDevices() before doing this
         WASAPIAudioIODevice* const d = dynamic_cast <WASAPIAudioIODevice*> (device);
@@ -1060,24 +1060,24 @@ public:
         jassert (hasScanned); // need to call scanForDevices() before doing this
 
         const bool useExclusiveMode = false;
-        WASAPIAudioIODevice* d = 0;
+        ScopedPointer<WASAPIAudioIODevice> device;
 
         const int outputIndex = outputDeviceNames.indexOf (outputDeviceName);
         const int inputIndex = inputDeviceNames.indexOf (inputDeviceName);
 
         if (outputIndex >= 0 || inputIndex >= 0)
         {
-            d = new WASAPIAudioIODevice (outputDeviceName.isNotEmpty() ? outputDeviceName
-                                                                       : inputDeviceName,
-                                         outputDeviceIds [outputIndex],
-                                         inputDeviceIds [inputIndex],
-                                         useExclusiveMode);
+            device = new WASAPIAudioIODevice (outputDeviceName.isNotEmpty() ? outputDeviceName
+                                                                            : inputDeviceName,
+                                              outputDeviceIds [outputIndex],
+                                              inputDeviceIds [inputIndex],
+                                              useExclusiveMode);
 
-            if (! d->initialise())
-                deleteAndZero (d);
+            if (! device->initialise())
+                device = 0;
         }
 
-        return d;
+        return device.release();
     }
 
     //==============================================================================

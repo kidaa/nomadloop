@@ -952,7 +952,7 @@ void NSViewComponentPeer::setSize (int w, int h)
     setBounds (component->getX(), component->getY(), w, h, false);
 }
 
-void NSViewComponentPeer::setBounds (int x, int y, int w, int h, const bool isNowFullScreen)
+void NSViewComponentPeer::setBounds (int x, int y, int w, int h, bool isNowFullScreen)
 {
     fullScreen = isNowFullScreen;
     w = jmax (0, w);
@@ -1169,6 +1169,7 @@ void NSViewComponentPeer::toFront (bool makeActiveWindow)
         if (! recursiveToFrontCall)
         {
             recursiveToFrontCall = true;
+            Desktop::getInstance().getMainMouseSource().forceMouseCursorUpdate();
             handleBroughtToFront();
             recursiveToFrontCall = false;
         }
@@ -1207,7 +1208,6 @@ void NSViewComponentPeer::viewFocusGain()
             currentlyFocusedPeer->handleFocusLoss();
 
         currentlyFocusedPeer = this;
-
         handleFocusGain();
     }
 }
@@ -1386,6 +1386,7 @@ void NSViewComponentPeer::redirectMouseMove (NSEvent* ev)
 
 void NSViewComponentPeer::redirectMouseEnter (NSEvent* ev)
 {
+    Desktop::getInstance().getMainMouseSource().forceMouseCursorUpdate();
     currentModifiers = currentModifiers.withoutMouseButtons();
     sendMouseEvent (ev);
 }

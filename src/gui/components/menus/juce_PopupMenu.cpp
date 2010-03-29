@@ -191,7 +191,7 @@ public:
         {
             String mainText (itemInfo.text);
             String endText;
-            const int endIndex = mainText.indexOf (T("<end>"));
+            const int endIndex = mainText.indexOf ("<end>");
 
             if (endIndex >= 0)
             {
@@ -264,7 +264,7 @@ class PopupMenu::Window  : public Component,
 public:
     //==============================================================================
     Window()
-       : Component (T("menu")),
+       : Component ("menu"),
          owner (0),
          currentChild (0),
          activeSubMenu (0),

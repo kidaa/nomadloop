@@ -45,7 +45,7 @@ public:
 
         new Random (Time::currentTimeMillis())
     */
-    Random (const int64 seedValue) throw();
+    Random (int64 seedValue) throw();
 
     /** Destructor. */
     ~Random() throw();
@@ -60,7 +60,7 @@ public:
 
         @returns a random integer between 0 (inclusive) and maxValue (exclusive).
     */
-    int nextInt (const int maxValue) throw();
+    int nextInt (int maxValue) throw();
 
     /** Returns the next 64-bit random number.
 
@@ -84,14 +84,14 @@ public:
     */
     bool nextBool() throw();
 
-    /** Returns a BitArray containing a random number.
+    /** Returns a BigInteger containing a random number.
 
         @returns a random value in the range 0 to (maximumValue - 1).
     */
-    const BitArray nextLargeNumber (const BitArray& maximumValue) throw();
+    const BigInteger nextLargeNumber (const BigInteger& maximumValue);
 
-    /** Sets a range of bits in a BitArray to random values. */
-    void fillBitsRandomly (BitArray& arrayToChange, int startBit, int numBits) throw();
+    /** Sets a range of bits in a BigInteger to random values. */
+    void fillBitsRandomly (BigInteger& arrayToChange, int startBit, int numBits);
 
     //==============================================================================
     /** To avoid the overhead of having to create a new Random object whenever
@@ -103,13 +103,13 @@ public:
     static Random& getSystemRandom() throw();
 
     /** Resets this Random object to a given seed value. */
-    void setSeed (const int64 newSeed) throw();
+    void setSeed (int64 newSeed) throw();
 
     /** Merges this object's seed with another value.
         This sets the seed to be a value created by combining the current seed and this
         new value.
     */
-    void combineSeed (const int64 seedValue) throw();
+    void combineSeed (int64 seedValue) throw();
 
     /** Reseeds this generator using a value generated from various semi-random system
         properties like the current time, etc.

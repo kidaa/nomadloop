@@ -57,7 +57,7 @@ public:
         @see TemporaryFile
     */
     FileOutputStream (const File& fileToWriteTo,
-                      const int bufferSizeToUse = 16384);
+                      int bufferSizeToUse = 16384);
 
     /** Destructor. */
     ~FileOutputStream();
@@ -87,6 +87,9 @@ private:
     int64 currentPosition;
     int bufferSize, bytesInBuffer;
     HeapBlock <char> buffer;
+
+    FileOutputStream (const FileOutputStream&);
+    FileOutputStream& operator= (const FileOutputStream&);
 };
 
 #endif   // __JUCE_FILEOUTPUTSTREAM_JUCEHEADER__

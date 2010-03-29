@@ -82,7 +82,8 @@ Uuid& Uuid::operator= (const Uuid& other)
 
 bool Uuid::operator== (const Uuid& other) const
 {
-    return memcmp (value.asBytes, other.value.asBytes, 16) == 0;
+    return value.asInt64[0] == other.value.asInt64[0]
+        && value.asInt64[1] == other.value.asInt64[1];
 }
 
 bool Uuid::operator!= (const Uuid& other) const
@@ -123,19 +124,19 @@ Uuid& Uuid::operator= (const String& uuidString)
             {
                 const tchar c = uuidString [i++];
 
-                if (c >= T('0') && c <= T('9'))
+                if (c >= '0' && c <= '9')
                 {
-                    byte |= c - T('0');
+                    byte |= c - '0';
                     break;
                 }
-                else if (c >= T('a') && c <= T('z'))
+                else if (c >= 'a' && c <= 'z')
                 {
-                    byte |= c - (T('a') - 10);
+                    byte |= c - ('a' - 10);
                     break;
                 }
-                else if (c >= T('A') && c <= T('Z'))
+                else if (c >= 'A' && c <= 'Z')
                 {
-                    byte |= c - (T('A') - 10);
+                    byte |= c - ('A' - 10);
                     break;
                 }
                 else if (c == 0)

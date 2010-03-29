@@ -95,8 +95,8 @@ void KnownPluginList::removeType (const int index) throw()
 
 static Time getFileModTime (const String& fileOrIdentifier) throw()
 {
-    if (fileOrIdentifier.startsWithChar (T('/'))
-        || fileOrIdentifier[1] == T(':'))
+    if (fileOrIdentifier.startsWithChar ('/')
+        || fileOrIdentifier[1] == ':')
     {
         return File (fileOrIdentifier).getLastModificationTime();
     }
@@ -229,10 +229,10 @@ public:
         else if (method == KnownPluginList::sortByManufacturer)
             diff = first->manufacturerName.compareLexicographically (second->manufacturerName);
         else if (method == KnownPluginList::sortByFileSystemLocation)
-            diff = first->fileOrIdentifier.replaceCharacter (T('\\'), T('/'))
-                                          .upToLastOccurrenceOf (T("/"), false, false)
-                                          .compare (second->fileOrIdentifier.replaceCharacter (T('\\'), T('/'))
-                                                                            .upToLastOccurrenceOf (T("/"), false, false));
+            diff = first->fileOrIdentifier.replaceCharacter ('\\', '/')
+                                          .upToLastOccurrenceOf ("/", false, false)
+                                          .compare (second->fileOrIdentifier.replaceCharacter ('\\', '/')
+                                                                            .upToLastOccurrenceOf ("/", false, false));
 
         if (diff == 0)
             diff = first->name.compareLexicographically (second->name);
@@ -256,7 +256,7 @@ void KnownPluginList::sort (const SortMethod method)
 //==============================================================================
 XmlElement* KnownPluginList::createXml() const
 {
-    XmlElement* const e = new XmlElement (T("KNOWNPLUGINS"));
+    XmlElement* const e = new XmlElement ("KNOWNPLUGINS");
 
     for (int i = 0; i < types.size(); ++i)
         e->addChildElement (types.getUnchecked(i)->createXml());
@@ -268,7 +268,7 @@ void KnownPluginList::recreateFromXml (const XmlElement& xml)
 {
     clear();
 
-    if (xml.hasTagName (T("KNOWNPLUGINS")))
+    if (xml.hasTagName ("KNOWNPLUGINS"))
     {
         forEachXmlChildElement (xml, e)
         {
@@ -299,8 +299,8 @@ private:
         }
         else
         {
-            const String firstSubFolder (path.upToFirstOccurrenceOf (T("/"), false, false));
-            const String remainingPath (path.fromFirstOccurrenceOf (T("/"), false, false));
+            const String firstSubFolder (path.upToFirstOccurrenceOf ("/", false, false));
+            const String remainingPath (path.fromFirstOccurrenceOf ("/", false, false));
 
             for (int i = subFolders.size(); --i >= 0;)
             {
@@ -345,10 +345,10 @@ public:
         for (int i = 0; i < allPlugins.size(); ++i)
         {
             String path (allPlugins.getUnchecked(i)
-                            ->fileOrIdentifier.replaceCharacter (T('\\'), T('/'))
-                                              .upToLastOccurrenceOf (T("/"), false, false));
+                            ->fileOrIdentifier.replaceCharacter ('\\', '/')
+                                              .upToLastOccurrenceOf ("/", false, false));
 
-            if (path.substring (1, 2) == T(":"))
+            if (path.substring (1, 2) == ":")
                 path = path.substring (2);
 
             addPlugin (allPlugins.getUnchecked(i), path);
@@ -369,7 +369,7 @@ public:
 
 #if JUCE_MAC
             // avoid the special AU formatting nonsense on Mac..
-            m.addSubMenu (sub->folder.fromFirstOccurrenceOf (T(":"), false, false), subMenu);
+            m.addSubMenu (sub->folder.fromFirstOccurrenceOf (":", false, false), subMenu);
 #else
             m.addSubMenu (sub->folder, subMenu);
 #endif
@@ -411,7 +411,7 @@ void KnownPluginList::addToMenu (PopupMenu& menu, const SortMethod sortMethod) c
                                                                  : pd->manufacturerName);
 
             if (! thisSubMenuName.containsNonWhitespaceChars())
-                thisSubMenuName = T("Other");
+                thisSubMenuName = "Other";
 
             if (thisSubMenuName != lastSubMenuName)
             {

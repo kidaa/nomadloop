@@ -43,7 +43,7 @@ public:
 
     Token (const String& t,
            const Font& f,
-           const bool isWhitespace_) throw()
+           const bool isWhitespace_)
         : text (t),
           font (f),
           x(0),
@@ -52,7 +52,7 @@ public:
     {
         w = font.getStringWidth (t);
         h = roundToInt (f.getHeight());
-        isNewLine = t.containsAnyOf (T("\r\n"));
+        isNewLine = t.containsChar ('\n') || t.containsChar ('\r');
     }
 
     Token (const Token& other) throw()
@@ -75,7 +75,7 @@ public:
 
     void draw (Graphics& g,
                const int xOffset,
-               const int yOffset) throw()
+               const int yOffset)
     {
         if (! isWhitespace)
         {
@@ -153,7 +153,7 @@ void TextLayout::appendText (const String& text,
             break;
 
         int charType;
-        if (c == T('\r') || c == T('\n'))
+        if (c == '\r' || c == '\n')
         {
             charType = 0;
         }
@@ -176,7 +176,7 @@ void TextLayout::appendText (const String& text,
 
             currentString = String::charToString (c);
 
-            if (c == T('\r') && *t == T('\n'))
+            if (c == '\r' && *t == '\n')
                 currentString += *t++;
         }
         else

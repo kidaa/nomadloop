@@ -245,12 +245,12 @@ private:
 
             for (;;)
             {
-                int tabPos = t.text.indexOfChar (T('\t'));
+                int tabPos = t.text.indexOfChar ('\t');
                 if (tabPos < 0)
                     break;
 
                 const int spacesNeeded = spacesPerTab - ((tabPos + x) % spacesPerTab);
-                t.text = t.text.replaceSection (tabPos, 1, String::repeatedString (T(" "), spacesNeeded));
+                t.text = t.text.replaceSection (tabPos, 1, String::repeatedString (" ", spacesNeeded));
             }
 
             x += t.text.length();
@@ -264,7 +264,7 @@ private:
         int col = 0;
         for (int i = 0; i < index; ++i)
         {
-            if (line[i] != T('\t'))
+            if (line[i] != '\t')
                 ++col;
             else
                 col += spacesPerTab - (col % spacesPerTab);
@@ -632,11 +632,11 @@ void CodeEditorComponent::insertTabAtCaret()
     {
         const int caretCol = indexToColumn (caretPos.getLineNumber(), caretPos.getIndexInLine());
         const int spacesNeeded = spacesPerTab - (caretCol % spacesPerTab);
-        insertTextAtCaret (String::repeatedString (T(" "), spacesNeeded));
+        insertTextAtCaret (String::repeatedString (" ", spacesNeeded));
     }
     else
     {
-        insertTextAtCaret (T("\t"));
+        insertTextAtCaret ("\t");
     }
 }
 
@@ -952,28 +952,28 @@ bool CodeEditorComponent::keyPressed (const KeyPress& key)
     {
         deleteForward (moveInWholeWordSteps);
     }
-    else if (key == KeyPress (T('c'), ModifierKeys::commandModifier, 0))
+    else if (key == KeyPress ('c', ModifierKeys::commandModifier, 0))
     {
         copy();
     }
-    else if (key == KeyPress (T('x'), ModifierKeys::commandModifier, 0))
+    else if (key == KeyPress ('x', ModifierKeys::commandModifier, 0))
     {
         copyThenCut();
     }
-    else if (key == KeyPress (T('v'), ModifierKeys::commandModifier, 0))
+    else if (key == KeyPress ('v', ModifierKeys::commandModifier, 0))
     {
         paste();
     }
-    else if (key == KeyPress (T('z'), ModifierKeys::commandModifier, 0))
+    else if (key == KeyPress ('z', ModifierKeys::commandModifier, 0))
     {
         undo();
     }
-    else if (key == KeyPress (T('y'), ModifierKeys::commandModifier, 0)
-              || key == KeyPress (T('z'), ModifierKeys::commandModifier | ModifierKeys::shiftModifier, 0))
+    else if (key == KeyPress ('y', ModifierKeys::commandModifier, 0)
+              || key == KeyPress ('z', ModifierKeys::commandModifier | ModifierKeys::shiftModifier, 0))
     {
         redo();
     }
-    else if (key == KeyPress (T('a'), ModifierKeys::commandModifier, 0))
+    else if (key == KeyPress ('a', ModifierKeys::commandModifier, 0))
     {
         selectAll();
     }
@@ -1098,7 +1098,7 @@ int CodeEditorComponent::indexToColumn (int lineNum, int index) const throw()
     int col = 0;
     for (int i = 0; i < index; ++i)
     {
-        if (line[i] != T('\t'))
+        if (line[i] != '\t')
             ++col;
         else
             col += getTabSize() - (col % getTabSize());
@@ -1115,7 +1115,7 @@ int CodeEditorComponent::columnToIndex (int lineNum, int column) const throw()
     int i, col = 0;
     for (i = 0; i < lineLength; ++i)
     {
-        if (line[i] != T('\t'))
+        if (line[i] != '\t')
             ++col;
         else
             col += getTabSize() - (col % getTabSize());
@@ -1131,7 +1131,7 @@ int CodeEditorComponent::columnToIndex (int lineNum, int column) const throw()
 void CodeEditorComponent::setFont (const Font& newFont)
 {
     font = newFont;
-    charWidth = font.getStringWidthFloat (T("0"));
+    charWidth = font.getStringWidthFloat ("0");
     lineHeight = roundToInt (font.getHeight());
     resized();
 }

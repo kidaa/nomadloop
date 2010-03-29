@@ -48,7 +48,7 @@
       if (err == noErr)
           return true;
 
-      Logger::writeToLog (T("CoreAudio error: ") + String (lineNum) + T(" - ") + String::toHexString ((int)err));
+      Logger::writeToLog ("CoreAudio error: " + String (lineNum) + " - " + String::toHexString ((int) err));
       jassertfalse
       return false;
   }
@@ -244,7 +244,7 @@ public:
             {
                 bufferSizes.add ((int) ranges[0].mMinimum);
 
-                for (int i = 32; i < 8192; i += 32)
+                for (int i = 32; i < 2048; i += 32)
                 {
                     for (int j = size / (int) sizeof (AudioValueRange); --j >= 0;)
                     {
@@ -288,7 +288,7 @@ public:
                     if (ok)
                     {
                         sampleRates.add (possibleRates[i]);
-                        rates << possibleRates[i] << T(" ");
+                        rates << possibleRates[i] << ' ';
                     }
                 }
             }
@@ -300,7 +300,7 @@ public:
             rates << sampleRate;
         }
 
-        log (T("sr: ") + rates);
+        log ("sr: " + rates);
 
         inputLatency = 0;
         outputLatency = 0;
@@ -318,7 +318,7 @@ public:
         if (AudioObjectGetPropertyData (deviceID, &pa, 0, 0, &size, &lat) == noErr)
             outputLatency = (int) lat;
 
-        log (T("lat: ") + String (inputLatency) + T(" ") + String (outputLatency));
+        log ("lat: " + String (inputLatency) + " " + String (outputLatency));
 
         inChanNames.clear();
         outChanNames.clear();
@@ -421,8 +421,8 @@ public:
     }
 
     //==============================================================================
-    const String reopen (const BitArray& inputChannels,
-                         const BitArray& outputChannels,
+    const String reopen (const BigInteger& inputChannels,
+                         const BigInteger& outputChannels,
                          double newSampleRate,
                          int bufferSizeSamples)
     {
@@ -761,7 +761,7 @@ public:
     juce_UseDebuggingNewOperator
 
     int inputLatency, outputLatency;
-    BitArray activeInputChans, activeOutputChans;
+    BigInteger activeInputChans, activeOutputChans;
     StringArray inChanNames, outChanNames;
     Array <double> sampleRates;
     Array <int> bufferSizes;
@@ -960,8 +960,8 @@ public:
         return 512;
     }
 
-    const String open (const BitArray& inputChannels,
-                       const BitArray& outputChannels,
+    const String open (const BigInteger& inputChannels,
+                       const BigInteger& outputChannels,
                        double sampleRate,
                        int bufferSizeSamples)
     {
@@ -1001,21 +1001,21 @@ public:
         return 32;  // no way to find out, so just assume it's high..
     }
 
-    const BitArray getActiveOutputChannels() const
+    const BigInteger getActiveOutputChannels() const
     {
-        return internal != 0 ? internal->activeOutputChans : BitArray();
+        return internal != 0 ? internal->activeOutputChans : BigInteger();
     }
 
-    const BitArray getActiveInputChannels() const
+    const BigInteger getActiveInputChannels() const
     {
-        BitArray chans;
+        BigInteger chans;
 
         if (internal != 0)
         {
             chans = internal->activeInputChans;
 
             if (internal->inputDevice != 0)
-                chans.orWith (internal->inputDevice->activeInputChans);
+                chans |= internal->inputDevice->activeInputChans;
         }
 
         return chans;
@@ -1117,7 +1117,7 @@ class CoreAudioIODeviceType  : public AudioIODeviceType
 public:
     //==============================================================================
     CoreAudioIODeviceType()
-        : AudioIODeviceType (T("CoreAudio")),
+        : AudioIODeviceType ("CoreAudio"),
           hasScanned (false)
     {
     }
@@ -1163,7 +1163,7 @@ public:
                         const String nameString (String::fromUTF8 (name, (int) strlen (name)));
 
                         if (! alreadyLogged)
-                            log (T("CoreAudio device: ") + nameString);
+                            log ("CoreAudio device: " + nameString);
 
                         const int numIns = getNumChannels (devs[i], true);
                         const int numOuts = getNumChannels (devs[i], false);
@@ -1190,7 +1190,7 @@ public:
         outputDeviceNames.appendNumbersToDuplicates (false, true);
     }
 
-    const StringArray getDeviceNames (const bool wantInputNames) const
+    const StringArray getDeviceNames (bool wantInputNames) const
     {
         jassert (hasScanned); // need to call scanForDevices() before doing this
 
@@ -1200,7 +1200,7 @@ public:
             return outputDeviceNames;
     }
 
-    int getDefaultDeviceIndex (const bool forInput) const
+    int getDefaultDeviceIndex (bool forInput) const
     {
         jassert (hasScanned); // need to call scanForDevices() before doing this
 
@@ -1234,7 +1234,7 @@ public:
         return 0;
     }
 
-    int getIndexOfDevice (AudioIODevice* device, const bool asInput) const
+    int getIndexOfDevice (AudioIODevice* device, bool asInput) const
     {
         jassert (hasScanned); // need to call scanForDevices() before doing this
 

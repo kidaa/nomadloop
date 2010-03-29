@@ -68,7 +68,7 @@ BEGIN_JUCE_NAMESPACE
 static int insideCallback = 0;
 
 //==============================================================================
-static const String osTypeToString (OSType type) throw()
+static const String osTypeToString (OSType type)
 {
     char s[4];
     s[0] = (char) (((uint32) type) >> 24);
@@ -78,7 +78,7 @@ static const String osTypeToString (OSType type) throw()
     return String (s, 4);
 }
 
-static OSType stringToOSType (const String& s1) throw()
+static OSType stringToOSType (const String& s1)
 {
     const String s (s1 + "    ");
 
@@ -88,11 +88,11 @@ static OSType stringToOSType (const String& s1) throw()
          | ((OSType) (unsigned char) s[3]);
 }
 
-static const tchar* auIdentifierPrefix = T("AudioUnit:");
+static const char* auIdentifierPrefix = "AudioUnit:";
 
 static const String createAUPluginIdentifier (const ComponentDescription& desc)
 {
-    jassert (osTypeToString ('abcd') == T("abcd")); // agh, must have got the endianness wrong..
+    jassert (osTypeToString ('abcd') == "abcd"); // agh, must have got the endianness wrong..
     jassert (stringToOSType ("abcd") == (OSType) 'abcd'); // ditto
 
     String s (auIdentifierPrefix);
@@ -107,10 +107,8 @@ static const String createAUPluginIdentifier (const ComponentDescription& desc)
     else if (desc.componentType == kAudioUnitType_Panner)
         s << "Panners/";
 
-    s << osTypeToString (desc.componentType)
-      << T(",")
-      << osTypeToString (desc.componentSubType)
-      << T(",")
+    s << osTypeToString (desc.componentType) << ","
+      << osTypeToString (desc.componentSubType) << ","
       << osTypeToString (desc.componentManufacturer);
 
     return s;
@@ -133,16 +131,15 @@ static void getAUDetails (ComponentRecord* comp, String& name, String& manufactu
             if (nameString != 0 && nameString[0] != 0)
             {
                 const String all ((const char*) nameString + 1, nameString[0]);
-DBG ("name: "+ all);
+                DBG ("name: "+ all);
 
-                manufacturer = all.upToFirstOccurrenceOf (T(":"), false, false).trim();
-                name = all.fromFirstOccurrenceOf (T(":"), false, false).trim();
+                manufacturer = all.upToFirstOccurrenceOf (":", false, false).trim();
+                name = all.fromFirstOccurrenceOf (":", false, false).trim();
             }
 
             if (infoString != 0 && infoString[0] != 0)
             {
-                const String all ((const char*) infoString + 1, infoString[0]);
-DBG ("info: " + all);
+                DBG ("info: " + String ((const char*) infoString + 1, infoString[0]));
             }
 
             if (name.isEmpty())
@@ -161,11 +158,11 @@ static bool getComponentDescFromIdentifier (const String& fileOrIdentifier, Comp
 
     if (fileOrIdentifier.startsWithIgnoreCase (auIdentifierPrefix))
     {
-        String s (fileOrIdentifier.substring (jmax (fileOrIdentifier.lastIndexOfChar (T(':')),
-                                                    fileOrIdentifier.lastIndexOfChar (T('/'))) + 1));
+        String s (fileOrIdentifier.substring (jmax (fileOrIdentifier.lastIndexOfChar (':'),
+                                                    fileOrIdentifier.lastIndexOfChar ('/')) + 1));
 
         StringArray tokens;
-        tokens.addTokens (s, T(","), 0);
+        tokens.addTokens (s, ",", String::empty);
         tokens.trim();
         tokens.removeEmptyStrings();
 
@@ -381,7 +378,7 @@ AudioUnitPluginInstance::AudioUnitPluginInstance (const String& fileOrIdentifier
     {
         ++insideCallback;
 
-        log (T("Opening AU: ") + fileOrIdentifier);
+        log ("Opening AU: " + fileOrIdentifier);
 
         if (getComponentDescFromFile (fileOrIdentifier))
         {
@@ -406,17 +403,15 @@ AudioUnitPluginInstance::AudioUnitPluginInstance (const String& fileOrIdentifier
 
 AudioUnitPluginInstance::~AudioUnitPluginInstance()
 {
+    const ScopedLock sl (lock);
+
+    jassert (insideCallback == 0);
+
+    if (audioUnit != 0)
     {
-        const ScopedLock sl (lock);
-
-        jassert (insideCallback == 0);
-
-        if (audioUnit != 0)
-        {
-            AudioUnitUninitialize (audioUnit);
-            CloseComponent (audioUnit);
-            audioUnit = 0;
-        }
+        AudioUnitUninitialize (audioUnit);
+        CloseComponent (audioUnit);
+        audioUnit = 0;
     }
 }
 
@@ -428,7 +423,7 @@ bool AudioUnitPluginInstance::getComponentDescFromFile (const String& fileOrIden
         return true;
 
     const File file (fileOrIdentifier);
-    if (! file.hasFileExtension (T(".component")))
+    if (! file.hasFileExtension (".component"))
         return false;
 
     const char* const utf8 = fileOrIdentifier.toUTF8();
@@ -502,7 +497,7 @@ void AudioUnitPluginInstance::initialise()
     if (initialised || audioUnit == 0)
         return;
 
-    log (T("Initialising AU: ") + pluginName);
+    log ("Initialising AU: " + pluginName);
 
     parameterIds.clear();
 
@@ -967,8 +962,7 @@ public:
 
     ~AudioUnitPluginWindowCarbon()
     {
-        deleteAndZero (innerWrapper);
-
+        innerWrapper = 0;
         activeWindows.removeValue (this);
 
         if (isValid())
@@ -989,7 +983,7 @@ public:
     }
 
     //==============================================================================
-    bool keyStateChanged (const bool)
+    bool keyStateChanged (bool)
     {
         return false;
     }
@@ -1050,7 +1044,7 @@ private:
 
         HIViewRef attachView (WindowRef windowRef, HIViewRef rootView)
         {
-            log (T("Opening AU GUI: ") + owner->plugin.getName());
+            log ("Opening AU GUI: " + owner->plugin.getName());
 
             AudioUnitCarbonView viewComponent = owner->getViewComponent();
 
@@ -1075,7 +1069,7 @@ private:
 
         void removeView (HIViewRef)
         {
-            log (T("Closing AU GUI: ") + owner->plugin.getName());
+            log ("Closing AU GUI: " + owner->plugin.getName());
 
             owner->closeViewComponent();
         }
@@ -1085,7 +1079,7 @@ private:
     };
 
     friend class InnerWrapperComponent;
-    InnerWrapperComponent* innerWrapper;
+    ScopedPointer<InnerWrapperComponent> innerWrapper;
 };
 
 #endif
@@ -1093,9 +1087,9 @@ private:
 //==============================================================================
 AudioProcessorEditor* AudioUnitPluginInstance::createEditor()
 {
-    ScopedPointer <AudioProcessorEditor> w (new AudioUnitPluginWindowCocoa (*this, false));
+    ScopedPointer<AudioProcessorEditor> w (new AudioUnitPluginWindowCocoa (*this, false));
 
-    if (! static_cast <AudioUnitPluginWindowCocoa*> (static_cast <AudioProcessorEditor> (w))->isValid())
+    if (! static_cast <AudioUnitPluginWindowCocoa*> (static_cast <AudioProcessorEditor*> (w))->isValid())
         w = 0;
 
 #if JUCE_SUPPORT_CARBON
@@ -1103,7 +1097,7 @@ AudioProcessorEditor* AudioUnitPluginInstance::createEditor()
     {
         w = new AudioUnitPluginWindowCarbon (*this);
 
-        if (! static_cast <AudioUnitPluginWindowCocoa*> (static_cast <AudioProcessorEditor> (w))->isValid())
+        if (! static_cast <AudioUnitPluginWindowCarbon*> (static_cast <AudioProcessorEditor*> (w))->isValid())
             w = 0;
     }
 #endif
@@ -1303,7 +1297,7 @@ void AudioUnitPluginInstance::changeProgramName (int index, const String& newNam
 const String AudioUnitPluginInstance::getInputChannelName (const int index) const
 {
     if (((unsigned int) index) < (unsigned int) getNumInputChannels())
-        return T("Input ") + String (index + 1);
+        return "Input " + String (index + 1);
 
     return String::empty;
 }
@@ -1320,7 +1314,7 @@ bool AudioUnitPluginInstance::isInputChannelStereoPair (int index) const
 const String AudioUnitPluginInstance::getOutputChannelName (const int index) const
 {
     if (((unsigned int) index) < (unsigned int) getNumOutputChannels())
-        return T("Output ") + String (index + 1);
+        return "Output " + String (index + 1);
 
     return String::empty;
 }
@@ -1491,7 +1485,7 @@ bool AudioUnitPluginFormat::fileMightContainThisPluginType (const String& fileOr
 
     const File f (fileOrIdentifier);
 
-    return f.hasFileExtension (T(".component"))
+    return f.hasFileExtension (".component")
              && f.isDirectory();
 }
 

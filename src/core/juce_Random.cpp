@@ -86,28 +86,28 @@ bool Random::nextBool() throw()
 
 float Random::nextFloat() throw()
 {
-    return ((uint32) nextInt()) / (float) 0xffffffff;
+    return static_cast <uint32> (nextInt()) / (float) 0xffffffff;
 }
 
 double Random::nextDouble() throw()
 {
-    return ((uint32) nextInt()) / (double) 0xffffffff;
+    return static_cast <uint32> (nextInt()) / (double) 0xffffffff;
 }
 
-const BitArray Random::nextLargeNumber (const BitArray& maximumValue) throw()
+const BigInteger Random::nextLargeNumber (const BigInteger& maximumValue)
 {
-    BitArray n;
+    BigInteger n;
 
     do
     {
         fillBitsRandomly (n, 0, maximumValue.getHighestBit() + 1);
     }
-    while (n.compare (maximumValue) >= 0);
+    while (n >= maximumValue);
 
     return n;
 }
 
-void Random::fillBitsRandomly (BitArray& arrayToChange, int startBit, int numBits) throw()
+void Random::fillBitsRandomly (BigInteger& arrayToChange, int startBit, int numBits)
 {
     arrayToChange.setBit (startBit + numBits - 1, true);  // to force the array to pre-allocate space
 

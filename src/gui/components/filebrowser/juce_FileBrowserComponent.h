@@ -160,13 +160,13 @@ public:
 
         @see removeListener
     */
-    void addListener (FileBrowserListener* const listener) throw();
+    void addListener (FileBrowserListener* listener) throw();
 
     /** Removes a listener.
 
         @see addListener
     */
-    void removeListener (FileBrowserListener* const listener) throw();
+    void removeListener (FileBrowserListener* listener) throw();
 
 
     //==============================================================================
@@ -203,7 +203,7 @@ public:
     juce_UseDebuggingNewOperator
 
 protected:
-    virtual const BitArray getRoots (StringArray& rootNames, StringArray& rootPaths);
+    virtual const BigInteger getRoots (StringArray& rootNames, StringArray& rootPaths);
 
 private:
     //==============================================================================

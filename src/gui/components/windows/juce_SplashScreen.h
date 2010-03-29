@@ -47,7 +47,7 @@
     {
         SplashScreen* splash = new SplashScreen();
 
-        splash->show (T("welcome to my app"),
+        splash->show ("welcome to my app",
                       ImageCache::getFromFile (File ("/foobar/splash.jpg")),
                       4000, false);
 
@@ -97,10 +97,10 @@ public:
                                 the mouse (anywhere)
     */
     void show (const String& title,
-               Image* const backgroundImage,
-               const int minimumTimeToDisplayFor,
-               const bool useDropShadow,
-               const bool removeOnMouseClick = true);
+               Image* backgroundImage,
+               int minimumTimeToDisplayFor,
+               bool useDropShadow,
+               bool removeOnMouseClick = true);
 
     /** Creates a SplashScreen object with a specified size.
 
@@ -125,11 +125,11 @@ public:
                                 the mouse (anywhere)
     */
     void show (const String& title,
-               const int width,
-               const int height,
-               const int minimumTimeToDisplayFor,
-               const bool useDropShadow,
-               const bool removeOnMouseClick = true);
+               int width,
+               int height,
+               int minimumTimeToDisplayFor,
+               bool useDropShadow,
+               bool removeOnMouseClick = true);
 
     //==============================================================================
     /** @internal */

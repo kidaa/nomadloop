@@ -72,6 +72,9 @@ namespace OggVorbisNamespace
 #endif
 }
 
+#undef max
+#undef min
+
 BEGIN_JUCE_NAMESPACE
 
 #include "juce_OggVorbisAudioFormat.h"
@@ -80,18 +83,15 @@ BEGIN_JUCE_NAMESPACE
 #include "../../io/files/juce_FileInputStream.h"
 #include "../../text/juce_LocalisedStrings.h"
 
-using namespace OggVorbisNamespace;
-
 //==============================================================================
 static const char* const oggFormatName = "Ogg-Vorbis file";
-static const tchar* const oggExtensions[] =    { T(".ogg"), 0 };
-
+static const juce_wchar* const oggExtensions[] = { T(".ogg"), 0 };
 
 //==============================================================================
 class OggReader : public AudioFormatReader
 {
-    OggVorbis_File ovFile;
-    ov_callbacks callbacks;
+    OggVorbisNamespace::OggVorbis_File ovFile;
+    OggVorbisNamespace::ov_callbacks callbacks;
     AudioSampleBuffer reservoir;
     int reservoirStart, samplesInReservoir;
 
@@ -103,6 +103,7 @@ public:
           reservoirStart (0),
           samplesInReservoir (0)
     {
+        using namespace OggVorbisNamespace;
         sampleRate = 0;
         usesFloatingPointData = true;
 
@@ -128,7 +129,7 @@ public:
 
     ~OggReader()
     {
-        ov_clear (&ovFile);
+        OggVorbisNamespace::ov_clear (&ovFile);
     }
 
     //==============================================================================
@@ -168,8 +169,8 @@ public:
                 reservoirStart = jmax (0, (int) startSampleInFile);
                 samplesInReservoir = reservoir.getNumSamples();
 
-                if (reservoirStart != (int) ov_pcm_tell (&ovFile))
-                    ov_pcm_seek (&ovFile, reservoirStart);
+                if (reservoirStart != (int) OggVorbisNamespace::ov_pcm_tell (&ovFile))
+                    OggVorbisNamespace::ov_pcm_seek (&ovFile, reservoirStart);
 
                 int offset = 0;
                 int numToRead = samplesInReservoir;
@@ -178,7 +179,7 @@ public:
                 {
                     float** dataIn = 0;
 
-                    const int samps = ov_read_float (&ovFile, &dataIn, numToRead, &bitStream);
+                    const int samps = OggVorbisNamespace::ov_read_float (&ovFile, &dataIn, numToRead, &bitStream);
                     if (samps <= 0)
                         break;
 
@@ -217,7 +218,7 @@ public:
         return (size_t) (((InputStream*) datasource)->read (ptr, (int) (size * nmemb)) / size);
     }
 
-    static int oggSeekCallback (void* datasource, ogg_int64_t offset, int whence)
+    static int oggSeekCallback (void* datasource, OggVorbisNamespace::ogg_int64_t offset, int whence)
     {
         InputStream* const in = (InputStream*) datasource;
 
@@ -246,13 +247,13 @@ public:
 //==============================================================================
 class OggWriter  : public AudioFormatWriter
 {
-    ogg_stream_state os;
-    ogg_page og;
-    ogg_packet op;
-    vorbis_info vi;
-    vorbis_comment vc;
-    vorbis_dsp_state vd;
-    vorbis_block vb;
+    OggVorbisNamespace::ogg_stream_state os;
+    OggVorbisNamespace::ogg_page og;
+    OggVorbisNamespace::ogg_packet op;
+    OggVorbisNamespace::vorbis_info vi;
+    OggVorbisNamespace::vorbis_comment vc;
+    OggVorbisNamespace::vorbis_dsp_state vd;
+    OggVorbisNamespace::vorbis_block vb;
 
 public:
     bool ok;
@@ -268,6 +269,7 @@ public:
                              numChannels,
                              bitsPerSample)
     {
+        using namespace OggVorbisNamespace;
         ok = false;
 
         vorbis_info_init (&vi);
@@ -312,6 +314,7 @@ public:
 
     ~OggWriter()
     {
+        using namespace OggVorbisNamespace;
         if (ok)
         {
             // write a zero-length packet to show ogg that we're finished..
@@ -336,6 +339,7 @@ public:
     //==============================================================================
     bool write (const int** samplesToWrite, int numSamples)
     {
+        using namespace OggVorbisNamespace;
         if (! ok)
             return false;
 
@@ -391,7 +395,7 @@ public:
 
 //==============================================================================
 OggVorbisAudioFormat::OggVorbisAudioFormat()
-    : AudioFormat (TRANS (oggFormatName), (const tchar**) oggExtensions)
+    : AudioFormat (TRANS (oggFormatName), (const juce_wchar**) oggExtensions)
 {
 }
 

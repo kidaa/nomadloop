@@ -335,8 +335,8 @@ bool KeyPress::isKeyCurrentlyDown (const int keyCode) throw()
     SHORT k = (SHORT) keyCode;
 
     if ((keyCode & extendedKeyModifier) == 0
-         && (k >= (SHORT) T('a') && k <= (SHORT) T('z')))
-        k += (SHORT) T('A') - (SHORT) T('a');
+         && (k >= (SHORT) 'a' && k <= (SHORT) 'z'))
+        k += (SHORT) 'A' - (SHORT) 'a';
 
     const SHORT translatedValues[] = { (SHORT) ',', VK_OEM_COMMA,
                                        (SHORT) '+', VK_OEM_PLUS,
@@ -483,7 +483,7 @@ public:
         repaintNowIfTransparent();
     }
 
-    void setBounds (int x, int y, int w, int h, const bool isNowFullScreen)
+    void setBounds (int x, int y, int w, int h, bool isNowFullScreen)
     {
         fullScreen = isNowFullScreen;
         offsetWithinParent (x, y);

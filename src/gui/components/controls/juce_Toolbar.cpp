@@ -420,10 +420,10 @@ void Toolbar::setStyle (const ToolbarItemStyle& newStyle)
 
 const String Toolbar::toString() const
 {
-    String s (T("TB:"));
+    String s ("TB:");
 
     for (int i = 0; i < getNumItems(); ++i)
-        s << getItemId(i) << T(' ');
+        s << getItemId(i) << ' ';
 
     return s.trimEnd();
 }
@@ -431,7 +431,7 @@ const String Toolbar::toString() const
 bool Toolbar::restoreFromString (ToolbarItemFactory& factoryToUse,
                                  const String& savedVersion)
 {
-    if (! savedVersion.startsWith (T("TB:")))
+    if (! savedVersion.startsWith ("TB:"))
         return false;
 
     StringArray tokens;

@@ -47,7 +47,7 @@
     you do this, the array doesn't take any ownership of the objects - see the OwnedArray class or the
     ReferenceCountedArray class for more powerful ways of holding lists of objects.
 
-    For holding lists of strings, you can use Array <String>, but it's usually better to use the
+    For holding lists of strings, you can use Array\<String\>, but it's usually better to use the
     specialised class StringArray, which provides more useful functions.
 
     To make all the array's methods thread-safe, pass in "CriticalSection" as the templated
@@ -288,7 +288,7 @@ public:
         while (e != end)
         {
             if (elementToLookFor == *e)
-                return (int) (e - data.elements.getData());
+                return static_cast <int> (e - data.elements.getData());
 
             ++e;
         }
@@ -683,7 +683,7 @@ public:
         {
             if (valueToRemove == *e)
             {
-                remove ((int) (e - data.elements.getData()));
+                remove (static_cast <int> (e - data.elements.getData()));
                 break;
             }
 
@@ -711,7 +711,7 @@ public:
 
         if (endIndex > startIndex)
         {
-            ElementType* e = data.elements + startIndex;
+            ElementType* const e = data.elements + startIndex;
 
             numberToRemove = endIndex - startIndex;
             for (int i = 0; i < numberToRemove; ++i)

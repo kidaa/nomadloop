@@ -60,14 +60,14 @@ DirectoryIterator::DirectoryIterator (const File& directory,
     bool isDirectory, isHidden;
 
     void* const handle = juce_findFileStart (path,
-                                             isRecursive ? T("*") : wc,
+                                             isRecursive ? "*" : wc,
                                              filename, &isDirectory, &isHidden, 0, 0, 0, 0);
 
     if (handle != 0)
     {
         do
         {
-            if (! filename.containsOnly (T(".")))
+            if (! filename.containsOnly ("."))
             {
                 bool addToList = false;
 

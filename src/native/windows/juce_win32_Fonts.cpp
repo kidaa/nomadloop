@@ -38,7 +38,7 @@ static int CALLBACK wfontEnum2 (ENUMLOGFONTEXW* lpelfe,
     {
         const String fontName (lpelfe->elfLogFont.lfFaceName);
 
-        ((StringArray*) lParam)->addIfNotAlreadyThere (fontName.removeCharacters (T("@")));
+        ((StringArray*) lParam)->addIfNotAlreadyThere (fontName.removeCharacters ("@"));
     }
 
     return 1;
@@ -74,7 +74,7 @@ static int CALLBACK wfontEnum1 (ENUMLOGFONTEXW* lpelfe,
     return 1;
 }
 
-const StringArray Font::findAllTypefaceNames() throw()
+const StringArray Font::findAllTypefaceNames()
 {
     StringArray results;
     HDC dc = CreateCompatibleDC (0);
@@ -104,7 +104,7 @@ const StringArray Font::findAllTypefaceNames() throw()
 
 extern bool juce_IsRunningInWine();
 
-void Font::getPlatformDefaultFontNames (String& defaultSans, String& defaultSerif, String& defaultFixed) throw()
+void Font::getPlatformDefaultFontNames (String& defaultSans, String& defaultSerif, String& defaultFixed)
 {
     if (juce_IsRunningInWine())
     {
@@ -268,7 +268,7 @@ public:
                             tm.tmDefaultChar);
     }
 
-    bool loadGlyphIfPossible (const juce_wchar character)
+    bool loadGlyphIfPossible (juce_wchar character)
     {
         HDC dc = FontDCHolder::getInstance()->loadFont (name, isBold, isItalic, 0);
 

@@ -33,7 +33,7 @@
 */
 #define JUCE_MAJOR_VERSION      1
 #define JUCE_MINOR_VERSION      51
-#define JUCE_BUILDNUMBER        10
+#define JUCE_BUILDNUMBER        12
 
 /** Current Juce version number.
 
@@ -95,6 +95,14 @@
 
 #if JUCE_LINUX
   #include <signal.h>
+
+  #if __INTEL_COMPILER
+    #if __ia64__
+      #include <ia64intrin.h>
+    #else
+      #include <ia32intrin.h>
+    #endif
+  #endif
 #endif
 
 #if JUCE_MSVC && JUCE_DEBUG

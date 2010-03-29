@@ -73,6 +73,9 @@ public:
 private:
     AudioDeviceManager* const manager;
     float level;
+
+    SimpleDeviceManagerInputLevelMeter (const SimpleDeviceManagerInputLevelMeter&);
+    SimpleDeviceManagerInputLevelMeter& operator= (const SimpleDeviceManagerInputLevelMeter&);
 };
 
 
@@ -398,7 +401,7 @@ public:
         if (error.isNotEmpty())
         {
             AlertWindow::showMessageBox (AlertWindow::WarningIcon,
-                                         T("Error when trying to open audio device!"),
+                                         "Error when trying to open audio device!",
                                          error);
         }
     }
@@ -556,7 +559,7 @@ public:
                 for (int i = 0; i < numRates; ++i)
                 {
                     const int rate = roundToInt (currentDevice->getSampleRate (i));
-                    sampleRateDropDown->addItem (String (rate) + T(" Hz"), rate);
+                    sampleRateDropDown->addItem (String (rate) + " Hz", rate);
                 }
 
                 sampleRateDropDown->setSelectedId (roundToInt (currentDevice->getCurrentSampleRate()), true);
@@ -588,9 +591,9 @@ public:
                 {
                     const int bs = currentDevice->getBufferSizeSamples (i);
                     bufferSizeDropDown->addItem (String (bs)
-                                                  + T(" samples (")
+                                                  + " samples ("
                                                   + String (bs * 1000.0 / currentRate, 1)
-                                                  + T(" ms)"),
+                                                  + " ms)",
                                                  bs);
                 }
 
@@ -853,9 +856,9 @@ public:
 
                 if (setup.useStereoPairs)
                 {
-                    BitArray bits;
-                    BitArray& original = (type == audioInputType ? config.inputChannels
-                                                                 : config.outputChannels);
+                    BigInteger bits;
+                    BigInteger& original = (type == audioInputType ? config.inputChannels
+                                                                   : config.outputChannels);
 
                     int i;
                     for (i = 0; i < 256; i += 2)
@@ -898,7 +901,7 @@ public:
             }
         }
 
-        static void flipBit (BitArray& chans, int index, int minNumber, int maxNumber)
+        static void flipBit (BigInteger& chans, int index, int minNumber, int maxNumber)
         {
             const int numActive = chans.countNumberOfSetBits();
 

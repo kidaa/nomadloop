@@ -331,7 +331,7 @@ bool KeyMappingEditorComponent::mightContainSubItems()
 
 const String KeyMappingEditorComponent::getUniqueName() const
 {
-    return T("keys");
+    return "keys";
 }
 
 void KeyMappingEditorComponent::setColours (const Colour& mainBackground,
@@ -449,7 +449,7 @@ public:
         return true;
     }
 
-    bool keyStateChanged (const bool)
+    bool keyStateChanged (bool)
     {
         return true;
     }

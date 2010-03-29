@@ -101,7 +101,7 @@ FileBrowserComponent::FileBrowserComponent (int flags_,
     currentPathBox->setEditableText (true);
 
     StringArray rootNames, rootPaths;
-    const BitArray separators (getRoots (rootNames, rootPaths));
+    const BigInteger separators (getRoots (rootNames, rootPaths));
 
     for (int i = 0; i < rootNames.size(); ++i)
     {
@@ -333,7 +333,7 @@ void FileBrowserComponent::selectionChanged()
     }
 
     if (newFilenames.size() > 0)
-        filenameBox->setText (newFilenames.joinIntoString (T(", ")), false);
+        filenameBox->setText (newFilenames.joinIntoString (", "), false);
 
     sendListenerChangeMessage();
 }
@@ -457,9 +457,9 @@ void FileBrowserComponent::comboBoxChanged (ComboBox*)
     }
 }
 
-const BitArray FileBrowserComponent::getRoots (StringArray& rootNames, StringArray& rootPaths)
+const BigInteger FileBrowserComponent::getRoots (StringArray& rootNames, StringArray& rootPaths)
 {
-    BitArray separators;
+    BigInteger separators;
 
 #if JUCE_WINDOWS
     Array<File> roots;
@@ -516,7 +516,7 @@ const BitArray FileBrowserComponent::getRoots (StringArray& rootNames, StringArr
     {
         const File& volume = volumes.getReference(i);
 
-        if (volume.isDirectory() && ! volume.getFileName().startsWithChar (T('.')))
+        if (volume.isDirectory() && ! volume.getFileName().startsWithChar ('.'))
         {
             rootPaths.add (volume.getFullPathName());
             rootNames.add (volume.getFileName());

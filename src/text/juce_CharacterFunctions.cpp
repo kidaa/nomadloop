@@ -174,6 +174,29 @@ int CharacterFunctions::compareIgnoreCase (const juce_wchar* s1, const juce_wcha
 #endif
 }
 
+int CharacterFunctions::compareIgnoreCase (const juce_wchar* s1, const char* s2) throw()
+{
+    jassert (s1 != 0 && s2 != 0);
+
+    for (;;)
+    {
+        if (*s1 != *s2)
+        {
+            const int diff = toUpperCase (*s1) - toUpperCase (*s2);
+
+            if (diff != 0)
+                return diff < 0 ? -1 : 1;
+        }
+        else if (*s1 == 0)
+            break;
+
+        ++s1;
+        ++s2;
+    }
+
+    return 0;
+}
+
 int CharacterFunctions::compareIgnoreCase (const char* const s1, const char* const s2, const int maxChars) throw()
 {
     jassert (s1 != 0 && s2 != 0);
@@ -380,7 +403,7 @@ int CharacterFunctions::getIntValue (const juce_wchar* s) throw()
     while (isWhitespace (*s))
         ++s;
 
-    const bool isNeg = *s == T('-');
+    const bool isNeg = *s == '-';
     if (isNeg)
         ++s;
 
@@ -388,8 +411,8 @@ int CharacterFunctions::getIntValue (const juce_wchar* s) throw()
     {
         const wchar_t c = *s++;
 
-        if (c >= T('0') && c <= T('9'))
-            v = v * 10 + (int) (c - T('0'));
+        if (c >= '0' && c <= '9')
+            v = v * 10 + (int) (c - '0');
         else
             break;
     }
@@ -410,7 +433,7 @@ int64 CharacterFunctions::getInt64Value (const char* s) throw()
     while (isWhitespace (*s))
         ++s;
 
-    const bool isNeg = *s == T('-');
+    const bool isNeg = *s == '-';
     if (isNeg)
         ++s;
 
@@ -438,7 +461,7 @@ int64 CharacterFunctions::getInt64Value (const juce_wchar* s) throw()
     while (isWhitespace (*s))
         ++s;
 
-    const bool isNeg = *s == T('-');
+    const bool isNeg = *s == '-';
     if (isNeg)
         ++s;
 
@@ -446,8 +469,8 @@ int64 CharacterFunctions::getInt64Value (const juce_wchar* s) throw()
     {
         const juce_wchar c = *s++;
 
-        if (c >= T('0') && c <= T('9'))
-            v = v * 10 + (int64) (c - T('0'));
+        if (c >= '0' && c <= '9')
+            v = v * 10 + (int64) (c - '0');
         else
             break;
     }
@@ -718,7 +741,7 @@ bool CharacterFunctions::isLowerCase (const juce_wchar character) throw()
 //==============================================================================
 bool CharacterFunctions::isWhitespace (const char character) throw()
 {
-    return character == T(' ') || (character <= 13 && character >= 9);
+    return character == ' ' || (character <= 13 && character >= 9);
 }
 
 bool CharacterFunctions::isWhitespace (const juce_wchar character) throw()

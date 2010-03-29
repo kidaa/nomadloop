@@ -43,8 +43,7 @@ XmlElement::XmlAttributeNode::XmlAttributeNode (const XmlAttributeNode& other) t
 {
 }
 
-XmlElement::XmlAttributeNode::XmlAttributeNode (const String& name_,
-                                                const String& value_) throw()
+XmlElement::XmlAttributeNode::XmlAttributeNode (const String& name_, const String& value_) throw()
     : name (name_),
       value (value_),
       next (0)
@@ -62,7 +61,7 @@ XmlElement::XmlElement (const String& tagName_) throw()
     jassert (tagName_.containsNonWhitespaceChars())
 
     // The tag can't contain spaces or other characters that would create invalid XML!
-    jassert (! tagName_.containsAnyOf (T(" <>/&")));
+    jassert (! tagName_.containsAnyOf (" <>/&"));
 }
 
 XmlElement::XmlElement (int /*dummy*/) throw()
@@ -246,7 +245,7 @@ namespace XmlOutputFunctions
         }
     }
 
-    static void writeSpaces (OutputStream& out, int numSpaces) throw()
+    static void writeSpaces (OutputStream& out, int numSpaces)
     {
         if (numSpaces > 0)
         {
@@ -266,7 +265,7 @@ namespace XmlOutputFunctions
 
 void XmlElement::writeElementAsText (OutputStream& outputStream,
                                      const int indentationLevel,
-                                     const int lineWrapLength) const throw()
+                                     const int lineWrapLength) const
 {
     using namespace XmlOutputFunctions;
     writeSpaces (outputStream, indentationLevel);
@@ -386,12 +385,12 @@ const String XmlElement::createDocument (const String& dtdToUse,
                                          const bool allOnOneLine,
                                          const bool includeXmlHeader,
                                          const String& encodingType,
-                                         const int lineWrapLength) const throw()
+                                         const int lineWrapLength) const
 {
     MemoryOutputStream mem (2048, 4096);
     writeToStream (mem, dtdToUse, allOnOneLine, includeXmlHeader, encodingType, lineWrapLength);
 
-    return String (mem.getData(), mem.getDataSize());
+    return mem.toUTF8();
 }
 
 void XmlElement::writeToStream (OutputStream& output,
@@ -399,27 +398,14 @@ void XmlElement::writeToStream (OutputStream& output,
                                 const bool allOnOneLine,
                                 const bool includeXmlHeader,
                                 const String& encodingType,
-                                const int lineWrapLength) const throw()
+                                const int lineWrapLength) const
 {
     if (includeXmlHeader)
-    {
-        output << "<?xml version=\"1.0\" encoding=\"" << encodingType;
-
-        if (allOnOneLine)
-            output << "\"?> ";
-        else
-            output << "\"?>\r\n\r\n";
-    }
+        output << "<?xml version=\"1.0\" encoding=\"" << encodingType
+               << (allOnOneLine ? "\"?> " : "\"?>\r\n\r\n");
 
     if (dtdToUse.isNotEmpty())
-    {
-        output << dtdToUse;
-
-        if (allOnOneLine)
-            output << " ";
-        else
-            output << "\r\n";
-    }
+        output << dtdToUse << (allOnOneLine ? " " : "\r\n");
 
     writeElementAsText (output, allOnOneLine ? -1 : 0, lineWrapLength);
 }
@@ -427,7 +413,7 @@ void XmlElement::writeToStream (OutputStream& output,
 bool XmlElement::writeToFile (const File& file,
                               const String& dtdToUse,
                               const String& encodingType,
-                              const int lineWrapLength) const throw()
+                              const int lineWrapLength) const
 {
     if (file.hasWriteAccess())
     {
@@ -542,8 +528,22 @@ bool XmlElement::hasAttribute (const String& attributeName) const throw()
 }
 
 //==============================================================================
-const String XmlElement::getStringAttribute (const String& attributeName,
-                                             const String& defaultReturnValue) const throw()
+const String& XmlElement::getStringAttribute (const String& attributeName) const throw()
+{
+    const XmlAttributeNode* att = attributes;
+
+    while (att != 0)
+    {
+        if (att->name.equalsIgnoreCase (attributeName))
+            return att->value;
+
+        att = att->next;
+    }
+
+    return String::empty;
+}
+
+const String XmlElement::getStringAttribute (const String& attributeName, const String& defaultReturnValue) const
 {
     const XmlAttributeNode* att = attributes;
 
@@ -558,8 +558,7 @@ const String XmlElement::getStringAttribute (const String& attributeName,
     return defaultReturnValue;
 }
 
-int XmlElement::getIntAttribute (const String& attributeName,
-                                 const int defaultReturnValue) const throw()
+int XmlElement::getIntAttribute (const String& attributeName, const int defaultReturnValue) const
 {
     const XmlAttributeNode* att = attributes;
 
@@ -574,8 +573,7 @@ int XmlElement::getIntAttribute (const String& attributeName,
     return defaultReturnValue;
 }
 
-double XmlElement::getDoubleAttribute (const String& attributeName,
-                                       const double defaultReturnValue) const throw()
+double XmlElement::getDoubleAttribute (const String& attributeName, const double defaultReturnValue) const
 {
     const XmlAttributeNode* att = attributes;
 
@@ -590,8 +588,7 @@ double XmlElement::getDoubleAttribute (const String& attributeName,
     return defaultReturnValue;
 }
 
-bool XmlElement::getBoolAttribute (const String& attributeName,
-                                   const bool defaultReturnValue) const throw()
+bool XmlElement::getBoolAttribute (const String& attributeName, const bool defaultReturnValue) const
 {
     const XmlAttributeNode* att = attributes;
 
@@ -599,16 +596,16 @@ bool XmlElement::getBoolAttribute (const String& attributeName,
     {
         if (att->name.equalsIgnoreCase (attributeName))
         {
-            tchar firstChar = att->value[0];
+            juce_wchar firstChar = att->value[0];
 
             if (CharacterFunctions::isWhitespace (firstChar))
                 firstChar = att->value.trimStart() [0];
 
-            return firstChar == T('1')
-                || firstChar == T('t')
-                || firstChar == T('y')
-                || firstChar == T('T')
-                || firstChar == T('Y');
+            return firstChar == '1'
+                || firstChar == 't'
+                || firstChar == 'y'
+                || firstChar == 'T'
+                || firstChar == 'Y';
         }
 
         att = att->next;
@@ -640,18 +637,17 @@ bool XmlElement::compareAttribute (const String& attributeName,
 }
 
 //==============================================================================
-void XmlElement::setAttribute (const String& attributeName,
-                               const String& value) throw()
+void XmlElement::setAttribute (const String& attributeName, const String& value)
 {
 #ifdef JUCE_DEBUG
     // check the identifier being passed in is legal..
-    const tchar* t = attributeName;
+    const juce_wchar* t = attributeName;
     while (*t != 0)
     {
         jassert (CharacterFunctions::isLetterOrDigit (*t)
-                 || *t == T('_')
-                 || *t == T('-')
-                 || *t == T(':'));
+                  || *t == '_'
+                  || *t == '-'
+                  || *t == ':');
         ++t;
     }
 #endif
@@ -682,14 +678,12 @@ void XmlElement::setAttribute (const String& attributeName,
     }
 }
 
-void XmlElement::setAttribute (const String& attributeName,
-                               const int number) throw()
+void XmlElement::setAttribute (const String& attributeName, const int number)
 {
     setAttribute (attributeName, String (number));
 }
 
-void XmlElement::setAttribute (const String& attributeName,
-                               const double number) throw()
+void XmlElement::setAttribute (const String& attributeName, const double number)
 {
     setAttribute (attributeName, String (number));
 }
@@ -1084,7 +1078,7 @@ bool XmlElement::isTextElement() const throw()
     return tagName.isEmpty();
 }
 
-static const tchar* const juce_xmltextContentAttributeName = T("text");
+static const juce_wchar* const juce_xmltextContentAttributeName = T("text");
 
 const String XmlElement::getText() const throw()
 {

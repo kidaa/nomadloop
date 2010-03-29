@@ -169,17 +169,20 @@ void Component::setVisible (bool shouldBeVisible)
             }
         }
 
-        sendVisibilityChangeMessage();
-
-        if (safePointer != 0 && flags.hasHeavyweightPeerFlag)
+        if (safePointer != 0)
         {
-            ComponentPeer* const peer = getPeer();
+            sendVisibilityChangeMessage();
 
-            jassert (peer != 0);
-            if (peer != 0)
+            if (safePointer != 0 && flags.hasHeavyweightPeerFlag)
             {
-                peer->setVisible (shouldBeVisible);
-                internalHierarchyChanged();
+                ComponentPeer* const peer = getPeer();
+
+                jassert (peer != 0);
+                if (peer != 0)
+                {
+                    peer->setVisible (shouldBeVisible);
+                    internalHierarchyChanged();
+                }
             }
         }
     }
@@ -1503,10 +1506,13 @@ bool Component::isBroughtToFrontOnMouseClick() const throw()
 //==============================================================================
 void Component::setMouseCursor (const MouseCursor& cursor)
 {
-    cursor_ = cursor;
+    if (cursor_ != cursor)
+    {
+        cursor_ = cursor;
 
-    if (flags.visibleFlag)
-        sendFakeMouseMove();
+        if (flags.visibleFlag)
+            updateMouseCursor();
+    }
 }
 
 const MouseCursor Component::getMouseCursor()
@@ -1778,7 +1784,7 @@ static const var::identifier getColourPropertyId (const int colourId)
 {
     String s;
     s.preallocateStorage (18);
-    s << T("jcclr_") << String::toHexString (colourId);
+    s << "jcclr_" << String::toHexString (colourId);
     return s;
 }
 
@@ -1820,7 +1826,7 @@ void Component::copyAllExplicitColoursTo (Component& target) const
     {
         const var::identifier name (properties.getName(i));
 
-        if (name.name.startsWith (T("jcclr_")))
+        if (name.name.startsWith ("jcclr_"))
             if (target.properties.set (name, properties [name]))
                 changed = true;
     }
@@ -2006,13 +2012,13 @@ void Component::parentSizeChanged()
 
 void Component::addComponentListener (ComponentListener* const newListener)
 {
+    jassert (isValidComponent());
     componentListeners.add (newListener);
 }
 
 void Component::removeComponentListener (ComponentListener* const listenerToRemove)
 {
     jassert (isValidComponent());
-
     componentListeners.remove (listenerToRemove);
 }
 

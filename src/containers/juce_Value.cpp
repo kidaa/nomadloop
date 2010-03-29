@@ -140,6 +140,11 @@ const var Value::getValue() const
     return value->getValue();
 }
 
+Value::operator const var() const
+{
+    return getValue();
+}
+
 void Value::setValue (const var& newValue)
 {
     value->setValue (newValue);
@@ -212,5 +217,9 @@ void Value::callListeners()
     listeners.call (&Listener::valueChanged, v);
 }
 
+OutputStream& JUCE_CALLTYPE operator<< (OutputStream& stream, const Value& value)
+{
+    return stream << value.toString();
+}
 
 END_JUCE_NAMESPACE

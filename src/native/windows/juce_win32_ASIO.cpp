@@ -60,7 +60,7 @@ static void logError (const String& context, long error)
     else if (error == ASE_NoMemory)
         err = "Out of memory";
 
-    log (T("!!error: ") + context + T(" - ") + err);
+    log ("!!error: " + context + " - " + err);
 }
 #else
   #define logError(a, b) {}
@@ -82,7 +82,7 @@ public:
 
     ASIOAudioIODevice (const String& name_, const CLSID classId_, const int slotNumber,
                        const String& optionalDllForDirectLoading_)
-       : AudioIODevice (name_, T("ASIO")),
+       : AudioIODevice (name_, "ASIO"),
          asioObject (0),
          classId (classId_),
          optionalDllForDirectLoading (optionalDllForDirectLoading_),
@@ -131,11 +131,11 @@ public:
                 if (err == 0)
                 {
                     sampleRates.add ((int) possibleSampleRates[index]);
-                    log (T("rate: ") + String ((int) possibleSampleRates[index]));
+                    log ("rate: " + String ((int) possibleSampleRates[index]));
                 }
                 else if (err != ASE_NoClock)
                 {
-                    logError (T("CanSampleRate"), err);
+                    logError ("CanSampleRate", err);
                 }
             }
 
@@ -143,7 +143,7 @@ public:
             {
                 double cr = 0;
                 const long err = asioObject->getSampleRate (&cr);
-                log (T("No sample rates supported - current rate: ") + String ((int) cr));
+                log ("No sample rates supported - current rate: " + String ((int) cr));
 
                 if (err == 0)
                     sampleRates.add ((int) cr);
@@ -186,8 +186,8 @@ public:
         return preferredSize;
     }
 
-    const String open (const BitArray& inputChannels,
-                       const BitArray& outputChannels,
+    const String open (const BigInteger& inputChannels,
+                       const BigInteger& outputChannels,
                        double sr,
                        int bufferSizeSamples)
     {
@@ -229,7 +229,7 @@ public:
         // unfortunate workaround for certain manufacturers whose drivers crash horribly if you make
         // dynamic changes to the buffer size...
         shouldUsePreferredSize = shouldUsePreferredSize
-                                   || getName().containsIgnoreCase (T("Digidesign"));
+                                   || getName().containsIgnoreCase ("Digidesign");
 
         if (shouldUsePreferredSize)
         {
@@ -321,7 +321,7 @@ public:
 
         if (currentSampleRate != sampleRate)
         {
-            log (T("ASIO samplerate: ") + String (currentSampleRate) + T(" to ") + String (sampleRate));
+            log ("ASIO samplerate: " + String (currentSampleRate) + " to " + String (sampleRate));
             err = asioObject->setSampleRate (sampleRate);
 
             if (err == ASE_NoClock && numSources > 0)
@@ -358,7 +358,7 @@ public:
 
                 if (error.isNotEmpty())
                 {
-                    log (T("ASIOInit: ") + error);
+                    log ("ASIOInit: " + error);
                 }
 
                 needToReset = false;
@@ -426,7 +426,7 @@ public:
             log ("disposing buffers");
             err = asioObject->disposeBuffers();
 
-            log (T("creating buffers: ") + String (totalBuffers) + T(", ") + String (currentBlockSizeSamples));
+            log ("creating buffers: " + String (totalBuffers) + ", " + String (currentBlockSizeSamples));
             err = asioObject->createBuffers (bufferInfos,
                                              totalBuffers,
                                              currentBlockSizeSamples,
@@ -513,7 +513,7 @@ public:
 
                 for (i = types.size(); --i >= 0;)
                 {
-                    log (T("channel format: ") + String (types[i]));
+                    log ("channel format: " + String (types[i]));
                 }
 
                 jassert (n <= totalBuffers);
@@ -542,10 +542,7 @@ public:
                 }
                 else
                 {
-                    log (T("ASIO latencies: ")
-                           + String ((int) outputLatency)
-                           + T(", ")
-                           + String ((int) inputLatency));
+                    log ("ASIO latencies: " + String ((int) outputLatency) + ", " + String ((int) inputLatency));
                 }
 
                 isOpen_ = true;
@@ -653,12 +650,12 @@ public:
         return currentSampleRate;
     }
 
-    const BitArray getActiveOutputChannels() const
+    const BigInteger getActiveOutputChannels() const
     {
         return currentChansOut;
     }
 
-    const BitArray getActiveInputChannels() const
+    const BigInteger getActiveInputChannels() const
     {
         return currentChansIn;
     }
@@ -741,7 +738,7 @@ public:
 
                 const int spent = (int) Time::getMillisecondCounter() - (int) started;
 
-                log (T("spent: ") + String (spent));
+                log ("spent: " + String (spent));
 
                 if (spent > 300)
                 {
@@ -781,7 +778,7 @@ public:
                 AudioIODeviceCallback* const oldCallback = currentCallback;
 
                 close();
-                open (BitArray (currentChansIn), BitArray (currentChansOut),
+                open (BigInteger (currentChansIn), BigInteger (currentChansOut),
                       currentSampleRate, currentBlockSizeSamples);
 
                 if (oldCallback != 0)
@@ -817,7 +814,7 @@ private:
     int volatile currentBlockSizeSamples;
     int volatile currentBitDepth;
     double volatile currentSampleRate;
-    BitArray currentChansOut, currentChansIn;
+    BigInteger currentChansOut, currentChansIn;
     AudioIODeviceCallback* volatile currentCallback;
     CriticalSection callbackLock;
 
@@ -932,7 +929,7 @@ private:
         modalWindow.enterModalState();
 
         // open the device and get its info..
-        log (T("opening ASIO device: ") + getName());
+        log ("opening ASIO device: " + getName());
 
         needToReset = false;
         isReSync = false;
@@ -967,12 +964,12 @@ private:
                 if (asioObject != 0
                      && (err = asioObject->getChannels (&totalNumInputChans, &totalNumOutputChans)) == 0)
                 {
-                    log (String ((int) totalNumInputChans) + T(" in, ") + String ((int) totalNumOutputChans) + T(" out"));
+                    log (String ((int) totalNumInputChans) + " in, " + String ((int) totalNumOutputChans) + " out");
 
                     if ((err = asioObject->getBufferSize (&minSize, &maxSize, &preferredSize, &granularity)) == 0)
                     {
                         // find a list of buffer sizes..
-                        log (String ((int) minSize) + T(" ") + String ((int) maxSize) + T(" ") + String ((int)preferredSize) + T(" ") + String ((int)granularity));
+                        log (String ((int) minSize) + " " + String ((int) maxSize) + " " + String ((int) preferredSize) + " " + String ((int) granularity));
 
                         if (granularity >= 0)
                         {
@@ -1027,9 +1024,7 @@ private:
                             log ("ASIO - no latencies");
                         }
 
-                        log (String ("latencies: ")
-                                + String ((int) inputLatency)
-                                + T(", ") + String ((int) outputLatency));
+                        log ("latencies: " + String ((int) inputLatency) + ", " + String ((int) outputLatency));
 
                         // create some dummy buffers now.. because cubase does..
                         numActiveInputChans = 0;
@@ -1083,8 +1078,7 @@ private:
                             jassertfalse
                         }
 
-                        log (T("creating buffers (dummy): ") + String (numChans)
-                               + T(", ") + String ((int) preferredSize));
+                        log ("creating buffers (dummy): " + String (numChans) + ", " + String ((int) preferredSize));
 
                         if (preferredSize > 0)
                         {
@@ -1103,8 +1097,7 @@ private:
                             totalNumInputChans = newInps;
                             totalNumOutputChans = newOuts;
 
-                            log (String ((int) totalNumInputChans) + T(" in; ")
-                                  + String ((int) totalNumOutputChans) + T(" out"));
+                            log (String ((int) totalNumInputChans) + " in; " + String ((int) totalNumOutputChans) + " out");
                         }
 
                         updateSampleRates();
@@ -1722,7 +1715,7 @@ class ASIOAudioIODeviceType  : public AudioIODeviceType
 {
 public:
     ASIOAudioIODeviceType()
-        : AudioIODeviceType (T("ASIO")),
+        : AudioIODeviceType ("ASIO"),
           hasScanned (false)
     {
         CoInitialize (0);
@@ -1763,23 +1756,23 @@ public:
         }
     }
 
-    const StringArray getDeviceNames (const bool /*wantInputNames*/) const
+    const StringArray getDeviceNames (bool /*wantInputNames*/) const
     {
         jassert (hasScanned); // need to call scanForDevices() before doing this
 
         return deviceNames;
     }
 
-    int getDefaultDeviceIndex (const bool) const
+    int getDefaultDeviceIndex (bool) const
     {
         jassert (hasScanned); // need to call scanForDevices() before doing this
 
         for (int i = deviceNames.size(); --i >= 0;)
-            if (deviceNames[i].containsIgnoreCase (T("asio4all")))
+            if (deviceNames[i].containsIgnoreCase ("asio4all"))
                 return i; // asio4all is a safe choice for a default..
 
 #if JUCE_DEBUG
-        if (deviceNames.size() > 1 && deviceNames[0].containsIgnoreCase (T("digidesign")))
+        if (deviceNames.size() > 1 && deviceNames[0].containsIgnoreCase ("digidesign"))
             return 1; // (the digi m-box driver crashes the app when you run
                       // it in the debugger, which can be a bit annoying)
 #endif
@@ -1798,7 +1791,7 @@ public:
         return -1;
     }
 
-    int getIndexOfDevice (AudioIODevice* d, const bool /*asInput*/) const
+    int getIndexOfDevice (AudioIODevice* d, bool /*asInput*/) const
     {
         jassert (hasScanned); // need to call scanForDevices() before doing this
 
@@ -1917,7 +1910,7 @@ private:
                         else
                             deviceName = keyName;
 
-                        log (T("found ") + deviceName);
+                        log ("found " + deviceName);
                         deviceNames.add (deviceName);
                         classIds.add (new CLSID (classId));
                     }

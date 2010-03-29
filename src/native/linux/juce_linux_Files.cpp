@@ -116,7 +116,7 @@ bool juce_copyFile (const String& s, const String& d)
 const StringArray juce_getFileSystemRoots()
 {
     StringArray s;
-    s.add (T("/"));
+    s.add ("/");
     return s;
 }
 
@@ -166,7 +166,7 @@ bool File::isOnRemovableDrive() const
 
 bool File::isHidden() const
 {
-    return getFileName().startsWithChar (T('.'));
+    return getFileName().startsWithChar ('.');
 }
 
 //==============================================================================
@@ -211,7 +211,7 @@ const File File::getSpecialLocation (const SpecialLocationType type)
 
         if (! tmp.isDirectory())
         {
-            tmp = T("/tmp");
+            tmp = "/tmp";
 
             if (! tmp.isDirectory())
                 tmp = File::getCurrentWorkingDirectory();
@@ -262,10 +262,10 @@ bool File::moveToTrash() const
     if (! exists())
         return true;
 
-    File trashCan (T("~/.Trash"));
+    File trashCan ("~/.Trash");
 
     if (! trashCan.isDirectory())
-        trashCan = T("~/.local/share/Trash/files");
+        trashCan = "~/.local/share/Trash/files";
 
     if (! trashCan.isDirectory())
         return false;
@@ -352,8 +352,8 @@ void* juce_findFileStart (const String& directory, const String& wildCard, Strin
             ff->parentDir += File::separator;
 
         ff->wildCard = wildCard;
-        if (wildCard == T("*.*"))
-            ff->wildCard = T("*");
+        if (wildCard == "*.*")
+            ff->wildCard = "*";
 
         ff->dir = d;
 
@@ -399,11 +399,11 @@ void juce_findFileClose (void* handle)
 bool juce_launchFile (const String& fileName,
                       const String& parameters)
 {
-    String cmdString (fileName.replace (T(" "), T("\\ "),false));
+    String cmdString (fileName.replace (" ", "\\ ",false));
     cmdString << " " << parameters;
 
     if (URL::isProbablyAWebsiteURL (fileName)
-         || cmdString.startsWithIgnoreCase (T("file:"))
+         || cmdString.startsWithIgnoreCase ("file:")
          || URL::isProbablyAnEmailAddress (fileName))
     {
         // create a command that tries to launch a bunch of likely browsers
@@ -412,12 +412,12 @@ bool juce_launchFile (const String& fileName,
         StringArray cmdLines;
 
         for (int i = 0; i < numElementsInArray (browserNames); ++i)
-            cmdLines.add (String (browserNames[i]) + T(" ") + cmdString.trim().quoted());
+            cmdLines.add (String (browserNames[i]) + " " + cmdString.trim().quoted());
 
-        cmdString = cmdLines.joinIntoString (T(" || "));
+        cmdString = cmdLines.joinIntoString (" || ");
     }
 
-    const char* const argv[4] = { "/bin/sh", "-c", (const char*) cmdString.toUTF8(), 0 };
+    const char* const argv[4] = { "/bin/sh", "-c", cmdString.toUTF8(), 0 };
 
     const int cpid = fork();
 

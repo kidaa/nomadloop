@@ -42,7 +42,7 @@
 
     forEachXmlChildElement (*myParentXml, child)
     {
-        if (child->hasTagName (T("FOO")))
+        if (child->hasTagName ("FOO"))
             doSomethingWithXmlElement (child);
     }
 
@@ -69,7 +69,7 @@
     E.g. @code
     XmlElement* myParentXml = createSomeKindOfXmlDocument();
 
-    forEachXmlChildElementWithTagName (*myParentXml, child, T("MYTAG"))
+    forEachXmlChildElementWithTagName (*myParentXml, child, "MYTAG")
     {
         // the child object is now guaranteed to be a <MYTAG> element..
         doSomethingWithMYTAGElement (child);
@@ -100,12 +100,12 @@
 
     Here's an example of parsing some elements: @code
     // check we're looking at the right kind of document..
-    if (myElement->hasTagName (T("ANIMALS")))
+    if (myElement->hasTagName ("ANIMALS"))
     {
         // now we'll iterate its sub-elements looking for 'giraffe' elements..
         forEachXmlChildElement (*myElement, e)
         {
-            if (e->hasTagName (T("GIRAFFE")))
+            if (e->hasTagName ("GIRAFFE"))
             {
                 // found a giraffe, so use some of its attributes..
 
@@ -168,8 +168,8 @@ public:
                                         considered the same; if false, the attributes must
                                         be in the same order as well
     */
-    bool isEquivalentTo (const XmlElement* const other,
-                         const bool ignoreOrderOfAttributes) const throw();
+    bool isEquivalentTo (const XmlElement* other,
+                         bool ignoreOrderOfAttributes) const throw();
 
     //==============================================================================
     /** Returns an XML text document that represents this element.
@@ -190,10 +190,10 @@ public:
         @see writeToStream, writeToFile
     */
     const String createDocument (const String& dtdToUse,
-                                 const bool allOnOneLine = false,
-                                 const bool includeXmlHeader = true,
-                                 const String& encodingType = JUCE_T("UTF-8"),
-                                 const int lineWrapLength = 60) const throw();
+                                 bool allOnOneLine = false,
+                                 bool includeXmlHeader = true,
+                                 const String& encodingType = "UTF-8",
+                                 int lineWrapLength = 60) const;
 
     /** Writes the document to a stream as UTF-8.
 
@@ -212,10 +212,10 @@ public:
     */
     void writeToStream (OutputStream& output,
                         const String& dtdToUse,
-                        const bool allOnOneLine = false,
-                        const bool includeXmlHeader = true,
-                        const String& encodingType = JUCE_T("UTF-8"),
-                        const int lineWrapLength = 60) const throw();
+                        bool allOnOneLine = false,
+                        bool includeXmlHeader = true,
+                        const String& encodingType = "UTF-8",
+                        int lineWrapLength = 60) const;
 
     /** Writes the element to a file as an XML document.
 
@@ -238,8 +238,8 @@ public:
     */
     bool writeToFile (const File& destinationFile,
                       const String& dtdToUse,
-                      const String& encodingType = JUCE_T("UTF-8"),
-                      const int lineWrapLength = 60) const throw();
+                      const String& encodingType = "UTF-8",
+                      int lineWrapLength = 60) const;
 
     //==============================================================================
     /** Returns this element's tag type name.
@@ -274,7 +274,7 @@ public:
 
         @see getAttributeValue, getStringAttribute
     */
-    const String& getAttributeName (const int attributeIndex) const throw();
+    const String& getAttributeName (int attributeIndex) const throw();
 
     /** Returns the value of one of the elements attributes.
 
@@ -283,7 +283,7 @@ public:
 
         @see getAttributeName, getStringAttribute
     */
-    const String& getAttributeValue (const int attributeIndex) const throw();
+    const String& getAttributeValue (int attributeIndex) const throw();
 
     //==============================================================================
     // Attribute-handling methods..
@@ -294,11 +294,17 @@ public:
     /** Returns the value of a named attribute.
 
         @param attributeName        the name of the attribute to look up
+    */
+    const String& getStringAttribute (const String& attributeName) const throw();
+
+    /** Returns the value of a named attribute.
+
+        @param attributeName        the name of the attribute to look up
         @param defaultReturnValue   a value to return if the element doesn't have an attribute
                                     with this name
     */
     const String getStringAttribute (const String& attributeName,
-                                     const String& defaultReturnValue = String::empty) const throw();
+                                     const String& defaultReturnValue) const;
 
     /** Compares the value of a named attribute with a value passed-in.
 
@@ -310,7 +316,7 @@ public:
     */
     bool compareAttribute (const String& attributeName,
                            const String& stringToCompareAgainst,
-                           const bool ignoreCase = false) const throw();
+                           bool ignoreCase = false) const throw();
 
     /** Returns the value of a named attribute as an integer.
 
@@ -323,7 +329,7 @@ public:
         @see setAttribute
     */
     int getIntAttribute (const String& attributeName,
-                         const int defaultReturnValue = 0) const throw();
+                         int defaultReturnValue = 0) const;
 
     /** Returns the value of a named attribute as floating-point.
 
@@ -336,7 +342,7 @@ public:
         @see setAttribute
     */
     double getDoubleAttribute (const String& attributeName,
-                               const double defaultReturnValue = 0.0) const throw();
+                               double defaultReturnValue = 0.0) const;
 
     /** Returns the value of a named attribute as a boolean.
 
@@ -349,7 +355,7 @@ public:
                                     with this name
     */
     bool getBoolAttribute (const String& attributeName,
-                           const bool defaultReturnValue = false) const throw();
+                           bool defaultReturnValue = false) const;
 
     /** Adds a named attribute to the element.
 
@@ -365,7 +371,7 @@ public:
         @see removeAttribute
     */
     void setAttribute (const String& attributeName,
-                       const String& newValue) throw();
+                       const String& newValue);
 
     /** Adds a named attribute to the element, setting it to an integer value.
 
@@ -380,7 +386,7 @@ public:
         @param newValue             the value to set it to
     */
     void setAttribute (const String& attributeName,
-                       const int newValue) throw();
+                       int newValue);
 
     /** Adds a named attribute to the element, setting it to a floating-point value.
 
@@ -395,7 +401,7 @@ public:
         @param newValue             the value to set it to
     */
     void setAttribute (const String& attributeName,
-                       const double newValue) throw();
+                       double newValue);
 
     /** Removes a named attribute from the element.
 
@@ -471,7 +477,7 @@ public:
         @returns the n'th child of this element, or 0 if the index is out-of-range
         @see getNextElement, isTextElement, getChildByName
     */
-    XmlElement* getChildElement (const int index) const throw();
+    XmlElement* getChildElement (int index) const throw();
 
     /** Returns the first sub-element with a given tag-name.
 
@@ -504,7 +510,7 @@ public:
                                 below zero, it will be added to the end of the list
         @see addChildElement, insertChildElement
     */
-    void insertChildElement (XmlElement* const newChildNode,
+    void insertChildElement (XmlElement* newChildNode,
                              int indexToInsertAt) throw();
 
     /** Creates a new element with the given name and returns it, after adding it
@@ -530,8 +536,8 @@ public:
         existing element will be deleted, replaced with the new one, and it
         will return true.
     */
-    bool replaceChildElement (XmlElement* const currentChildElement,
-                              XmlElement* const newChildNode) throw();
+    bool replaceChildElement (XmlElement* currentChildElement,
+                              XmlElement* newChildNode) throw();
 
     /** Removes a child element.
 
@@ -539,8 +545,8 @@ public:
         @param shouldDeleteTheChild     if true, the child will be deleted, if false it'll
                                         just remove it
     */
-    void removeChildElement (XmlElement* const childToRemove,
-                             const bool shouldDeleteTheChild) throw();
+    void removeChildElement (XmlElement* childToRemove,
+                             bool shouldDeleteTheChild) throw();
 
     /** Deletes all the child elements in the element.
 
@@ -560,7 +566,7 @@ public:
     /** Recursively searches all sub-elements to find one that contains the specified
         child element.
     */
-    XmlElement* findParentElementOf (const XmlElement* const elementToLookFor) throw();
+    XmlElement* findParentElementOf (const XmlElement* elementToLookFor) throw();
 
     //==============================================================================
     /** Sorts the child elements using a comparator.
@@ -698,14 +704,9 @@ private:
 
     XmlAttributeNode* attributes;
 
-    XmlElement (int) throw(); // for internal use
-
+    XmlElement (int) throw();
     void copyChildrenAndAttributesFrom (const XmlElement& other) throw();
-
-    void writeElementAsText (OutputStream& out,
-                             const int indentationLevel,
-                             const int lineWrapLength) const throw();
-
+    void writeElementAsText (OutputStream& out, int indentationLevel, int lineWrapLength) const;
     void getChildElementsAsArray (XmlElement**) const throw();
     void reorderChildElements (XmlElement** const, const int) throw();
 };

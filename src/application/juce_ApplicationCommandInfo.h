@@ -48,7 +48,7 @@
 struct JUCE_API  ApplicationCommandInfo
 {
     //==============================================================================
-    ApplicationCommandInfo (const CommandID commandID) throw();
+    ApplicationCommandInfo (CommandID commandID) throw();
 
     //==============================================================================
     /** Sets a number of the structures values at once.
@@ -59,31 +59,31 @@ struct JUCE_API  ApplicationCommandInfo
     void setInfo (const String& shortName,
                   const String& description,
                   const String& categoryName,
-                  const int flags) throw();
+                  int flags) throw();
 
     /** An easy way to set or remove the isDisabled bit in the structure's flags field.
 
         If isActive is true, the flags member has the isDisabled bit cleared; if isActive
         is false, the bit is set.
     */
-    void setActive (const bool isActive) throw();
+    void setActive (bool isActive) throw();
 
     /** An easy way to set or remove the isTicked bit in the structure's flags field.
     */
-    void setTicked (const bool isTicked) throw();
+    void setTicked (bool isTicked) throw();
 
     /** Handy method for adding a keypress to the defaultKeypresses array.
 
         This is just so you can write things like:
         @code
-        myinfo.addDefaultKeypress (T('s'), ModifierKeys::commandModifier);
+        myinfo.addDefaultKeypress ('s', ModifierKeys::commandModifier);
         @endcode
         instead of
         @code
-        myinfo.defaultKeypresses.add (KeyPress (T('s'), ModifierKeys::commandModifier));
+        myinfo.defaultKeypresses.add (KeyPress ('s', ModifierKeys::commandModifier));
         @endcode
     */
-    void addDefaultKeypress (const int keyCode,
+    void addDefaultKeypress (int keyCode,
                              const ModifierKeys& modifiers) throw();
 
     //==============================================================================

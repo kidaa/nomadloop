@@ -73,13 +73,13 @@ static void getDeviceProperties (const String& deviceID,
 
     snd_ctl_t* handle;
 
-    if (snd_ctl_open (&handle, deviceID.upToLastOccurrenceOf (T(","), false, false).toUTF8(), SND_CTL_NONBLOCK) >= 0)
+    if (snd_ctl_open (&handle, deviceID.upToLastOccurrenceOf (",", false, false).toUTF8(), SND_CTL_NONBLOCK) >= 0)
     {
         snd_pcm_info_t* info;
         snd_pcm_info_alloca (&info);
 
         snd_pcm_info_set_stream (info, SND_PCM_STREAM_PLAYBACK);
-        snd_pcm_info_set_device (info, deviceID.fromLastOccurrenceOf (T(","), false, false).getIntValue());
+        snd_pcm_info_set_device (info, deviceID.fromLastOccurrenceOf (",", false, false).getIntValue());
         snd_pcm_info_set_subdevice (info, 0);
 
         if (snd_ctl_pcm_info (handle, info) >= 0)
@@ -181,7 +181,7 @@ public:
         if (bitDepth == 0)
         {
             error = "device doesn't support a compatible PCM format";
-            DBG (T("ALSA error: ") + error + T("\n"));
+            DBG ("ALSA error: " + error + "\n");
             return false;
         }
 
@@ -326,7 +326,7 @@ private:
             return false;
 
         error = snd_strerror (errorNum);
-        DBG (T("ALSA error: ") + error + T("\n"));
+        DBG ("ALSA error: " + error + "\n");
         return true;
     }
 };
@@ -362,8 +362,8 @@ public:
         close();
     }
 
-    void open (BitArray inputChannels,
-               BitArray outputChannels,
+    void open (BigInteger inputChannels,
+               BigInteger outputChannels,
                const double sampleRate_,
                const int bufferSize_)
     {
@@ -581,7 +581,7 @@ public:
     String error;
     double sampleRate;
     int bufferSize;
-    BitArray currentInputChans, currentOutputChans;
+    BigInteger currentInputChans, currentOutputChans;
 
     Array <int> sampleRates;
     StringArray channelNamesOut, channelNamesIn;
@@ -612,7 +612,7 @@ private:
             return false;
 
         error = snd_strerror (errorNum);
-        DBG (T("ALSA error: ") + error + T("\n"));
+        DBG ("ALSA error: " + error + "\n");
         return true;
     }
 
@@ -632,10 +632,10 @@ private:
 
         unsigned int i;
         for (i = 0; i < maxChansOut; ++i)
-            channelNamesOut.add (T("channel ") + String ((int) i + 1));
+            channelNamesOut.add ("channel " + String ((int) i + 1));
 
         for (i = 0; i < maxChansIn; ++i)
-            channelNamesIn.add (T("channel ") + String ((int) i + 1));
+            channelNamesIn.add ("channel " + String ((int) i + 1));
     }
 };
 
@@ -647,7 +647,7 @@ public:
     ALSAAudioIODevice (const String& deviceName,
                        const String& inputId_,
                        const String& outputId_)
-        : AudioIODevice (deviceName, T("ALSA")),
+        : AudioIODevice (deviceName, "ALSA"),
           inputId (inputId_),
           outputId (outputId_),
           isOpen_ (false),
@@ -704,8 +704,8 @@ public:
         return 512;
     }
 
-    const String open (const BitArray& inputChannels,
-                       const BitArray& outputChannels,
+    const String open (const BigInteger& inputChannels,
+                       const BigInteger& outputChannels,
                        double sampleRate,
                        int bufferSizeSamples)
     {
@@ -760,12 +760,12 @@ public:
         return internal->getBitDepth();
     }
 
-    const BitArray getActiveOutputChannels() const
+    const BigInteger getActiveOutputChannels() const
     {
         return internal->currentOutputChans;
     }
 
-    const BitArray getActiveInputChannels() const
+    const BigInteger getActiveInputChannels() const
     {
         return internal->currentInputChans;
     }
@@ -827,7 +827,7 @@ class ALSAAudioIODeviceType  : public AudioIODeviceType
 public:
     //==============================================================================
     ALSAAudioIODeviceType()
-        : AudioIODeviceType (T("ALSA")),
+        : AudioIODeviceType ("ALSA"),
           hasScanned (false)
     {
     }
@@ -867,7 +867,7 @@ public:
                 {
                     String cardId (snd_ctl_card_info_get_id (info));
 
-                    if (cardId.removeCharacters (T("0123456789")).isEmpty())
+                    if (cardId.removeCharacters ("0123456789").isEmpty())
                         cardId = String (cardNum);
 
                     int device = -1;
@@ -912,14 +912,14 @@ public:
         outputNames.appendNumbersToDuplicates (false, true);
     }
 
-    const StringArray getDeviceNames (const bool wantInputNames) const
+    const StringArray getDeviceNames (bool wantInputNames) const
     {
         jassert (hasScanned); // need to call scanForDevices() before doing this
 
         return wantInputNames ? inputNames : outputNames;
     }
 
-    int getDefaultDeviceIndex (const bool forInput) const
+    int getDefaultDeviceIndex (bool forInput) const
     {
         jassert (hasScanned); // need to call scanForDevices() before doing this
         return 0;
@@ -927,11 +927,11 @@ public:
 
     bool hasSeparateInputsAndOutputs() const    { return true; }
 
-    int getIndexOfDevice (AudioIODevice* device, const bool asInput) const
+    int getIndexOfDevice (AudioIODevice* device, bool asInput) const
     {
         jassert (hasScanned); // need to call scanForDevices() before doing this
 
-        ALSAAudioIODevice* const d = dynamic_cast <ALSAAudioIODevice*> (device);
+        ALSAAudioIODevice* d = dynamic_cast <ALSAAudioIODevice*> (device);
         if (d == 0)
             return -1;
 
@@ -973,10 +973,10 @@ private:
 
         getDeviceProperties (id, minChansOut, maxChansOut, minChansIn, maxChansIn, rates);
 
-        DBG (T("ALSA device: ") + id
-              + T(" outs=") + String ((int) minChansOut) + T("-") + String ((int) maxChansOut)
-              + T(" ins=") + String ((int) minChansIn) + T("-") + String ((int) maxChansIn)
-              + T(" rates=") + String (rates.size()));
+        DBG ("ALSA device: " + id
+              + " outs=" + String ((int) minChansOut) + "-" + String ((int) maxChansOut)
+              + " ins=" + String ((int) minChansIn) + "-" + String ((int) maxChansIn)
+              + " rates=" + String (rates.size()));
 
         isInput = maxChansIn > 0;
         isOutput = maxChansOut > 0;

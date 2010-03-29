@@ -43,7 +43,7 @@ extern void juce_glViewport (const int w, const int h);
 OpenGLPixelFormat::OpenGLPixelFormat (const int bitsPerRGBComponent,
                                       const int alphaBits_,
                                       const int depthBufferBits_,
-                                      const int stencilBufferBits_) throw()
+                                      const int stencilBufferBits_)
     : redBits (bitsPerRGBComponent),
       greenBits (bitsPerRGBComponent),
       blueBits (bitsPerRGBComponent),
@@ -58,9 +58,50 @@ OpenGLPixelFormat::OpenGLPixelFormat (const int bitsPerRGBComponent,
 {
 }
 
-bool OpenGLPixelFormat::operator== (const OpenGLPixelFormat& other) const throw()
+OpenGLPixelFormat::OpenGLPixelFormat (const OpenGLPixelFormat& other)
+    : redBits (other.redBits),
+      greenBits (other.greenBits),
+      blueBits (other.blueBits),
+      alphaBits (other.alphaBits),
+      depthBufferBits (other.depthBufferBits),
+      stencilBufferBits (other.stencilBufferBits),
+      accumulationBufferRedBits (other.accumulationBufferRedBits),
+      accumulationBufferGreenBits (other.accumulationBufferGreenBits),
+      accumulationBufferBlueBits (other.accumulationBufferBlueBits),
+      accumulationBufferAlphaBits (other.accumulationBufferAlphaBits),
+      fullSceneAntiAliasingNumSamples (other.fullSceneAntiAliasingNumSamples)
 {
-    return memcmp (this, &other, sizeof (other)) == 0;
+}
+
+OpenGLPixelFormat& OpenGLPixelFormat::operator= (const OpenGLPixelFormat& other)
+{
+    redBits = other.redBits;
+    greenBits = other.greenBits;
+    blueBits = other.blueBits;
+    alphaBits = other.alphaBits;
+    depthBufferBits = other.depthBufferBits;
+    stencilBufferBits = other.stencilBufferBits;
+    accumulationBufferRedBits = other.accumulationBufferRedBits;
+    accumulationBufferGreenBits = other.accumulationBufferGreenBits;
+    accumulationBufferBlueBits = other.accumulationBufferBlueBits;
+    accumulationBufferAlphaBits = other.accumulationBufferAlphaBits;
+    fullSceneAntiAliasingNumSamples = other.fullSceneAntiAliasingNumSamples;
+    return *this;
+}
+
+bool OpenGLPixelFormat::operator== (const OpenGLPixelFormat& other) const
+{
+    return redBits == other.redBits
+            && greenBits == other.greenBits
+            && blueBits == other.blueBits
+            && alphaBits == other.alphaBits
+            && depthBufferBits == other.depthBufferBits
+            && stencilBufferBits == other.stencilBufferBits
+            && accumulationBufferRedBits == other.accumulationBufferRedBits
+            && accumulationBufferGreenBits == other.accumulationBufferGreenBits
+            && accumulationBufferBlueBits == other.accumulationBufferBlueBits
+            && accumulationBufferAlphaBits == other.accumulationBufferAlphaBits
+            && fullSceneAntiAliasingNumSamples == other.fullSceneAntiAliasingNumSamples;
 }
 
 //==============================================================================
@@ -136,8 +177,8 @@ private:
 };
 
 //==============================================================================
-OpenGLComponent::OpenGLComponent()
-    : context (0),
+OpenGLComponent::OpenGLComponent (const OpenGLType type_)
+    : type (type_),
       contextToShareListsWith (0),
       needToUpdateViewport (true)
 {
@@ -154,7 +195,7 @@ OpenGLComponent::~OpenGLComponent()
 void OpenGLComponent::deleteContext()
 {
     const ScopedLock sl (contextLock);
-    deleteAndZero (context);
+    context = 0;
 }
 
 void OpenGLComponent::updateContextPosition()
@@ -218,9 +259,7 @@ bool OpenGLComponent::makeCurrentContextActive()
 
         if (isShowing() && getTopLevelComponent()->getPeer() != 0)
         {
-            context = OpenGLContext::createContextForWindow (this,
-                                                             preferredPixelFormat,
-                                                             contextToShareListsWith);
+            context = createContext();
 
             if (context != 0)
             {

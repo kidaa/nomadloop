@@ -94,7 +94,7 @@ AudioCDReader::~AudioCDReader()
 static int getTrackNumber (const File& file)
 {
     return file.getFileName()
-               .initialSectionContainingOnly (T("0123456789"))
+               .initialSectionContainingOnly ("0123456789")
                .getIntValue();
 }
 
@@ -112,7 +112,7 @@ void AudioCDReader::refreshTrackLengths()
 {
     tracks.clear();
     trackStartSamples.clear();
-    volumeDir.findChildFiles (tracks, File::findFiles | File::ignoreHiddenFiles, false, T("*.aiff"));
+    volumeDir.findChildFiles (tracks, File::findFiles | File::ignoreHiddenFiles, false, "*.aiff");
 
     tracks.sort (*this);
 

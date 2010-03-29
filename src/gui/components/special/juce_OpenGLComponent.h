@@ -50,7 +50,11 @@ public:
     OpenGLPixelFormat (const int bitsPerRGBComponent = 8,
                        const int alphaBits = 8,
                        const int depthBufferBits = 16,
-                       const int stencilBufferBits = 0) throw();
+                       const int stencilBufferBits = 0);
+
+    OpenGLPixelFormat (const OpenGLPixelFormat&);
+    OpenGLPixelFormat& operator= (const OpenGLPixelFormat&);
+    bool operator== (const OpenGLPixelFormat&) const;
 
     //==============================================================================
     int redBits;          /**< The number of bits per pixel to use for the red channel. */
@@ -78,8 +82,6 @@ public:
                                           OwnedArray <OpenGLPixelFormat>& results);
 
     //==============================================================================
-    bool operator== (const OpenGLPixelFormat&) const throw();
-
     juce_UseDebuggingNewOperator
 };
 
@@ -145,18 +147,6 @@ public:
     virtual void* getRawContext() const throw() = 0;
 
     //==============================================================================
-    /** This tries to create a context that can be used for drawing into the
-        area occupied by the specified component.
-
-        Note that you probably shouldn't use this method directly unless you know what
-        you're doing - the OpenGLComponent calls this and manages the context for you.
-    */
-    static OpenGLContext* createContextForWindow (Component* componentToDrawTo,
-                                                  const OpenGLPixelFormat& pixelFormat,
-                                                  const OpenGLContext* const contextToShareWith);
-
-
-    //==============================================================================
     /** Returns the context that's currently in active use by the calling thread.
 
         Returns 0 if there isn't an active context.
@@ -183,9 +173,21 @@ class JUCE_API  OpenGLComponent  : public Component
 {
 public:
     //==============================================================================
-    /** Creates an OpenGLComponent.
+    /** Used to select the type of openGL API to use, if more than one choice is available
+        on a particular platform.
     */
-    OpenGLComponent();
+    enum OpenGLType
+    {
+        openGLDefault = 0,
+
+#if JUCE_IPHONE
+        openGLES1,  /**< On the iPhone, this selects openGL ES 1.0 */
+        openGLES2   /**< On the iPhone, this selects openGL ES 2.0 */
+#endif
+    };
+
+    /** Creates an OpenGLComponent. */
+    OpenGLComponent (OpenGLType type = openGLDefault);
 
     /** Destructor. */
     ~OpenGLComponent();
@@ -331,18 +333,20 @@ public:
     juce_UseDebuggingNewOperator
 
 private:
+    const OpenGLType type;
+
     class OpenGLComponentWatcher;
     friend class OpenGLComponentWatcher;
     friend class ScopedPointer <OpenGLComponentWatcher>;
     ScopedPointer <OpenGLComponentWatcher> componentWatcher;
-
-    OpenGLContext* context;
+    ScopedPointer <OpenGLContext> context;
     OpenGLContext* contextToShareListsWith;
 
     CriticalSection contextLock;
     OpenGLPixelFormat preferredPixelFormat;
     bool needToUpdateViewport;
 
+    OpenGLContext* createContext();
     void deleteContext();
     void updateContextPosition();
     void internalRepaint (int x, int y, int w, int h);

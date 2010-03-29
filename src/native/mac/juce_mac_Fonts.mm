@@ -65,13 +65,13 @@ public:
             for (NSString* i in familyFonts)
             {
                 const String fn (nsStringToJuce (i));
-                const String afterDash (fn.fromFirstOccurrenceOf (T("-"), false, false));
+                const String afterDash (fn.fromFirstOccurrenceOf ("-", false, false));
 
-                const bool probablyBold = afterDash.containsIgnoreCase (T("bold")) || fn.endsWithIgnoreCase (T("bold"));
-                const bool probablyItalic = afterDash.containsIgnoreCase (T("oblique"))
-                                             || afterDash.containsIgnoreCase (T("italic"))
-                                             || fn.endsWithIgnoreCase (T("oblique"))
-                                             || fn.endsWithIgnoreCase (T("italic"));
+                const bool probablyBold = afterDash.containsIgnoreCase ("bold") || fn.endsWithIgnoreCase ("bold");
+                const bool probablyItalic = afterDash.containsIgnoreCase ("oblique")
+                                             || afterDash.containsIgnoreCase ("italic")
+                                             || fn.endsWithIgnoreCase ("oblique")
+                                             || fn.endsWithIgnoreCase ("italic");
 
                 if (probablyBold == font.isBold()
                      && probablyItalic == font.isItalic())
@@ -478,6 +478,9 @@ private:
 
     ScopedPointer <CharToGlyphMapper> charToGlyphMapper;
 #endif
+
+    MacTypeface (const MacTypeface&);
+    MacTypeface& operator= (const MacTypeface&);
 };
 
 const Typeface::Ptr Typeface::createSystemTypefaceFor (const Font& font)
@@ -486,7 +489,7 @@ const Typeface::Ptr Typeface::createSystemTypefaceFor (const Font& font)
 }
 
 //==============================================================================
-const StringArray Font::findAllTypefaceNames() throw()
+const StringArray Font::findAllTypefaceNames()
 {
     StringArray names;
 
@@ -505,7 +508,7 @@ const StringArray Font::findAllTypefaceNames() throw()
     return names;
 }
 
-void Font::getPlatformDefaultFontNames (String& defaultSans, String& defaultSerif, String& defaultFixed) throw()
+void Font::getPlatformDefaultFontNames (String& defaultSans, String& defaultSerif, String& defaultFixed)
 {
 #if JUCE_IPHONE
     defaultSans  = "Helvetica";
