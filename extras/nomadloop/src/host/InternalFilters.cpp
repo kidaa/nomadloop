@@ -48,7 +48,9 @@ InternalPluginFormat::InternalPluginFormat()
     }
 
 	{
-		AudioProcessorGraph::AudioGraphIOProcessor p (AudioProcessorGraph::AudioGraphIOProcessor::midiOutputNode);
+		/*AudioProcessorGraph::AudioGraphIOProcessor p (AudioProcessorGraph::AudioGraphIOProcessor::midiOutputNode);
+		p.fillInPluginDescription (midiOutDesc);*/
+		DefaultMidiOutputFilter p;
 		p.fillInPluginDescription (midiOutDesc);
 	}
 
@@ -89,7 +91,8 @@ AudioPluginInstance* InternalPluginFormat::createInstanceFromDescription (const 
     }
 	else if (desc.name == midiOutDesc.name)
 	{
-		return new AudioProcessorGraph::AudioGraphIOProcessor (AudioProcessorGraph::AudioGraphIOProcessor::midiOutputNode);
+		//return new AudioProcessorGraph::AudioGraphIOProcessor (AudioProcessorGraph::AudioGraphIOProcessor::midiOutputNode);
+		return new DefaultMidiOutputFilter();
 	}
 	else if (desc.name == looperDesc.name)
 	{
