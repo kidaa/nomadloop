@@ -77,7 +77,7 @@ public:
         Like an XmlElement, each ValueTree node has a type, which you can access with
         getType() and hasType().
     */
-    ValueTree (const String& type);
+    explicit ValueTree (const String& type);
 
     /** Creates a reference to another ValueTree. */
     ValueTree (const ValueTree& other);
@@ -377,6 +377,9 @@ public:
         }
     }
 
+    /** An invalid ValueTree that can be used if you need to return one as an error condition, etc. */
+    static ValueTree invalid;
+
     //==============================================================================
     juce_UseDebuggingNewOperator
 
@@ -445,7 +448,7 @@ private:
 
 public:
     /** @internal */
-    ValueTree (SharedObject* const object_);  // (can be made private when VC6 support is finally dropped)
+    explicit ValueTree (SharedObject* const object_);  // (can be made private when VC6 support is finally dropped)
 };
 
 

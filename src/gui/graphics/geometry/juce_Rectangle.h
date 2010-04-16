@@ -72,6 +72,17 @@ public:
     {
     }
 
+    /** Creates a Rectangle from the positions of two opposite corners. */
+    Rectangle (const Point<ValueType>& corner1, const Point<ValueType>& corner2) throw()
+      : x (jmin (corner1.getX(), corner2.getX())),
+        y (jmin (corner1.getY(), corner2.getY())),
+        w (corner1.getX() - corner2.getX()),
+        h (corner1.getY() - corner2.getY())
+    {
+        if (w < 0) w = -w;
+        if (h < 0) h = -h;
+    }
+
     Rectangle& operator= (const Rectangle& other) throw()
     {
         x = other.x; y = other.y;
@@ -208,6 +219,12 @@ public:
     const Rectangle operator+ (const Point<ValueType>& deltaPosition) const throw()
     {
         return Rectangle (x + deltaPosition.getX(), y + deltaPosition.getY(), w, h);
+    }
+
+    /** Returns a rectangle which is the same as this one moved by a given amount. */
+    const Rectangle operator- (const Point<ValueType>& deltaPosition) const throw()
+    {
+        return Rectangle (x - deltaPosition.getX(), y - deltaPosition.getY(), w, h);
     }
 
     /** Expands the rectangle by a given amount.

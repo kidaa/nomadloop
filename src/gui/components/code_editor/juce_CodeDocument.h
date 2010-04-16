@@ -28,7 +28,7 @@
 
 #include "../../../utilities/juce_UndoManager.h"
 #include "../../graphics/colour/juce_Colour.h"
-#include "../../../containers/juce_VoidArray.h"
+#include "../../../events/juce_ListenerList.h"
 #include "../../../io/streams/juce_InputStream.h"
 #include "../../../io/streams/juce_OutputStream.h"
 class CodeDocumentLine;
@@ -175,7 +175,7 @@ public:
         /** Returns the character in the document at this position.
             @see getLineText
         */
-        const tchar getCharacter() const throw();
+        const juce_wchar getCharacter() const throw();
 
         /** Returns the line from the document that this position is within.
             @see getCharacter, getLineNumber
@@ -392,7 +392,7 @@ private:
     UndoManager undoManager;
     int currentActionIndex, indexOfSavedState;
     int maximumLineLength;
-    VoidArray listeners;
+    ListenerList <Listener> listeners;
     String newLineChars;
 
     void sendListenerChangeMessage (int startLine, int endLine);

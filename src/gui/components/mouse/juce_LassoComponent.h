@@ -106,7 +106,7 @@ public:
         The fill colour is used to fill the lasso'ed rectangle, and the outline
         colour is used to draw a line around its edge.
     */
-    LassoComponent (const int outlineThickness_ = 1)
+    explicit LassoComponent (const int outlineThickness_ = 1)
         : source (0),
           outlineThickness (outlineThickness_)
     {
@@ -159,10 +159,7 @@ public:
     {
         if (source != 0)
         {
-            const int x1 = e.getMouseDownX();
-            const int y1 = e.getMouseDownY();
-
-            setBounds (jmin (x1, e.x), jmin (y1, e.y), abs (e.x - x1), abs (e.y - y1));
+            setBounds (Rectangle<int> (e.getMouseDownPosition(), e.getPosition()));
             setVisible (true);
 
             Array <SelectableItemType> itemsInLasso;

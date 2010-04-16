@@ -60,12 +60,26 @@ public:
     }
 
     //==============================================================================
-    static juce_wchar* create (const size_t numChars)
+    static juce_wchar* createUninitialised (const size_t numChars)
     {
         StringHolder* const s = reinterpret_cast <StringHolder*> (new char [sizeof (StringHolder) + numChars * sizeof (juce_wchar)]);
         s->refCount = 0;
         s->allocatedNumChars = numChars;
         return &(s->text[0]);
+    }
+
+    static juce_wchar* createCopy (const juce_wchar* const src, const size_t numChars)
+    {
+        juce_wchar* const dest = createUninitialised (numChars);
+        copyChars (dest, src, numChars);
+        return dest;
+    }
+
+    static juce_wchar* createCopy (const char* const src, const size_t numChars)
+    {
+        juce_wchar* const dest = createUninitialised (numChars);
+        CharacterFunctions::copy (dest, src, numChars + 1);
+        return dest;
     }
 
     static inline juce_wchar* getEmpty() throw()
@@ -98,8 +112,7 @@ public:
         if (b->refCount <= 0)
             return text;
 
-        juce_wchar* const newText = create (b->allocatedNumChars);
-        copyChars (newText, text, b->allocatedNumChars);
+        juce_wchar* const newText = createCopy (text, b->allocatedNumChars);
         release (b);
 
         return newText;
@@ -112,7 +125,7 @@ public:
         if (b->refCount <= 0 && b->allocatedNumChars >= numChars)
             return text;
 
-        juce_wchar* const newText = create (jmax (b->allocatedNumChars, numChars));
+        juce_wchar* const newText = createUninitialised (jmax (b->allocatedNumChars, numChars));
         copyChars (newText, text, b->allocatedNumChars);
         release (b);
 
@@ -138,10 +151,10 @@ public:
     static StringHolder empty;
 
 private:
-    static inline StringHolder* bufferFromText (juce_wchar* const text) throw()
+    static inline StringHolder* bufferFromText (void* const text) throw()
     {
         // (Can't use offsetof() here because of warnings about this not being a POD)
-        return reinterpret_cast <StringHolder*> (reinterpret_cast <char*> (text)
+        return reinterpret_cast <StringHolder*> (static_cast <char*> (text)
                     - (reinterpret_cast <size_t> (reinterpret_cast <StringHolder*> (1)->text) - 1));
     }
 };
@@ -154,8 +167,7 @@ void String::createInternal (const juce_wchar* const t, const size_t numChars)
 {
     jassert (t[numChars] == 0); // must have a null terminator
 
-    text = StringHolder::create (numChars);
-    StringHolder::copyChars (text, t, numChars);
+    text = StringHolder::createCopy (t, numChars);
 }
 
 void String::appendInternal (const juce_wchar* const newText, const int numExtraChars)
@@ -206,43 +218,31 @@ String& String::operator= (const String& other) throw()
 }
 
 String::String (const size_t numChars, const int /*dummyVariable*/)
-    : text (StringHolder::create (numChars))
+    : text (StringHolder::createUninitialised (numChars))
 {
 }
 
 String::String (const String& stringToCopy, const size_t charsToAllocate)
 {
     const size_t otherSize = StringHolder::getAllocatedNumChars (stringToCopy.text);
-    text = StringHolder::create (jmax (charsToAllocate, otherSize));
+    text = StringHolder::createUninitialised (jmax (charsToAllocate, otherSize));
     StringHolder::copyChars (text, stringToCopy.text, otherSize);
 }
 
 String::String (const char* const t)
 {
     if (t != 0 && *t != 0)
-    {
-        const int len = CharacterFunctions::length (t);
-        text = StringHolder::create (len);
-        CharacterFunctions::copy (text, t, len + 1);
-    }
+        text = StringHolder::createCopy (t, CharacterFunctions::length (t));
     else
-    {
         text = StringHolder::getEmpty();
-    }
 }
 
 String::String (const juce_wchar* const t)
 {
     if (t != 0 && *t != 0)
-    {
-        const int len = CharacterFunctions::length (t);
-        text = StringHolder::create (len);
-        StringHolder::copyChars (text, t, len);
-    }
+        text = StringHolder::createCopy (t, CharacterFunctions::length (t));
     else
-    {
         text = StringHolder::getEmpty();
-    }
 }
 
 String::String (const char* const t, const size_t maxChars)
@@ -253,15 +253,9 @@ String::String (const char* const t, const size_t maxChars)
             break;
 
     if (i > 0)
-    {
-        text = StringHolder::create (i);
-        CharacterFunctions::copy (text, t, i);
-        text[i] = 0;
-    }
+        text = StringHolder::createCopy (t, i);
     else
-    {
         text = StringHolder::getEmpty();
-    }
 }
 
 String::String (const juce_wchar* const t, const size_t maxChars)
@@ -272,14 +266,9 @@ String::String (const juce_wchar* const t, const size_t maxChars)
             break;
 
     if (i > 0)
-    {
-        text = StringHolder::create (i);
-        StringHolder::copyChars (text, t, i);
-    }
+        text = StringHolder::createCopy (t, i);
     else
-    {
         text = StringHolder::getEmpty();
-    }
 }
 
 const String String::charToString (const juce_wchar character)
@@ -400,7 +389,7 @@ namespace NumberToStringConverters
         else
         {
 #if JUCE_WIN32
-  #if _MSC_VER <= 1200
+  #if _MSC_VER <= 1400
             len = _snwprintf (buffer, numChars, L"%.9g", n);
   #else
             len = _snwprintf_s (buffer, numChars, _TRUNCATE, L"%.9g", n);
@@ -630,13 +619,13 @@ String& String::operator+= (const String& other)
 String& String::operator+= (const char ch)
 {
     const juce_wchar asString[] = { (juce_wchar) ch, 0 };
-    return operator+= ((const juce_wchar*) asString);
+    return operator+= (static_cast <const juce_wchar*> (asString));
 }
 
 String& String::operator+= (const juce_wchar ch)
 {
     const juce_wchar asString[] = { (juce_wchar) ch, 0 };
-    return operator+= ((const juce_wchar*) asString);
+    return operator+= (static_cast <const juce_wchar*> (asString));
 }
 
 String& String::operator+= (const int number)
@@ -1364,9 +1353,7 @@ const String String::substring (int start, int end) const
         return empty;
 
     int len = 0;
-    const juce_wchar* const t = text;
-
-    while (len <= end && t [len] != 0)
+    while (len <= end && text [len] != 0)
         ++len;
 
     if (end >= len)
@@ -1389,8 +1376,8 @@ const String String::substring (const int start) const
 
     if (start >= len)
         return empty;
-    else
-        return String (text + start, len - start);
+
+    return String (text + start, len - start);
 }
 
 const String String::dropLastCharacters (const int numberToDrop) const
@@ -1409,11 +1396,10 @@ const String String::fromFirstOccurrenceOf (const String& sub,
 {
     const int i = ignoreCase ? indexOfIgnoreCase (sub)
                              : indexOf (sub);
-
     if (i < 0)
         return empty;
-    else
-        return substring (includeSubString ? i : i + sub.length());
+
+    return substring (includeSubString ? i : i + sub.length());
 }
 
 const String String::fromLastOccurrenceOf (const String& sub,
@@ -1422,7 +1408,6 @@ const String String::fromLastOccurrenceOf (const String& sub,
 {
     const int i = ignoreCase ? lastIndexOfIgnoreCase (sub)
                              : lastIndexOf (sub);
-
     if (i < 0)
         return *this;
 
@@ -1435,7 +1420,6 @@ const String String::upToFirstOccurrenceOf (const String& sub,
 {
     const int i = ignoreCase ? indexOfIgnoreCase (sub)
                              : indexOf (sub);
-
     if (i < 0)
         return *this;
 
@@ -1517,8 +1501,8 @@ const String String::trim() const
         return empty;
     else if (start > 0 || end < len)
         return String (text + start, end - start);
-    else
-        return *this;
+
+    return *this;
 }
 
 const String String::trimStart() const
@@ -1533,8 +1517,8 @@ const String String::trimStart() const
 
     if (t == text)
         return *this;
-    else
-        return String (t);
+
+    return String (t);
 }
 
 const String String::trimEnd() const
@@ -1552,9 +1536,6 @@ const String String::trimEnd() const
 
 const String String::trimCharactersAtStart (const String& charactersToTrim) const
 {
-    if (isEmpty())
-        return empty;
-
     const juce_wchar* t = text;
 
     while (charactersToTrim.containsChar (*t))
@@ -1562,8 +1543,8 @@ const String String::trimCharactersAtStart (const String& charactersToTrim) cons
 
     if (t == text)
         return *this;
-    else
-        return String (t);
+
+    return String (t);
 }
 
 const String String::trimCharactersAtEnd (const String& charactersToTrim) const
@@ -1624,7 +1605,17 @@ const String String::removeCharacters (const String& charactersToRemove) const
 
 const String String::initialSectionContainingOnly (const String& permittedCharacters) const
 {
-    return substring (0, CharacterFunctions::getIntialSectionContainingOnly (text, permittedCharacters.text));
+    int i = 0;
+
+    for (;;)
+    {
+        if (! permittedCharacters.containsChar (text[i]))
+            break;
+
+        ++i;
+    }
+
+    return substring (0, i);
 }
 
 const String String::initialSectionNotContaining (const String& charactersToStopAt) const
@@ -1882,7 +1873,7 @@ int64 String::getHexValue64() const throw()
 //==============================================================================
 const String String::createStringFromData (const void* const data_, const int size)
 {
-    const char* const data = (const char*) data_;
+    const char* const data = static_cast <const char*> (data_);
 
     if (size <= 0 || data == 0)
     {
@@ -1903,7 +1894,7 @@ const String String::createStringFromData (const void* const data_, const int si
         result.preallocateStorage (numChars + 2);
 
         const uint16* const src = (const uint16*) (data + 2);
-        juce_wchar* const dst = const_cast <juce_wchar*> ((const juce_wchar*) result);
+        juce_wchar* const dst = const_cast <juce_wchar*> (static_cast <const juce_wchar*> (result));
 
         if (bigEndian)
         {
@@ -1940,7 +1931,7 @@ const char* String::toUTF8() const
         String* const mutableThis = const_cast <String*> (this);
         mutableThis->text = StringHolder::makeUniqueWithSize (mutableThis->text, currentLen + 1 + utf8BytesNeeded / sizeof (juce_wchar));
 
-        char* const otherCopy = (char*) (text + currentLen);
+        char* const otherCopy = reinterpret_cast <char*> (mutableThis->text + currentLen);
         copyToUTF8 (otherCopy, std::numeric_limits<int>::max());
 
         return otherCopy;
@@ -2128,12 +2119,11 @@ const char* String::toCString() const
     }
     else
     {
-        int len = length();
-
+        const int len = length();
         String* const mutableThis = const_cast <String*> (this);
         mutableThis->text = StringHolder::makeUniqueWithSize (mutableThis->text, (len + 1) * 2);
 
-        char* otherCopy = (char*) (text + len + 1);
+        char* otherCopy = reinterpret_cast <char*> (mutableThis->text + len + 1);
         CharacterFunctions::copy (otherCopy, text, len);
         otherCopy [len] = 0;
         return otherCopy;
@@ -2189,7 +2179,7 @@ void String::Concatenator::append (const String& s)
     if (len > 0)
     {
         result.preallocateStorage (nextIndex + len);
-        s.copyToUnicode (((juce_wchar*) result) + nextIndex, len);
+        s.copyToUnicode (static_cast <juce_wchar*> (result) + nextIndex, len);
         nextIndex += len;
     }
 }

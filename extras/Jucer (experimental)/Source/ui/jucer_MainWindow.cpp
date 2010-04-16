@@ -66,6 +66,9 @@ MainWindow::MainWindow()
 
         DocumentEditorComponent dec (0);
         commandManager->registerAllCommandsForTarget (&dec);
+
+        ComponentEditor compEd (0, 0, 0);
+        commandManager->registerAllCommandsForTarget (&compEd);
     }
 
     commandManager->getKeyMappings()->resetToDefaultMappings();
@@ -329,9 +332,9 @@ const PopupMenu MainWindow::getMenuForIndex (int topLevelMenuIndex,
 
         PopupMenu m;
         for (int i = 0; i < numElementsInArray (snapSizes); ++i)
-            m.addItem (300 + i, String (snapSizes[i]) + T(" pixels"), true, snapSizes[i] == currentSnapSize);
+            m.addItem (300 + i, String (snapSizes[i]) + " pixels", true, snapSizes[i] == currentSnapSize);
 
-        menu.addSubMenu (T("Grid size"), m, getActiveDocument() != 0);*/
+        menu.addSubMenu ("Grid size", m, getActiveDocument() != 0);*/
 
         menu.addSeparator();
         menu.addCommandItem (commandManager, CommandIDs::zoomIn);
@@ -344,7 +347,7 @@ const PopupMenu MainWindow::getMenuForIndex (int topLevelMenuIndex,
         overlays.addCommandItem (commandManager, CommandIDs::compOverlay33);
         overlays.addCommandItem (commandManager, CommandIDs::compOverlay66);
         overlays.addCommandItem (commandManager, CommandIDs::compOverlay100);
-        menu.addSubMenu (T("Component Overlay"), overlays,
+        menu.addSubMenu ("Component Overlay", overlays,
                          getActiveDocument() != 0 && getActiveDocument()->getComponentLayout() != 0);*/
 
         menu.addSeparator();

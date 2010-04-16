@@ -79,8 +79,8 @@ bool KeyPress::operator== (const KeyPress& other) const throw()
             && (keyCode == other.keyCode
                  || (keyCode < 256
                       && other.keyCode < 256
-                      && CharacterFunctions::toLowerCase ((tchar) keyCode)
-                           == CharacterFunctions::toLowerCase ((tchar) other.keyCode)));
+                      && CharacterFunctions::toLowerCase ((juce_wchar) keyCode)
+                           == CharacterFunctions::toLowerCase ((juce_wchar) other.keyCode)));
 }
 
 bool KeyPress::operator!= (const KeyPress& other) const throw()
@@ -88,7 +88,7 @@ bool KeyPress::operator!= (const KeyPress& other) const throw()
     return ! operator== (other);
 }
 
-bool KeyPress::isCurrentlyDown() const throw()
+bool KeyPress::isCurrentlyDown() const
 {
     return isKeyCurrentlyDown (keyCode)
             && (ModifierKeys::getCurrentModifiers().getRawFlags() & ModifierKeys::allKeyboardModifiers)
@@ -131,7 +131,7 @@ namespace KeyPressHelpers
 }
 
 //==============================================================================
-const KeyPress KeyPress::createFromDescription (const String& desc) throw()
+const KeyPress KeyPress::createFromDescription (const String& desc)
 {
     int modifiers = 0;
 
@@ -168,7 +168,7 @@ const KeyPress KeyPress::createFromDescription (const String& desc) throw()
         // see if it's a numpad key..
         if (desc.containsIgnoreCase (KeyPressHelpers::numberPadPrefix()))
         {
-            const tchar lastChar = desc.trimEnd().getLastCharacter();
+            const juce_wchar lastChar = desc.trimEnd().getLastCharacter();
 
             if (lastChar >= '0' && lastChar <= '9')
                 key = numberPad0 + lastChar - '0';
@@ -216,7 +216,7 @@ const KeyPress KeyPress::createFromDescription (const String& desc) throw()
     return KeyPress (key, ModifierKeys (modifiers), 0);
 }
 
-const String KeyPress::getTextDescription() const throw()
+const String KeyPress::getTextDescription() const
 {
     String desc;
 
@@ -255,7 +255,7 @@ const String KeyPress::getTextDescription() const throw()
         else if (keyCode >= numberPad0 && keyCode <= numberPad9)
             desc << KeyPressHelpers::numberPadPrefix() << (keyCode - numberPad0);
         else if (keyCode >= 33 && keyCode < 176)
-            desc += CharacterFunctions::toUpperCase ((tchar) keyCode);
+            desc += CharacterFunctions::toUpperCase ((juce_wchar) keyCode);
         else if (keyCode == numberPadAdd)
             desc << KeyPressHelpers::numberPadPrefix() << '+';
         else if (keyCode == numberPadSubtract)

@@ -49,13 +49,16 @@ class JUCE_API  SelectedItemSet   : public ChangeBroadcaster
 {
 public:
     //==============================================================================
+    typedef SelectableItemType ItemType;
+
+    //==============================================================================
     /** Creates an empty set. */
     SelectedItemSet()
     {
     }
 
     /** Creates a set based on an array of items. */
-    SelectedItemSet (const Array <SelectableItemType>& items)
+    explicit SelectedItemSet (const Array <SelectableItemType>& items)
         : selectedItems (items)
     {
     }

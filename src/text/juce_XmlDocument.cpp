@@ -39,6 +39,7 @@ XmlDocument::XmlDocument (const String& documentText)
 }
 
 XmlDocument::XmlDocument (const File& file)
+    : ignoreEmptyTextElements (true)
 {
     inputSource = new FileInputSource (file);
 }
@@ -87,11 +88,11 @@ XmlElement* XmlDocument::getDocumentElement (const bool onlyReadOuterDocumentEle
                  && ((data[0] == (char)-2 && data[1] == (char)-1)
                       || (data[0] == (char)-1 && data[1] == (char)-2)))
             {
-                textToParse = String::createStringFromData ((const char*) data.getData(), (int) data.getSize());
+                textToParse = String::createStringFromData (static_cast <const char*> (data.getData()), (int) data.getSize());
             }
             else
             {
-                textToParse = String::fromUTF8 ((const char*) data.getData(), (int) data.getSize());
+                textToParse = String::fromUTF8 (static_cast <const char*> (data.getData()), (int) data.getSize());
             }
 
             if (! onlyReadOuterDocumentElement)

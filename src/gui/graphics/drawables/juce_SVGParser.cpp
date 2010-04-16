@@ -219,7 +219,7 @@ private:
         int index = 0;
         float lastX = 0, lastY = 0;
         float lastX2 = 0, lastY2 = 0;
-        tchar lastCommandChar = 0;
+        juce_wchar lastCommandChar = 0;
         bool isRelative = true;
         bool carryOn = true;
 
@@ -250,7 +250,10 @@ private:
                     }
 
                     if (lastCommandChar == 'M' || lastCommandChar == 'm')
+                    {
                         path.startNewSubPath (x, y);
+                        lastCommandChar = 'l';
+                    }
                     else
                         path.lineTo (x, y);
 
@@ -610,7 +613,7 @@ private:
 
         DrawablePath* dp = new DrawablePath();
         dp->setName (xml.getStringAttribute ("id"));
-        dp->setFill (FillType (Colours::transparentBlack));
+        dp->setFill (Colours::transparentBlack);
 
         path.applyTransform (transform);
         dp->setPath (path);
@@ -891,8 +894,8 @@ private:
         {
             const float dpi = 96.0f;
 
-            const tchar n1 = s [len - 2];
-            const tchar n2 = s [len - 1];
+            const juce_wchar n1 = s [len - 2];
+            const juce_wchar n2 = s [len - 1];
 
             if (n1 == 'i' && n2 == 'n')
                 n *= dpi;
@@ -990,7 +993,7 @@ private:
     }
 
     //==============================================================================
-    static bool isIdentifierChar (const tchar c)
+    static bool isIdentifierChar (const juce_wchar c)
     {
         return CharacterFunctions::isLetter (c) || c == '-';
     }
@@ -1031,7 +1034,7 @@ private:
     //==============================================================================
     static bool parseNextNumber (const String& source, String& value, int& index, const bool allowUnits)
     {
-        const tchar* const s = (const tchar*) source;
+        const juce_wchar* const s = source;
 
         while (CharacterFunctions::isWhitespace (s[index]) || s[index] == ',')
             ++index;

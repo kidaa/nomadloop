@@ -345,7 +345,7 @@ public:
             AudioValueTranslation avt;
             char buffer[256];
 
-            avt.mInputData = (void*) &(types[i]);
+            avt.mInputData = &(types[i]);
             avt.mInputDataSize = sizeof (UInt32);
             avt.mOutputData = buffer;
             avt.mOutputDataSize = 256;
@@ -502,9 +502,9 @@ public:
             if (deviceID != 0)
             {
 #if MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5
-                if (OK (AudioDeviceAddIOProc (deviceID, audioIOProc, (void*) this)))
+                if (OK (AudioDeviceAddIOProc (deviceID, audioIOProc, this)))
 #else
-                if (OK (AudioDeviceCreateIOProcID (deviceID, audioIOProc, (void*) this, &audioProcID)))
+                if (OK (AudioDeviceCreateIOProcID (deviceID, audioIOProc, this, &audioProcID)))
 #endif
                 {
                     if (OK (AudioDeviceStart (deviceID, audioIOProc)))
@@ -806,13 +806,13 @@ private:
                                  const AudioTimeStamp* inOutputTime,
                                  void* device)
     {
-        ((CoreAudioInternal*) device)->audioCallback (inInputData, outOutputData);
+        static_cast <CoreAudioInternal*> (device)->audioCallback (inInputData, outOutputData);
         return noErr;
     }
 
     static OSStatus deviceListenerProc (AudioDeviceID /*inDevice*/, UInt32 /*inLine*/, const AudioObjectPropertyAddress* pa, void* inClientData)
     {
-        CoreAudioInternal* const intern = (CoreAudioInternal*) inClientData;
+        CoreAudioInternal* const intern = static_cast <CoreAudioInternal*> (inClientData);
 
         switch (pa->mSelector)
         {
@@ -1090,7 +1090,7 @@ private:
 
     static OSStatus hardwareListenerProc (AudioDeviceID /*inDevice*/, UInt32 /*inLine*/, const AudioObjectPropertyAddress* pa, void* inClientData)
     {
-        CoreAudioInternal* const intern = (CoreAudioInternal*) inClientData;
+        CoreAudioInternal* const intern = static_cast <CoreAudioInternal*> (inClientData);
 
         switch (pa->mSelector)
         {

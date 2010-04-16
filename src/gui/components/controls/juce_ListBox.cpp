@@ -197,8 +197,8 @@ public:
 
     ListBoxRowComponent* getComponentForRow (const int row) const throw()
     {
-        return (ListBoxRowComponent*) getViewedComponent()
-                    ->getChildComponent (row % jmax (1, getViewedComponent()->getNumChildComponents()));
+        return static_cast <ListBoxRowComponent*>
+                (getViewedComponent()->getChildComponent (row % jmax (1, getViewedComponent()->getNumChildComponents())));
     }
 
     int getRowNumberOfComponent (Component* const rowComponent) const throw()
@@ -904,7 +904,7 @@ Image* ListBox::createSnapshotOfSelectedRows (int& imageX, int& imageY)
         }
     }
 
-    imageArea = imageArea.getIntersection (Rectangle<int> (0, 0, getWidth(), getHeight()));
+    imageArea = imageArea.getIntersection (getLocalBounds());
     imageX = imageArea.getX();
     imageY = imageArea.getY();
     Image* snapshot = Image::createNativeImage (Image::ARGB, imageArea.getWidth(), imageArea.getHeight(), true);

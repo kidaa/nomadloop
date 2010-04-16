@@ -235,7 +235,7 @@ public:
          alpha (1.0f),
          scale (1.0f)
     {
-        image = comp->createComponentSnapshot (Rectangle<int> (0, 0, comp->getWidth(), comp->getHeight()));
+        image = comp->createComponentSnapshot (comp->getLocalBounds());
         setBounds (comp->getBounds());
         comp->getParentComponent()->addAndMakeVisible (this);
         toBehind (comp);
@@ -1207,14 +1207,14 @@ Component* Component::removeChildComponent (const int index)
 //==============================================================================
 void Component::removeAllChildren()
 {
-    for (int i = childComponentList_.size(); --i >= 0;)
-        removeChildComponent (i);
+    while (childComponentList_.size() > 0)
+        removeChildComponent (childComponentList_.size() - 1);
 }
 
 void Component::deleteAllChildren()
 {
-    for (int i = childComponentList_.size(); --i >= 0;)
-        delete (removeChildComponent (i));
+    while (childComponentList_.size() > 0)
+        delete (removeChildComponent (childComponentList_.size() - 1));
 }
 
 //==============================================================================
@@ -1321,7 +1321,7 @@ void Component::internalHierarchyChanged()
 //==============================================================================
 void* Component::runModalLoopCallback (void* userData)
 {
-    return (void*) (pointer_sized_int) ((Component*) userData)->runModalLoop();
+    return (void*) (pointer_sized_int) static_cast <Component*> (userData)->runModalLoop();
 }
 
 int Component::runModalLoop()
@@ -1331,7 +1331,7 @@ int Component::runModalLoop()
         // use a callback so this can be called from non-gui threads
         return (int) (pointer_sized_int)
                     MessageManager::getInstance()
-                       ->callFunctionOnMessageThread (&runModalLoopCallback, (void*) this);
+                       ->callFunctionOnMessageThread (&runModalLoopCallback, this);
     }
 
     SafePointer<Component> prevFocused (getCurrentlyFocusedComponent());
@@ -1703,7 +1703,7 @@ Image* Component::createComponentSnapshot (const Rectangle<int>& areaToGrab,
     Rectangle<int> r (areaToGrab);
 
     if (clipImageToComponentBounds)
-        r = r.getIntersection (Rectangle<int> (0, 0, getWidth(), getHeight()));
+        r = r.getIntersection (getLocalBounds());
 
     ScopedPointer<Image> componentImage (Image::createNativeImage (flags.opaqueFlag ? Image::RGB : Image::ARGB,
                                                                    jmax (1, r.getWidth()),
@@ -1840,6 +1840,11 @@ void Component::colourChanged()
 }
 
 //==============================================================================
+const Rectangle<int> Component::getLocalBounds() const throw()
+{
+    return Rectangle<int> (0, 0, getWidth(), getHeight());
+}
+
 const Rectangle<int> Component::getUnclippedArea() const
 {
     int x = 0, y = 0, w = getWidth(), h = getHeight();
@@ -1889,8 +1894,7 @@ void Component::clipObscuredRegions (Graphics& g, const Rectangle<int>& clipRect
     }
 }
 
-void Component::getVisibleArea (RectangleList& result,
-                                const bool includeSiblings) const
+void Component::getVisibleArea (RectangleList& result, const bool includeSiblings) const
 {
     result.clear();
     const Rectangle<int> unclipped (getUnclippedArea());
@@ -1904,8 +1908,7 @@ void Component::getVisibleArea (RectangleList& result,
             const Component* const c = getTopLevelComponent();
 
             c->subtractObscuredRegions (result, c->relativePositionToOtherComponent (this, Point<int>()),
-                                        Rectangle<int> (0, 0, c->getWidth(), c->getHeight()),
-                                        this);
+                                        c->getLocalBounds(), this);
         }
 
         subtractObscuredRegions (result, Point<int>(), unclipped, 0);
@@ -2089,7 +2092,7 @@ void Component::addMouseListener (MouseListener* const newListener,
     checkMessageManagerIsLocked
 
     if (mouseListeners_ == 0)
-        mouseListeners_ = new VoidArray();
+        mouseListeners_ = new Array<MouseListener*>();
 
     if (! mouseListeners_->contains (newListener))
     {
@@ -2165,7 +2168,7 @@ void Component::internalMouseEnter (MouseInputSource& source, const Point<int>& 
         {
             for (int i = mouseListeners_->size(); --i >= 0;)
             {
-                ((MouseListener*) mouseListeners_->getUnchecked(i))->mouseEnter (me);
+                mouseListeners_->getUnchecked(i)->mouseEnter (me);
 
                 if (checker.shouldBailOut())
                     return;
@@ -2184,7 +2187,7 @@ void Component::internalMouseEnter (MouseInputSource& source, const Point<int>& 
 
                 for (int i = p->numDeepMouseListeners; --i >= 0;)
                 {
-                    ((MouseListener*) (p->mouseListeners_->getUnchecked(i)))->mouseEnter (me);
+                    p->mouseListeners_->getUnchecked(i)->mouseEnter (me);
 
                     if (checker.shouldBailOut())
                         return;
@@ -2256,7 +2259,7 @@ void Component::internalMouseExit (MouseInputSource& source, const Point<int>& r
 
                 for (int i = p->numDeepMouseListeners; --i >= 0;)
                 {
-                    ((MouseListener*) (p->mouseListeners_->getUnchecked (i)))->mouseExit (me);
+                    p->mouseListeners_->getUnchecked (i)->mouseExit (me);
 
                     if (checker.shouldBailOut())
                         return;
@@ -2423,7 +2426,7 @@ void Component::internalMouseDown (MouseInputSource& source, const Point<int>& r
 
             for (int i = p->numDeepMouseListeners; --i >= 0;)
             {
-                ((MouseListener*) (p->mouseListeners_->getUnchecked (i)))->mouseDown (me);
+                p->mouseListeners_->getUnchecked (i)->mouseDown (me);
 
                 if (checker.shouldBailOut())
                     return;
@@ -2492,7 +2495,7 @@ void Component::internalMouseUp (MouseInputSource& source, const Point<int>& rel
 
                     for (int i = p->numDeepMouseListeners; --i >= 0;)
                     {
-                        ((MouseListener*) (p->mouseListeners_->getUnchecked (i)))->mouseUp (me);
+                        p->mouseListeners_->getUnchecked (i)->mouseUp (me);
 
                         if (checker.shouldBailOut())
                             return;
@@ -2543,7 +2546,7 @@ void Component::internalMouseUp (MouseInputSource& source, const Point<int>& rel
 
                     for (int i = p->numDeepMouseListeners; --i >= 0;)
                     {
-                        ((MouseListener*) (p->mouseListeners_->getUnchecked (i)))->mouseDoubleClick (me);
+                        p->mouseListeners_->getUnchecked (i)->mouseDoubleClick (me);
 
                         if (checker.shouldBailOut())
                             return;
@@ -2609,7 +2612,7 @@ void Component::internalMouseDrag (MouseInputSource& source, const Point<int>& r
 
                 for (int i = p->numDeepMouseListeners; --i >= 0;)
                 {
-                    ((MouseListener*) (p->mouseListeners_->getUnchecked (i)))->mouseDrag (me);
+                    p->mouseListeners_->getUnchecked (i)->mouseDrag (me);
 
                     if (checker.shouldBailOut())
                         return;
@@ -2675,7 +2678,7 @@ void Component::internalMouseMove (MouseInputSource& source, const Point<int>& r
 
                 for (int i = p->numDeepMouseListeners; --i >= 0;)
                 {
-                    ((MouseListener*) (p->mouseListeners_->getUnchecked (i)))->mouseMove (me);
+                    p->mouseListeners_->getUnchecked (i)->mouseMove (me);
 
                     if (checker.shouldBailOut())
                         return;
@@ -2741,7 +2744,7 @@ void Component::internalMouseWheel (MouseInputSource& source, const Point<int>& 
 
                 for (int i = p->numDeepMouseListeners; --i >= 0;)
                 {
-                    ((MouseListener*) (p->mouseListeners_->getUnchecked (i)))->mouseWheelMove (me, wheelIncrementX, wheelIncrementY);
+                    p->mouseListeners_->getUnchecked (i)->mouseWheelMove (me, wheelIncrementX, wheelIncrementY);
 
                     if (checker.shouldBailOut())
                         return;

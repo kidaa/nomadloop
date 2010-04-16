@@ -38,10 +38,11 @@ namespace Atoms
     enum ProtocolItems
     {
         TAKE_FOCUS = 0,
-        DELETE_WINDOW = 1
+        DELETE_WINDOW = 1,
+        PING = 2
     };
 
-    static Atom Protocols, ProtocolList[2], ChangeState, State,
+    static Atom Protocols, ProtocolList[3], ChangeState, State,
                 ActiveWin, Pid, WindowType, WindowState,
                 XdndAware, XdndEnter, XdndLeave, XdndPosition, XdndStatus,
                 XdndDrop, XdndFinished, XdndSelection, XdndTypeList, XdndActionList,
@@ -63,12 +64,13 @@ namespace Atoms
             Protocols                       = XInternAtom (display, "WM_PROTOCOLS", True);
             ProtocolList [TAKE_FOCUS]       = XInternAtom (display, "WM_TAKE_FOCUS", True);
             ProtocolList [DELETE_WINDOW]    = XInternAtom (display, "WM_DELETE_WINDOW", True);
+            ProtocolList [PING]             = XInternAtom (display, "_NET_WM_PING", True);
             ChangeState                     = XInternAtom (display, "WM_CHANGE_STATE", True);
             State                           = XInternAtom (display, "WM_STATE", True);
             ActiveWin                       = XInternAtom (display, "_NET_ACTIVE_WINDOW", False);
             Pid                             = XInternAtom (display, "_NET_WM_PID", False);
             WindowType                      = XInternAtom (display, "_NET_WM_WINDOW_TYPE", True);
-            WindowState                     = XInternAtom (display, "_NET_WM_WINDOW_STATE", True);
+            WindowState                     = XInternAtom (display, "_NET_WM_STATE", True);
 
             XdndAware                       = XInternAtom (display, "XdndAware", False);
             XdndEnter                       = XInternAtom (display, "XdndEnter", False);
@@ -117,7 +119,7 @@ namespace Keys
     static const int extendedKeyModifier = 0x10000000;
 }
 
-bool KeyPress::isKeyCurrentlyDown (const int keyCode) throw()
+bool KeyPress::isKeyCurrentlyDown (const int keyCode)
 {
     int keysym;
 
@@ -560,6 +562,9 @@ public:
     {
         ScopedXLock xlock;
 
+        if (gc != None)
+            XFreeGC (display, gc);
+
 #if JUCE_USE_XSHM
         if (usingXShm)
         {
@@ -583,19 +588,19 @@ public:
     {
         ScopedXLock xlock;
 
-        if (gc == 0)
+        if (gc == None)
         {
-          XGCValues gcvalues;
-          gcvalues.foreground = None;
-          gcvalues.background = None;
-          gcvalues.function = GXcopy;
-          gcvalues.plane_mask = AllPlanes;
-          gcvalues.clip_mask = None;
-          gcvalues.graphics_exposures = False;
+            XGCValues gcvalues;
+            gcvalues.foreground = None;
+            gcvalues.background = None;
+            gcvalues.function = GXcopy;
+            gcvalues.plane_mask = AllPlanes;
+            gcvalues.clip_mask = None;
+            gcvalues.graphics_exposures = False;
 
-          gc = XCreateGC (display, window,
-                          GCBackground | GCForeground | GCFunction | GCPlaneMask | GCClipMask | GCGraphicsExposures,
-                          &gcvalues);
+            gc = XCreateGC (display, window,
+                            GCBackground | GCForeground | GCFunction | GCPlaneMask | GCClipMask | GCGraphicsExposures,
+                            &gcvalues);
         }
 
         if (imageDepth == 16)
@@ -1114,15 +1119,15 @@ public:
 
         const int width = image.getWidth();
         const int height = image.getHeight();
-        HeapBlock <uint32> colour (width * height);
+        HeapBlock <char> colour (width * height);
         int index = 0;
 
         for (int y = 0; y < height; ++y)
             for (int x = 0; x < width; ++x)
-                colour[index++] = image.getPixelAt (x, y).getARGB();
+                colour[index++] = static_cast<char> (image.getPixelAt (x, y).getARGB());
 
         XImage* ximage = XCreateImage (display, CopyFromParent, 24, ZPixmap,
-                                       0, reinterpret_cast<char*> (colour.getData()),
+                                       0, colour.getData(),
                                        width, height, 32, 0);
 
         Pixmap pixmap = XCreatePixmap (display, DefaultRootWindow (display),
@@ -1142,7 +1147,7 @@ public:
         const int width = image.getWidth();
         const int height = image.getHeight();
         const int stride = (width + 7) >> 3;
-        HeapBlock <uint8> mask;
+        HeapBlock <char> mask;
         mask.calloc (stride * height);
         const bool msbfirst = (BitmapBitOrder (display) == MSBFirst);
 
@@ -1150,7 +1155,7 @@ public:
         {
             for (int x = 0; x < width; ++x)
             {
-                const uint8 bit = (uint8) (1 << (msbfirst ? (7 - (x & 7)) : (x & 7)));
+                const char bit = (char) (1 << (msbfirst ? (7 - (x & 7)) : (x & 7)));
                 const int offset = y * stride + (x >> 3);
 
                 if (image.getPixelAt (x, y).getAlpha() >= 128)
@@ -1159,7 +1164,7 @@ public:
         }
 
         return XCreatePixmapFromBitmapData (display, DefaultRootWindow (display),
-                                            reinterpret_cast<char*> (mask.getData()), width, height, 1, 0, 1);
+                                            mask.getData(), width, height, 1, 0, 1);
     }
 
     void setIcon (const Image& newIcon)
@@ -1244,7 +1249,7 @@ public:
                     ::setlocale (LC_ALL, oldLocale);
                 }
 
-                const juce_wchar unicodeChar = *(const juce_wchar*) String::fromUTF8 (utf8, sizeof (utf8) - 1);
+                const juce_wchar unicodeChar = String::fromUTF8 (utf8, sizeof (utf8) - 1) [0];
                 int keyCode = (int) unicodeChar;
 
                 if (keyCode < 0x20)
@@ -1580,7 +1585,6 @@ public:
             }
 
             case ReparentNotify:
-            case GravityNotify:
             {
                 parentWindow = 0;
                 Window wRoot = 0;
@@ -1595,6 +1599,14 @@ public:
                 if (parentWindow == windowH || parentWindow == wRoot)
                     parentWindow = 0;
 
+                updateBounds();
+                updateBorderSize();
+                handleMovedOrResized();
+                break;
+            }
+
+            case GravityNotify:
+            {
                 updateBounds();
                 updateBorderSize();
                 handleMovedOrResized();
@@ -1633,7 +1645,16 @@ public:
                 {
                     const Atom atom = (Atom) clientMsg->data.l[0];
 
-                    if (atom == Atoms::ProtocolList [Atoms::TAKE_FOCUS])
+                    if (atom == Atoms::ProtocolList [Atoms::PING])
+                    {
+                        Window root = RootWindow (display, DefaultScreen (display));
+
+                        event->xclient.window = root;
+
+                        XSendEvent (display, root, False, NoEventMask, event);
+                        XFlush (display);
+                    }
+                    else if (atom == Atoms::ProtocolList [Atoms::TAKE_FOCUS])
                     {
                         XWindowAttributes atts;
 
@@ -2175,11 +2196,10 @@ private:
 
         if ((styleFlags & windowAppearsOnTaskbar) == 0)
         {
-/*          Atom skipTaskbar = XInternAtom (display, "_NET_WM_STATE_SKIP_TASKBAR", False);
+            Atom skipTaskbar = XInternAtom (display, "_NET_WM_STATE_SKIP_TASKBAR", False);
 
-            XChangeProperty (display, wndH, wm_WindowState, XA_ATOM, 32, PropModeReplace,
+            XChangeProperty (display, wndH, Atoms::WindowState, XA_ATOM, 32, PropModeReplace,
                              (unsigned char*) &skipTaskbar, 1);
-*/
         }
     }
 
@@ -2940,7 +2960,7 @@ bool Desktop::isScreenSaverEnabled() throw()
 }
 
 //==============================================================================
-void* juce_createMouseCursorFromImage (const Image& image, int hotspotX, int hotspotY) throw()
+void* juce_createMouseCursorFromImage (const Image& image, int hotspotX, int hotspotY)
 {
     ScopedXLock xlock;
     const unsigned int imageW = image.getWidth();
@@ -3027,7 +3047,7 @@ void* juce_createMouseCursorFromImage (const Image& image, int hotspotX, int hot
     }
 
     const int stride = (cursorW + 7) >> 3;
-    HeapBlock <uint8> maskPlane, sourcePlane;
+    HeapBlock <char> maskPlane, sourcePlane;
     maskPlane.calloc (stride * cursorH);
     sourcePlane.calloc (stride * cursorH);
 
@@ -3037,7 +3057,7 @@ void* juce_createMouseCursorFromImage (const Image& image, int hotspotX, int hot
     {
         for (int x = cursorW; --x >= 0;)
         {
-            const uint8 mask = (uint8) (1 << (msbfirst ? (7 - (x & 7)) : (x & 7)));
+            const char mask = (char) (1 << (msbfirst ? (7 - (x & 7)) : (x & 7)));
             const int offset = y * stride + (x >> 3);
 
             const Colour c (im.getPixelAt (x, y));
@@ -3050,8 +3070,8 @@ void* juce_createMouseCursorFromImage (const Image& image, int hotspotX, int hot
         }
     }
 
-    Pixmap sourcePixmap = XCreatePixmapFromBitmapData (display, root, reinterpret_cast <char*> (sourcePlane.getData()), cursorW, cursorH, 0xffff, 0, 1);
-    Pixmap maskPixmap = XCreatePixmapFromBitmapData (display, root, reinterpret_cast <char*> (maskPlane.getData()), cursorW, cursorH, 0xffff, 0, 1);
+    Pixmap sourcePixmap = XCreatePixmapFromBitmapData (display, root, sourcePlane.getData(), cursorW, cursorH, 0xffff, 0, 1);
+    Pixmap maskPixmap = XCreatePixmapFromBitmapData (display, root, maskPlane.getData(), cursorW, cursorH, 0xffff, 0, 1);
 
     XColor white, black;
     black.red = black.green = black.blue = 0;
@@ -3065,14 +3085,14 @@ void* juce_createMouseCursorFromImage (const Image& image, int hotspotX, int hot
     return result;
 }
 
-void juce_deleteMouseCursor (void* const cursorHandle, const bool) throw()
+void juce_deleteMouseCursor (void* const cursorHandle, const bool)
 {
     ScopedXLock xlock;
-    if (cursorHandle != None)
+    if (cursorHandle != 0)
         XFreeCursor (display, (Cursor) cursorHandle);
 }
 
-void* juce_createStandardMouseCursor (MouseCursor::StandardCursorType type) throw()
+void* juce_createStandardMouseCursor (MouseCursor::StandardCursorType type)
 {
     unsigned int shape;
 
@@ -3182,7 +3202,7 @@ void* juce_createStandardMouseCursor (MouseCursor::StandardCursorType type) thro
     return (void*) XCreateFontCursor (display, shape);
 }
 
-void MouseCursor::showInWindow (ComponentPeer* peer) const throw()
+void MouseCursor::showInWindow (ComponentPeer* peer) const
 {
     LinuxComponentPeer* const lp = dynamic_cast <LinuxComponentPeer*> (peer);
 
@@ -3190,7 +3210,7 @@ void MouseCursor::showInWindow (ComponentPeer* peer) const throw()
         lp->showMouseCursor ((Cursor) getHandle());
 }
 
-void MouseCursor::showInAllWindows() const throw()
+void MouseCursor::showInAllWindows() const
 {
     for (int i = ComponentPeer::getNumPeers(); --i >= 0;)
         showInWindow (ComponentPeer::getPeer (i));

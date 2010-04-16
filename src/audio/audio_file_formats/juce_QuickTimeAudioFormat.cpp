@@ -70,7 +70,7 @@ BEGIN_JUCE_NAMESPACE
 bool juce_OpenQuickTimeMovieFromStream (InputStream* input, Movie& movie, Handle& dataHandle);
 
 static const char* const quickTimeFormatName = "QuickTime file";
-static const tchar* const quickTimeExtensions[] =    { T(".mov"), T(".mp3"), T(".mp4"), 0 };
+static const juce_wchar* const quickTimeExtensions[] =    { T(".mov"), T(".mp3"), T(".mp4"), 0 };
 
 //==============================================================================
 class QTAudioReader     : public AudioFormatReader
@@ -309,18 +309,6 @@ private:
     HeapBlock <AudioBufferList> bufferList;
     Handle dataHandle;
 
-    /*OSErr readMovieStream (long offset, long size, void* dataPtr)
-    {
-        input->setPosition (offset);
-        input->read (dataPtr, size);
-        return noErr;
-    }
-
-    static OSErr readMovieStreamProc (long offset, long size, void* dataPtr, void* userRef)
-    {
-        return ((QTAudioReader*) userRef)->readMovieStream (offset, size, dataPtr);
-    }*/
-
     //==============================================================================
     void checkThreadIsAttached()
     {
@@ -345,7 +333,7 @@ private:
 
 //==============================================================================
 QuickTimeAudioFormat::QuickTimeAudioFormat()
-    : AudioFormat (TRANS (quickTimeFormatName), (const tchar**) quickTimeExtensions)
+    : AudioFormat (TRANS (quickTimeFormatName), (const juce_wchar**) quickTimeExtensions)
 {
 }
 

@@ -44,7 +44,7 @@ void SystemClipboard::copyTextToClipboard (const String& text)
 
                 if (bufH != 0)
                 {
-                    WCHAR* const data = (WCHAR*) GlobalLock (bufH);
+                    WCHAR* const data = static_cast <WCHAR*> (GlobalLock (bufH));
                     text.copyToUnicode (data, len);
                     GlobalUnlock (bufH);
 
@@ -71,7 +71,7 @@ const String SystemClipboard::getTextFromClipboard()
 
             if (data != 0)
             {
-                result = String (data, (int) (GlobalSize (bufH) / sizeof (tchar)));
+                result = String (data, (int) (GlobalSize (bufH) / sizeof (wchar_t)));
 
                 GlobalUnlock (bufH);
             }

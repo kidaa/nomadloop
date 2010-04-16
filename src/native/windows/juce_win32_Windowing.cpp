@@ -330,7 +330,7 @@ long improbableWindowNumber = 0xf965aa01; // also referenced by messaging.cpp
 
 
 //==============================================================================
-bool KeyPress::isKeyCurrentlyDown (const int keyCode) throw()
+bool KeyPress::isKeyCurrentlyDown (const int keyCode)
 {
     SHORT k = (SHORT) keyCode;
 
@@ -381,7 +381,7 @@ public:
           taskBarIcon (0),
           dropTarget (0)
     {
-        callFunctionIfNotLocked (&createWindowCallback, (void*) this);
+        callFunctionIfNotLocked (&createWindowCallback, this);
 
         setTitle (component->getName());
 
@@ -423,7 +423,7 @@ public:
     //==============================================================================
     void* getNativeHandle() const
     {
-        return (void*) hwnd;
+        return hwnd;
     }
 
     void setVisible (bool shouldBeVisible)
@@ -646,9 +646,7 @@ public:
         const bool oldDeactivate = shouldDeactivateTitleBar;
         shouldDeactivateTitleBar = ((styleFlags & windowIsTemporary) == 0);
 
-        callFunctionIfNotLocked (makeActive ? &toFrontCallback1
-                                            : &toFrontCallback2,
-                                 (void*) hwnd);
+        callFunctionIfNotLocked (makeActive ? &toFrontCallback1 : &toFrontCallback2, hwnd);
 
         shouldDeactivateTitleBar = oldDeactivate;
 
@@ -690,7 +688,7 @@ public:
         const bool oldDeactivate = shouldDeactivateTitleBar;
         shouldDeactivateTitleBar = ((styleFlags & windowIsTemporary) == 0);
 
-        callFunctionIfNotLocked (&setFocusCallback, (void*) hwnd);
+        callFunctionIfNotLocked (&setFocusCallback, hwnd);
 
         shouldDeactivateTitleBar = oldDeactivate;
     }
@@ -940,7 +938,7 @@ private:
     //==============================================================================
     static void* createWindowCallback (void* userData)
     {
-        ((Win32ComponentPeer*) userData)->createWindow();
+        static_cast <Win32ComponentPeer*> (userData)->createWindow();
         return 0;
     }
 
@@ -1042,7 +1040,7 @@ private:
 
     static void* getFocusCallback (void*)
     {
-        return (void*) GetFocus();
+        return GetFocus();
     }
 
     void offsetWithinParent (int& x, int& y) const
@@ -2514,7 +2512,7 @@ Image* juce_createIconForFile (const File& file)
 }
 
 //==============================================================================
-void* juce_createMouseCursorFromImage (const Image& image, int hotspotX, int hotspotY) throw()
+void* juce_createMouseCursorFromImage (const Image& image, int hotspotX, int hotspotY)
 {
     const int maxW = GetSystemMetrics (SM_CXCURSOR);
     const int maxH = GetSystemMetrics (SM_CYCURSOR);
@@ -2536,7 +2534,7 @@ void* juce_createMouseCursorFromImage (const Image& image, int hotspotX, int hot
 
     if (os == SystemStats::WinXP)
     {
-        cursorH = (void*) createHICONFromImage (*im, FALSE, hotspotX, hotspotY);
+        cursorH = createHICONFromImage (*im, FALSE, hotspotX, hotspotY);
     }
     else
     {
@@ -2570,13 +2568,13 @@ void* juce_createMouseCursorFromImage (const Image& image, int hotspotX, int hot
     return cursorH;
 }
 
-void juce_deleteMouseCursor (void* const cursorHandle, const bool isStandard) throw()
+void juce_deleteMouseCursor (void* const cursorHandle, const bool isStandard)
 {
     if (cursorHandle != 0 && ! isStandard)
         DestroyCursor ((HCURSOR) cursorHandle);
 }
 
-void* juce_createStandardMouseCursor (MouseCursor::StandardCursorType type) throw()
+void* juce_createStandardMouseCursor (MouseCursor::StandardCursorType type)
 {
     LPCTSTR cursorName = IDC_ARROW;
 
@@ -2659,16 +2657,16 @@ void* juce_createStandardMouseCursor (MouseCursor::StandardCursorType type) thro
     if (cursorH == 0)
         cursorH = LoadCursor (0, IDC_ARROW);
 
-    return (void*) cursorH;
+    return cursorH;
 }
 
 //==============================================================================
-void MouseCursor::showInWindow (ComponentPeer*) const throw()
+void MouseCursor::showInWindow (ComponentPeer*) const
 {
     SetCursor ((HCURSOR) getHandle());
 }
 
-void MouseCursor::showInAllWindows() const throw()
+void MouseCursor::showInAllWindows() const
 {
     showInWindow (0);
 }
@@ -2999,9 +2997,9 @@ bool DragAndDropContainer::performExternalDragDropOfText (const String& text)
     const int numChars = text.length();
 
     medium.hGlobal = GlobalAlloc (GMEM_MOVEABLE | GMEM_ZEROINIT, (numChars + 2) * sizeof (WCHAR));
-    char* d = (char*) GlobalLock (medium.hGlobal);
+    WCHAR* const data = static_cast <WCHAR*> (GlobalLock (medium.hGlobal));
 
-    text.copyToUnicode ((WCHAR*) d, numChars + 1);
+    text.copyToUnicode (data, numChars + 1);
     format.cfFormat = CF_UNICODETEXT;
 
     GlobalUnlock (medium.hGlobal);

@@ -298,8 +298,9 @@ private:
                     << ": " << escapeSpaces (files.getReference(i).toUnixStyle()) << newLine
                     << "\t-@mkdir -p $(OBJDIR)" << newLine
                     << "\t@echo $(notdir $<)" << newLine
-                    << "\t@$(CXX) $(CXXFLAGS) -o \"$@\" -c \"$<\"" << newLine
-                    << newLine;
+                    << (files.getReference(i).hasFileExtension (".c") ? "\t@$(CC) $(CFLAGS) -o \"$@\" -c \"$<\""
+                                                                      : "\t@$(CXX) $(CXXFLAGS) -o \"$@\" -c \"$<\"")
+                    << newLine << newLine;
             }
         }
 
@@ -308,7 +309,7 @@ private:
 
     static const String escapeSpaces (const String& s)
     {
-        return s.replace (T(" "), T("\\ "));
+        return s.replace (" ", "\\ ");
     }
 
     const String getObjectFileFor (const RelativePath& file) const

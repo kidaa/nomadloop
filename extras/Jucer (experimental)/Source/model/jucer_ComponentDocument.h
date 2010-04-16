@@ -31,7 +31,7 @@
 
 
 //==============================================================================
-class ComponentDocument
+class ComponentDocument   : public ValueTree::Listener
 {
 public:
     //==============================================================================
@@ -41,15 +41,94 @@ public:
     static bool isComponentFile (const File& file);
 
     bool save();
+    bool reload();
+    bool hasChangedSinceLastSave();
+
+    typedef SelectedItemSet<uint32> SelectedItems;
 
     //==============================================================================
-    UndoManager* getUndoManager() throw()               { return &undoManager; }
+    Value getClassName()            { return getRootValue ("className"); }
+    Value getClassDescription()     { return getRootValue ("classDesc"); }
+
+    Value getCanvasWidth()          { return root.getPropertyAsValue ("width", 0); } // (deliberately not undoable)
+    Value getCanvasHeight()         { return root.getPropertyAsValue ("height", 0); }
+
+    const String getNonExistentMemberName (String suggestedName);
+
+    //==============================================================================
+    int getNumComponents() const;
+    const ValueTree getComponent (int index) const;
+    const ValueTree getComponentWithMemberName (const String& name) const;
+    Component* createComponent (int index);
+    void updateComponent (Component* comp);
+    bool containsComponent (Component* comp) const;
+    const ValueTree getComponentState (Component* comp) const;
+    void getComponentProperties (Array <PropertyComponent*>& props, Component* comp);
+    bool isStateForComponent (const ValueTree& storedState, Component* comp) const;
+    Coordinate::MarkerResolver* createMarkerResolver (const ValueTree& state);
+    const RectangleCoordinates getCoordsFor (const ValueTree& state) const;
+
+    void addNewComponentMenuItems (PopupMenu& menu) const;
+    void performNewComponentMenuItem (int menuResultCode);
+
+    //==============================================================================
+    void beginDrag (const Array<Component*>& items, const MouseEvent& e,
+                    Component* parentForOverlays, const ResizableBorderComponent::Zone& zone);
+    void continueDrag (const MouseEvent& e);
+    void endDrag (const MouseEvent& e);
+
+    //==============================================================================
+    ValueTree& getRoot()                                { return root; }
+    UndoManager* getUndoManager();
+    void beginNewTransaction();
+
+    void valueTreePropertyChanged (ValueTree& treeWhosePropertyHasChanged, const var::identifier& property);
+    void valueTreeChildrenChanged (ValueTree& treeWhoseChildHasChanged);
+    void valueTreeParentChanged (ValueTree& treeWhoseParentHasChanged);
 
 private:
     Project* project;
     File cppFile;
     ValueTree root;
     UndoManager undoManager;
+    bool changedSinceSaved;
+
+    class DragHandler;
+    ScopedPointer <DragHandler> dragger;
+
+    void checkRootObject();
+    ValueTree getComponentGroup() const;
+    Value getRootValue (const var::identifier& name)    { return root.getPropertyAsValue (name, getUndoManager()); }
+
+    void writeCode (OutputStream& cpp, OutputStream& header);
+    void writeMetadata (OutputStream& out);
+};
+
+
+//==============================================================================
+class ComponentTypeHandler
+{
+public:
+    //==============================================================================
+    ComponentTypeHandler (const String& name_, const String& xmlTag_, const String& memberNameRoot_);
+    virtual ~ComponentTypeHandler();
+
+    const String& getName() const               { return name; }
+    const String& getXmlTag() const             { return xmlTag; }
+    const String& getMemberNameRoot() const     { return memberNameRoot; }
+
+    virtual Component* createComponent() = 0;
+    virtual const Rectangle<int> getDefaultSize() = 0;
+
+    virtual void updateComponent (ComponentDocument& document, Component* comp, const ValueTree& state);
+    virtual void initialiseNewItem (ComponentDocument& document, ValueTree& state);
+    virtual void createPropertyEditors (ComponentDocument& document, ValueTree& state, Array <PropertyComponent*>& props);
+
+    Value getValue (const var::identifier& name, ValueTree& state, ComponentDocument& document) const;
+
+    //==============================================================================
+protected:
+    const String name, xmlTag, memberNameRoot;
 };
 
 

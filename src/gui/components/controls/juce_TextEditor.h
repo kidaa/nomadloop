@@ -35,7 +35,6 @@
 #include "../../../containers/juce_Value.h"
 #include "../keyboard/juce_TextInputTarget.h"
 class TextEditor;
-class TextHolderComponent;
 
 
 //==============================================================================
@@ -89,8 +88,8 @@ public:
                                     for a black splodge (not all fonts include this, though), or 0x2022,
                                     which is a bullet (probably the best choice for linux).
     */
-    TextEditor (const String& componentName = String::empty,
-                tchar passwordCharacter = 0);
+    explicit TextEditor (const String& componentName = String::empty,
+                         juce_wchar passwordCharacter = 0);
 
     /** Destructor. */
     virtual ~TextEditor();
@@ -187,7 +186,7 @@ public:
     /** Returns true if scrollbars are enabled.
         @see setScrollbarsShown
     */
-    bool areScrollbarsShown() const                             { return scrollbarVisible; }
+    bool areScrollbarsShown() const                                 { return scrollbarVisible; }
 
 
     /** Changes the password character used to disguise the text.
@@ -199,12 +198,12 @@ public:
                                     for a black splodge (not all fonts include this, though), or 0x2022,
                                     which is a bullet (probably the best choice for linux).
     */
-    void setPasswordCharacter (tchar passwordCharacter);
+    void setPasswordCharacter (juce_wchar passwordCharacter);
 
     /** Returns the current password character.
         @see setPasswordCharacter
-l    */
-    tchar getPasswordCharacter() const                          { return passwordCharacter; }
+    */
+    juce_wchar getPasswordCharacter() const                         { return passwordCharacter; }
 
 
     //==============================================================================
@@ -609,6 +608,14 @@ protected:
 
 private:
     //==============================================================================
+    class Iterator;
+    class UniformTextSection;
+    class TextHolderComponent;
+    class InsertAction;
+    class RemoveAction;
+    friend class InsertAction;
+    friend class RemoveAction;
+
     ScopedPointer <Viewport> viewport;
     TextHolderComponent* textHolder;
     BorderSize borderSize;
@@ -637,10 +644,10 @@ private:
     Font currentFont;
     mutable int totalNumChars;
     int caretPosition;
-    VoidArray sections;
+    Array <UniformTextSection*> sections;
     String textToShowWhenEmpty;
     Colour colourForTextWhenEmpty;
-    tchar passwordCharacter;
+    juce_wchar passwordCharacter;
     Value textValue;
 
     enum
@@ -653,15 +660,12 @@ private:
     String allowedCharacters;
     ListenerList <TextEditorListener> listeners;
 
-    friend class TextEditorInsertAction;
-    friend class TextEditorRemoveAction;
-
     void coalesceSimilarSections();
     void splitSection (int sectionIndex, int charToSplitAt);
     void clearInternal (UndoManager* um);
     void insert (const String& text, int insertIndex, const Font& font,
                  const Colour& colour, UndoManager* um, int caretPositionToMoveTo);
-    void reinsert (int insertIndex, const VoidArray& sections);
+    void reinsert (int insertIndex, const Array <UniformTextSection*>& sections);
     void remove (const Range<int>& range, UndoManager* um, int caretPositionToMoveTo);
     void getCharPosition (int index, float& x, float& y, float& lineHeight) const;
     void updateCaretPosition();

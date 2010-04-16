@@ -485,7 +485,7 @@ public:
             state->fontRef = 0;
             state->font = newFont;
 
-            MacTypeface* mf = dynamic_cast <MacTypeface*> ((Typeface*) state->font.getTypeface());
+            MacTypeface* mf = dynamic_cast <MacTypeface*> (state->font.getTypeface());
 
             if (mf != 0)
             {
@@ -579,7 +579,7 @@ private:
 
     static void gradientCallback (void* info, const CGFloat* inData, CGFloat* outData)
     {
-        const CoreGraphicsContext* const g = (const CoreGraphicsContext*) info;
+        const CoreGraphicsContext* const g = static_cast <const CoreGraphicsContext*> (info);
 
         const int index = roundToInt (g->numGradientLookupEntries * inData[0]);
         PixelARGB colour (g->gradientLookupTable [jlimit (0, g->numGradientLookupEntries, index)]);
@@ -597,7 +597,7 @@ private:
         --numGradientLookupEntries;
 
         CGShadingRef result = 0;
-        CGFunctionRef function = CGFunctionCreate ((void*) this, 1, 0, 4, 0, &gradientCallbacks);
+        CGFunctionRef function = CGFunctionCreate (this, 1, 0, 4, 0, &gradientCallbacks);
         CGPoint p1 (CGPointMake (gradient.x1, gradient.y1));
 
         if (gradient.isRadial)

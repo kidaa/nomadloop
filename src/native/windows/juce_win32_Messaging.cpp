@@ -213,7 +213,7 @@ void* MessageManager::callFunctionOnMessageThread (MessageCallbackFunction* call
 static BOOL CALLBACK BroadcastEnumWindowProc (HWND hwnd, LPARAM lParam)
 {
     if (hwnd != juce_messageWindowHandle)
-        (reinterpret_cast <VoidArray*> (lParam))->add ((void*) hwnd);
+        reinterpret_cast <VoidArray*> (lParam)->add ((void*) hwnd);
 
     return TRUE;
 }
@@ -228,7 +228,7 @@ void MessageManager::broadcastMessage (const String& value) throw()
     COPYDATASTRUCT data;
     data.dwData = broadcastId;
     data.cbData = (localCopy.length() + 1) * sizeof (juce_wchar);
-    data.lpData = (void*) (const juce_wchar*) localCopy;
+    data.lpData = (void*) static_cast <const juce_wchar*> (localCopy);
 
     for (int i = windows.size(); --i >= 0;)
     {

@@ -234,12 +234,12 @@ public:
         if (isInterleaved)
         {
             scratch.ensureSize (sizeof (float) * numSamples * numChannelsRunning, false);
-            float* interleaved = reinterpret_cast <float*> (scratch.getData());
+            float* interleaved = static_cast <float*> (scratch.getData());
 
             AudioDataConverters::interleaveSamples ((const float**) data, interleaved, numSamples, numChannelsRunning);
             AudioDataConverters::convertFloatToFormat (sampleFormat, interleaved, interleaved, numSamples * numChannelsRunning);
 
-            snd_pcm_sframes_t num = snd_pcm_writei (handle, (void*) interleaved, numSamples);
+            snd_pcm_sframes_t num = snd_pcm_writei (handle, interleaved, numSamples);
 
             if (failed (num) && num != -EPIPE && num != -ESTRPIPE)
                 return false;
@@ -272,9 +272,9 @@ public:
         if (isInterleaved)
         {
             scratch.ensureSize (sizeof (float) * numSamples * numChannelsRunning, false);
-            float* interleaved = reinterpret_cast <float*> (scratch.getData());
+            float* interleaved = static_cast <float*> (scratch.getData());
 
-            snd_pcm_sframes_t num = snd_pcm_readi (handle, (void*) interleaved, numSamples);
+            snd_pcm_sframes_t num = snd_pcm_readi (handle, interleaved, numSamples);
 
             if (failed (num))
             {

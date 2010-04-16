@@ -726,18 +726,20 @@ public:
 
                     for (int i = 0; i < items.size(); i += 2)
                     {
-                        String name (items[i]);
-                        String name2 (items[i + 1]);
-
+                        const String name (items[i]);
+                        const String name2 (items[i + 1]);
                         String commonBit;
 
                         for (int j = 0; j < name.length(); ++j)
                             if (name.substring (0, j).equalsIgnoreCase (name2.substring (0, j)))
                                 commonBit = name.substring (0, j);
 
-                        pairs.add (name.trim()
-                                    + " + "
-                                    + name2.substring (commonBit.length()).trim());
+                        // Make sure we only split the name at a space, because otherwise, things
+                        // like "input 11" + "input 12" would become "input 11 + 2"
+                        while (commonBit.isNotEmpty() && ! CharacterFunctions::isWhitespace (commonBit.getLastCharacter()))
+                            commonBit = commonBit.dropLastCharacters (1);
+
+                        pairs.add (name.trim() + " + " + name2.substring (commonBit.length()).trim());
                     }
 
                     items = pairs;

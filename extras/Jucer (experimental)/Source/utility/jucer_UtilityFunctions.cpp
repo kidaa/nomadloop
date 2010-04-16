@@ -135,7 +135,6 @@ const String hexString8Digits (int value)
     return String::toHexString (value).paddedLeft ('0', 8);
 }
 
-
 const String createGUID (const String& seed)
 {
     String guid;
@@ -189,7 +188,7 @@ bool shouldPathsBeRelative (String path1, String path2)
         ++commonBitLength;
     }
 
-    return path1.substring (0, commonBitLength).removeCharacters (T("/:")).isNotEmpty();
+    return path1.substring (0, commonBitLength).removeCharacters ("/:").isNotEmpty();
 }
 
 const String createIncludeStatement (const File& includeFile, const File& targetFile)
@@ -201,8 +200,8 @@ const String createIncludeStatement (const File& includeFile, const File& target
 const String makeHeaderGuardName (const File& file)
 {
     return "__" + file.getFileName().toUpperCase()
-                                    .replaceCharacters (T(" ."), T("__"))
-                                    .retainCharacters (T("_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"))
+                                    .replaceCharacters (" .", "__")
+                                    .retainCharacters ("_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
             + "_"
             + String::toHexString (file.hashCode()).toUpperCase()
             + "__";
@@ -211,7 +210,7 @@ const String makeHeaderGuardName (const File& file)
 //==============================================================================
 bool isJuceFolder (const File& folder)
 {
-    return folder.getFileName().containsIgnoreCase (T("juce"))
+    return folder.getFileName().containsIgnoreCase ("juce")
              && folder.getChildFile ("juce.h").exists()
              && folder.getChildFile ("juce_Config.h").exists();
 }
@@ -274,43 +273,25 @@ const String replaceCEscapeChars (const String& s)
 
         switch (c)
         {
-        case '\t':
-            r << "\\t";
-            lastWasHexEscapeCode = false;
-            break;
-        case '\r':
-            r << "\\r";
-            lastWasHexEscapeCode = false;
-            break;
-        case '\n':
-            r <<  "\\n";
-            lastWasHexEscapeCode = false;
-            break;
-        case '\\':
-            r << "\\\\";
-            lastWasHexEscapeCode = false;
-            break;
-        case '\'':
-            r << "\\\'";
-            lastWasHexEscapeCode = false;
-            break;
-        case '\"':
-            r << "\\\"";
-            lastWasHexEscapeCode = false;
-            break;
+        case '\t':  r << "\\t";  lastWasHexEscapeCode = false; break;
+        case '\r':  r << "\\r";  lastWasHexEscapeCode = false; break;
+        case '\n':  r << "\\n";  lastWasHexEscapeCode = false; break;
+        case '\\':  r << "\\\\"; lastWasHexEscapeCode = false; break;
+        case '\'':  r << "\\\'"; lastWasHexEscapeCode = false; break;
+        case '\"':  r << "\\\""; lastWasHexEscapeCode = false; break;
 
         default:
-            if (c < 128 &&
-                 ! (lastWasHexEscapeCode
-                     && String ("0123456789abcdefABCDEF").containsChar (c))) // (have to avoid following a hex escape sequence with a valid hex digit)
+            if (c < 128
+                 && ! (lastWasHexEscapeCode
+                         && String ("0123456789abcdefABCDEF").containsChar (c))) // (have to avoid following a hex escape sequence with a valid hex digit)
             {
                 r << c;
                 lastWasHexEscapeCode = false;
             }
             else
             {
-                lastWasHexEscapeCode = true;
                 r << "\\x" << String::toHexString ((int) c);
+                lastWasHexEscapeCode = true;
             }
 
             break;
@@ -327,9 +308,9 @@ const String makeValidCppIdentifier (String s,
                                      const bool allowTemplates)
 {
     if (removeColons)
-        s = s.replaceCharacters (T(".,;:/@"), T("______"));
+        s = s.replaceCharacters (".,;:/@", "______");
     else
-        s = s.replaceCharacters (T(".,;/@"), T("_____"));
+        s = s.replaceCharacters (".,;/@", "_____");
 
     int i;
     for (i = s.length(); --i > 0;)
@@ -337,7 +318,7 @@ const String makeValidCppIdentifier (String s,
              && CharacterFunctions::isLetter (s[i - 1])
              && CharacterFunctions::isUpperCase (s[i])
              && ! CharacterFunctions::isUpperCase (s[i - 1]))
-            s = s.substring (0, i) + T(" ") + s.substring (i);
+            s = s.substring (0, i) + " " + s.substring (i);
 
     String allowedChars ("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_ 0123456789");
     if (allowTemplates)
@@ -397,7 +378,7 @@ const String floatToCode (const float v)
 {
     String s ((double) (float) v, 4);
 
-    if (s.containsChar (T('.')))
+    if (s.containsChar ('.'))
         s << 'f';
     else
         s << ".0f";
@@ -409,7 +390,7 @@ const String doubleToCode (const double v)
 {
     String s (v, 7);
 
-    if (! s.containsChar (T('.')))
+    if (! s.containsChar ('.'))
         s << ".0";
 
     return s;
@@ -422,28 +403,27 @@ const String boolToCode (const bool b)
 
 const String colourToCode (const Colour& col)
 {
-    #define COL(col)  Colours::col,
-
     const Colour colours[] =
     {
+        #define COL(col)  Colours::col,
         #include "jucer_Colours.h"
+        #undef COL
         Colours::transparentBlack
     };
 
-    #undef COL
-    #define COL(col)  #col,
     static const char* colourNames[] =
     {
+        #define COL(col)  #col,
         #include "jucer_Colours.h"
+        #undef COL
         0
     };
-    #undef COL
 
     for (int i = 0; i < numElementsInArray (colourNames) - 1; ++i)
         if (col == colours[i])
             return "Colours::" + String (colourNames[i]);
 
-    return "Colour (0x" + hexString8Digits ((int) col.getARGB()) + T(')');
+    return "Colour (0x" + hexString8Digits ((int) col.getARGB()) + ')';
 }
 
 const String justificationToCode (const Justification& justification)
@@ -474,7 +454,7 @@ const String justificationToCode (const Justification& justification)
 
 const String castToFloat (const String& expression)
 {
-    if (expression.containsOnly (T("0123456789.f")))
+    if (expression.containsOnly ("0123456789.f"))
     {
         String s (expression.getFloatValue());
 
@@ -492,7 +472,7 @@ const String indentCode (const String& code, const int numSpaces)
     if (numSpaces == 0)
         return code;
 
-    const String space (String::repeatedString (T(" "), numSpaces));
+    const String space (String::repeatedString (" ", numSpaces));
 
     StringArray lines;
     lines.addLines (code);
@@ -522,4 +502,364 @@ int indexOfLineStartingWith (const StringArray& lines, const String& text, int s
     }
 
     return -1;
+}
+
+//==============================================================================
+const char* Coordinate::parentLeftMarkerName   = "parent.left";
+const char* Coordinate::parentRightMarkerName  = "parent.right";
+const char* Coordinate::parentTopMarkerName    = "parent.top";
+const char* Coordinate::parentBottomMarkerName = "parent.bottom";
+
+Coordinate::Coordinate (bool isHorizontal_)
+    : value (0), isProportion (false), isHorizontal (isHorizontal_)
+{
+}
+
+Coordinate::Coordinate (double absoluteDistanceFromOrigin, bool isHorizontal_)
+    : value (absoluteDistanceFromOrigin), isProportion (false), isHorizontal (isHorizontal_)
+{
+}
+
+Coordinate::Coordinate (double absoluteDistance, const String& source, bool isHorizontal_)
+    : anchor1 (source), value (absoluteDistance), isProportion (false), isHorizontal (isHorizontal_)
+{
+}
+
+Coordinate::Coordinate (double relativeProportion, const String& pos1, const String& pos2, bool isHorizontal_)
+    : anchor1 (pos1), anchor2 (pos2), value (relativeProportion), isProportion (true), isHorizontal (isHorizontal_)
+{
+}
+
+Coordinate::~Coordinate()
+{
+}
+
+const Coordinate Coordinate::getAnchorPoint1() const
+{
+    return Coordinate (0.0, anchor1, isHorizontal);
+}
+
+const Coordinate Coordinate::getAnchorPoint2() const
+{
+    return Coordinate (0.0, anchor2, isHorizontal);
+}
+
+bool Coordinate::isOrigin (const String& name)
+{
+    return name.isEmpty() || name == parentLeftMarkerName || name == parentTopMarkerName;
+}
+
+const String Coordinate::getOriginMarkerName() const
+{
+    return isHorizontal ? parentLeftMarkerName : parentTopMarkerName;
+}
+
+const String Coordinate::getExtentMarkerName() const
+{
+    return isHorizontal ? parentRightMarkerName : parentBottomMarkerName;
+}
+
+const String Coordinate::checkName (const String& name) const
+{
+    return name.isEmpty() ? getOriginMarkerName() : name;
+}
+
+double Coordinate::getPosition (const String& name, MarkerResolver& markerResolver, int recursionCounter) const
+{
+    if (isOrigin (name))
+        return 0.0;
+
+    return markerResolver.findMarker (name, isHorizontal)
+                         .resolve (markerResolver, recursionCounter + 1);
+}
+
+struct RecursivePositionException
+{
+};
+
+double Coordinate::resolve (MarkerResolver& markerResolver, int recursionCounter) const
+{
+    if (recursionCounter > 100)
+    {
+        jassertfalse
+        throw RecursivePositionException();
+    }
+
+    const double pos1 = getPosition (anchor1, markerResolver, recursionCounter);
+
+    return isProportion ? pos1 + (getPosition (anchor2, markerResolver, recursionCounter) - pos1) * value
+                        : pos1 + value;
+}
+
+double Coordinate::resolve (MarkerResolver& markerResolver) const
+{
+    try
+    {
+        return resolve (markerResolver, 0);
+    }
+    catch (RecursivePositionException&)
+    {}
+
+    return 0.0;
+}
+
+void Coordinate::moveToAbsolute (double newPos, MarkerResolver& markerResolver)
+{
+    try
+    {
+        const double pos1 = getPosition (anchor1, markerResolver, 0);
+
+        if (isProportion)
+        {
+            const double size = getPosition (anchor2, markerResolver, 0) - pos1;
+
+            if (size != 0)
+                value = (newPos - pos1) / size;
+        }
+        else
+        {
+            value = newPos - pos1;
+        }
+    }
+    catch (RecursivePositionException&)
+    {}
+}
+
+bool Coordinate::isRecursive (MarkerResolver& markerResolver) const
+{
+    try
+    {
+        resolve (markerResolver, 0);
+    }
+    catch (RecursivePositionException&)
+    {
+        return true;
+    }
+
+    return false;
+}
+
+void Coordinate::skipWhitespace (const String& s, int& i)
+{
+    while (CharacterFunctions::isWhitespace (s[i]))
+        ++i;
+}
+
+const String Coordinate::readMarkerName (const String& s, int& i)
+{
+    skipWhitespace (s, i);
+
+    if (CharacterFunctions::isLetter (s[i]) || s[i] == '_')
+    {
+        int start = i;
+
+        while (CharacterFunctions::isLetterOrDigit (s[i]) || s[i] == '_' || s[i] == '.')
+            ++i;
+
+        return s.substring (start, i);
+    }
+
+    return String::empty;
+}
+
+double Coordinate::readNumber (const String& s, int& i)
+{
+    skipWhitespace (s, i);
+
+    int start = i;
+
+    if (CharacterFunctions::isDigit (s[i]) || s[i] == '.' || s[i] == '-')
+        ++i;
+
+    while (CharacterFunctions::isDigit (s[i]) || s[i] == '.')
+        ++i;
+
+    if ((s[i] == 'e' || s[i] == 'E')
+         && (CharacterFunctions::isDigit (s[i + 1])
+              || s[i + 1] == '-'
+              || s[i + 1] == '+'))
+    {
+        i += 2;
+
+        while (CharacterFunctions::isDigit (s[i]))
+            ++i;
+    }
+
+    const double value = s.substring (start, i).getDoubleValue();
+
+    while (CharacterFunctions::isWhitespace (s[i]) || s[i] == ',')
+        ++i;
+
+    return value;
+}
+
+Coordinate::Coordinate (const String& s, bool isHorizontal_)
+    : value (0), isProportion (false), isHorizontal (isHorizontal_)
+{
+    int i = 0;
+
+    anchor1 = readMarkerName (s, i);
+
+    if (anchor1.isNotEmpty())
+    {
+        skipWhitespace (s, i);
+
+        if (s[i] == '+')
+            value = readNumber (s, ++i);
+        else if (s[i] == '-')
+            value = -readNumber (s, ++i);
+    }
+    else
+    {
+        value = readNumber (s, i);
+        skipWhitespace (s, i);
+
+        if (s[i] == '%')
+        {
+            isProportion = true;
+            value /= 100.0;
+            skipWhitespace (s, ++i);
+
+            if (s[i] == '*')
+            {
+                anchor1 = readMarkerName (s, ++i);
+                skipWhitespace (s, i);
+
+                if (s[i] == '-' && s[i + 1] == '>')
+                {
+                    i += 2;
+                    anchor2 = readMarkerName (s, i);
+                }
+                else
+                {
+                    anchor2 = anchor1;
+                    anchor1 = getOriginMarkerName();
+                }
+            }
+            else
+            {
+                anchor1 = getOriginMarkerName();
+                anchor2 = getExtentMarkerName();
+            }
+        }
+    }
+}
+
+const String Coordinate::toString() const
+{
+    if (isProportion)
+    {
+        const String percent (value * 100.0);
+
+        if (isOrigin (anchor1))
+        {
+            if (anchor2 == parentRightMarkerName || anchor2 == parentBottomMarkerName)
+                return percent + "%";
+            else
+                return percent + "% * " + checkName (anchor2);
+        }
+        else
+            return percent + "% * " + checkName (anchor1) + " -> " + checkName (anchor2);
+    }
+    else
+    {
+        if (isOrigin (anchor1))
+            return String (value);
+        else if (value > 0)
+            return checkName (anchor1) + " + " + String (value);
+        else if (value < 0)
+            return checkName (anchor1) + " - " + String (-value);
+        else
+            return checkName (anchor1);
+    }
+}
+
+const double Coordinate::getEditableValue() const
+{
+    return isProportion ? value * 100.0 : value;
+}
+
+void Coordinate::setEditableValue (const double newValue)
+{
+    value = isProportion ? newValue / 100.0 : newValue;
+}
+
+void Coordinate::toggleProportionality (MarkerResolver& markerResolver)
+{
+    const double oldValue = resolve (markerResolver);
+
+    isProportion = ! isProportion;
+    anchor1 = getOriginMarkerName();
+    anchor2 = getExtentMarkerName();
+
+    moveToAbsolute (oldValue, markerResolver);
+}
+
+void Coordinate::changeAnchor1 (const String& newMarkerName, MarkerResolver& markerResolver)
+{
+    const double oldValue = resolve (markerResolver);
+    anchor1 = newMarkerName;
+    moveToAbsolute (oldValue, markerResolver);
+}
+
+void Coordinate::changeAnchor2 (const String& newMarkerName, MarkerResolver& markerResolver)
+{
+    const double oldValue = resolve (markerResolver);
+    anchor2 = newMarkerName;
+    moveToAbsolute (oldValue, markerResolver);
+}
+
+//==============================================================================
+RectangleCoordinates::RectangleCoordinates()
+    : left (true), right (true), top (false), bottom (false)
+{
+}
+
+RectangleCoordinates::RectangleCoordinates (const Rectangle<int>& rect)
+    : left (rect.getX(), true),
+      right (rect.getWidth(), "left", true),
+      top (rect.getY(), false),
+      bottom (rect.getHeight(), "top", false)
+{
+}
+
+RectangleCoordinates::RectangleCoordinates (const String& stringVersion)
+    : left (true), right (true), top (false), bottom (false)
+{
+    StringArray tokens;
+    tokens.addTokens (stringVersion, ",", String::empty);
+
+    left   = Coordinate (tokens [0], true);
+    top    = Coordinate (tokens [1], false);
+    right  = Coordinate (tokens [2], true);
+    bottom = Coordinate (tokens [3], false);
+}
+
+bool RectangleCoordinates::isRecursive (Coordinate::MarkerResolver& markerResolver) const
+{
+    return left.isRecursive (markerResolver) || right.isRecursive (markerResolver)
+              || top.isRecursive (markerResolver) || bottom.isRecursive (markerResolver);
+}
+
+const Rectangle<int> RectangleCoordinates::resolve (Coordinate::MarkerResolver& markerResolver) const
+{
+    const int l = roundToInt (left.resolve (markerResolver));
+    const int r = roundToInt (right.resolve (markerResolver));
+    const int t = roundToInt (top.resolve (markerResolver));
+    const int b = roundToInt (bottom.resolve (markerResolver));
+
+    return Rectangle<int> (l, t, r - l, b - t);
+}
+
+void RectangleCoordinates::moveToAbsolute (const Rectangle<int>& newPos, Coordinate::MarkerResolver& markerResolver)
+{
+    left.moveToAbsolute (newPos.getX(), markerResolver);
+    right.moveToAbsolute (newPos.getRight(), markerResolver);
+    top.moveToAbsolute (newPos.getY(), markerResolver);
+    bottom.moveToAbsolute (newPos.getBottom(), markerResolver);
+}
+
+const String RectangleCoordinates::toString() const
+{
+    return left.toString() + ", " + top.toString() + ", " + right.toString() + ", " + bottom.toString();
 }

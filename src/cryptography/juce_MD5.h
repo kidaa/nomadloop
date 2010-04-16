@@ -55,10 +55,10 @@ public:
 
     //==============================================================================
     /** Creates a checksum for a block of binary data. */
-    MD5 (const MemoryBlock& data);
+    explicit MD5 (const MemoryBlock& data);
 
     /** Creates a checksum for a block of binary data. */
-    MD5 (const char* data, const size_t numBytes);
+    MD5 (const void* data, const size_t numBytes);
 
     /** Creates a checksum for a string.
 
@@ -68,7 +68,7 @@ public:
         of this method with a checksum created by a different framework, which may have
         used a different encoding.
     */
-    MD5 (const String& text);
+    explicit MD5 (const String& text);
 
     /** Creates a checksum for the input from a stream.
 
@@ -79,7 +79,7 @@ public:
     MD5 (InputStream& input, int64 numBytesToRead = -1);
 
     /** Creates a checksum for a file. */
-    MD5 (const File& file);
+    explicit MD5 (const File& file);
 
     /** Destructor. */
     ~MD5();
@@ -114,9 +114,9 @@ private:
 
         ProcessContext();
 
-        void processBlock (const uint8* const data, size_t dataSize);
-        void transform (const uint8* const buffer);
-        void finish (uint8* const result);
+        void processBlock (const void* data, size_t dataSize);
+        void transform (const void* buffer);
+        void finish (void* const result);
     };
 
     void processStream (InputStream& input, int64 numBytesToRead);
