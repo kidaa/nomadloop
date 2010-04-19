@@ -109,127 +109,131 @@ private:
     int64 fileHashCode, fileSize;
 };
 
-
 //==============================================================================
-/**
-    Holds a co-ordinate along the x or y axis, expressed either as an absolute
-    position, or relative to other named marker positions.
-*/
-class Coordinate
+class PropertyPanelWithTooltips  : public Component,
+                                   public Timer
 {
 public:
-    //==============================================================================
-    /** Creates a zero coordinate. */
-    explicit Coordinate (bool isHorizontal);
+    PropertyPanelWithTooltips();
+    ~PropertyPanelWithTooltips();
 
-    /** Recreates a coordinate from its stringified version. */
-    Coordinate (const String& stringVersion, bool isHorizontal);
+    PropertyPanel* getPanel() const        { return panel; }
 
-    /** Creates an absolute position from the parent origin. */
-    Coordinate (double absoluteDistanceFromOrigin, bool isHorizontal);
-
-    /** Creates an absolute position relative to a named marker. */
-    Coordinate (double absolutePosition, const String& relativeToMarker, bool isHorizontal);
-
-    /** Creates a relative position between two named markers. */
-    Coordinate (double relativePosition, const String& marker1, const String& marker2, bool isHorizontal);
-
-    /** Destructor. */
-    ~Coordinate();
-
-    //==============================================================================
-    /**
-        Provides an interface for looking up the position of a named marker.
-    */
-    class MarkerResolver
-    {
-    public:
-        virtual ~MarkerResolver() {}
-        virtual const Coordinate findMarker (const String& name, bool isHorizontal) = 0;
-    };
-
-    /** Calculates the absolute position of this co-ordinate. */
-    double resolve (MarkerResolver& markerResolver) const;
-
-    /** Returns true if this co-ordinate is expressed in terms of markers that form a recursive loop. */
-    bool isRecursive (MarkerResolver& markerResolver) const;
-
-    /** Changes the value of this marker to make it resolve to the specified position. */
-    void moveToAbsolute (double newPos, MarkerResolver& markerResolver);
-
-    const Coordinate getAnchorPoint1() const;
-    const Coordinate getAnchorPoint2() const;
-
-    const double getEditableValue() const;
-    void setEditableValue (const double newValue);
-
-    bool isProportional() const throw()                 { return isProportion; }
-    void toggleProportionality (MarkerResolver& markerResolver);
-
-    const String getAnchor1() const                     { return anchor1; }
-    void changeAnchor1 (const String& newMarkerName, MarkerResolver& markerResolver);
-
-    const String getAnchor2() const                     { return anchor2; }
-    void changeAnchor2 (const String& newMarkerName, MarkerResolver& markerResolver);
-
-    //==============================================================================
-    /*
-        Position string formats:
-            123                         = absolute pixels from parent origin
-            marker
-            marker + 123
-            marker - 123
-            50%                         = percentage between parent origin and parent extent
-            50% * marker                = percentage between parent origin and marker
-            50% * marker1 -> marker2    = percentage between two markers
-
-        standard marker names:
-            "origin"                            = parent origin
-            "size"                              = parent right or bottom
-            "top", "left", "bottom", "right"    = refer to the component's own left, right, top and bottom.
-    */
-    const String toString() const;
-
-    //==============================================================================
-    static const char* parentLeftMarkerName;
-    static const char* parentRightMarkerName;
-    static const char* parentTopMarkerName;
-    static const char* parentBottomMarkerName;
+    void paint (Graphics& g);
+    void resized();
+    void timerCallback();
 
 private:
-    //==============================================================================
-    String anchor1, anchor2;
-    double value;
-    bool isProportion, isHorizontal;
+    PropertyPanel* panel;
+    TextLayout layout;
+    Component* lastComp;
+    String lastTip;
 
-    double resolve (MarkerResolver& markerResolver, int recursionCounter) const;
-    double getPosition (const String& name, MarkerResolver& markerResolver, int recursionCounter) const;
-    const String checkName (const String& name) const;
-    const String getOriginMarkerName() const;
-    const String getExtentMarkerName() const;
-    static bool isOrigin (const String& name);
-    static void skipWhitespace (const String& s, int& i);
-    static const String readMarkerName (const String& s, int& i);
-    static double readNumber (const String& s, int& i);
+    const String findTip (Component* c);
 };
 
+
 //==============================================================================
-/**
-    Describes a rectangle as a set of Coordinate values.
-*/
-class RectangleCoordinates
+static const double tickSizes[] = { 1.0, 2.0, 5.0,
+                                    10.0, 20.0, 50.0,
+                                    100.0, 200.0, 500.0, 1000.0 };
+
+class TickIterator
 {
 public:
-    //==============================================================================
-    RectangleCoordinates();
-    explicit RectangleCoordinates (const Rectangle<int>& rect);
-    explicit RectangleCoordinates (const String& stringVersion);
+    TickIterator (const double startValue_, const double endValue_, const double valuePerPixel_,
+                  int minPixelsPerTick, int minWidthForLabels)
+        : startValue (startValue_),
+          endValue (endValue_),
+          valuePerPixel (valuePerPixel_)
+    {
+        tickLevelIndex  = findLevelIndexForValue (valuePerPixel * minPixelsPerTick);
+        labelLevelIndex = findLevelIndexForValue (valuePerPixel * minWidthForLabels);
 
-    //==============================================================================
-    const Rectangle<int> resolve (Coordinate::MarkerResolver& markerResolver) const;
-    bool isRecursive (Coordinate::MarkerResolver& markerResolver) const;
-    void moveToAbsolute (const Rectangle<int>& newPos, Coordinate::MarkerResolver& markerResolver);
-    const String toString() const;
+        tickPosition = pixelsToValue (-minWidthForLabels);
+        tickPosition = snapValueDown (tickPosition, tickLevelIndex);
+    }
 
-    Coordinate left, right, top, bottom;
+    bool getNextTick (float& pixelX, float& tickLength, String& label)
+    {
+        const double tickUnits = tickSizes [tickLevelIndex];
+        tickPosition += tickUnits;
+
+        const int totalLevels = sizeof (tickSizes) / sizeof (*tickSizes);
+        int highestIndex = tickLevelIndex;
+
+        while (++highestIndex < totalLevels)
+        {
+            const double ticksAtThisLevel = tickPosition / tickSizes [highestIndex];
+
+            if (fabs (ticksAtThisLevel - floor (ticksAtThisLevel + 0.5)) > 0.000001)
+                break;
+        }
+
+        --highestIndex;
+
+        if (highestIndex >= labelLevelIndex)
+            label = getDescriptionOfValue (tickPosition, labelLevelIndex);
+        else
+            label = String::empty;
+
+        tickLength = (highestIndex + 1 - tickLevelIndex) / (float) (totalLevels + 1 - tickLevelIndex);
+        pixelX = valueToPixels (tickPosition);
+
+        return tickPosition < endValue;
+    }
+
+private:
+    double tickPosition;
+    int tickLevelIndex, labelLevelIndex;
+    const double startValue, endValue, valuePerPixel;
+
+    int findLevelIndexForValue (const double value) const
+    {
+        int i;
+        for (i = 0; i < sizeof (tickSizes) / sizeof (*tickSizes); ++i)
+            if (tickSizes [i] >= value)
+                break;
+
+        return i;
+    }
+
+    double pixelsToValue (int pixels) const
+    {
+        return startValue + pixels * valuePerPixel;
+    }
+
+    float valueToPixels (double value) const
+    {
+        return (float) ((value - startValue) / valuePerPixel);
+    }
+
+    static double snapValueToNearest (const double t, const int valueLevelIndex)
+    {
+        const double unitsPerInterval = tickSizes [valueLevelIndex];
+        return unitsPerInterval * floor (t / unitsPerInterval + 0.5);
+    }
+
+    static double snapValueDown (const double t, const int valueLevelIndex)
+    {
+        const double unitsPerInterval = tickSizes [valueLevelIndex];
+        return unitsPerInterval * floor (t / unitsPerInterval);
+    }
+
+    static inline int roundDoubleToInt (const double value)
+    {
+        union { int asInt[2]; double asDouble; } n;
+        n.asDouble = value + 6755399441055744.0;
+
+    #if TARGET_RT_BIG_ENDIAN
+        return n.asInt [1];
+    #else
+        return n.asInt [0];
+    #endif
+    }
+
+    static const String getDescriptionOfValue (const double value, const int valueLevelIndex)
+    {
+        return String (roundToInt (value));
+    }
 };

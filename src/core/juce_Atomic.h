@@ -47,7 +47,7 @@ public:
 
     /** If the current value of destination is equal to requiredCurrentValue, this
         will set it to newValue; otherwise, it will leave it unchanged.
-        @returns the new value of destination
+        @returns the original value of destination
     */
     static int32 compareAndExchange (int32& destination, int32 newValue, int32 requiredCurrentValue);
 
@@ -62,14 +62,26 @@ private:
 
 
 //==============================================================================
-#if (JUCE_MAC || JUCE_IPHONE)           //  Mac and iPhone...
+#if JUCE_MAC && (__GNUC__ < 4 || (__GNUC__ == 4 && __GNUC_MINOR__ < 2))  //  Older Mac builds using gcc4.1 or earlier...
 
     inline void  Atomic::increment (int32& variable)                { OSAtomicIncrement32 (static_cast <int32_t*> (&variable)); }
     inline int32 Atomic::incrementAndReturn (int32& variable)       { return OSAtomicIncrement32 (static_cast <int32_t*> (&variable)); }
     inline void  Atomic::decrement (int32& variable)                { OSAtomicDecrement32 (static_cast <int32_t*> (&variable)); }
     inline int32 Atomic::decrementAndReturn (int32& variable)       { return OSAtomicDecrement32 (static_cast <int32_t*> (&variable)); }
+
     inline int32 Atomic::compareAndExchange (int32& destination, int32 newValue, int32 oldValue)
-                                                                    { return OSAtomicCompareAndSwap32Barrier (oldValue, newValue, static_cast <int32_t*> (&destination)); }
+    {
+        for (;;) // Annoying workaround for OSX only having a bool CAS operation..
+        {
+            if (OSAtomicCompareAndSwap32Barrier (oldValue, newValue, static_cast <int32_t*> (&destination)))
+                return oldValue;
+
+            const uint32 result = destination;
+            if (result != oldValue)
+                return result;
+        }
+    }
+
     inline void* Atomic::swapPointers (void* volatile* value1, void* value2)
     {
         void* currentVal = *value1;
@@ -83,9 +95,8 @@ private:
     }
 
 //==============================================================================
-#elif JUCE_LINUX                        // Linux...
+#elif JUCE_LINUX && __INTEL_COMPILER  // Linux with Intel compiler...
 
-  #if __INTEL_COMPILER
     inline void  Atomic::increment (int32& variable)                { _InterlockedIncrement (&variable); }
     inline int32 Atomic::incrementAndReturn (int32& variable)       { return _InterlockedIncrement (&variable); }
     inline void  Atomic::decrement (int32& variable)                { _InterlockedDecrement (&variable); }
@@ -102,7 +113,9 @@ private:
       #endif
     }
 
-  #else
+//==============================================================================
+#elif JUCE_GCC       // On GCC, use intrinsics...
+
     inline void  Atomic::increment (int32& variable)                { __sync_add_and_fetch (&variable, 1); }
     inline int32 Atomic::incrementAndReturn (int32& variable)       { return __sync_add_and_fetch (&variable, 1); }
     inline void  Atomic::decrement (int32& variable)                { __sync_add_and_fetch (&variable, -1); }
@@ -116,7 +129,6 @@ private:
         while (! __sync_bool_compare_and_swap (value1, currentVal, value2)) { currentVal = *value1; }
         return currentVal;
     }
-  #endif
 
 //==============================================================================
 #elif JUCE_USE_INTRINSICS               // Windows...

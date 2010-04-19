@@ -28,6 +28,7 @@
 
 #include "../jucer_Headers.h"
 #include "jucer_Project.h"
+#include "jucer_Coordinate.h"
 
 
 //==============================================================================
@@ -47,11 +48,13 @@ public:
     typedef SelectedItemSet<uint32> SelectedItems;
 
     //==============================================================================
-    Value getClassName()            { return getRootValue ("className"); }
-    Value getClassDescription()     { return getRootValue ("classDesc"); }
+    Value getClassName()            { return getRootValueNonUndoable ("className"); }
+    Value getClassDescription()     { return getRootValueNonUndoable ("classDesc"); }
 
-    Value getCanvasWidth()          { return root.getPropertyAsValue ("width", 0); } // (deliberately not undoable)
-    Value getCanvasHeight()         { return root.getPropertyAsValue ("height", 0); }
+    Value getCanvasWidth()          { return getRootValueNonUndoable ("width"); }
+    Value getCanvasHeight()         { return getRootValueNonUndoable ("height"); }
+
+    void createClassProperties (Array <PropertyComponent*>& props);
 
     const String getNonExistentMemberName (String suggestedName);
 
@@ -66,7 +69,9 @@ public:
     void getComponentProperties (Array <PropertyComponent*>& props, Component* comp);
     bool isStateForComponent (const ValueTree& storedState, Component* comp) const;
     Coordinate::MarkerResolver* createMarkerResolver (const ValueTree& state);
-    const RectangleCoordinates getCoordsFor (const ValueTree& state) const;
+    const StringArray getComponentMarkers (bool horizontal) const;
+    const RectangleCoordinates getCoordsFor (const ValueTree& componentState) const;
+    bool setCoordsFor (ValueTree& componentState, const RectangleCoordinates& newSize);
 
     void addNewComponentMenuItems (PopupMenu& menu) const;
     void performNewComponentMenuItem (int menuResultCode);
@@ -86,6 +91,11 @@ public:
     void valueTreeChildrenChanged (ValueTree& treeWhoseChildHasChanged);
     void valueTreeParentChanged (ValueTree& treeWhoseParentHasChanged);
 
+    static const char* const idProperty;
+    static const char* const compBoundsProperty;
+    static const char* const memberNameProperty;
+    static const char* const compNameProperty;
+
 private:
     Project* project;
     File cppFile;
@@ -93,43 +103,16 @@ private:
     UndoManager undoManager;
     bool changedSinceSaved;
 
-    class DragHandler;
-    ScopedPointer <DragHandler> dragger;
-
     void checkRootObject();
     ValueTree getComponentGroup() const;
-    Value getRootValue (const var::identifier& name)    { return root.getPropertyAsValue (name, getUndoManager()); }
+
+    Value getRootValueUndoable (const var::identifier& name)        { return root.getPropertyAsValue (name, getUndoManager()); }
+    Value getRootValueNonUndoable (const var::identifier& name)     { return root.getPropertyAsValue (name, 0); }
 
     void writeCode (OutputStream& cpp, OutputStream& header);
     void writeMetadata (OutputStream& out);
 };
 
-
-//==============================================================================
-class ComponentTypeHandler
-{
-public:
-    //==============================================================================
-    ComponentTypeHandler (const String& name_, const String& xmlTag_, const String& memberNameRoot_);
-    virtual ~ComponentTypeHandler();
-
-    const String& getName() const               { return name; }
-    const String& getXmlTag() const             { return xmlTag; }
-    const String& getMemberNameRoot() const     { return memberNameRoot; }
-
-    virtual Component* createComponent() = 0;
-    virtual const Rectangle<int> getDefaultSize() = 0;
-
-    virtual void updateComponent (ComponentDocument& document, Component* comp, const ValueTree& state);
-    virtual void initialiseNewItem (ComponentDocument& document, ValueTree& state);
-    virtual void createPropertyEditors (ComponentDocument& document, ValueTree& state, Array <PropertyComponent*>& props);
-
-    Value getValue (const var::identifier& name, ValueTree& state, ComponentDocument& document) const;
-
-    //==============================================================================
-protected:
-    const String name, xmlTag, memberNameRoot;
-};
 
 
 #endif   // __JUCER_COMPONENTDOCUMENT_JUCEHEADER__
