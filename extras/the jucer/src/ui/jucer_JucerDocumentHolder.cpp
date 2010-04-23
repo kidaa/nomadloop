@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -287,7 +287,7 @@ private:
             choices.add (T("Keep component size fixed"));
         }
 
-        void setIndex (const int newIndex)  { document.setFixedSize (newIndex != 0); }
+        void setIndex (int newIndex)        { document.setFixedSize (newIndex != 0); }
         int getIndex() const                { return document.isFixedSize() ? 1 : 0; }
     };
 };

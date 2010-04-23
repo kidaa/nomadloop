@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -547,7 +547,7 @@ const String URL::removeEscapeChars (const String& s)
         if (nextPercent < 0)
             break;
 
-        juce_wchar replacementChar = result.substring (nextPercent + 1, nextPercent + 3).getHexValue32();
+        juce_wchar replacementChar = (juce_wchar) result.substring (nextPercent + 1, nextPercent + 3).getHexValue32();
         result = result.replaceSection (nextPercent, 3, String::charToString (replacementChar));
         ++nextPercent;
     }

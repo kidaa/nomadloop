@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -70,6 +70,9 @@ PropertiesFile::PropertiesFile (const File& f, const int millisecondsBeforeSavin
              || (options_ & (storeAsBinary | storeAsCompressedBinary | storeAsXML)) == storeAsXML);
 
     ProcessScopedLock pl (createProcessLock());
+
+    if (pl != 0 && ! pl->isLocked())
+        return; // locking failure..
 
     ScopedPointer<InputStream> fileStream (f.createInputStream());
 
@@ -207,6 +210,9 @@ bool PropertiesFile::save()
 
         ProcessScopedLock pl (createProcessLock());
 
+        if (pl != 0 && ! pl->isLocked())
+            return false; // locking failure..
+
         if (doc.writeToFile (file, String::empty))
         {
             needsWriting = false;
@@ -216,6 +222,9 @@ bool PropertiesFile::save()
     else
     {
         ProcessScopedLock pl (createProcessLock());
+
+        if (pl != 0 && ! pl->isLocked())
+            return false; // locking failure..
 
         TemporaryFile tempFile (file);
         ScopedPointer <OutputStream> out (tempFile.getFile().createOutputStream());

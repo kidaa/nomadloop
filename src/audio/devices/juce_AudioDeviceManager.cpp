@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -110,6 +110,8 @@ AudioIODeviceType* juce_createAudioIODeviceType_JACK();
 
 void AudioDeviceManager::createAudioDeviceTypes (OwnedArray <AudioIODeviceType>& list)
 {
+    (void) list; // (to avoid 'unused param' warnings)
+
     #if JUCE_WINDOWS
      #if JUCE_WASAPI
      if (SystemStats::getOperatingSystemType() >= SystemStats::WinVista)

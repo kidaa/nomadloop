@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -189,6 +189,11 @@ void MidiBuffer::addEvents (const MidiBuffer& otherBuffer,
     {
         addEvent (eventData, eventSize, position + sampleDeltaToAdd);
     }
+}
+
+void MidiBuffer::ensureSize (size_t minimumNumBytes)
+{
+    data.ensureSize (minimumNumBytes);
 }
 
 bool MidiBuffer::isEmpty() const throw()

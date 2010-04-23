@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -108,7 +108,7 @@ private:
         {
         }
 
-        void setState (const bool newState)
+        void setState (bool newState)
         {
             document.perform (new ToggleStateChangeAction (component, *document.getComponentLayout(), newState),
                               T("Change ToggleButton state"));

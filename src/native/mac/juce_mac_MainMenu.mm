@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -184,7 +184,9 @@ public:
                                                   keyCode: 0];
 
             [menu performKeyEquivalent: f35Event];
-            [menu removeItem: item]; // (this throws if the item isn't actually in the menu)
+
+            if ([menu indexOfItem: item] >= 0)
+                [menu removeItem: item]; // (this throws if the item isn't actually in the menu)
         }
 
         [menu release];

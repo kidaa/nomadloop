@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -506,6 +506,8 @@ protected:
 
         juceFilter->setPlayHead (this);
         juceFilter->addListener (this);
+
+        midiEvents.ensureSize (2048);
     }
 
     void handleAsyncUpdate()

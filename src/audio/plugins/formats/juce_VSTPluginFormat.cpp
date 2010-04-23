@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -1140,7 +1140,7 @@ void VSTPluginInstance::processBlock (AudioSampleBuffer& buffer,
         // copy any incoming midi..
         const ScopedLock sl (midiInLock);
 
-        midiMessages = incomingMidi;
+        midiMessages.swapWith (incomingMidi);
         incomingMidi.clear();
     }
 }

@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -78,7 +78,7 @@ public:
     static juce_wchar* createCopy (const char* const src, const size_t numChars)
     {
         juce_wchar* const dest = createUninitialised (numChars);
-        CharacterFunctions::copy (dest, src, numChars);
+        CharacterFunctions::copy (dest, src, (int) numChars);
         dest [numChars] = 0;
         return dest;
     }

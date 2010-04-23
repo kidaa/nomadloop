@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -156,6 +156,12 @@ public:
         just swaps the internal state of the two buffers.
     */
     void swapWith (MidiBuffer& other);
+
+    /** Preallocates some memory for the buffer to use.
+        This helps to avoid needing to reallocate space when the buffer has messages
+        added to it.
+    */
+    void ensureSize (size_t minimumNumBytes);
 
     //==============================================================================
     /**

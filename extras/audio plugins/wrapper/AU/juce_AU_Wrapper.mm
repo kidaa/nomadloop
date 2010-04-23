@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -654,7 +654,9 @@ public:
             juceFilter->prepareToPlay (GetSampleRate(),
                                        GetMaxFramesPerSlice());
 
+            midiEvents.ensureSize (2048);
             midiEvents.clear();
+            incomingEvents.ensureSize (2048);
             incomingEvents.clear();
 
             channels.calloc (jmax (juceFilter->getNumInputChannels(),

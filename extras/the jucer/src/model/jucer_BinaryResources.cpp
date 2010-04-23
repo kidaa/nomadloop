@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -204,7 +204,7 @@ Image* BinaryResources::getImageFromCache (const String& name) const
     const BinaryResources::BinaryResource* const res = getResource (name);
 
     if (res != 0 && res->data.getSize() > 0)
-        return ImageCache::getFromMemory (res->data.getData(), res->data.getSize());
+        return ImageCache::getFromMemory (res->data.getData(), (int) res->data.getSize());
 
     return 0;
 }

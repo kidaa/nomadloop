@@ -43,7 +43,7 @@
 
 #define JUCE_MAJOR_VERSION	  1
 #define JUCE_MINOR_VERSION	  51
-#define JUCE_BUILDNUMBER	15
+#define JUCE_BUILDNUMBER	16
 
 #define JUCE_VERSION		((JUCE_MAJOR_VERSION << 16) + (JUCE_MINOR_VERSION << 8) + JUCE_BUILDNUMBER)
 
@@ -189,11 +189,11 @@
 #endif
 
 #ifndef JUCE_FORCE_DEBUG
-  //#define JUCE_FORCE_DEBUG 1
+  #define JUCE_FORCE_DEBUG 0
 #endif
 
 #ifndef JUCE_LOG_ASSERTIONS
-//  #define JUCE_LOG_ASSERTIONS 1
+  #define JUCE_LOG_ASSERTIONS 0
 #endif
 
 #ifndef JUCE_ASIO
@@ -201,7 +201,7 @@
 #endif
 
 #ifndef JUCE_WASAPI
-//  #define JUCE_WASAPI 1
+  #define JUCE_WASAPI 0
 #endif
 
 #ifndef JUCE_DIRECTSOUND
@@ -213,7 +213,7 @@
 #endif
 
 #ifndef JUCE_JACK
-  #define JUCE_JACK 1
+  #define JUCE_JACK 0
 #endif
 
 #if ! (defined (JUCE_QUICKTIME) || JUCE_LINUX || JUCE_IPHONE || (JUCE_WINDOWS && ! JUCE_MSVC))
@@ -241,15 +241,15 @@
 #endif
 
 #ifndef JUCE_USE_CDREADER
-  #define JUCE_USE_CDREADER 1
+  #define JUCE_USE_CDREADER 0
 #endif
 
 #if (JUCE_QUICKTIME || JUCE_WINDOWS) && ! defined (JUCE_USE_CAMERA)
-//  #define JUCE_USE_CAMERA 1
+  #define JUCE_USE_CAMERA 0
 #endif
 
 #ifndef JUCE_ENABLE_REPAINT_DEBUGGING
-//  #define JUCE_ENABLE_REPAINT_DEBUGGING 1
+  #define JUCE_ENABLE_REPAINT_DEBUGGING 0
 #endif
 
 #ifndef JUCE_USE_XINERAMA
@@ -261,7 +261,7 @@
 #endif
 
 #ifndef JUCE_USE_XRENDER
-  //#define JUCE_USE_XRENDER 1
+  #define JUCE_USE_XRENDER 0
 #endif
 
 #ifndef JUCE_USE_XCURSOR
@@ -269,15 +269,15 @@
 #endif
 
 #ifndef JUCE_PLUGINHOST_VST
-//  #define JUCE_PLUGINHOST_VST 1
+  #define JUCE_PLUGINHOST_VST 0
 #endif
 
 #ifndef JUCE_PLUGINHOST_AU
-//  #define JUCE_PLUGINHOST_AU 1
+  #define JUCE_PLUGINHOST_AU 0
 #endif
 
 #ifndef JUCE_ONLY_BUILD_CORE_LIBRARY
-  //#define JUCE_ONLY_BUILD_CORE_LIBRARY  1
+  #define JUCE_ONLY_BUILD_CORE_LIBRARY  0
 #endif
 
 #ifndef JUCE_WEB_BROWSER
@@ -1860,24 +1860,15 @@ static int findInsertIndexInSortedArray (ElementComparator& comparator,
 }
 
 template <class ElementType>
-class IntegerElementComparator
+class DefaultElementComparator
 {
-public:
-	static int compareElements (const ElementType first,
-								const ElementType second) throw()
-	{
-		return (first < second) ? -1 : ((first == second) ? 0 : 1);
-	}
-};
+private:
+	typedef PARAMETER_TYPE (ElementType) ParameterType;
 
-template <class ElementType>
-class FloatElementComparator
-{
 public:
-	static int compareElements (const ElementType first,
-								const ElementType second) throw()
+	static int compareElements (ParameterType first, ParameterType second)
 	{
-		return (first < second) ? -1 : ((first == second) ? 0 : 1);
+		return (first < second) ? -1 : ((first < second) ? 1 : 0);
 	}
 };
 
@@ -2295,6 +2286,12 @@ public:
 	{
 		const ScopedLockType lock (getLock());
 		insert (findInsertIndexInSortedArray (comparator, data.elements.getData(), newElement, 0, numUsed), newElement);
+	}
+
+	void addUsingDefaultSort (ParameterType newElement)
+	{
+		DefaultElementComparator <ElementType> comparator;
+		addSorted (comparator, newElement);
 	}
 
 	template <class ElementComparator>
@@ -5890,9 +5887,8 @@ public:
 		{
 			removeRange (firstValue, numValuesToAdd);
 
-			IntegerElementComparator<Type> sorter;
-			values.addSorted (sorter, firstValue);
-			values.addSorted (sorter, firstValue + numValuesToAdd);
+			values.addUsingDefaultSort (firstValue);
+			values.addUsingDefaultSort (firstValue + numValuesToAdd);
 
 			simplify();
 		}
@@ -5926,13 +5922,11 @@ public:
 				}
 			}
 
-			IntegerElementComparator<Type> sorter;
-
 			if (onAtStart)
-				values.addSorted (sorter, firstValue);
+				values.addUsingDefaultSort (firstValue);
 
 			if (onAtEnd)
-				values.addSorted (sorter, lastValue);
+				values.addUsingDefaultSort (lastValue);
 
 			simplify();
 		}
@@ -6698,6 +6692,8 @@ class JUCE_API  ValueTree
 {
 public:
 
+	ValueTree() throw();
+
 	explicit ValueTree (const String& type);
 
 	ValueTree (const ValueTree& other);
@@ -6724,19 +6720,19 @@ public:
 
 	const var& operator[] (const var::identifier& name) const;
 
-	void setProperty (const var::identifier& name, const var& newValue, UndoManager* const undoManager);
+	void setProperty (const var::identifier& name, const var& newValue, UndoManager* undoManager);
 
 	bool hasProperty (const var::identifier& name) const;
 
-	void removeProperty (const var::identifier& name, UndoManager* const undoManager);
+	void removeProperty (const var::identifier& name, UndoManager* undoManager);
 
-	void removeAllProperties (UndoManager* const undoManager);
+	void removeAllProperties (UndoManager* undoManager);
 
 	int getNumProperties() const;
 
 	const var::identifier getPropertyName (int index) const;
 
-	Value getPropertyAsValue (const var::identifier& name, UndoManager* const undoManager) const;
+	Value getPropertyAsValue (const var::identifier& name, UndoManager* undoManager) const;
 
 	int getNumChildren() const;
 
@@ -6746,15 +6742,19 @@ public:
 
 	ValueTree getChildWithProperty (const var::identifier& propertyName, const var& propertyValue) const;
 
-	void addChild (ValueTree child, int index, UndoManager* const undoManager);
+	void addChild (ValueTree child, int index, UndoManager* undoManager);
 
-	void removeChild (ValueTree& child, UndoManager* const undoManager);
+	void removeChild (const ValueTree& child, UndoManager* undoManager);
 
-	void removeChild (const int childIndex, UndoManager* const undoManager);
+	void removeChild (int childIndex, UndoManager* undoManager);
 
-	void removeAllChildren (UndoManager* const undoManager);
+	void removeAllChildren (UndoManager* undoManager);
+
+	void moveChild (int currentIndex, int newIndex, UndoManager* undoManager);
 
 	bool isAChildOf (const ValueTree& possibleParent) const;
+
+	int indexOf (const ValueTree& child) const;
 
 	ValueTree getParent() const;
 
@@ -6794,18 +6794,22 @@ public:
 		}
 	}
 
-	static ValueTree invalid;
+	static const ValueTree invalid;
 
 	juce_UseDebuggingNewOperator
 
 private:
-	friend class ValueTreeSetPropertyAction;
-	friend class ValueTreeChildChangeAction;
+	class SetPropertyAction;
+	friend class SetPropertyAction;
+	class AddOrRemoveChildAction;
+	friend class AddOrRemoveChildAction;
+	class MoveChildAction;
+	friend class MoveChildAction;
 
 	class JUCE_API  SharedObject	: public ReferenceCountedObject
 	{
 	public:
-		SharedObject (const String& type);
+		explicit SharedObject (const String& type);
 		SharedObject (const SharedObject& other);
 		~SharedObject();
 
@@ -6822,16 +6826,18 @@ private:
 		void sendParentChangeMessage();
 		const var& getProperty (const var::identifier& name) const;
 		const var getProperty (const var::identifier& name, const var& defaultReturnValue) const;
-		void setProperty (const var::identifier& name, const var& newValue, UndoManager* const undoManager);
+		void setProperty (const var::identifier& name, const var& newValue, UndoManager*);
 		bool hasProperty (const var::identifier& name) const;
-		void removeProperty (const var::identifier& name, UndoManager* const undoManager);
-		void removeAllProperties (UndoManager* const undoManager);
-		bool isAChildOf (const SharedObject* const possibleParent) const;
+		void removeProperty (const var::identifier& name, UndoManager*);
+		void removeAllProperties (UndoManager*);
+		bool isAChildOf (const SharedObject* possibleParent) const;
+		int indexOf (const ValueTree& child) const;
 		ValueTree getChildWithName (const String& type) const;
 		ValueTree getChildWithProperty (const var::identifier& propertyName, const var& propertyValue) const;
-		void addChild (SharedObject* child, int index, UndoManager* const undoManager);
-		void removeChild (const int childIndex, UndoManager* const undoManager);
-		void removeAllChildren (UndoManager* const undoManager);
+		void addChild (SharedObject* child, int index, UndoManager*);
+		void removeChild (int childIndex, UndoManager*);
+		void removeAllChildren (UndoManager*);
+		void moveChild (int currentIndex, int newIndex, UndoManager*);
 		XmlElement* createXml() const;
 
 		juce_UseDebuggingNewOperator
@@ -6853,17 +6859,19 @@ private:
 
 	private:
 		ElementComparator& comparator;
+
+		ComparatorAdapter (const ComparatorAdapter&);
+		ComparatorAdapter& operator= (const ComparatorAdapter&);
 	};
 
 	friend class SharedObject;
-
 	typedef ReferenceCountedObjectPtr <SharedObject> SharedObjectPtr;
 
-	ReferenceCountedObjectPtr <SharedObject> object;
+	SharedObjectPtr object;
 	ListenerList <Listener> listeners;
 
 public:
-	explicit ValueTree (SharedObject* const object_);  // (can be made private when VC6 support is finally dropped)
+	explicit ValueTree (SharedObject*);  // (can be made private when VC6 support is finally dropped)
 };
 
 #endif   // __JUCE_VALUETREE_JUCEHEADER__
@@ -10280,6 +10288,12 @@ public:
 		const int y2 = (int) floorf ((float) (y + h + 0.9999f));
 
 		return Rectangle<int> (x1, y1, x2 - x1, y2 - y1);
+	}
+
+	const Rectangle<float> toFloat() const throw()
+	{
+		return Rectangle<float> (static_cast<float> (x), static_cast<float> (y),
+								 static_cast<float> (w), static_cast<float> (h));
 	}
 
 	static bool intersectRectangles (ValueType& x1, ValueType& y1, ValueType& w1, ValueType& h1,
@@ -15711,6 +15725,8 @@ public:
 	int getLastEventTime() const throw();
 
 	void swapWith (MidiBuffer& other);
+
+	void ensureSize (size_t minimumNumBytes);
 
 	class Iterator
 	{
@@ -26209,16 +26225,17 @@ public:
 	juce_UseDebuggingNewOperator
 
 private:
-	class ActiveXControlData;
-	friend class ActiveXControlData;
-	void* control;
+	class Pimpl;
+	friend class Pimpl;
+	friend class ScopedPointer <Pimpl>;
+	ScopedPointer <Pimpl> control;
 	bool mouseEventsAllowed;
-
-	ActiveXControlComponent (const ActiveXControlComponent&);
-	ActiveXControlComponent& operator= (const ActiveXControlComponent&);
 
 	void setControlBounds (const Rectangle<int>& bounds) const;
 	void setControlVisible (bool b) const;
+
+	ActiveXControlComponent (const ActiveXControlComponent&);
+	ActiveXControlComponent& operator= (const ActiveXControlComponent&);
 };
 
 #endif
@@ -26233,8 +26250,6 @@ private:
 /*** Start of inlined file: juce_AudioDeviceSelectorComponent.h ***/
 #ifndef __JUCE_AUDIODEVICESELECTORCOMPONENT_JUCEHEADER__
 #define __JUCE_AUDIODEVICESELECTORCOMPONENT_JUCEHEADER__
-
-class MidiInputSelectorComponentListBox;
 
 class JUCE_API  AudioDeviceSelectorComponent  : public Component,
 												public ComboBoxListener,
@@ -26273,6 +26288,7 @@ private:
 	const bool showChannelsAsStereoPairs;
 	const bool hideAdvancedOptionsWithButton;
 
+	class MidiInputSelectorComponentListBox;
 	MidiInputSelectorComponentListBox* midiInputsList;
 	Label* midiInputsLabel;
 	ComboBox* midiOutputSelector;

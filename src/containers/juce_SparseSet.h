@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -199,9 +199,8 @@ public:
         {
             removeRange (firstValue, numValuesToAdd);
 
-            IntegerElementComparator<Type> sorter;
-            values.addSorted (sorter, firstValue);
-            values.addSorted (sorter, firstValue + numValuesToAdd);
+            values.addUsingDefaultSort (firstValue);
+            values.addUsingDefaultSort (firstValue + numValuesToAdd);
 
             simplify();
         }
@@ -242,13 +241,11 @@ public:
                 }
             }
 
-            IntegerElementComparator<Type> sorter;
-
             if (onAtStart)
-                values.addSorted (sorter, firstValue);
+                values.addUsingDefaultSort (firstValue);
 
             if (onAtEnd)
-                values.addSorted (sorter, lastValue);
+                values.addUsingDefaultSort (lastValue);
 
             simplify();
         }
