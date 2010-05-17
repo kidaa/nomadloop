@@ -23,19 +23,16 @@
   ==============================================================================
 */
 
-#ifdef _MSC_VER
-  #pragma warning (disable: 4514 4996)
+#include "../core/juce_StandardHeader.h"
+
+#if JUCE_MSVC
   #pragma warning (push)
+  #pragma warning (disable: 4514 4996)
 #endif
 
-#include "../core/juce_StandardHeader.h"
 #include <cwctype>
 #include <cctype>
 #include <ctime>
-
-#ifdef _MSC_VER
-  #pragma warning (pop)
-#endif
 
 BEGIN_JUCE_NAMESPACE
 
@@ -140,7 +137,7 @@ int CharacterFunctions::compareIgnoreCase (const char* const s1, const char* con
 {
     jassert (s1 != 0 && s2 != 0);
 
-#if JUCE_WIN32
+#if JUCE_WINDOWS
     return stricmp (s1, s2);
 #else
     return strcasecmp (s1, s2);
@@ -151,7 +148,7 @@ int CharacterFunctions::compareIgnoreCase (const juce_wchar* s1, const juce_wcha
 {
     jassert (s1 != 0 && s2 != 0);
 
-#if JUCE_WIN32
+#if JUCE_WINDOWS
     return _wcsicmp (s1, s2);
 #else
     for (;;)
@@ -201,7 +198,7 @@ int CharacterFunctions::compareIgnoreCase (const char* const s1, const char* con
 {
     jassert (s1 != 0 && s2 != 0);
 
-#if JUCE_WIN32
+#if JUCE_WINDOWS
     return strnicmp (s1, s2, maxChars);
 #else
     return strncasecmp (s1, s2, maxChars);
@@ -212,7 +209,7 @@ int CharacterFunctions::compareIgnoreCase (const juce_wchar* s1, const juce_wcha
 {
     jassert (s1 != 0 && s2 != 0);
 
-#if JUCE_WIN32
+#if JUCE_WINDOWS
     return _wcsnicmp (s1, s2, maxChars);
 #else
     while (--maxChars >= 0)
@@ -395,7 +392,7 @@ int CharacterFunctions::getIntValue (const char* const s) throw()
 
 int CharacterFunctions::getIntValue (const juce_wchar* s) throw()
 {
-#if JUCE_WIN32
+#if JUCE_WINDOWS
     return _wtoi (s);
 #else
     int v = 0;
@@ -425,7 +422,7 @@ int64 CharacterFunctions::getInt64Value (const char* s) throw()
 {
 #if JUCE_LINUX
     return atoll (s);
-#elif defined (JUCE_WIN32)
+#elif JUCE_WINDOWS
     return _atoi64 (s);
 #else
     int64 v = 0;
@@ -453,7 +450,7 @@ int64 CharacterFunctions::getInt64Value (const char* s) throw()
 
 int64 CharacterFunctions::getInt64Value (const juce_wchar* s) throw()
 {
-#if JUCE_WIN32
+#if JUCE_WINDOWS
     return _wtoi64 (s);
 #else
     int64 v = 0;
@@ -649,7 +646,7 @@ juce_wchar CharacterFunctions::toUpperCase (const juce_wchar character) throw()
 
 void CharacterFunctions::toUpperCase (char* s) throw()
 {
-#if JUCE_WIN32
+#if JUCE_WINDOWS
     strupr (s);
 #else
     while (*s != 0)
@@ -662,7 +659,7 @@ void CharacterFunctions::toUpperCase (char* s) throw()
 
 void CharacterFunctions::toUpperCase (juce_wchar* s) throw()
 {
-#if JUCE_WIN32
+#if JUCE_WINDOWS
     _wcsupr (s);
 #else
     while (*s != 0)
@@ -680,7 +677,7 @@ bool CharacterFunctions::isUpperCase (const char character) throw()
 
 bool CharacterFunctions::isUpperCase (const juce_wchar character) throw()
 {
-#if JUCE_WIN32
+#if JUCE_WINDOWS
     return iswupper (character) != 0;
 #else
     return toLowerCase (character) != character;
@@ -700,7 +697,7 @@ juce_wchar CharacterFunctions::toLowerCase (const juce_wchar character) throw()
 
 void CharacterFunctions::toLowerCase (char* s) throw()
 {
-#if JUCE_WIN32
+#if JUCE_WINDOWS
     strlwr (s);
 #else
     while (*s != 0)
@@ -713,7 +710,7 @@ void CharacterFunctions::toLowerCase (char* s) throw()
 
 void CharacterFunctions::toLowerCase (juce_wchar* s) throw()
 {
-#if JUCE_WIN32
+#if JUCE_WINDOWS
     _wcslwr (s);
 #else
     while (*s != 0)
@@ -731,7 +728,7 @@ bool CharacterFunctions::isLowerCase (const char character) throw()
 
 bool CharacterFunctions::isLowerCase (const juce_wchar character) throw()
 {
-#if JUCE_WIN32
+#if JUCE_WINDOWS
     return iswlower (character) != 0;
 #else
     return toUpperCase (character) != character;
@@ -784,15 +781,23 @@ bool CharacterFunctions::isLetterOrDigit (const juce_wchar character) throw()
 
 int CharacterFunctions::getHexDigitValue (const juce_wchar digit) throw()
 {
-    if (digit >= '0' && digit <= '9')
-        return digit - '0';
-    else if (digit >= 'a' && digit <= 'f')
-        return digit - ('a' - 10);
-    else if (digit >= 'A' && digit <= 'F')
-        return digit - ('A' - 10);
+    unsigned int d = digit - '0';
+    if (d < (unsigned int) 10)
+        return (int) d;
+
+    d += '0' - 'a';
+    if (d < (unsigned int) 6)
+        return (int) d + 10;
+
+    d += 'a' - 'A';
+    if (d < (unsigned int) 6)
+        return (int) d + 10;
 
     return -1;
 }
 
+#if JUCE_MSVC
+  #pragma warning (pop)
+#endif
 
 END_JUCE_NAMESPACE

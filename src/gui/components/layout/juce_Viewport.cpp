@@ -35,10 +35,6 @@ BEGIN_JUCE_NAMESPACE
 Viewport::Viewport (const String& componentName)
   : Component (componentName),
     contentComp (0),
-    lastVX (0),
-    lastVY (0),
-    lastVW (0),
-    lastVH (0),
     scrollBarThickness (0),
     singleStepX (16),
     singleStepY (16),
@@ -92,30 +88,27 @@ void Viewport::setViewedComponent (Component* const newViewedComponent)
             contentComp->addComponentListener (this);
         }
 
-        updateVisibleRegion();
+        updateVisibleArea();
     }
 }
 
-int Viewport::getMaximumVisibleWidth() const throw()
+int Viewport::getMaximumVisibleWidth() const
 {
-    return jmax (0, getWidth() - (verticalScrollBar->isVisible() ? getScrollBarThickness() : 0));
+    return contentHolder->getWidth();
 }
 
-int Viewport::getMaximumVisibleHeight() const throw()
+int Viewport::getMaximumVisibleHeight() const
 {
-    return jmax (0, getHeight() - (horizontalScrollBar->isVisible() ? getScrollBarThickness() : 0));
+    return contentHolder->getHeight();
 }
 
-void Viewport::setViewPosition (const int xPixelsOffset,
-                                const int yPixelsOffset)
+void Viewport::setViewPosition (const int xPixelsOffset, const int yPixelsOffset)
 {
     if (contentComp != 0)
-        contentComp->setTopLeftPosition (-xPixelsOffset,
-                                         -yPixelsOffset);
+        contentComp->setTopLeftPosition (-xPixelsOffset, -yPixelsOffset);
 }
 
-void Viewport::setViewPositionProportionately (const double x,
-                                               const double y)
+void Viewport::setViewPositionProportionately (const double x, const double y)
 {
     if (contentComp != 0)
         setViewPosition (jmax (0, roundToInt (x * (contentComp->getWidth() - getWidth()))),
@@ -128,25 +121,31 @@ bool Viewport::autoScroll (int mouseX, int mouseY, int activeBorderThickness, in
     {
         int dx = 0, dy = 0;
 
-        if (mouseX < activeBorderThickness)
-            dx = activeBorderThickness - mouseX;
-        else if (mouseX >= contentHolder->getWidth() - activeBorderThickness)
-            dx = (contentHolder->getWidth() - activeBorderThickness) - mouseX;
+        if (horizontalScrollBar->isVisible())
+        {
+            if (mouseX < activeBorderThickness)
+                dx = activeBorderThickness - mouseX;
+            else if (mouseX >= contentHolder->getWidth() - activeBorderThickness)
+                dx = (contentHolder->getWidth() - activeBorderThickness) - mouseX;
 
-        if (dx < 0)
-            dx = jmax (dx, -maximumSpeed, contentHolder->getWidth() - contentComp->getRight());
-        else
-            dx = jmin (dx, maximumSpeed, -contentComp->getX());
+            if (dx < 0)
+                dx = jmax (dx, -maximumSpeed, contentHolder->getWidth() - contentComp->getRight());
+            else
+                dx = jmin (dx, maximumSpeed, -contentComp->getX());
+        }
 
-        if (mouseY < activeBorderThickness)
-            dy = activeBorderThickness - mouseY;
-        else if (mouseY >= contentHolder->getHeight() - activeBorderThickness)
-            dy = (contentHolder->getHeight() - activeBorderThickness) - mouseY;
+        if (verticalScrollBar->isVisible())
+        {
+            if (mouseY < activeBorderThickness)
+                dy = activeBorderThickness - mouseY;
+            else if (mouseY >= contentHolder->getHeight() - activeBorderThickness)
+                dy = (contentHolder->getHeight() - activeBorderThickness) - mouseY;
 
-        if (dy < 0)
-            dy = jmax (dy, -maximumSpeed, contentHolder->getHeight() - contentComp->getBottom());
-        else
-            dy = jmin (dy, maximumSpeed, -contentComp->getY());
+            if (dy < 0)
+                dy = jmax (dy, -maximumSpeed, contentHolder->getHeight() - contentComp->getBottom());
+            else
+                dy = jmin (dy, maximumSpeed, -contentComp->getY());
+        }
 
         if (dx != 0 || dy != 0)
         {
@@ -162,120 +161,130 @@ bool Viewport::autoScroll (int mouseX, int mouseY, int activeBorderThickness, in
 
 void Viewport::componentMovedOrResized (Component&, bool, bool)
 {
-    updateVisibleRegion();
+    updateVisibleArea();
 }
 
 void Viewport::resized()
 {
-    updateVisibleRegion();
+    updateVisibleArea();
 }
 
 
 //==============================================================================
-void Viewport::updateVisibleRegion()
+void Viewport::updateVisibleArea()
 {
+    const int scrollbarWidth = getScrollBarThickness();
+    const bool canShowAnyBars = getWidth() > scrollbarWidth && getHeight() > scrollbarWidth;
+    const bool canShowHBar = showHScrollbar && canShowAnyBars;
+    const bool canShowVBar = showVScrollbar && canShowAnyBars;
+
+    bool hBarVisible = canShowHBar && ! horizontalScrollBar->autoHides();
+    bool vBarVisible = canShowVBar && ! horizontalScrollBar->autoHides();
+
+    Rectangle<int> contentArea (getLocalBounds());
+
+    if (contentComp != 0 && ! contentArea.contains (contentComp->getBounds()))
+    {
+        hBarVisible = canShowHBar && (hBarVisible || contentComp->getX() < 0 || contentComp->getRight() > contentArea.getWidth());
+        vBarVisible = canShowVBar && (vBarVisible || contentComp->getY() < 0 || contentComp->getBottom() > contentArea.getHeight());
+
+        if (vBarVisible)
+            contentArea.setWidth (getWidth() - scrollbarWidth);
+
+        if (hBarVisible)
+            contentArea.setHeight (getHeight() - scrollbarWidth);
+
+        if (! contentArea.contains (contentComp->getBounds()))
+        {
+            hBarVisible = canShowHBar && (hBarVisible || contentComp->getRight() > contentArea.getWidth());
+            vBarVisible = canShowVBar && (vBarVisible || contentComp->getBottom() > contentArea.getHeight());
+        }
+    }
+
+    if (vBarVisible)
+        contentArea.setWidth (getWidth() - scrollbarWidth);
+
+    if (hBarVisible)
+        contentArea.setHeight (getHeight() - scrollbarWidth);
+
+    contentHolder->setBounds (contentArea);
+
+    Rectangle<int> contentBounds;
     if (contentComp != 0)
+        contentBounds = contentComp->getBounds();
+
+    const Point<int> visibleOrigin (-contentBounds.getPosition());
+
+    if (hBarVisible)
     {
-        const int newVX = -contentComp->getX();
-        const int newVY = -contentComp->getY();
-
-        if (newVX == 0 && newVY == 0
-            && contentComp->getWidth() <= getWidth()
-            && contentComp->getHeight() <= getHeight())
-        {
-            horizontalScrollBar->setVisible (false);
-            verticalScrollBar->setVisible (false);
-        }
-
-        horizontalScrollBar->setRangeLimits (0.0, contentComp->getWidth());
-        horizontalScrollBar->setCurrentRange (newVX, getMaximumVisibleWidth());
+        horizontalScrollBar->setBounds (0, contentArea.getHeight(), contentArea.getWidth(), scrollbarWidth);
+        horizontalScrollBar->setRangeLimits (0.0, contentBounds.getWidth());
+        horizontalScrollBar->setCurrentRange (visibleOrigin.getX(), contentArea.getWidth());
         horizontalScrollBar->setSingleStepSize (singleStepX);
-
-        if (! (contentComp->getWidth() > 0 && showHScrollbar && getHeight() > getScrollBarThickness()))
-            horizontalScrollBar->setVisible (false);
-
-        verticalScrollBar->setRangeLimits (0.0, contentComp->getHeight());
-        verticalScrollBar->setCurrentRange (newVY, getMaximumVisibleHeight());
-        verticalScrollBar->setSingleStepSize (singleStepY);
-
-        if (! (contentComp->getHeight() > 0 && showVScrollbar && getWidth() > getScrollBarThickness()))
-            verticalScrollBar->setVisible (false);
-
-        if (verticalScrollBar->isVisible())
-        {
-            horizontalScrollBar->setCurrentRange (newVX, getMaximumVisibleWidth());
-            verticalScrollBar->setCurrentRange (newVY, getMaximumVisibleHeight());
-
-            verticalScrollBar
-                ->setBounds (getMaximumVisibleWidth(), 0,
-                             getScrollBarThickness(), getMaximumVisibleHeight());
-        }
-
-        if (horizontalScrollBar->isVisible())
-        {
-            horizontalScrollBar->setCurrentRange (newVX, getMaximumVisibleWidth());
-
-            horizontalScrollBar
-                ->setBounds (0, getMaximumVisibleHeight(),
-                             getMaximumVisibleWidth(), getScrollBarThickness());
-        }
-
-        contentHolder->setSize (getMaximumVisibleWidth(),
-                                getMaximumVisibleHeight());
-
-        const int newVW = jmin (contentComp->getRight(),  getMaximumVisibleWidth());
-        const int newVH = jmin (contentComp->getBottom(), getMaximumVisibleHeight());
-
-        if (newVX != lastVX
-             || newVY != lastVY
-             || newVW != lastVW
-             || newVH != lastVH)
-        {
-            lastVX = newVX;
-            lastVY = newVY;
-            lastVW = newVW;
-            lastVH = newVH;
-
-            visibleAreaChanged (newVX, newVY, newVW, newVH);
-        }
-
-        horizontalScrollBar->handleUpdateNowIfNeeded();
-        verticalScrollBar->handleUpdateNowIfNeeded();
     }
-    else
+
+    if (vBarVisible)
     {
-        horizontalScrollBar->setVisible (false);
-        verticalScrollBar->setVisible (false);
+        verticalScrollBar->setBounds (contentArea.getWidth(), 0, scrollbarWidth, contentArea.getHeight());
+        verticalScrollBar->setRangeLimits (0.0, contentBounds.getHeight());
+        verticalScrollBar->setCurrentRange (visibleOrigin.getY(), contentArea.getHeight());
+        verticalScrollBar->setSingleStepSize (singleStepY);
     }
+
+    // Force the visibility *after* setting the ranges to avoid flicker caused by edge conditions in the numbers.
+    horizontalScrollBar->setVisible (hBarVisible);
+    verticalScrollBar->setVisible (vBarVisible);
+
+    const Rectangle<int> visibleArea (visibleOrigin.getX(), visibleOrigin.getY(),
+                                      jmin (contentBounds.getWidth() - visibleOrigin.getX(),  contentArea.getWidth()),
+                                      jmin (contentBounds.getHeight() - visibleOrigin.getY(), contentArea.getHeight()));
+
+    if (lastVisibleArea != visibleArea)
+    {
+        lastVisibleArea = visibleArea;
+        visibleAreaChanged (visibleArea.getX(), visibleArea.getY(), visibleArea.getWidth(), visibleArea.getHeight());
+    }
+
+    horizontalScrollBar->handleUpdateNowIfNeeded();
+    verticalScrollBar->handleUpdateNowIfNeeded();
 }
 
 //==============================================================================
-void Viewport::setSingleStepSizes (const int stepX,
-                                   const int stepY)
+void Viewport::setSingleStepSizes (const int stepX, const int stepY)
 {
-    singleStepX = stepX;
-    singleStepY = stepY;
-    updateVisibleRegion();
+    if (singleStepX != stepX || singleStepY != stepY)
+    {
+        singleStepX = stepX;
+        singleStepY = stepY;
+        updateVisibleArea();
+    }
 }
 
 void Viewport::setScrollBarsShown (const bool showVerticalScrollbarIfNeeded,
                                    const bool showHorizontalScrollbarIfNeeded)
 {
-    showVScrollbar = showVerticalScrollbarIfNeeded;
-    showHScrollbar = showHorizontalScrollbarIfNeeded;
-    updateVisibleRegion();
+    if (showVScrollbar != showVerticalScrollbarIfNeeded
+         || showHScrollbar != showHorizontalScrollbarIfNeeded)
+    {
+        showVScrollbar = showVerticalScrollbarIfNeeded;
+        showHScrollbar = showHorizontalScrollbarIfNeeded;
+        updateVisibleArea();
+    }
 }
 
 void Viewport::setScrollBarThickness (const int thickness)
 {
-    scrollBarThickness = thickness;
-    updateVisibleRegion();
+    if (scrollBarThickness != thickness)
+    {
+        scrollBarThickness = thickness;
+        updateVisibleArea();
+    }
 }
 
-int Viewport::getScrollBarThickness() const throw()
+int Viewport::getScrollBarThickness() const
 {
-    return (scrollBarThickness > 0) ? scrollBarThickness
-                                    : getLookAndFeel().getDefaultScrollbarWidth();
+    return scrollBarThickness > 0 ? scrollBarThickness
+                                  : getLookAndFeel().getDefaultScrollbarWidth();
 }
 
 void Viewport::setScrollBarButtonVisibility (const bool buttonsVisible)
@@ -286,17 +295,19 @@ void Viewport::setScrollBarButtonVisibility (const bool buttonsVisible)
 
 void Viewport::scrollBarMoved (ScrollBar* scrollBarThatHasMoved, double newRangeStart)
 {
+    const int newRangeStartInt = roundToInt (newRangeStart);
+
     if (scrollBarThatHasMoved == horizontalScrollBar)
     {
-        setViewPosition (roundToInt (newRangeStart), getViewPositionY());
+        setViewPosition (newRangeStartInt, getViewPositionY());
     }
     else if (scrollBarThatHasMoved == verticalScrollBar)
     {
-        setViewPosition (getViewPositionX(), roundToInt (newRangeStart));
+        setViewPosition (getViewPositionX(), newRangeStartInt);
     }
 }
 
-void Viewport::mouseWheelMove (const MouseEvent& e, float wheelIncrementX, float wheelIncrementY)
+void Viewport::mouseWheelMove (const MouseEvent& e, const float wheelIncrementX, const float wheelIncrementY)
 {
     if (! useMouseWheelMoveIfNeeded (e, wheelIncrementX, wheelIncrementY))
         Component::mouseWheelMove (e, wheelIncrementX, wheelIncrementY);

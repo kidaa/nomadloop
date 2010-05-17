@@ -36,7 +36,7 @@ BEGIN_JUCE_NAMESPACE
 
 //==============================================================================
 static const char* const wavFormatName = "WAV file";
-static const juce_wchar* const wavExtensions[] =    { T(".wav"), T(".bwf"), 0 };
+static const char* const wavExtensions[] = { ".wav", ".bwf", 0 };
 
 
 //==============================================================================
@@ -60,8 +60,8 @@ const StringPairArray WavAudioFormat::createBWAVMetadata (const String& descript
     m.set (bwavDescription, description);
     m.set (bwavOriginator, originator);
     m.set (bwavOriginatorRef, originatorRef);
-    m.set (bwavOriginationDate, date.formatted (T("%Y-%m-%d")));
-    m.set (bwavOriginationTime, date.formatted (T("%H:%M:%S")));
+    m.set (bwavOriginationDate, date.formatted ("%Y-%m-%d"));
+    m.set (bwavOriginationTime, date.formatted ("%H:%M:%S"));
     m.set (bwavTimeReference, String (timeReferenceSamples));
     m.set (bwavCodingHistory, codingHistory);
 
@@ -820,7 +820,7 @@ public:
 
 //==============================================================================
 WavAudioFormat::WavAudioFormat()
-    : AudioFormat (TRANS (wavFormatName), (const juce_wchar**) wavExtensions)
+    : AudioFormat (TRANS (wavFormatName), StringArray (wavExtensions))
 {
 }
 

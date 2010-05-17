@@ -49,7 +49,7 @@ public:
         activeImage (0),
         loadingImage (0)
     {
-        HRESULT hr = graphBuilder.CoCreateInstance (CLSID_FilterGraph, CLSCTX_INPROC);
+        HRESULT hr = graphBuilder.CoCreateInstance (CLSID_FilterGraph);
         if (FAILED (hr))
             return;
 
@@ -80,7 +80,7 @@ public:
         if (FAILED (hr))
             return;
 
-        hr = smartTee.CoCreateInstance (CLSID_SmartTee, CLSCTX_INPROC_SERVER);
+        hr = smartTee.CoCreateInstance (CLSID_SmartTee);
         if (FAILED (hr))
             return;
 
@@ -92,7 +92,7 @@ public:
             return;
 
         ComSmartPtr <IBaseFilter> sampleGrabberBase;
-        hr = sampleGrabberBase.CoCreateInstance (CLSID_SampleGrabber, CLSCTX_INPROC_SERVER);
+        hr = sampleGrabberBase.CoCreateInstance (CLSID_SampleGrabber);
         if (FAILED (hr))
             return;
 
@@ -131,7 +131,7 @@ public:
         height = pVih->bmiHeader.biHeight;
 
         ComSmartPtr <IBaseFilter> nullFilter;
-        hr = nullFilter.CoCreateInstance (CLSID_NullRenderer, CLSCTX_INPROC_SERVER);
+        hr = nullFilter.CoCreateInstance (CLSID_NullRenderer);
         hr = graphBuilder->AddFilter (nullFilter, _T("Null Renderer"));
 
         if (connectFilters (sampleGrabberBase, nullFilter)
@@ -152,7 +152,7 @@ public:
         removeGraphFromRot();
 
         for (int i = viewerComps.size(); --i >= 0;)
-            ((DShowCaptureViewerComp*) viewerComps.getUnchecked(i))->ownerDeleted();
+            viewerComps.getUnchecked(i)->ownerDeleted();
 
         callback = 0;
         graphBuilder = 0;
@@ -259,7 +259,7 @@ public:
         firstRecordedTime = Time();
         recordNextFrameTime = true;
 
-        HRESULT hr = asfWriter.CoCreateInstance (CLSID_WMAsfWriter, CLSCTX_INPROC_SERVER);
+        HRESULT hr = asfWriter.CoCreateInstance (CLSID_WMAsfWriter);
 
         if (SUCCEEDED (hr))
         {
@@ -368,7 +368,7 @@ public:
 
         for (int i = listeners.size(); --i >= 0;)
         {
-            CameraImageListener* l = (CameraImageListener*) listeners[i];
+            CameraImageListener* const l = listeners[i];
 
             if (l != 0)
                 l->imageReceived (image);
@@ -431,7 +431,7 @@ public:
     int width, height;
     Time firstRecordedTime;
 
-    VoidArray viewerComps;
+    Array <DShowCaptureViewerComp*> viewerComps;
 
 private:
     CameraDevice* const owner;
@@ -569,7 +569,7 @@ private:
 
                 if (pinName == 0 || String (pinName).equalsIgnoreCase (String (info.achName)))
                 {
-                    pin.p->AddRef();
+                    pin->AddRef();
                     *result = pin;
                     return true;
                 }
@@ -624,32 +624,13 @@ private:
     }
 
     //==============================================================================
-    class GrabberCallback   : public ISampleGrabberCB
+    class GrabberCallback   : public ComBaseClassHelper <ISampleGrabberCB>
     {
     public:
         GrabberCallback (DShowCameraDeviceInteral& owner_)
             : owner (owner_)
         {
         }
-
-        HRESULT __stdcall QueryInterface (REFIID id, void** result)
-        {
-            if (id == IID_IUnknown)
-                *result = dynamic_cast <IUnknown*> (this);
-            else if (id == IID_ISampleGrabberCB)
-                *result = dynamic_cast <ISampleGrabberCB*> (this);
-            else
-            {
-                *result = 0;
-                return E_NOINTERFACE;
-            }
-
-            AddRef();
-            return S_OK;
-        }
-
-        ULONG __stdcall AddRef()    { return ++refCount; }
-        ULONG __stdcall Release()   { const int r = --refCount; if (r == 0) delete this; return r; }
 
         //==============================================================================
         STDMETHODIMP SampleCB (double /*SampleTime*/, IMediaSample* /*pSample*/)
@@ -664,7 +645,6 @@ private:
         }
 
     private:
-        int refCount;
         DShowCameraDeviceInteral& owner;
 
         GrabberCallback (const GrabberCallback&);
@@ -672,7 +652,7 @@ private:
     };
 
     ComSmartPtr <GrabberCallback> callback;
-    VoidArray listeners;
+    Array <CameraImageListener*> listeners;
     CriticalSection listenerLock;
 
     //==============================================================================
@@ -691,13 +671,13 @@ CameraDevice::CameraDevice (const String& name_, int /*index*/)
 CameraDevice::~CameraDevice()
 {
     stopRecording();
-    delete (DShowCameraDeviceInteral*) internal;
+    delete static_cast <DShowCameraDeviceInteral*> (internal);
     internal = 0;
 }
 
 Component* CameraDevice::createViewerComponent()
 {
-    return new DShowCameraDeviceInteral::DShowCaptureViewerComp ((DShowCameraDeviceInteral*) internal);
+    return new DShowCameraDeviceInteral::DShowCaptureViewerComp (static_cast <DShowCameraDeviceInteral*> (internal));
 }
 
 const String CameraDevice::getFileExtension()
@@ -757,7 +737,7 @@ static ComSmartPtr <IBaseFilter> enumerateCameras (StringArray* const names,
     ComSmartPtr <IBaseFilter> result;
 
     ComSmartPtr <ICreateDevEnum> pDevEnum;
-    HRESULT hr = pDevEnum.CoCreateInstance (CLSID_SystemDeviceEnum, CLSCTX_INPROC);
+    HRESULT hr = pDevEnum.CoCreateInstance (CLSID_SystemDeviceEnum);
 
     if (SUCCEEDED (hr))
     {
@@ -828,7 +808,7 @@ CameraDevice* CameraDevice::openDevice (int index,
                                         int maxWidth, int maxHeight)
 {
     ComSmartPtr <ICaptureGraphBuilder2> captureGraphBuilder;
-    HRESULT hr = captureGraphBuilder.CoCreateInstance (CLSID_CaptureGraphBuilder2, CLSCTX_INPROC);
+    HRESULT hr = captureGraphBuilder.CoCreateInstance (CLSID_CaptureGraphBuilder2);
 
     if (SUCCEEDED (hr))
     {
@@ -837,16 +817,15 @@ CameraDevice* CameraDevice::openDevice (int index,
 
         if (filter != 0)
         {
-            CameraDevice* const cam = new CameraDevice (name, index);
+            ScopedPointer <CameraDevice> cam (new CameraDevice (name, index));
+
             DShowCameraDeviceInteral* const intern
                 = new DShowCameraDeviceInteral (cam, captureGraphBuilder, filter,
                                                 minWidth, minHeight, maxWidth, maxHeight);
             cam->internal = intern;
 
             if (intern->ok)
-                return cam;
-            else
-                delete cam;
+                return cam.release();
         }
     }
 

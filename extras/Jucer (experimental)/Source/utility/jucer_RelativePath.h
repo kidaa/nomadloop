@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -59,8 +59,8 @@ public:
 
     RootFolder getRoot() const                              { return root; }
 
-    const String toUnixStyle() const                        { return unixStylePath (path); }
-    const String toWindowsStyle() const                     { return windowsStylePath (path); }
+    const String toUnixStyle() const                        { return FileHelpers::unixStylePath (path); }
+    const String toWindowsStyle() const                     { return FileHelpers::windowsStylePath (path); }
 
     const String getFileName() const                        { return getFakeFile().getFileName(); }
     const String getFileNameWithoutExtension() const        { return getFakeFile().getFileNameWithoutExtension(); }

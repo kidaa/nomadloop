@@ -35,15 +35,24 @@
 #if ! JUCE_USE_INTRINSICS
 // In newer compilers, the inline versions of these are used (in juce_Atomic.h), but in
 // older ones we have to actually call the ops as win32 functions..
-void  Atomic::increment (int32& variable)                { InterlockedIncrement (reinterpret_cast <volatile long*> (&variable)); }
-int32 Atomic::incrementAndReturn (int32& variable)       { return InterlockedIncrement (reinterpret_cast <volatile long*> (&variable)); }
-void  Atomic::decrement (int32& variable)                { InterlockedDecrement (reinterpret_cast <volatile long*> (&variable)); }
-int32 Atomic::decrementAndReturn (int32& variable)       { return InterlockedDecrement (reinterpret_cast <volatile long*> (&variable)); }
-int32 Atomic::compareAndExchange (int32& destination, int32 newValue, int32 oldValue)
-                                                         { return InterlockedCompareExchange (reinterpret_cast <volatile long*> (&destination), newValue, oldValue); }
-#endif
+long juce_InterlockedExchange (volatile long* a, long b) throw()                 { return InterlockedExchange (a, b); }
+long juce_InterlockedIncrement (volatile long* a) throw()                        { return InterlockedIncrement (a); }
+long juce_InterlockedDecrement (volatile long* a) throw()                        { return InterlockedDecrement (a); }
+long juce_InterlockedExchangeAdd (volatile long* a, long b) throw()              { return InterlockedExchangeAdd (a, b); }
+long juce_InterlockedCompareExchange (volatile long* a, long b, long c) throw()  { return InterlockedCompareExchange (a, b, c); }
 
-void* Atomic::swapPointers (void* volatile* value1, void* volatile value2)   { return InterlockedExchangePointer (value1, value2); }
+__int64 juce_InterlockedCompareExchange64 (volatile __int64* value, __int64 newValue, __int64 valueToCompare) throw()
+{
+    jassertfalse; // This operation isn't available in old MS compiler versions!
+
+    __int64 oldValue = *value;
+    if (oldValue == valueToCompare)
+        *value = newValue;
+
+    return oldValue;
+}
+
+#endif
 
 //==============================================================================
 CriticalSection::CriticalSection() throw()
@@ -128,18 +137,14 @@ void juce_CloseThreadHandle (void* handle)
 void* juce_createThread (void* userData)
 {
     unsigned int threadId;
-
-    return (void*) _beginthreadex (0, 0,
-                                   &threadEntryProc,
-                                   userData,
-                                   0, &threadId);
+    return (void*) _beginthreadex (0, 0, &threadEntryProc, userData, 0, &threadId);
 }
 
 void juce_killThread (void* handle)
 {
     if (handle != 0)
     {
-#ifdef JUCE_DEBUG
+#if JUCE_DEBUG
         OutputDebugString (_T("** Warning - Forced thread termination **\n"));
 #endif
         TerminateThread (handle, 0);
@@ -148,7 +153,7 @@ void juce_killThread (void* handle)
 
 void juce_setCurrentThreadName (const String& name)
 {
-#if defined (JUCE_DEBUG) && JUCE_MSVC
+#if JUCE_DEBUG && JUCE_MSVC
     struct
     {
         DWORD dwType;
@@ -212,7 +217,7 @@ static HANDLE sleepEvent = 0;
 void juce_initialiseThreadEvents()
 {
     if (sleepEvent == 0)
-#ifdef JUCE_DEBUG
+#if JUCE_DEBUG
         sleepEvent = CreateEvent (0, 0, 0, _T("Juce Sleep Event"));
 #else
         sleepEvent = CreateEvent (0, 0, 0, 0);
@@ -288,17 +293,17 @@ bool JUCE_CALLTYPE Process::isRunningUnderDebugger()
 //==============================================================================
 void Process::raisePrivilege()
 {
-    jassertfalse // xxx not implemented
+    jassertfalse; // xxx not implemented
 }
 
 void Process::lowerPrivilege()
 {
-    jassertfalse // xxx not implemented
+    jassertfalse; // xxx not implemented
 }
 
 void Process::terminate()
 {
-#if defined (JUCE_DEBUG) && JUCE_MSVC && JUCE_CHECK_MEMORY_LEAKS
+#if JUCE_DEBUG && JUCE_MSVC && JUCE_CHECK_MEMORY_LEAKS
     _CrtDumpMemoryLeaks();
 #endif
 

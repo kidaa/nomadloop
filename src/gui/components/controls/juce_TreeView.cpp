@@ -29,7 +29,7 @@ BEGIN_JUCE_NAMESPACE
 
 #include "juce_TreeView.h"
 #include "../lookandfeel/juce_LookAndFeel.h"
-#include "../../../containers/juce_BitArray.h"
+#include "../../../containers/juce_BigInteger.h"
 #include "../mouse/juce_DragAndDropContainer.h"
 #include "../mouse/juce_MouseInputSource.h"
 #include "../../graphics/imaging/juce_Image.h"
@@ -40,7 +40,7 @@ class TreeViewContentComponent  : public Component,
                                   public TooltipClient
 {
 public:
-    TreeViewContentComponent (TreeView* const owner_)
+    TreeViewContentComponent (TreeView& owner_)
         : owner (owner_),
           buttonUnderMouse (0),
           isDragging (false)
@@ -67,9 +67,9 @@ public:
 
         // (if the open/close buttons are hidden, we'll treat clicks to the left of the item
         // as selection clicks)
-        if (e.x < pos.getX() && owner->openCloseButtonsVisible)
+        if (e.x < pos.getX() && owner.openCloseButtonsVisible)
         {
-            if (e.x >= pos.getX() - owner->getIndentSize())
+            if (e.x >= pos.getX() - owner.getIndentSize())
                 item->setOpen (! item->isOpen());
 
             // (clicks to the left of an open/close button are ignored)
@@ -77,7 +77,7 @@ public:
         else
         {
             // mouse-down inside the body of the item..
-            if (! owner->isMultiSelectEnabled())
+            if (! owner.isMultiSelectEnabled())
                 item->setSelected (true, true);
             else if (item->isSelected())
                 needSelectionOnMouseUp = ! e.mods.isPopupMenu();
@@ -110,7 +110,7 @@ public:
             Rectangle<int> pos;
             TreeViewItem* const item = findItemAt (e.y, pos);
 
-            if (item != 0 && (e.x >= pos.getX() || ! owner->openCloseButtonsVisible))
+            if (item != 0 && (e.x >= pos.getX() || ! owner.openCloseButtonsVisible))
                 item->itemDoubleClicked (e.withNewPosition (e.getPosition() - pos.getPosition()));
         }
     }
@@ -143,13 +143,13 @@ public:
                         dragImage->multiplyAllAlphas (0.6f);
 
                         Point<int> imageOffset (pos.getX() - e.x, pos.getY() - e.y);
-                        dragContainer->startDragging (dragDescription, owner, dragImage, true, &imageOffset);
+                        dragContainer->startDragging (dragDescription, &owner, dragImage, true, &imageOffset);
                     }
                     else
                     {
                         // to be able to do a drag-and-drop operation, the treeview needs to
                         // be inside a component which is also a DragAndDropContainer.
-                        jassertfalse
+                        jassertfalse;
                     }
                 }
             }
@@ -166,25 +166,37 @@ public:
         updateButtonUnderMouse (e);
     }
 
-    void paint (Graphics& g);
-    TreeViewItem* findItemAt (int y, Rectangle<int>& itemPosition) const;
-
-    static bool isMouseDraggingInChildCompOf (Component* const comp)
+    void paint (Graphics& g)
     {
-        for (int i = Desktop::getInstance().getNumMouseSources(); --i >= 0;)
+        if (owner.rootItem != 0)
         {
-            MouseInputSource* source = Desktop::getInstance().getMouseSource(i);
+            owner.handleAsyncUpdate();
 
-            if (source->isDragging())
-            {
-                Component* const underMouse = source->getComponentUnderMouse();
+            if (! owner.rootItemVisible)
+                g.setOrigin (0, -owner.rootItem->itemHeight);
 
-                if (underMouse != 0 && (comp == underMouse || comp->isParentOf (underMouse)))
-                    return true;
-            }
+            owner.rootItem->paintRecursively (g, getWidth());
+        }
+    }
+
+    TreeViewItem* findItemAt (int y, Rectangle<int>& itemPosition) const
+    {
+        if (owner.rootItem != 0)
+        {
+            owner.handleAsyncUpdate();
+
+            if (! owner.rootItemVisible)
+                y += owner.rootItem->itemHeight;
+
+            TreeViewItem* const ti = owner.rootItem->findItemRecursively (y);
+
+            if (ti != 0)
+                itemPosition = ti->getItemPosition (false);
+
+            return ti;
         }
 
-        return false;
+        return 0;
     }
 
     void updateComponents()
@@ -193,43 +205,45 @@ public:
         const int visibleBottom = visibleTop + getParentHeight();
 
         BigInteger itemsToKeep;
-        TreeViewItem* item = owner->rootItem;
-        int y = (item != 0 && !owner->rootItemVisible) ? -item->itemHeight : 0;
 
-        while (item != 0 && y < visibleBottom)
         {
-            y += item->itemHeight;
+            TreeViewItem* item = owner.rootItem;
+            int y = (item != 0 && ! owner.rootItemVisible) ? -item->itemHeight : 0;
 
-            if (y >= visibleTop)
+            while (item != 0 && y < visibleBottom)
             {
-                const int index = rowComponentIds.indexOf (item->uid);
+                y += item->itemHeight;
 
-                if (index < 0)
+                if (y >= visibleTop)
                 {
-                    Component* const comp = item->createItemComponent();
+                    const int index = rowComponentIds.indexOf (item->uid);
 
-                    if (comp != 0)
+                    if (index < 0)
                     {
-                        addAndMakeVisible (comp);
-                        itemsToKeep.setBit (rowComponentItems.size());
-                        rowComponentItems.add (item);
-                        rowComponentIds.add (item->uid);
-                        rowComponents.add (comp);
+                        Component* const comp = item->createItemComponent();
+
+                        if (comp != 0)
+                        {
+                            addAndMakeVisible (comp);
+                            itemsToKeep.setBit (rowComponentItems.size());
+                            rowComponentItems.add (item);
+                            rowComponentIds.add (item->uid);
+                            rowComponents.add (comp);
+                        }
+                    }
+                    else
+                    {
+                        itemsToKeep.setBit (index);
                     }
                 }
-                else
-                {
-                    itemsToKeep.setBit (index);
-                }
-            }
 
-            item = item->getNextVisibleItem (true);
+                item = item->getNextVisibleItem (true);
+            }
         }
 
         for (int i = rowComponentItems.size(); --i >= 0;)
         {
             Component* const comp = rowComponents.getUnchecked(i);
-
             bool keep = false;
 
             if (isParentOf (comp))
@@ -269,12 +283,12 @@ public:
     {
         TreeViewItem* newItem = 0;
 
-        if (owner->openCloseButtonsVisible)
+        if (owner.openCloseButtonsVisible)
         {
             Rectangle<int> pos;
             TreeViewItem* item = findItemAt (e.y, pos);
 
-            if (item != 0 && e.x < pos.getX() && e.x >= pos.getX() - owner->getIndentSize())
+            if (item != 0 && e.x < pos.getX() && e.x >= pos.getX() - owner.getIndentSize())
             {
                 newItem = item;
 
@@ -301,14 +315,14 @@ public:
         }
     }
 
-    bool isMouseOverButton (TreeViewItem* item) const throw()
+    bool isMouseOverButton (TreeViewItem* const item) const throw()
     {
         return item == buttonUnderMouse;
     }
 
     void resized()
     {
-        owner->itemsChanged();
+        owner.itemsChanged();
     }
 
     const String getTooltip()
@@ -319,31 +333,27 @@ public:
         if (item != 0)
             return item->getTooltip();
 
-        return owner->getTooltip();
+        return owner.getTooltip();
     }
 
     //==============================================================================
     juce_UseDebuggingNewOperator
 
 private:
-    TreeView* const owner;
-
+    TreeView& owner;
     Array <TreeViewItem*> rowComponentItems;
     Array <int> rowComponentIds;
     Array <Component*> rowComponents;
     TreeViewItem* buttonUnderMouse;
     bool isDragging, needSelectionOnMouseUp;
 
-    TreeViewContentComponent (const TreeViewContentComponent&);
-    TreeViewContentComponent& operator= (const TreeViewContentComponent&);
-
     void selectBasedOnModifiers (TreeViewItem* const item, const ModifierKeys& modifiers)
     {
         TreeViewItem* firstSelected = 0;
 
-        if (modifiers.isShiftDown() && ((firstSelected = owner->getSelectedItem (0)) != 0))
+        if (modifiers.isShiftDown() && ((firstSelected = owner.getSelectedItem (0)) != 0))
         {
-            TreeViewItem* const lastSelected = owner->getSelectedItem (owner->getNumSelectedItems() - 1);
+            TreeViewItem* const lastSelected = owner.getSelectedItem (owner.getNumSelectedItems() - 1);
             jassert (lastSelected != 0);
 
             int rowStart = firstSelected->getRowNumberInTree();
@@ -358,13 +368,12 @@ private:
                 swapVariables (ourRow, otherEnd);
 
             for (int i = ourRow; i <= otherEnd; ++i)
-                owner->getItemOnRow (i)->setSelected (true, false);
+                owner.getItemOnRow (i)->setSelected (true, false);
         }
         else
         {
-            const bool cmd  = modifiers.isCommandDown();
-
-            item->setSelected ((! cmd) || (! item->isSelected()), ! cmd);
+            const bool cmd = modifiers.isCommandDown();
+            item->setSelected ((! cmd) || ! item->isSelected(), ! cmd);
         }
     }
 
@@ -376,33 +385,63 @@ private:
 
         return false;
     }
+
+    static bool isMouseDraggingInChildCompOf (Component* const comp)
+    {
+        for (int i = Desktop::getInstance().getNumMouseSources(); --i >= 0;)
+        {
+            MouseInputSource* const source = Desktop::getInstance().getMouseSource(i);
+
+            if (source->isDragging())
+            {
+                Component* const underMouse = source->getComponentUnderMouse();
+
+                if (underMouse != 0 && (comp == underMouse || comp->isParentOf (underMouse)))
+                    return true;
+            }
+        }
+
+        return false;
+    }
+
+    TreeViewContentComponent (const TreeViewContentComponent&);
+    TreeViewContentComponent& operator= (const TreeViewContentComponent&);
 };
 
 //==============================================================================
 class TreeView::TreeViewport  : public Viewport
 {
 public:
-    TreeViewport() throw()      {}
-    ~TreeViewport() throw()     {}
+    TreeViewport() throw()  : lastX (-1)    {}
+    ~TreeViewport() throw()                 {}
 
-    void updateComponents()
+    void updateComponents (const bool triggerResize = false)
     {
         TreeViewContentComponent* const tvc = static_cast <TreeViewContentComponent*> (getViewedComponent());
         if (tvc != 0)
-            tvc->updateComponents();
+        {
+            if (triggerResize)
+                tvc->resized();
+            else
+                tvc->updateComponents();
+        }
 
         repaint();
     }
 
-    void visibleAreaChanged (int, int, int, int)
+    void visibleAreaChanged (int x, int, int, int)
     {
-        updateComponents();
+        const bool hasScrolledSideways = (x != lastX);
+        lastX = x;
+        updateComponents (hasScrolledSideways);
     }
 
     //==============================================================================
     juce_UseDebuggingNewOperator
 
 private:
+    int lastX;
+
     TreeViewport (const TreeViewport&);
     TreeViewport& operator= (const TreeViewport&);
 };
@@ -422,7 +461,7 @@ TreeView::TreeView (const String& componentName)
       openCloseButtonsVisible (true)
 {
     addAndMakeVisible (viewport = new TreeViewport());
-    viewport->setViewedComponent (new TreeViewContentComponent (this));
+    viewport->setViewedComponent (new TreeViewContentComponent (*this));
     viewport->setWantsKeyboardFocus (false);
     setWantsKeyboardFocus (true);
 }
@@ -1056,40 +1095,6 @@ void TreeView::itemDropped (const String& sourceDescription, Component* sourceCo
 }
 
 //==============================================================================
-void TreeViewContentComponent::paint (Graphics& g)
-{
-    if (owner->rootItem != 0)
-    {
-        owner->handleAsyncUpdate();
-
-        if (! owner->rootItemVisible)
-            g.setOrigin (0, -owner->rootItem->itemHeight);
-
-        owner->rootItem->paintRecursively (g, getWidth());
-    }
-}
-
-TreeViewItem* TreeViewContentComponent::findItemAt (int y, Rectangle<int>& itemPosition) const
-{
-    if (owner->rootItem != 0)
-    {
-        owner->handleAsyncUpdate();
-
-        if (! owner->rootItemVisible)
-            y += owner->rootItem->itemHeight;
-
-        TreeViewItem* const ti = owner->rootItem->findItemRecursively (y);
-
-        if (ti != 0)
-            itemPosition = ti->getItemPosition (false);
-
-        return ti;
-    }
-
-    return 0;
-}
-
-//==============================================================================
 enum TreeViewOpenness
 {
     opennessDefault = 0,
@@ -1310,7 +1315,6 @@ void TreeViewItem::itemDropped (const String& /*sourceDescription*/, Component* 
 const Rectangle<int> TreeViewItem::getItemPosition (const bool relativeToTreeViewTopLeft) const throw()
 {
     const int indentX = getIndentX();
-
     int width = itemWidth;
 
     if (ownerView != 0 && width < 0)
@@ -1319,8 +1323,7 @@ const Rectangle<int> TreeViewItem::getItemPosition (const bool relativeToTreeVie
     Rectangle<int> r (indentX, y, jmax (0, width), totalHeight);
 
     if (relativeToTreeViewTopLeft)
-        r.setPosition (r.getX() - ownerView->viewport->getViewPositionX(),
-                       r.getY() - ownerView->viewport->getViewPositionY());
+        r -= ownerView->viewport->getViewPosition();
 
     return r;
 }
@@ -1716,14 +1719,14 @@ const String TreeViewItem::getItemIdentifierString() const
 
 TreeViewItem* TreeViewItem::findItemFromIdentifierString (const String& identifierString)
 {
-    const String uid (getUniqueName());
+    const String thisId (getUniqueName());
 
-    if (uid == identifierString)
+    if (thisId == identifierString)
         return this;
 
-    if (identifierString.startsWith (uid + "/"))
+    if (identifierString.startsWith (thisId + "/"))
     {
-        const String remainingPath (identifierString.substring (uid.length() + 1));
+        const String remainingPath (identifierString.substring (thisId.length() + 1));
 
         bool wasOpen = isOpen();
         setOpen (true);
@@ -1798,7 +1801,7 @@ XmlElement* TreeViewItem::getOpennessState() const throw()
     {
         // trying to save the openness for an element that has no name - this won't
         // work because it needs the names to identify what to open.
-        jassertfalse
+        jassertfalse;
     }
 
     return 0;

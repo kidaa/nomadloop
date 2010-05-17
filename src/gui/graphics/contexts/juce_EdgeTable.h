@@ -28,9 +28,9 @@
 
 #include "../geometry/juce_AffineTransform.h"
 #include "../geometry/juce_Rectangle.h"
+#include "../geometry/juce_RectangleList.h"
 #include "../../../containers/juce_MemoryBlock.h"
 class Path;
-class RectangleList;
 class Image;
 
 
@@ -67,7 +67,7 @@ public:
 
     /** Creates an edge table containing a rectangle.
     */
-    EdgeTable (float x, float y, float w, float h);
+    EdgeTable (const Rectangle<float>& rectangleToAdd);
 
     /** Creates a copy of another edge table. */
     EdgeTable (const EdgeTable& other);
@@ -105,7 +105,9 @@ public:
                                         @code
                                         inline void setEdgeTableYPos (int y);
                                         inline void handleEdgeTablePixel (int x, int alphaLevel) const;
+                                        inline void handleEdgeTablePixelFull (int x) const;
                                         inline void handleEdgeTableLine (int x, int width, int alphaLevel) const;
+                                        inline void handleEdgeTableLineFull (int x, int width) const;
                                         @endcode
                                         (these don't necessarily have to be 'const', but it might help it go faster)
     */
@@ -153,9 +155,9 @@ public:
                         if (levelAccumulator > 0)
                         {
                             if (levelAccumulator >> 8)
-                                levelAccumulator = 0xff;
-
-                            iterationCallback.handleEdgeTablePixel (x, levelAccumulator);
+                                iterationCallback.handleEdgeTablePixelFull (x);
+                            else
+                                iterationCallback.handleEdgeTablePixel (x, levelAccumulator);
                         }
 
                         // if there's a run of similar pixels, do it all in one go..
@@ -177,13 +179,14 @@ public:
 
                 if (levelAccumulator > 0)
                 {
-                    levelAccumulator >>= 8;
-                    if (levelAccumulator >> 8)
-                        levelAccumulator = 0xff;
-
                     x >>= 8;
                     jassert (x >= bounds.getX() && x < bounds.getRight());
-                    iterationCallback.handleEdgeTablePixel (x, levelAccumulator);
+
+                    levelAccumulator >>= 8;
+                    if (levelAccumulator >> 8)
+                        iterationCallback.handleEdgeTablePixelFull (x);
+                    else
+                        iterationCallback.handleEdgeTablePixel (x, levelAccumulator);
                 }
             }
         }

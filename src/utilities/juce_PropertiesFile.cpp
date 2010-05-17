@@ -171,10 +171,10 @@ bool PropertiesFile::needsToBeSaved() const
     return needsWriting;
 }
 
-void PropertiesFile::setNeedsToBeSaved (const bool needsToBeSaved)
+void PropertiesFile::setNeedsToBeSaved (const bool needsToBeSaved_)
 {
     const ScopedLock sl (getLock());
-    needsWriting = needsToBeSaved;
+    needsWriting = needsToBeSaved_;
 }
 
 bool PropertiesFile::save()
@@ -309,7 +309,7 @@ const File PropertiesFile::getDefaultAppSettingsFile (const String& applicationN
                                                    : ("." + applicationName)));
 #endif
 
-#if JUCE_WIN32
+#if JUCE_WINDOWS
     File dir (File::getSpecialLocation (commonToAllUsers ? File::commonApplicationDataDirectory
                                                          : File::userApplicationDataDirectory));
 

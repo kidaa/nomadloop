@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -26,7 +26,9 @@
 #ifndef __JUCE_COMPONENTEDITOR_H_6CAE6B7E__
 #define __JUCE_COMPONENTEDITOR_H_6CAE6B7E__
 
-#include "jucer_ComponentEditorCanvas.h"
+#include "../jucer_DocumentEditorComponent.h"
+#include "../../model/Component/jucer_ComponentDocument.h"
+#include "../Editor Base/jucer_EditorCanvas.h"
 
 
 //==============================================================================
@@ -50,11 +52,21 @@ public:
     void paint (Graphics& g);
     void resized();
 
+    //==============================================================================
     ComponentDocument& getDocument() const      { return *componentDocument; }
 
-    Viewport* getViewport() const;
+    const StringArray getSelectedIds() const;
+    void getSelectedItemProperties (Array <PropertyComponent*>& props);
+    void deleteSelection();
+    void deselectNonComponents();
+    void selectionToFront();
+    void selectionToBack();
+    void showNewComponentMenu (Component* componentToAttachTo);
 
-    ComponentEditorCanvas* getCanvas() const;
+    //==============================================================================
+    void test();
+
+    EditorCanvasBase::SelectedItems& getSelection()         { return selection; }
 
 private:
     class ClassInfoHolder;
@@ -64,6 +76,7 @@ private:
 
     Project* project;
     ComponentDocument* componentDocument;
+    EditorCanvasBase::SelectedItems selection;
 
     TabbedComponent* tabs;
     ClassInfoHolder* classInfoHolder;
@@ -74,7 +87,6 @@ private:
     ComponentEditor (const ComponentEditor&);
     ComponentEditor& operator= (const ComponentEditor&);
 };
-
 
 
 #endif  // __JUCE_COMPONENTEDITOR_H_6CAE6B7E__

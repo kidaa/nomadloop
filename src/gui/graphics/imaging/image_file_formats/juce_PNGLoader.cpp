@@ -25,7 +25,7 @@
 
 #include "../../../../core/juce_StandardHeader.h"
 
-#ifdef _MSC_VER
+#if JUCE_MSVC
   #pragma warning (push)
   #pragma warning (disable: 4390 4611)
 #endif
@@ -82,24 +82,24 @@ namespace pnglibNamespace
     #include "pnglib/pngwutil.c"
   }
 #else
-  #define PNG_INTERNAL
-  #define PNG_SETJMP_NOT_SUPPORTED
-
-  #include <png.h>
-  #include <pngconf.h>
+  extern "C"
+  {
+    #include <png.h>
+    #include <pngconf.h>
+  }
 #endif
 }
 
 #undef max
 #undef min
 
-#ifdef _MSC_VER
+#if JUCE_MSVC
   #pragma warning (pop)
 #endif
 
 BEGIN_JUCE_NAMESPACE
 
-#include "../juce_Image.h"
+#include "../juce_ImageFileFormat.h"
 #include "../../../../io/streams/juce_InputStream.h"
 #include "../../../../io/streams/juce_OutputStream.h"
 #include "../../colour/juce_PixelFormats.h"
@@ -132,7 +132,26 @@ namespace PNGHelpers
 }
 
 //==============================================================================
-Image* juce_loadPNGImageFromStream (InputStream& in)
+PNGImageFormat::PNGImageFormat()    {}
+PNGImageFormat::~PNGImageFormat()   {}
+
+const String PNGImageFormat::getFormatName()
+{
+    return "PNG";
+}
+
+bool PNGImageFormat::canUnderstand (InputStream& in)
+{
+    const int bytesNeeded = 4;
+    char header [bytesNeeded];
+
+    return in.read (header, bytesNeeded) == bytesNeeded
+            && header[1] == 'P'
+            && header[2] == 'N'
+            && header[3] == 'G';
+}
+
+Image* PNGImageFormat::decodeImage (InputStream& in)
 {
     using namespace pnglibNamespace;
     Image* image = 0;
@@ -243,8 +262,7 @@ Image* juce_loadPNGImageFromStream (InputStream& in)
     return image;
 }
 
-//==============================================================================
-bool juce_writePNGImageToStream (const Image& image, OutputStream& out)
+bool PNGImageFormat::writeImageToStream (const Image& image, OutputStream& out)
 {
     using namespace pnglibNamespace;
     const int width = image.getWidth();

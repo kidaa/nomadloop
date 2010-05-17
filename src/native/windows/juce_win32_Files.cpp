@@ -42,49 +42,55 @@
 #endif
 
 //==============================================================================
-const juce_wchar  File::separator        = '\\';
-const juce_wchar* File::separatorString  = T("\\");
+const juce_wchar File::separator = '\\';
+const String File::separatorString ("\\");
 
 
 //==============================================================================
-bool juce_fileExists (const String& fileName, const bool dontCountDirectories)
+bool File::exists() const
 {
-    if (fileName.isEmpty())
-        return false;
-
-    const DWORD attr = GetFileAttributes (fileName);
-    return dontCountDirectories ? ((attr & FILE_ATTRIBUTE_DIRECTORY) == 0)
-                                : (attr != INVALID_FILE_ATTRIBUTES);
+    return fullPath.isNotEmpty()
+            && GetFileAttributes (fullPath) != INVALID_FILE_ATTRIBUTES;
 }
 
-bool juce_isDirectory (const String& fileName)
+bool File::existsAsFile() const
 {
-    const DWORD attr = GetFileAttributes (fileName);
+    return fullPath.isNotEmpty()
+            && (GetFileAttributes (fullPath) & FILE_ATTRIBUTE_DIRECTORY) == 0;
+}
+
+bool File::isDirectory() const
+{
+    const DWORD attr = GetFileAttributes (fullPath);
     return ((attr & FILE_ATTRIBUTE_DIRECTORY) != 0) && (attr != INVALID_FILE_ATTRIBUTES);
 }
 
-bool juce_canWriteToFile (const String& fileName)
+bool File::hasWriteAccess() const
 {
-    const DWORD attr = GetFileAttributes (fileName);
-    return (attr & FILE_ATTRIBUTE_READONLY) == 0;
+    if (exists())
+        return (GetFileAttributes (fullPath) & FILE_ATTRIBUTE_READONLY) == 0;
+
+    // on windows, it seems that even read-only directories can still be written into,
+    // so checking the parent directory's permissions would return the wrong result..
+    return true;
 }
 
-bool juce_setFileReadOnly (const String& fileName, bool isReadOnly)
+bool File::setFileReadOnlyInternal (const bool shouldBeReadOnly) const
 {
-    DWORD attr = GetFileAttributes (fileName);
+    DWORD attr = GetFileAttributes (fullPath);
 
     if (attr == INVALID_FILE_ATTRIBUTES)
         return false;
 
-    if (isReadOnly != juce_canWriteToFile (fileName))
+    if (shouldBeReadOnly == ((attr & FILE_ATTRIBUTE_READONLY) != 0))
         return true;
 
-    if (isReadOnly)
+    if (shouldBeReadOnly)
         attr |= FILE_ATTRIBUTE_READONLY;
     else
         attr &= ~FILE_ATTRIBUTE_READONLY;
 
-    return SetFileAttributes (fileName, attr) != FALSE;
+    return SetFileAttributes (fullPath, attr) != FALSE;
 }
 
 bool File::isHidden() const
@@ -93,12 +99,14 @@ bool File::isHidden() const
 }
 
 //==============================================================================
-bool juce_deleteFile (const String& fileName)
+bool File::deleteFile() const
 {
-    if (juce_isDirectory (fileName))
-        return RemoveDirectory (fileName) != 0;
-
-    return DeleteFile (fileName) != 0;
+    if (! exists())
+        return true;
+    else if (isDirectory())
+        return RemoveDirectory (fullPath) != 0;
+    else
+        return DeleteFile (fullPath) != 0;
 }
 
 bool File::moveToTrash() const
@@ -122,31 +130,30 @@ bool File::moveToTrash() const
     return SHFileOperation (&fos) == 0;
 }
 
-bool juce_moveFile (const String& source, const String& dest)
+bool File::copyInternal (const File& dest) const
 {
-    return MoveFile (source, dest) != 0;
+    return CopyFile (fullPath, dest.getFullPathName(), false) != 0;
 }
 
-bool juce_copyFile (const String& source, const String& dest)
+bool File::moveInternal (const File& dest) const
 {
-    return CopyFile (source, dest, false) != 0;
+    return MoveFile (fullPath, dest.getFullPathName()) != 0;
 }
 
-void juce_createDirectory (const String& fileName)
+void File::createDirectoryInternal (const String& fileName) const
 {
-    if (! juce_fileExists (fileName, true))
-        CreateDirectory (fileName, 0);
+    CreateDirectory (fileName, 0);
 }
 
 //==============================================================================
 // return 0 if not possible
-void* juce_fileOpen (const String& fileName, bool forWriting)
+void* juce_fileOpen (const File& file, bool forWriting)
 {
     HANDLE h;
 
     if (forWriting)
     {
-        h = CreateFile (fileName, GENERIC_WRITE, FILE_SHARE_READ, 0,
+        h = CreateFile (file.getFullPathName(), GENERIC_WRITE, FILE_SHARE_READ, 0,
                         OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
 
         if (h != INVALID_HANDLE_VALUE)
@@ -156,7 +163,7 @@ void* juce_fileOpen (const String& fileName, bool forWriting)
     }
     else
     {
-        h = CreateFile (fileName, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, 0,
+        h = CreateFile (file.getFullPathName(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, 0,
                         OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN, 0);
 
         if (h == INVALID_HANDLE_VALUE)
@@ -194,24 +201,28 @@ int64 juce_fileSetPosition (void* handle, int64 pos)
     return li.QuadPart;
 }
 
-int64 juce_fileGetPosition (void* handle)
+int64 FileOutputStream::getPositionInternal() const
 {
+    if (fileHandle == 0)
+        return -1;
+
     LARGE_INTEGER li;
     li.QuadPart = 0;
-    li.LowPart = SetFilePointer ((HANDLE) handle, 0, &li.HighPart, FILE_CURRENT);  // (returns -1 if it fails)
+    li.LowPart = SetFilePointer ((HANDLE) fileHandle, 0, &li.HighPart, FILE_CURRENT);  // (returns -1 if it fails)
     return jmax ((int64) 0, li.QuadPart);
 }
 
-void juce_fileFlush (void* handle)
+void FileOutputStream::flushInternal()
 {
-    FlushFileBuffers ((HANDLE) handle);
+    if (fileHandle != 0)
+        FlushFileBuffers ((HANDLE) fileHandle);
 }
 
-int64 juce_getFileSize (const String& fileName)
+int64 File::getSize() const
 {
     WIN32_FILE_ATTRIBUTE_DATA attributes;
 
-    if (GetFileAttributesEx (fileName, GetFileExInfoStandard, &attributes))
+    if (GetFileAttributesEx (fullPath, GetFileExInfoStandard, &attributes))
         return (((int64) attributes.nFileSizeHigh) << 32) | attributes.nFileSizeLow;
 
     return 0;
@@ -230,14 +241,11 @@ static void timeToFileTime (const int64 time, FILETIME* const ft)
     reinterpret_cast<ULARGE_INTEGER*> (ft)->QuadPart = time * 10000 + literal64bit (116444736000000000);
 }
 
-void juce_getFileTimes (const String& fileName,
-                        int64& modificationTime,
-                        int64& accessTime,
-                        int64& creationTime)
+void File::getFileTimesInternal (int64& modificationTime, int64& accessTime, int64& creationTime) const
 {
     WIN32_FILE_ATTRIBUTE_DATA attributes;
 
-    if (GetFileAttributesEx (fileName, GetFileExInfoStandard, &attributes))
+    if (GetFileAttributesEx (fullPath, GetFileExInfoStandard, &attributes))
     {
         modificationTime = fileTimeToTime (&attributes.ftLastWriteTime);
         creationTime = fileTimeToTime (&attributes.ftCreationTime);
@@ -249,12 +257,9 @@ void juce_getFileTimes (const String& fileName,
     }
 }
 
-bool juce_setFileTimes (const String& fileName,
-                        int64 modificationTime,
-                        int64 accessTime,
-                        int64 creationTime)
+bool File::setFileTimesInternal (int64 modificationTime, int64 accessTime, int64 creationTime) const
 {
-    void* const h = juce_fileOpen (fileName, true);
+    void* const h = juce_fileOpen (fullPath, true);
     bool ok = false;
 
     if (h != 0)
@@ -276,8 +281,7 @@ bool juce_setFileTimes (const String& fileName,
 }
 
 //==============================================================================
-// return '\0' separated list of strings
-const StringArray juce_getFileSystemRoots()
+void File::findFileSystemRoots (Array<File>& destArray)
 {
     TCHAR buffer [2048];
     buffer[0] = 0;
@@ -296,7 +300,9 @@ const StringArray juce_getFileSystemRoots()
     }
 
     roots.sort (true);
-    return roots;
+
+    for (int i = 0; i < roots.size(); ++i)
+        destArray.add (roots [i]);
 }
 
 //==============================================================================
@@ -308,21 +314,26 @@ static const String getDriveFromPath (const String& path)
     return path;
 }
 
-const String juce_getVolumeLabel (const String& filenameOnVolume,
-                                  int& volumeSerialNumber)
+const String File::getVolumeLabel() const
+{
+    TCHAR dest[64];
+    if (! GetVolumeInformation (getDriveFromPath (getFullPathName()), dest,
+                                numElementsInArray (dest), 0, 0, 0, 0, 0))
+        dest[0] = 0;
+
+    return dest;
+}
+
+int File::getVolumeSerialNumber() const
 {
     TCHAR dest[64];
     DWORD serialNum;
 
-    if (! GetVolumeInformation (getDriveFromPath (filenameOnVolume), dest,
+    if (! GetVolumeInformation (getDriveFromPath (getFullPathName()), dest,
                                 numElementsInArray (dest), &serialNum, 0, 0, 0, 0))
-    {
-        dest[0] = 0;
-        serialNum = 0;
-    }
+        return 0;
 
-    volumeSerialNumber = serialNum;
-    return dest;
+    return (int) serialNum;
 }
 
 static int64 getDiskSpaceInfo (const String& path, const bool total)
@@ -431,7 +442,7 @@ const File JUCE_CALLTYPE File::getSpecialLocation (const SpecialLocationType typ
         break;
 
         default:
-            jassertfalse // unknown type?
+            jassertfalse; // unknown type?
             return File::nonexistent;
     }
 
@@ -491,7 +502,7 @@ const File File::getLinkedTarget() const
         return result;
 
     ComSmartPtr <IShellLink> shellLink;
-    if (SUCCEEDED (shellLink.CoCreateInstance (CLSID_ShellLink, CLSCTX_INPROC_SERVER)))
+    if (SUCCEEDED (shellLink.CoCreateInstance (CLSID_ShellLink)))
     {
         ComSmartPtr <IPersistFile> persistFile;
         if (SUCCEEDED (shellLink->QueryInterface (IID_IPersistFile, (LPVOID*) &persistFile)))
@@ -513,82 +524,81 @@ const File File::getLinkedTarget() const
 
 
 //==============================================================================
-template <class FindDataType>
-static void getFindFileInfo (FindDataType& findData,
-                             String& filename, bool* const isDir, bool* const isHidden,
-                             int64* const fileSize, Time* const modTime, Time* const creationTime,
-                             bool* const isReadOnly)
+class DirectoryIterator::NativeIterator::Pimpl
 {
-    filename = findData.cFileName;
-
-    if (isDir != 0)
-        *isDir = ((findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0);
-
-    if (isHidden != 0)
-        *isHidden = ((findData.dwFileAttributes & FILE_ATTRIBUTE_HIDDEN) != 0);
-
-    if (fileSize != 0)
-        *fileSize = findData.nFileSizeLow + (((int64) findData.nFileSizeHigh) << 32);
-
-    if (modTime != 0)
-        *modTime = fileTimeToTime (&findData.ftLastWriteTime);
-
-    if (creationTime != 0)
-        *creationTime = fileTimeToTime (&findData.ftCreationTime);
-
-    if (isReadOnly != 0)
-        *isReadOnly = ((findData.dwFileAttributes & FILE_ATTRIBUTE_READONLY) != 0);
-}
-
-void* juce_findFileStart (const String& directory, const String& wildCard, String& firstResult,
-                          bool* isDir, bool* isHidden, int64* fileSize,
-                          Time* modTime, Time* creationTime, bool* isReadOnly)
-{
-    String wc (directory);
-
-    if (! wc.endsWithChar (File::separator))
-        wc += File::separator;
-
-    wc += wildCard;
-
-    WIN32_FIND_DATA findData;
-    HANDLE h = FindFirstFile (wc, &findData);
-
-    if (h != INVALID_HANDLE_VALUE)
+public:
+    Pimpl (const File& directory, const String& wildCard)
+        : directoryWithWildCard (File::addTrailingSeparator (directory.getFullPathName()) + wildCard),
+          handle (INVALID_HANDLE_VALUE)
     {
-        getFindFileInfo (findData, firstResult, isDir, isHidden, fileSize,
-                         modTime, creationTime, isReadOnly);
-        return h;
     }
 
-    firstResult = String::empty;
-    return 0;
-}
-
-bool juce_findFileNext (void* handle, String& resultFile,
-                        bool* isDir, bool* isHidden, int64* fileSize,
-                        Time* modTime, Time* creationTime, bool* isReadOnly)
-{
-    WIN32_FIND_DATA findData;
-
-    if (handle != 0 && FindNextFile ((HANDLE) handle, &findData) != 0)
+    ~Pimpl()
     {
-        getFindFileInfo (findData, resultFile, isDir, isHidden, fileSize,
-                         modTime, creationTime, isReadOnly);
+        if (handle != INVALID_HANDLE_VALUE)
+            FindClose (handle);
+    }
+
+    bool next (String& filenameFound,
+               bool* const isDir, bool* const isHidden, int64* const fileSize,
+               Time* const modTime, Time* const creationTime, bool* const isReadOnly)
+    {
+        WIN32_FIND_DATA findData;
+
+        if (handle == INVALID_HANDLE_VALUE)
+        {
+            handle = FindFirstFile (directoryWithWildCard, &findData);
+
+            if (handle == INVALID_HANDLE_VALUE)
+                return false;
+        }
+        else
+        {
+            if (FindNextFile (handle, &findData) == 0)
+                return false;
+        }
+
+        filenameFound = findData.cFileName;
+
+        if (isDir != 0)         *isDir = ((findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0);
+        if (isHidden != 0)      *isHidden = ((findData.dwFileAttributes & FILE_ATTRIBUTE_HIDDEN) != 0);
+        if (fileSize != 0)      *fileSize = findData.nFileSizeLow + (((int64) findData.nFileSizeHigh) << 32);
+        if (modTime != 0)       *modTime = fileTimeToTime (&findData.ftLastWriteTime);
+        if (creationTime != 0)  *creationTime = fileTimeToTime (&findData.ftCreationTime);
+        if (isReadOnly != 0)    *isReadOnly = ((findData.dwFileAttributes & FILE_ATTRIBUTE_READONLY) != 0);
+
         return true;
     }
 
-    resultFile = String::empty;
-    return false;
+    juce_UseDebuggingNewOperator
+
+private:
+    const String directoryWithWildCard;
+    HANDLE handle;
+
+    Pimpl (const Pimpl&);
+    Pimpl& operator= (const Pimpl&);
+};
+
+DirectoryIterator::NativeIterator::NativeIterator (const File& directory, const String& wildCard)
+    : pimpl (new DirectoryIterator::NativeIterator::Pimpl (directory, wildCard))
+{
 }
 
-void juce_findFileClose (void* handle)
+DirectoryIterator::NativeIterator::~NativeIterator()
 {
-    FindClose (handle);
 }
+
+bool DirectoryIterator::NativeIterator::next (String& filenameFound,
+                                              bool* const isDir, bool* const isHidden, int64* const fileSize,
+                                              Time* const modTime, Time* const creationTime, bool* const isReadOnly)
+{
+    return pimpl->next (filenameFound, isDir, isHidden, fileSize, modTime, creationTime, isReadOnly);
+}
+
 
 //==============================================================================
-bool juce_launchFile (const String& fileName, const String& parameters)
+bool PlatformUtilities::openDocument (const String& fileName, const String& parameters)
 {
     HINSTANCE hInstance = 0;
 

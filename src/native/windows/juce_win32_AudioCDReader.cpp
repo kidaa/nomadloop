@@ -516,8 +516,8 @@ public:
     int numFrames;
     int dataStartOffset;
     int dataLength;
-    BYTE* buffer;
     int bufferSize;
+    HeapBlock<BYTE> buffer;
     int index;
     bool wantsIndex;
 
@@ -527,19 +527,14 @@ public:
           numFrames (0),
           dataStartOffset (0),
           dataLength (0),
+          bufferSize (2352 * numberOfFrames),
+          buffer (bufferSize),
           index (0),
           wantsIndex (false)
     {
-        bufferSize = 2352 * numberOfFrames;
-        buffer = (BYTE*) juce_malloc (bufferSize);
     }
 
-    ~CDReadBuffer()
-    {
-        juce_free (buffer);
-    }
-
-    bool isZero() const
+    bool isZero() const throw()
     {
         BYTE* p = buffer + dataStartOffset;
 
@@ -2137,13 +2132,13 @@ static IDiscRecorder* enumCDBurners (StringArray* list, int indexToOpen, IDiscMa
 }
 
 //==============================================================================
-class AudioCDBurner::Pimpl  : public IDiscMasterProgressEvents,
+class AudioCDBurner::Pimpl  : public ComBaseClassHelper <IDiscMasterProgressEvents>,
                               public Timer
 {
 public:
     Pimpl (AudioCDBurner& owner_, IDiscMaster* discMaster_, IDiscRecorder* discRecorder_)
       : owner (owner_), discMaster (discMaster_), discRecorder (discRecorder_), redbook (0),
-        listener (0), progress (0), shouldCancel (false), refCount (1)
+        listener (0), progress (0), shouldCancel (false)
     {
         HRESULT hr = discMaster->SetActiveDiscMasterFormat (IID_IRedbookDiscMaster, (void**) &redbook);
         jassert (SUCCEEDED (hr));
@@ -2165,25 +2160,6 @@ public:
         discMaster->Release();
         Release();
     }
-
-    HRESULT __stdcall QueryInterface (REFIID id, void __RPC_FAR* __RPC_FAR* result)
-    {
-        if (result == 0)
-            return E_POINTER;
-
-        if (id == IID_IUnknown || id == IID_IDiscMasterProgressEvents)
-        {
-            AddRef();
-            *result = this;
-            return S_OK;
-        }
-
-        *result = 0;
-        return E_NOINTERFACE;
-    }
-
-    ULONG __stdcall AddRef()    { return ++refCount; }
-    ULONG __stdcall Release()   { jassert (refCount > 0); const int r = --refCount; if (r == 0) delete this; return r; }
 
     HRESULT __stdcall QueryCancel (boolean* pbCancel)
     {
@@ -2296,9 +2272,6 @@ public:
     AudioCDBurner::BurnProgressListener* listener;
     float progress;
     bool shouldCancel;
-
-private:
-    int refCount;
 };
 
 //==============================================================================

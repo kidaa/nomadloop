@@ -40,12 +40,6 @@ public:
         Italic = 2
     };
 
-    struct FontNameIndex
-    {
-        String fileName;
-        int faceIndex;
-    };
-
     //==============================================================================
     FreeTypeFontFace (const String& familyName)
       : hasSerif (false),
@@ -80,6 +74,13 @@ public:
 private:
     //==============================================================================
     String family;
+
+    struct FontNameIndex
+    {
+        String fileName;
+        int faceIndex;
+    };
+
     FontNameIndex names[4];
     bool hasSerif, monospaced;
 };
@@ -108,7 +109,7 @@ public:
         if (fontDirs.size() == 0)
         {
             XmlDocument fontsConfig (File ("/etc/fonts/fonts.conf"));
-            XmlElement* const fontsInfo = fontsConfig.getDocumentElement();
+            const ScopedPointer<XmlElement> fontsInfo (fontsConfig.getDocumentElement());
 
             if (fontsInfo != 0)
             {
@@ -116,8 +117,6 @@ public:
                 {
                     fontDirs.add (e->getAllSubText().trim());
                 }
-
-                delete fontsInfo;
             }
         }
 
@@ -147,7 +146,7 @@ public:
                 return faces[i];
 
         if (! create)
-            return NULL;
+            return 0;
 
         FreeTypeFontFace* newFace = new FreeTypeFontFace (familyName);
         faces.add (newFace);
@@ -475,7 +474,7 @@ public:
 
         if (face == 0)
         {
-#ifdef JUCE_DEBUG
+#if JUCE_DEBUG
             String msg ("Failed to create typeface: ");
             msg << font.getTypefaceName() << " " << (font.isBold() ? 'B' : ' ') << (font.isItalic() ? 'I' : ' ');
             DBG (msg);

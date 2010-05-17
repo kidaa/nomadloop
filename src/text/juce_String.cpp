@@ -23,17 +23,14 @@
   ==============================================================================
 */
 
-#ifdef _MSC_VER
-  #pragma warning (push)
-  #pragma warning (disable: 4514)
-#endif
-#include <locale>
-
 #include "../core/juce_StandardHeader.h"
 
 #if JUCE_MSVC
-  #include <float.h>
+  #pragma warning (push)
+  #pragma warning (disable: 4514)
 #endif
+
+#include <locale>
 
 BEGIN_JUCE_NAMESPACE
 
@@ -41,7 +38,7 @@ BEGIN_JUCE_NAMESPACE
 #include "../core/juce_Atomic.h"
 #include "../io/streams/juce_OutputStream.h"
 
-#ifdef _MSC_VER
+#if JUCE_MSVC
   #pragma warning (pop)
 #endif
 
@@ -63,7 +60,7 @@ public:
     static juce_wchar* createUninitialised (const size_t numChars)
     {
         StringHolder* const s = reinterpret_cast <StringHolder*> (new char [sizeof (StringHolder) + numChars * sizeof (juce_wchar)]);
-        s->refCount = 0;
+        s->refCount.value = 0;
         s->allocatedNumChars = numChars;
         return &(s->text[0]);
     }
@@ -91,12 +88,12 @@ public:
     //==============================================================================
     static void retain (juce_wchar* const text) throw()
     {
-        Atomic::increment (bufferFromText (text)->refCount);
+        ++(bufferFromText (text)->refCount);
     }
 
     static inline void release (StringHolder* const b) throw()
     {
-        if (Atomic::decrementAndReturn (b->refCount) == -1 && b != &empty)
+        if (--(b->refCount) == -1 && b != &empty)
             delete[] reinterpret_cast <char*> (b);
     }
 
@@ -110,7 +107,7 @@ public:
     {
         StringHolder* const b = bufferFromText (text);
 
-        if (b->refCount <= 0)
+        if (b->refCount.get() <= 0)
             return text;
 
         juce_wchar* const newText = createCopy (text, b->allocatedNumChars);
@@ -123,7 +120,7 @@ public:
     {
         StringHolder* const b = bufferFromText (text);
 
-        if (b->refCount <= 0 && b->allocatedNumChars >= numChars)
+        if (b->refCount.get() <= 0 && b->allocatedNumChars >= numChars)
             return text;
 
         juce_wchar* const newText = createUninitialised (jmax (b->allocatedNumChars, numChars));
@@ -145,7 +142,7 @@ public:
     }
 
     //==============================================================================
-    int refCount;
+    Atomic<int> refCount;
     size_t allocatedNumChars;
     juce_wchar text[1];
 
@@ -214,7 +211,7 @@ String& String::operator= (const String& other) throw()
 {
     juce_wchar* const newText = other.text;
     StringHolder::retain (newText);
-    StringHolder::release (static_cast <juce_wchar*> (Atomic::swapPointers ((void* volatile*) &text, newText)));
+    StringHolder::release (reinterpret_cast <Atomic<juce_wchar*>*> (&text)->exchange (newText));
     return *this;
 }
 
@@ -367,7 +364,7 @@ namespace NumberToStringConverters
         {
             juce_wchar* const end = buffer + numChars;
             juce_wchar* t = end;
-            int64 v = (int64) (pow (10.0, numDecPlaces) * fabs (n) + 0.5);
+            int64 v = (int64) (pow (10.0, numDecPlaces) * std::abs (n) + 0.5);
             *--t = (juce_wchar) 0;
 
             while (numDecPlaces >= 0 || v > 0)
@@ -389,7 +386,7 @@ namespace NumberToStringConverters
         }
         else
         {
-#if JUCE_WIN32
+#if JUCE_WINDOWS
   #if _MSC_VER <= 1400
             len = _snwprintf (buffer, numChars, L"%.9g", n);
   #else
@@ -1164,7 +1161,7 @@ const String String::replaceSection (int index, int numCharsToReplace, const Str
     if (index < 0)
     {
         // a negative index to replace from?
-        jassertfalse
+        jassertfalse;
         index = 0;
     }
 
@@ -1183,7 +1180,7 @@ const String String::replaceSection (int index, int numCharsToReplace, const Str
         {
             // replacing beyond the end of the string?
             index = len;
-            jassertfalse
+            jassertfalse;
         }
 
         numCharsToReplace = len - index;
@@ -1542,10 +1539,7 @@ const String String::trimCharactersAtStart (const String& charactersToTrim) cons
     while (charactersToTrim.containsChar (*t))
         ++t;
 
-    if (t == text)
-        return *this;
-
-    return String (t);
+    return t == text ? *this : String (t);
 }
 
 const String String::trimCharactersAtEnd (const String& charactersToTrim) const
@@ -1553,12 +1547,17 @@ const String String::trimCharactersAtEnd (const String& charactersToTrim) const
     if (isEmpty())
         return empty;
 
-    const juce_wchar* endT = text + (length() - 1);
+    const int len = length();
+    const juce_wchar* endT = text + (len - 1);
+    int numToRemove = 0;
 
-    while (endT >= text && charactersToTrim.containsChar (*endT))
+    while (numToRemove < len && charactersToTrim.containsChar (*endT))
+    {
+        ++numToRemove;
         --endT;
+    }
 
-    return String (text, (int) (++endT - text));
+    return numToRemove > 0 ? String (text, len - numToRemove) : *this;
 }
 
 //==============================================================================
@@ -1687,12 +1686,12 @@ const String String::formatted (const juce_wchar* const pf, ... )
         const int num = (int) vswprintf (result.text, bufferSize - 1, pf, tempArgs);
         va_end (tempArgs);
 #elif JUCE_WINDOWS
-        #ifdef _MSC_VER
+        #if JUCE_MSVC
           #pragma warning (push)
           #pragma warning (disable: 4996)
         #endif
         const int num = (int) _vsnwprintf (result.text, bufferSize - 1, pf, args);
-        #ifdef _MSC_VER
+        #if JUCE_MSVC
           #pragma warning (pop)
         #endif
 #else
@@ -1759,7 +1758,7 @@ double String::getDoubleValue() const throw()
     return CharacterFunctions::getDoubleValue (text);
 }
 
-static const juce_wchar* const hexDigits = T("0123456789abcdef");
+static const juce_wchar* const hexDigits = JUCE_T("0123456789abcdef");
 
 const String String::toHexString (const int number)
 {
@@ -2131,9 +2130,9 @@ const char* String::toCString() const
     }
 }
 
-#ifdef _MSC_VER
-  #pragma warning (disable: 4514 4996)
+#if JUCE_MSVC
   #pragma warning (push)
+  #pragma warning (disable: 4514 4996)
 #endif
 
 int String::getNumBytesAsCString() const throw()
@@ -2151,7 +2150,7 @@ int String::copyToCString (char* destBuffer, const int maxBufferSizeBytes) const
     return numBytes;
 }
 
-#ifdef _MSC_VER
+#if JUCE_MSVC
   #pragma warning (pop)
 #endif
 

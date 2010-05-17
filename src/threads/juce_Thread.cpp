@@ -37,7 +37,7 @@ void* juce_createThread (void* userData);
 void juce_killThread (void* handle);
 bool juce_setThreadPriority (void* handle, int priority);
 void juce_setCurrentThreadName (const String& name);
-#if JUCE_WIN32
+#if JUCE_WINDOWS
 void juce_CloseThreadHandle (void* handle);
 #endif
 
@@ -74,7 +74,7 @@ void Thread::threadEntryPoint (Thread* const thread)
         runningThreads.removeValue (thread);
     }
 
-#if JUCE_WIN32
+#if JUCE_WINDOWS
     juce_CloseThreadHandle (thread->threadHandle_);
 #endif
 
@@ -186,7 +186,7 @@ void Thread::stopThread (const int timeOutMilliseconds)
             // very bad karma if this point is reached, as
             // there are bound to be locks and events left in
             // silly states when a thread is killed by force..
-            jassertfalse
+            jassertfalse;
             Logger::writeToLog ("!! killing thread by force !!");
 
             juce_killThread (threadHandle_);

@@ -489,8 +489,8 @@ void Path::addCentredArc (const float centreX, const float centreY,
 
         if (startAsNewSubPath)
         {
-            float x = centreX + radiusX * sinf (angle);
-            float y = centreY - radiusY * cosf (angle);
+            float x = centreX + radiusX * std::sin (angle);
+            float y = centreY - radiusY * std::cos (angle);
 
             if (rotationOfEllipse != 0)
                 rotation.transformPoint (x, y);
@@ -505,8 +505,8 @@ void Path::addCentredArc (const float centreX, const float centreY,
 
             while (angle < toRadians)
             {
-                float x = centreX + radiusX * sinf (angle);
-                float y = centreY - radiusY * cosf (angle);
+                float x = centreX + radiusX * std::sin (angle);
+                float y = centreY - radiusY * std::cos (angle);
 
                 if (rotationOfEllipse != 0)
                     rotation.transformPoint (x, y);
@@ -523,8 +523,8 @@ void Path::addCentredArc (const float centreX, const float centreY,
 
             while (angle > toRadians)
             {
-                float x = centreX + radiusX * sinf (angle);
-                float y = centreY - radiusY * cosf (angle);
+                float x = centreX + radiusX * std::sin (angle);
+                float y = centreY - radiusY * std::cos (angle);
 
                 if (rotationOfEllipse != 0)
                     rotation.transformPoint (x, y);
@@ -535,8 +535,8 @@ void Path::addCentredArc (const float centreX, const float centreY,
             }
         }
 
-        float x = centreX + radiusX * sinf (toRadians);
-        float y = centreY - radiusY * cosf (toRadians);
+        float x = centreX + radiusX * std::sin (toRadians);
+        float y = centreY - radiusY * std::cos (toRadians);
 
         if (rotationOfEllipse != 0)
             rotation.transformPoint (x, y);
@@ -556,12 +556,12 @@ void Path::addPieSegment (const float x, const float y,
     const float centreX = x + hw;
     const float centreY = y + hh;
 
-    startNewSubPath (centreX + hw * sinf (fromRadians),
-                     centreY - hh * cosf (fromRadians));
+    startNewSubPath (centreX + hw * std::sin (fromRadians),
+                     centreY - hh * std::cos (fromRadians));
 
     addArc (x, y, width, height, fromRadians, toRadians);
 
-    if (fabs (fromRadians - toRadians) > float_Pi * 1.999f)
+    if (std::abs (fromRadians - toRadians) > float_Pi * 1.999f)
     {
         closeSubPath();
 
@@ -570,8 +570,8 @@ void Path::addPieSegment (const float x, const float y,
             hw *= innerCircleProportionalSize;
             hh *= innerCircleProportionalSize;
 
-            startNewSubPath (centreX + hw * sinf (toRadians),
-                             centreY - hh * cosf (toRadians));
+            startNewSubPath (centreX + hw * std::sin (toRadians),
+                             centreY - hh * std::cos (toRadians));
 
             addArc (centreX - hw, centreY - hh, hw * 2.0f, hh * 2.0f,
                     toRadians, fromRadians);
@@ -685,8 +685,8 @@ void Path::addStar (const float centreX,
         {
             float angle = startAngle + i * angleBetweenPoints;
 
-            const float x = centreX + outerRadius * sinf (angle);
-            const float y = centreY - outerRadius * cosf (angle);
+            const float x = centreX + outerRadius * std::sin (angle);
+            const float y = centreY - outerRadius * std::cos (angle);
 
             if (i == 0)
                 startNewSubPath (x, y);
@@ -695,8 +695,8 @@ void Path::addStar (const float centreX,
 
             angle += angleBetweenPoints * 0.5f;
 
-            lineTo (centreX + innerRadius * sinf (angle),
-                    centreY - innerRadius * cosf (angle));
+            lineTo (centreX + innerRadius * std::sin (angle),
+                    centreY - innerRadius * std::cos (angle));
         }
 
         closeSubPath();
@@ -827,7 +827,7 @@ void Path::addPath (const Path& other)
         else
         {
             // something's gone wrong with the element list!
-            jassertfalse
+            jassertfalse;
         }
     }
 }
@@ -881,7 +881,7 @@ void Path::addPath (const Path& other,
             else
             {
                 // something's gone wrong with the element list!
-                jassertfalse
+                jassertfalse;
             }
         }
     }
@@ -1040,8 +1040,7 @@ bool Path::contains (const float x, const float y, const float tolerence) const
 
     while (i.next())
     {
-        if ((i.y1 <= y && i.y2 > y)
-             || (i.y2 <= y && i.y1 > y))
+        if ((i.y1 <= y && i.y2 > y) || (i.y2 <= y && i.y1 > y))
         {
             const float intersectX = i.x1 + (i.x2 - i.x1) * (y - i.y1) / (i.y2 - i.y1);
 
@@ -1055,28 +1054,56 @@ bool Path::contains (const float x, const float y, const float tolerence) const
         }
     }
 
-    return (useNonZeroWinding) ? (negativeCrossings != positiveCrossings)
-                               : ((negativeCrossings + positiveCrossings) & 1) != 0;
+    return useNonZeroWinding ? (negativeCrossings != positiveCrossings)
+                             : ((negativeCrossings + positiveCrossings) & 1) != 0;
 }
 
-bool Path::intersectsLine (const float x1, const float y1,
-                           const float x2, const float y2,
-                           const float tolerence)
+bool Path::contains (const Point<float>& point, const float tolerence) const
+{
+    return contains (point.getX(), point.getY(), tolerence);
+}
+
+bool Path::intersectsLine (const Line<float>& line, const float tolerence)
 {
     PathFlatteningIterator i (*this, AffineTransform::identity, tolerence);
-
-    const Line line1 (x1, y1, x2, y2);
+    Point<float> intersection;
 
     while (i.next())
-    {
-        const Line line2 (i.x1, i.y1, i.x2, i.y2);
-
-        float ix, iy;
-        if (line1.intersects (line2, ix, iy))
+        if (line.intersects (Line<float> (i.x1, i.y1, i.x2, i.y2), intersection))
             return true;
-    }
 
     return false;
+}
+
+const Line<float> Path::getClippedLine (const Line<float>& line, const bool keepSectionOutsidePath) const
+{
+    Line<float> result (line);
+    const bool startInside = contains (line.getStart());
+    const bool endInside = contains (line.getEnd());
+
+    if (startInside == endInside)
+    {
+        if (keepSectionOutsidePath == startInside)
+            result = Line<float>();
+    }
+    else
+    {
+        PathFlatteningIterator i (*this, AffineTransform::identity);
+        Point<float> intersection;
+
+        while (i.next())
+        {
+            if (line.intersects (Line<float> (i.x1, i.y1, i.x2, i.y2), intersection))
+            {
+                if ((startInside && keepSectionOutsidePath) || (endInside && ! keepSectionOutsidePath))
+                    result.setStart (intersection);
+                else
+                    result.setEnd (intersection);
+            }
+        }
+    }
+
+    return result;
 }
 
 //==============================================================================
@@ -1296,15 +1323,15 @@ void Path::loadPathFromStream (InputStream& source)
             return; // end of path marker
 
         default:
-            jassertfalse // illegal char in the stream
+            jassertfalse; // illegal char in the stream
             break;
         }
     }
 }
 
-void Path::loadPathFromData (const void* const data, const int numberOfBytes)
+void Path::loadPathFromData (const void* const pathData, const int numberOfBytes)
 {
-    MemoryInputStream in (data, numberOfBytes, false);
+    MemoryInputStream in (pathData, numberOfBytes, false);
     loadPathFromStream (in);
 }
 
@@ -1502,7 +1529,7 @@ void Path::restoreFromString (const String& stringVersion)
             break;
 
         default:
-            jassertfalse // illegal string format?
+            jassertfalse; // illegal string format?
             break;
         }
     }

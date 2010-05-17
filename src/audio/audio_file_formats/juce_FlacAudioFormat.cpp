@@ -34,14 +34,13 @@
 
 #include "../../core/juce_StandardHeader.h"
 
-#ifdef _MSC_VER
-  #pragma warning (disable : 4505)
-  #pragma warning (push)
-#endif
-
 namespace FlacNamespace
 {
 #if JUCE_INCLUDE_FLAC_CODE
+ #if JUCE_MSVC
+   #pragma warning (disable : 4505) // (unreferenced static function removal warning)
+ #endif
+
  #define FLAC__NO_DLL 1
 
  #if ! defined (SIZE_MAX)
@@ -73,10 +72,6 @@ namespace FlacNamespace
 #undef max
 #undef min
 
-#ifdef _MSC_VER
-  #pragma warning (pop)
-#endif
-
 BEGIN_JUCE_NAMESPACE
 
 #include "juce_FlacAudioFormat.h"
@@ -86,7 +81,7 @@ BEGIN_JUCE_NAMESPACE
 
 //==============================================================================
 static const char* const flacFormatName = "FLAC file";
-static const juce_wchar* const flacExtensions[] = { T(".flac"), 0 };
+static const char* const flacExtensions[] = { ".flac", 0 };
 
 
 //==============================================================================
@@ -496,7 +491,7 @@ private:
 
 //==============================================================================
 FlacAudioFormat::FlacAudioFormat()
-    : AudioFormat (TRANS (flacFormatName), (const juce_wchar**) flacExtensions)
+    : AudioFormat (TRANS (flacFormatName), StringArray (flacExtensions))
 {
 }
 

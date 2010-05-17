@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -24,10 +24,11 @@
 */
 
 #include "jucer_OpenDocumentManager.h"
-#include "jucer_SourceCodeEditor.h"
+#include "Code Editor/jucer_SourceCodeEditor.h"
 #include "Drawable Editor/jucer_DrawableEditor.h"
-#include "jucer_ItemPreviewComponent.h"
+#include "Project Editor/jucer_ItemPreviewComponent.h"
 #include "Component Editor/jucer_ComponentEditor.h"
+#include "Component Editor/jucer_ComponentViewer.h"
 
 
 //==============================================================================
@@ -53,6 +54,7 @@ public:
     const String getType() const                        { return modDetector.getFile().getFileExtension() + " file"; }
     bool needsSaving() const                            { return codeDoc != 0 && codeDoc->hasChangedSinceSavePoint(); }
     bool hasFileBeenModifiedExternally()                { return modDetector.hasBeenModified(); }
+    void fileHasBeenRenamed (const File& newFile)       { modDetector.fileHasBeenRenamed (newFile); }
 
     void reloadFromFile()
     {
@@ -73,7 +75,11 @@ public:
             return false;
 
         out = 0;
-        return temp.overwriteTargetFileWithTemporary();
+        if (! temp.overwriteTargetFileWithTemporary())
+            return false;
+
+        modDetector.updateHash();
+        return true;
     }
 
     Component* createEditor()
@@ -85,6 +91,8 @@ public:
 
         return new SourceCodeEditor (this, *codeDoc, tokeniser);
     }
+
+    Component* createViewer()       { return createEditor(); }
 
 private:
     FileModificationDetector modDetector;
@@ -119,6 +127,14 @@ public:
     bool needsSaving() const                        { return componentDoc != 0 && componentDoc->hasChangedSinceLastSave(); }
     bool hasFileBeenModifiedExternally()            { return modDetector.hasBeenModified(); }
 
+    void fileHasBeenRenamed (const File& newFile)
+    {
+        if (componentDoc != 0)
+            componentDoc->cppFileHasMoved (newFile);
+
+        modDetector.fileHasBeenRenamed (newFile);
+    }
+
     void reloadFromFile()
     {
         modDetector.updateHash();
@@ -132,7 +148,13 @@ public:
 
     bool save()
     {
-        return componentDoc->save();
+        if (componentDoc->save())
+        {
+            modDetector.updateHash();
+            return true;
+        }
+
+        return false;
     }
 
     Component* createEditor()
@@ -144,6 +166,17 @@ public:
         }
 
         return new ComponentEditor (this, project, componentDoc);
+    }
+
+    Component* createViewer()
+    {
+        if (componentDoc == 0)
+        {
+            jassertfalse;
+            return 0;
+        }
+
+        return new ComponentViewer (this, project, componentDoc);
     }
 
 private:
@@ -178,21 +211,28 @@ public:
     const String getName() const                    { return modDetector.getFile().getFileName(); }
     bool needsSaving() const                        { return drawableDoc != 0 && drawableDoc->hasChangedSinceLastSave(); }
     bool hasFileBeenModifiedExternally()            { return modDetector.hasBeenModified(); }
+    void fileHasBeenRenamed (const File& newFile)   { modDetector.fileHasBeenRenamed (newFile); }
 
     void reloadFromFile()
     {
         modDetector.updateHash();
 
         if (drawableDoc == 0)
-            drawableDoc = new DrawableDocument (project, modDetector.getFile());
+            drawableDoc = new DrawableDocument (project);
 
-        if (! drawableDoc->reload())
+        if (! drawableDoc->reload (modDetector.getFile()))
             drawableDoc = 0;
     }
 
     bool save()
     {
-        return drawableDoc->save();
+        if (drawableDoc->save (modDetector.getFile()))
+        {
+            modDetector.updateHash();
+            return true;
+        }
+
+        return false;
     }
 
     Component* createEditor()
@@ -203,6 +243,11 @@ public:
             return 0;
 
         return new DrawableEditor (this, project, drawableDoc);
+    }
+
+    Component* createViewer()
+    {
+        return createEditor(); //xxx
     }
 
 private:
@@ -233,6 +278,8 @@ public:
     void reloadFromFile()                           { fileModificationTime = file.getLastModificationTime(); }
     const String getName() const                    { return file.getFileName(); }
     Component* createEditor()                       { return new ItemPreviewComponent (file); }
+    Component* createViewer()                       { return createEditor(); }
+    void fileHasBeenRenamed (const File& newFile)   { file = newFile; }
 
     const String getType() const
     {
@@ -245,7 +292,7 @@ public:
 
 private:
     Project* const project;
-    const File file;
+    File file;
     Time fileModificationTime;
 
     UnknownDocument (const UnknownDocument&);
@@ -266,14 +313,14 @@ OpenDocumentManager::~OpenDocumentManager()
 juce_ImplementSingleton_SingleThreaded (OpenDocumentManager);
 
 //==============================================================================
-void OpenDocumentManager::registerEditor (DocumentEditorComponent* editor)
+void OpenDocumentManager::addListener (DocumentCloseListener* listener)
 {
-    editors.add (editor);
+    listeners.addIfNotAlreadyThere (listener);
 }
 
-void OpenDocumentManager::deregisterEditor (DocumentEditorComponent* editor)
+void OpenDocumentManager::removeListener (DocumentCloseListener* listener)
 {
-    editors.removeValue (editor);
+    listeners.removeValue (listener);
 }
 
 //==============================================================================
@@ -369,9 +416,8 @@ bool OpenDocumentManager::closeDocument (int index, bool saveIfNeeded)
                 return false;
         }
 
-        for (int i = editors.size(); --i >= 0;)
-            if (editors.getUnchecked(i)->getDocument() == doc)
-                editors.getUnchecked(i)->deleteSelf();
+        for (int i = listeners.size(); --i >= 0;)
+            listeners.getUnchecked(i)->documentAboutToClose (doc);
 
         documents.remove (index);
         commandManager->commandStatusChanged();
@@ -446,5 +492,16 @@ void OpenDocumentManager::reloadModifiedFiles()
 
         if (d->hasFileBeenModifiedExternally())
             d->reloadFromFile();
+    }
+}
+
+void OpenDocumentManager::fileHasBeenRenamed (const File& oldFile, const File& newFile)
+{
+    for (int i = documents.size(); --i >= 0;)
+    {
+        Document* d = documents.getUnchecked (i);
+
+        if (d->isForFile (oldFile))
+            d->fileHasBeenRenamed (newFile);
     }
 }

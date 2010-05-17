@@ -66,6 +66,7 @@ using namespace JUCE_NAMESPACE;
 
 - (BOOL) panel: (id) sender shouldShowFilename: (NSString*) filename
 {
+    (void) sender;
     const File f (nsStringToJuce (filename));
 
     for (int i = filters->size(); --i >= 0;)
@@ -169,7 +170,7 @@ void FileChooser::showPlatformDialog (Array<File>& results,
 {
     const ScopedAutoReleasePool pool;
 
-    jassertfalse //xxx to do
+    jassertfalse; //xxx to do
 }
 
 #endif

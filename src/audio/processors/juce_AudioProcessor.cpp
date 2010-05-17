@@ -52,7 +52,7 @@ AudioProcessor::~AudioProcessor()
     // that it refers to is deleted..
     jassert (activeEditor == 0);
 
-#ifdef JUCE_DEBUG
+#if JUCE_DEBUG
     // This will fail if you've called beginParameterChangeGesture() for one
     // or more parameters without having made a corresponding call to endParameterChangeGesture...
     jassert (changingParams.countNumberOfSetBits() == 0);
@@ -118,7 +118,7 @@ void AudioProcessor::sendParamChangeMessageToListeners (const int parameterIndex
 
         {
             const ScopedLock sl (listenerLock);
-            l = (AudioProcessorListener*) listeners [i];
+            l = listeners [i];
         }
 
         if (l != 0)
@@ -130,7 +130,7 @@ void AudioProcessor::beginParameterChangeGesture (int parameterIndex)
 {
     jassert (((unsigned int) parameterIndex) < (unsigned int) getNumParameters());
 
-#ifdef JUCE_DEBUG
+#if JUCE_DEBUG
     // This means you've called beginParameterChangeGesture twice in succession without a matching
     // call to endParameterChangeGesture. That might be fine in most hosts, but better to avoid doing it.
     jassert (! changingParams [parameterIndex]);
@@ -143,7 +143,7 @@ void AudioProcessor::beginParameterChangeGesture (int parameterIndex)
 
         {
             const ScopedLock sl (listenerLock);
-            l = (AudioProcessorListener*) listeners [i];
+            l = listeners [i];
         }
 
         if (l != 0)
@@ -155,7 +155,7 @@ void AudioProcessor::endParameterChangeGesture (int parameterIndex)
 {
     jassert (((unsigned int) parameterIndex) < (unsigned int) getNumParameters());
 
-#ifdef JUCE_DEBUG
+#if JUCE_DEBUG
     // This means you've called endParameterChangeGesture without having previously called
     // endParameterChangeGesture. That might be fine in most hosts, but better to keep the
     // calls matched correctly.
@@ -169,7 +169,7 @@ void AudioProcessor::endParameterChangeGesture (int parameterIndex)
 
         {
             const ScopedLock sl (listenerLock);
-            l = (AudioProcessorListener*) listeners [i];
+            l = listeners [i];
         }
 
         if (l != 0)
@@ -185,7 +185,7 @@ void AudioProcessor::updateHostDisplay()
 
         {
             const ScopedLock sl (listenerLock);
-            l = (AudioProcessorListener*) listeners [i];
+            l = listeners [i];
         }
 
         if (l != 0)
@@ -277,7 +277,7 @@ XmlElement* AudioProcessor::getXmlFromBinary (const void* data,
                                               const int sizeInBytes)
 {
     if (sizeInBytes > 8
-         && ByteOrder::littleEndianInt ((const char*) data) == magicXmlNumber)
+         && ByteOrder::littleEndianInt (data) == magicXmlNumber)
     {
         const int stringLength = (int) ByteOrder::littleEndianInt (((const char*) data) + 4);
 

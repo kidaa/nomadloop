@@ -63,7 +63,7 @@ public:
              && parentContentsList_->getFileInfo (indexInContentsList_, fileInfo))
         {
             fileSize = File::descriptionOfSizeInBytes (fileInfo.fileSize);
-            modTime = fileInfo.modificationTime.formatted (T("%d %b '%y %H:%M"));
+            modTime = fileInfo.modificationTime.formatted ("%d %b '%y %H:%M");
             isDirectory = fileInfo.isDirectory;
         }
         else
@@ -250,10 +250,13 @@ const File FileTreeComponent::getSelectedFile (const int index) const
 {
     const FileListTreeItem* const item = dynamic_cast <const FileListTreeItem*> (getSelectedItem (index));
 
-    if (item != 0)
-        return item->file;
+    return item != 0 ? item->file
+                     : File::nonexistent;
+}
 
-    return File::nonexistent;
+void FileTreeComponent::deselectAllFiles()
+{
+    clearSelectedItems();
 }
 
 void FileTreeComponent::scrollToTop()

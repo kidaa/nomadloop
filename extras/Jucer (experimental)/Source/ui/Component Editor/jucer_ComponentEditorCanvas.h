@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -26,98 +26,257 @@
 #ifndef __JUCER_COMPONENTEDITORCANVAS_H_37C33B56__
 #define __JUCER_COMPONENTEDITORCANVAS_H_37C33B56__
 
-#include "../../model/jucer_ComponentDocument.h"
-#include "../jucer_DocumentEditorComponent.h"
-class ComponentEditor;
-
 
 //==============================================================================
-class ComponentEditorCanvas   : public Component,
-                                public ValueTree::Listener,
+class ComponentEditorCanvas   : public EditorCanvasBase,
                                 public Timer
 {
 public:
     //==============================================================================
-    ComponentEditorCanvas (ComponentEditor& editor_);
-    ~ComponentEditorCanvas();
+    ComponentEditorCanvas (ComponentEditor& editor_)
+        : editor (editor_)
+    {
+        initialise();
+        getDocument().getRoot().addListener (this);
+    }
+
+    ~ComponentEditorCanvas()
+    {
+        getDocument().getRoot().removeListener (this);
+        shutdown();
+    }
+
+    ComponentEditor& getEditor()         { return editor; }
+    ComponentDocument& getDocument()     { return editor.getDocument(); }
+
+    void timerCallback()
+    {
+        stopTimer();
+
+        if (! Component::isMouseButtonDownAnywhere())
+            getDocument().beginNewTransaction();
+    }
+
+    Component* createComponentHolder()
+    {
+        return new ComponentHolder (getDocument().getBackgroundColour());
+    }
+
+    void updateComponents()
+    {
+        getDocument().updateComponentsIn (getComponentHolder());
+        startTimer (500);
+    }
+
+    int getCanvasWidth()             { return getDocument().getCanvasWidth().getValue(); }
+    int getCanvasHeight()            { return getDocument().getCanvasHeight().getValue(); }
+    void setCanvasWidth (int w)      { getDocument().getCanvasWidth() = w; }
+    void setCanvasHeight (int h)     { getDocument().getCanvasHeight() = h; }
+
+    ComponentDocument::MarkerList& getMarkerList (bool isX)
+    {
+        return getDocument().getMarkerList (isX);
+    }
+
+    const SelectedItems::ItemType findObjectIdAt (const Point<int>& position)
+    {
+        for (int i = getComponentHolder()->getNumChildComponents(); --i >= 0;)
+        {
+            Component* const c = getComponentHolder()->getChildComponent(i);
+            if (c->getBounds().contains (position))
+                return ComponentDocument::getJucerIDFor (c);
+        }
+
+        return String::empty;
+    }
+
+    void showPopupMenu (const Point<int>& position)
+    {
+        if (findObjectIdAt (position).isNotEmpty())
+        {
+            PopupMenu m;
+            m.addCommandItem (commandManager, CommandIDs::toFront);
+            m.addCommandItem (commandManager, CommandIDs::toBack);
+            m.addSeparator();
+            m.addCommandItem (commandManager, StandardApplicationCommandIDs::del);
+            const int r = m.show();
+            (void) r;
+        }
+        else
+        {
+            editor.showNewComponentMenu (0);
+        }
+    }
+
+    void objectDoubleClicked (const MouseEvent& e, const ValueTree& state)
+    {
+        getDocument().componentDoubleClicked (e, state);
+    }
+
+    const ValueTree getObjectState (const String& objectId)
+    {
+        return getDocument().getComponentWithID (objectId);
+    }
+
+    const Rectangle<int> getObjectPosition (const ValueTree& state)
+    {
+        return getDocument().getCoordsFor (state).resolve (getDocument());
+    }
+
+    RectangleCoordinates getObjectCoords (const ValueTree& state)
+    {
+        return getDocument().getCoordsFor (state);
+    }
+
+    SelectedItems& getSelection()
+    {
+        return editor.getSelection();
+    }
+
+    void deselectNonDraggableObjects()
+    {
+        editor.deselectNonComponents();
+    }
+
+    void findLassoItemsInArea (Array <SelectedItems::ItemType>& itemsFound, const Rectangle<int>& area)
+    {
+        for (int i = getComponentHolder()->getNumChildComponents(); --i >= 0;)
+        {
+            Component* c = getComponentHolder()->getChildComponent(i);
+            if (c->getBounds().intersects (area))
+                itemsFound.add (ComponentDocument::getJucerIDFor (c));
+        }
+    }
 
     //==============================================================================
-    ComponentEditor& getEditor();
-    ComponentDocument& getDocument();
-
-    typedef SelectedItemSet<String> SelectedItems;
-    SelectedItems& getSelection();
-
-    class ComponentHolder;
-    ComponentHolder* getComponentHolder() const;
-
-    //==============================================================================
-    void timerCallback();
-    void paint (Graphics& g);
-    void resized();
-
-    void updateComponents();
-    const Rectangle<int> getContentArea() const;
-    void drawXAxis (Graphics& g, const Rectangle<int>& r);
-    void drawYAxis (Graphics& g, const Rectangle<int>& r);
-
-    //==============================================================================
-    void valueTreePropertyChanged (ValueTree&, const var::identifier&)    { updateComponents(); }
-    void valueTreeChildrenChanged (ValueTree& treeWhoseChildHasChanged)   { updateComponents(); }
-    void valueTreeParentChanged (ValueTree& treeWhoseParentHasChanged)    {}
-
-    //==============================================================================
-    const StringArray getSelectedIds() const;
-    void getSelectedItemProperties (Array <PropertyComponent*>& props);
-    void deleteSelection();
-    void deselectNonComponents();
-    void selectionToFront();
-    void selectionToBack();
-
-    //==============================================================================
-    void showSizeGuides();
-    void hideSizeGuides();
-
-    //==============================================================================
-    class DragOperation;
-
-    void beginDrag (const MouseEvent& e, const ResizableBorderComponent::Zone& zone);
-    void continueDrag (const MouseEvent& e);
-    void endDrag (const MouseEvent& e);
-
-private:
-    ComponentEditor& editor;
-    const BorderSize border;
-    ScopedPointer <DragOperation> dragger;
-
-    //==============================================================================
-    class OverlayItemComponent  : public Component
+    class DragOperation  : public EditorDragOperation
     {
     public:
-        OverlayItemComponent (ComponentEditorCanvas& canvas_);
+        DragOperation (ComponentEditorCanvas* canvas_,
+                       const MouseEvent& e,
+                       Component* snapGuideParentComp_,
+                       const ResizableBorderComponent::Zone& zone_)
+            : EditorDragOperation (canvas_, e, snapGuideParentComp_, zone_)
+        {
+        }
 
-        void setBoundsInTargetSpace (const Rectangle<int>& r);
-
-        ComponentDocument& getDocument()        { return canvas.getDocument(); }
+        ~DragOperation()
+        {
+            getUndoManager().beginNewTransaction();
+        }
 
     protected:
-        ComponentEditorCanvas& canvas;
+        ComponentDocument& getDocument() throw()                { return static_cast <ComponentEditorCanvas*> (canvas)->getDocument(); }
+
+        int getCanvasWidth()                                    { return getDocument().getCanvasWidth().getValue(); }
+        int getCanvasHeight()                                   { return getDocument().getCanvasHeight().getValue(); }
+
+        UndoManager& getUndoManager()                           { return *getDocument().getUndoManager(); }
+
+        const Rectangle<float> getObjectPosition (const ValueTree& state)
+        {
+            ComponentDocument& doc = getDocument();
+            RectangleCoordinates relativePos (doc.getCoordsFor (state));
+            const Rectangle<int> intPos (relativePos.resolve (doc));
+
+            return intPos.toFloat();
+        }
+
+        bool setObjectPosition (ValueTree& state, const Rectangle<float>& newBounds)
+        {
+            ComponentDocument& doc = getDocument();
+            RectangleCoordinates pr (doc.getCoordsFor (state));
+            pr.moveToAbsolute (newBounds, doc);
+
+            return doc.setCoordsFor (state, pr);
+        }
+
+        float getMarkerPosition (const ValueTree& marker, bool isX)
+        {
+            ComponentDocument& doc = getDocument();
+            return (float) doc.getMarkerList (isX).getCoordinate (marker).resolve (doc);
+        }
     };
 
-    friend class OverlayItemComponent;
-    class ComponentResizeFrame;
-    class MarkerComponent;
-    class WholeComponentResizer;
-    class OverlayComponent;
+    DragOperation* createDragOperation (const MouseEvent& e, Component* snapGuideParentComponent,
+                                        const ResizableBorderComponent::Zone& zone)
+    {
+        DragOperation* d = new DragOperation (this, e, snapGuideParentComponent, zone);
 
+        Array<ValueTree> selected, unselected;
+
+        for (int i = getDocument().getNumComponents(); --i >= 0;)
+        {
+            const ValueTree v (getDocument().getComponent (i));
+            if (editor.getSelection().isSelected (v [ComponentDocument::idProperty]))
+                selected.add (v);
+            else
+                unselected.add (v);
+        }
+
+        d->initialise (selected, unselected);
+        return d;
+    }
+
+    UndoManager& getUndoManager()
+    {
+        return *getDocument().getUndoManager();
+    }
+
+private:
     //==============================================================================
-    ComponentHolder* componentHolder;
-    OverlayComponent* overlay;
-    WholeComponentResizer* resizeFrame;
-    SelectedItems selection;
+    ComponentEditor& editor;
 
-    const Array<Component*> getSelectedComps() const;
-    const Array<Component*> getUnselectedComps() const;
+    class ComponentHolder   : public Component,
+                              public Value::Listener
+    {
+    public:
+        ComponentHolder (const Value& backgroundColour_)
+            : backgroundColour (backgroundColour_)
+        {
+            setOpaque (true);
+            updateColour();
+            backgroundColour.addListener (this);
+        }
+
+        ~ComponentHolder()
+        {
+            deleteAllChildren();
+        }
+
+        void updateColour()
+        {
+            Colour newColour (Colours::white);
+
+            if (backgroundColour.toString().isNotEmpty())
+                newColour = Colour::fromString (backgroundColour.toString());
+
+            if (newColour != colour)
+            {
+                colour = newColour;
+                repaint();
+            }
+        }
+
+        void paint (Graphics& g)
+        {
+            if (colour.isOpaque())
+                g.fillAll (colour);
+            else
+                g.fillCheckerBoard (0, 0, getWidth(), getHeight(), 24, 24,
+                                    Colour (0xffeeeeee).overlaidWith (colour),
+                                    Colour (0xffffffff).overlaidWith (colour));
+        }
+
+        void valueChanged (Value&)
+        {
+            updateColour();
+        }
+
+    private:
+        Value backgroundColour;
+        Colour colour;
+    };
 };
 
 

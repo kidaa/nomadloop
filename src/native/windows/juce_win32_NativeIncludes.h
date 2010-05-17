@@ -38,7 +38,7 @@
 #undef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN 1
 
-#ifdef _MSC_VER
+#if JUCE_MSVC
   #pragma warning (push)
   #pragma warning (disable : 4100 4201 4514 4312 4995)
 #endif
@@ -179,7 +179,7 @@
 #endif
 
 //==============================================================================
-#ifdef _MSC_VER
+#if JUCE_MSVC
  #pragma warning (pop)
 #endif
 
@@ -187,46 +187,68 @@
 /** A simple COM smart pointer.
     Avoids having to include ATL just to get one of these.
 */
-template <class T>
+template <class ComClass>
 class ComSmartPtr
 {
 public:
-    ComSmartPtr() throw() : p (0)                       {}
-    ComSmartPtr (T* const p_) : p (p_)                  { if (p_ != 0) p_->AddRef(); }
-    ComSmartPtr (const ComSmartPtr<T>& p_) : p (p_.p)   { if (p != 0) p->AddRef(); }
-    ~ComSmartPtr()                                      { if (p != 0) p->Release(); }
+    ComSmartPtr() throw() : p (0)                               {}
+    ComSmartPtr (ComClass* const p_) : p (p_)                   { if (p_ != 0) p_->AddRef(); }
+    ComSmartPtr (const ComSmartPtr<ComClass>& p_) : p (p_.p)    { if (p != 0) p->AddRef(); }
+    ~ComSmartPtr()                                              { if (p != 0) p->Release(); }
 
-    operator T*() const throw()     { return p; }
-    T& operator*() const throw()    { return *p; }
-    T** operator&() throw()         { return &p; }
-    T* operator->() const throw()   { return p; }
+    operator ComClass*() const throw()     { return p; }
+    ComClass& operator*() const throw()    { return *p; }
+    ComClass** operator&() throw()         { return &p; }
+    ComClass* operator->() const throw()   { return p; }
 
-    T* operator= (T* const newP)
+    ComClass* operator= (ComClass* const newP)
     {
-        if (newP != 0)
-            newP->AddRef();
-
-        if (p != 0)
-            p->Release();
-
+        if (newP != 0)  newP->AddRef();
+        if (p != 0)     p->Release();
         p = newP;
         return newP;
     }
 
-    T* operator= (const ComSmartPtr<T>& newP)  { return operator= (newP.p); }
+    ComClass* operator= (const ComSmartPtr<ComClass>& newP)  { return operator= (newP.p); }
 
-    HRESULT CoCreateInstance (REFCLSID rclsid, DWORD dwClsContext)
+    HRESULT CoCreateInstance (REFCLSID rclsid, DWORD dwClsContext = CLSCTX_INPROC_SERVER)
     {
 #ifndef __MINGW32__
         operator= (0);
-        return ::CoCreateInstance (rclsid, 0, dwClsContext, __uuidof(T), (void**) &p);
+        return ::CoCreateInstance (rclsid, 0, dwClsContext, __uuidof (ComClass), (void**) &p);
 #else
         return S_FALSE;
 #endif
     }
 
-    T* p;
+private:
+    ComClass* p;
 };
 
+//==============================================================================
+/** Handy base class for writing COM objects, providing ref-counting and a basic QueryInterface method.
+*/
+template <class ComClass>
+class ComBaseClassHelper   : public ComClass
+{
+public:
+    ComBaseClassHelper()  : refCount (1) {}
+    virtual ~ComBaseClassHelper() {}
+
+    HRESULT __stdcall QueryInterface (REFIID refId, void __RPC_FAR* __RPC_FAR* result)
+    {
+        if (refId == __uuidof (ComClass))   { AddRef(); *result = dynamic_cast <ComClass*> (this); return S_OK; }
+        if (refId == IID_IUnknown)          { AddRef(); *result = dynamic_cast <IUnknown*> (this); return S_OK; }
+
+        *result = 0;
+        return E_NOINTERFACE;
+    }
+
+    ULONG __stdcall AddRef()    { return ++refCount; }
+    ULONG __stdcall Release()   { const int r = --refCount; if (r == 0) delete this; return r; }
+
+protected:
+    int refCount;
+};
 
 #endif   // __JUCE_WIN32_NATIVEINCLUDES_JUCEHEADER__

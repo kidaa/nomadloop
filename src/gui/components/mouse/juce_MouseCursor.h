@@ -127,7 +127,7 @@ public:
 
         @see MessageManager::setTimeBeforeShowingWaitCursor
     */
-    static void showWaitCursor() throw();
+    static void showWaitCursor();
 
     /** If showWaitCursor has been called, this will return the mouse to its
         normal state.
@@ -137,7 +137,7 @@ public:
 
         @see showWaitCursor
     */
-    static void hideWaitCursor() throw();
+    static void hideWaitCursor();
 
 
     //==============================================================================
@@ -145,12 +145,17 @@ public:
 
 private:
     class SharedCursorHandle;
+    friend class SharedCursorHandle;
     SharedCursorHandle* cursorHandle;
 
     friend class MouseInputSourceInternal;
     void showInWindow (ComponentPeer* window) const;
     void showInAllWindows() const;
     void* getHandle() const throw();
+
+    static void* createMouseCursorFromImage (const Image& image, int hotspotX, int hotspotY);
+    static void* createStandardMouseCursor (MouseCursor::StandardCursorType type);
+    static void deleteMouseCursor (void* cursorHandle, bool isStandard);
 };
 
 #endif   // __JUCE_MOUSECURSOR_JUCEHEADER__

@@ -41,12 +41,11 @@ BEGIN_JUCE_NAMESPACE
 
 
 //==============================================================================
-static VoidArray heavyweightPeers;
+static Array <ComponentPeer*> heavyweightPeers;
 
 
 //==============================================================================
-ComponentPeer::ComponentPeer (Component* const component_,
-                              const int styleFlags_) throw()
+ComponentPeer::ComponentPeer (Component* const component_, const int styleFlags_)
     : component (component_),
       styleFlags (styleFlags_),
       lastPaintTime (0),
@@ -73,14 +72,14 @@ int ComponentPeer::getNumPeers() throw()
 
 ComponentPeer* ComponentPeer::getPeer (const int index) throw()
 {
-    return (ComponentPeer*) heavyweightPeers [index];
+    return heavyweightPeers [index];
 }
 
 ComponentPeer* ComponentPeer::getPeerFor (const Component* const component) throw()
 {
     for (int i = heavyweightPeers.size(); --i >= 0;)
     {
-        ComponentPeer* const peer = (ComponentPeer*) heavyweightPeers.getUnchecked(i);
+        ComponentPeer* const peer = heavyweightPeers.getUnchecked(i);
 
         if (peer->getComponent() == component)
             return peer;
@@ -177,7 +176,7 @@ bool ComponentPeer::handleKeyPress (const int keyCode,
         {
             for (int i = target->keyListeners_->size(); --i >= 0;)
             {
-                keyWasUsed = ((KeyListener*) target->keyListeners_->getUnchecked(i))->keyPressed (keyInfo, target);
+                keyWasUsed = target->keyListeners_->getUnchecked(i)->keyPressed (keyInfo, target);
 
                 if (keyWasUsed || deletionChecker == 0)
                     return keyWasUsed;
@@ -236,7 +235,7 @@ bool ComponentPeer::handleKeyUpOrDown (const bool isKeyDown)
         {
             for (int i = target->keyListeners_->size(); --i >= 0;)
             {
-                keyWasUsed = ((KeyListener*) target->keyListeners_->getUnchecked(i))->keyStateChanged (isKeyDown, target);
+                keyWasUsed = target->keyListeners_->getUnchecked(i)->keyStateChanged (isKeyDown, target);
 
                 if (keyWasUsed || deletionChecker == 0)
                     return keyWasUsed;
@@ -271,7 +270,11 @@ TextInputTarget* ComponentPeer::findCurrentTextInputTarget()
 {
     Component* const c = Component::getCurrentlyFocusedComponent();
     if (component->isParentOf (c))
-        return dynamic_cast <TextInputTarget*> (c);
+    {
+        TextInputTarget* const ti = dynamic_cast <TextInputTarget*> (c);
+        if (ti != 0 && ti->isTextInputActive())
+            return ti;
+    }
 
     return 0;
 }
@@ -507,12 +510,12 @@ void ComponentPeer::bringModalComponentToFront()
 }
 
 //==============================================================================
-void ComponentPeer::clearMaskedRegion() throw()
+void ComponentPeer::clearMaskedRegion()
 {
     maskedRegion.clear();
 }
 
-void ComponentPeer::addMaskedRegion (int x, int y, int w, int h) throw()
+void ComponentPeer::addMaskedRegion (int x, int y, int w, int h)
 {
     maskedRegion.add (x, y, w, h);
 }

@@ -472,7 +472,7 @@ void Component::userTriedToCloseWindow()
        If you want to ignore the event and don't want to trigger this assertion, just override
        this method and do nothing.
     */
-    jassertfalse
+    jassertfalse;
 }
 
 void Component::minimisationStateChanged (bool)
@@ -625,7 +625,7 @@ void Component::toBack()
 
     if (isOnDesktop())
     {
-        jassertfalse //xxx need to add this to native window
+        jassertfalse; //xxx need to add this to native window
     }
     else if (parentComponent_ != 0 && childList.getFirst() != this)
     {
@@ -812,7 +812,7 @@ void Component::setBounds (int x, int y, int w, int h)
     const bool wasResized  = (getWidth() != w || getHeight() != h);
     const bool wasMoved    = (getX() != x || getY() != y);
 
-#ifdef JUCE_DEBUG
+#if JUCE_DEBUG
     // It's a very bad idea to try to resize a window during its paint() method!
     jassert (! (flags.isInsidePaintCall && wasResized && isOnDesktop()));
 #endif
@@ -1673,7 +1673,7 @@ void Component::paintEntireComponent (Graphics& g)
 {
     jassert (! g.isClipEmpty());
 
-#ifdef JUCE_DEBUG
+#if JUCE_DEBUG
     flags.isInsidePaintCall = true;
 #endif
 
@@ -1694,7 +1694,7 @@ void Component::paintEntireComponent (Graphics& g)
         renderComponent (g);
     }
 
-#ifdef JUCE_DEBUG
+#if JUCE_DEBUG
     flags.isInsidePaintCall = false;
 #endif
 }
@@ -1783,7 +1783,7 @@ void Component::sendLookAndFeelChange()
     }
 }
 
-static const var::identifier getColourPropertyId (const int colourId)
+static const Identifier getColourPropertyId (const int colourId)
 {
     String s;
     s.preallocateStorage (18);
@@ -1827,9 +1827,9 @@ void Component::copyAllExplicitColoursTo (Component& target) const
 
     for (int i = properties.size(); --i >= 0;)
     {
-        const var::identifier name (properties.getName(i));
+        const Identifier name (properties.getName(i));
 
-        if (name.name.startsWith ("jcclr_"))
+        if (name.toString().startsWith ("jcclr_"))
             if (target.properties.set (name, properties [name]))
                 changed = true;
     }
@@ -2186,13 +2186,13 @@ void Component::internalMouseEnter (MouseInputSource& source, const Point<int>& 
         {
             if (p->numDeepMouseListeners > 0)
             {
-                BailOutChecker checker (this, p);
+                BailOutChecker checker2 (this, p);
 
                 for (int i = p->numDeepMouseListeners; --i >= 0;)
                 {
                     p->mouseListeners_->getUnchecked(i)->mouseEnter (me);
 
-                    if (checker.shouldBailOut())
+                    if (checker2.shouldBailOut())
                         return;
 
                     i = jmin (i, p->numDeepMouseListeners);
@@ -2258,13 +2258,13 @@ void Component::internalMouseExit (MouseInputSource& source, const Point<int>& r
         {
             if (p->numDeepMouseListeners > 0)
             {
-                BailOutChecker checker (this, p);
+                BailOutChecker checker2 (this, p);
 
                 for (int i = p->numDeepMouseListeners; --i >= 0;)
                 {
                     p->mouseListeners_->getUnchecked (i)->mouseExit (me);
 
-                    if (checker.shouldBailOut())
+                    if (checker2.shouldBailOut())
                         return;
 
                     i = jmin (i, p->numDeepMouseListeners);
@@ -2425,13 +2425,13 @@ void Component::internalMouseDown (MouseInputSource& source, const Point<int>& r
     {
         if (p->numDeepMouseListeners > 0)
         {
-            BailOutChecker checker (this, p);
+            BailOutChecker checker2 (this, p);
 
             for (int i = p->numDeepMouseListeners; --i >= 0;)
             {
                 p->mouseListeners_->getUnchecked (i)->mouseDown (me);
 
-                if (checker.shouldBailOut())
+                if (checker2.shouldBailOut())
                     return;
 
                 i = jmin (i, p->numDeepMouseListeners);
@@ -2494,13 +2494,13 @@ void Component::internalMouseUp (MouseInputSource& source, const Point<int>& rel
             {
                 if (p->numDeepMouseListeners > 0)
                 {
-                    BailOutChecker checker (this, p);
+                    BailOutChecker checker2 (this, p);
 
                     for (int i = p->numDeepMouseListeners; --i >= 0;)
                     {
                         p->mouseListeners_->getUnchecked (i)->mouseUp (me);
 
-                        if (checker.shouldBailOut())
+                        if (checker2.shouldBailOut())
                             return;
 
                         i = jmin (i, p->numDeepMouseListeners);
@@ -2545,13 +2545,13 @@ void Component::internalMouseUp (MouseInputSource& source, const Point<int>& rel
             {
                 if (p->numDeepMouseListeners > 0)
                 {
-                    BailOutChecker checker (this, p);
+                    BailOutChecker checker2 (this, p);
 
                     for (int i = p->numDeepMouseListeners; --i >= 0;)
                     {
                         p->mouseListeners_->getUnchecked (i)->mouseDoubleClick (me);
 
-                        if (checker.shouldBailOut())
+                        if (checker2.shouldBailOut())
                             return;
 
                         i = jmin (i, p->numDeepMouseListeners);
@@ -2611,13 +2611,13 @@ void Component::internalMouseDrag (MouseInputSource& source, const Point<int>& r
         {
             if (p->numDeepMouseListeners > 0)
             {
-                BailOutChecker checker (this, p);
+                BailOutChecker checker2 (this, p);
 
                 for (int i = p->numDeepMouseListeners; --i >= 0;)
                 {
                     p->mouseListeners_->getUnchecked (i)->mouseDrag (me);
 
-                    if (checker.shouldBailOut())
+                    if (checker2.shouldBailOut())
                         return;
 
                     i = jmin (i, p->numDeepMouseListeners);
@@ -2677,13 +2677,13 @@ void Component::internalMouseMove (MouseInputSource& source, const Point<int>& r
         {
             if (p->numDeepMouseListeners > 0)
             {
-                BailOutChecker checker (this, p);
+                BailOutChecker checker2 (this, p);
 
                 for (int i = p->numDeepMouseListeners; --i >= 0;)
                 {
                     p->mouseListeners_->getUnchecked (i)->mouseMove (me);
 
-                    if (checker.shouldBailOut())
+                    if (checker2.shouldBailOut())
                         return;
 
                     i = jmin (i, p->numDeepMouseListeners);
@@ -2743,13 +2743,13 @@ void Component::internalMouseWheel (MouseInputSource& source, const Point<int>& 
         {
             if (p->numDeepMouseListeners > 0)
             {
-                BailOutChecker checker (this, p);
+                BailOutChecker checker2 (this, p);
 
                 for (int i = p->numDeepMouseListeners; --i >= 0;)
                 {
                     p->mouseListeners_->getUnchecked (i)->mouseWheelMove (me, wheelIncrementX, wheelIncrementY);
 
-                    if (checker.shouldBailOut())
+                    if (checker2.shouldBailOut())
                         return;
 
                     i = jmin (i, p->numDeepMouseListeners);
@@ -3151,7 +3151,7 @@ const Rectangle<int> Component::getParentMonitorArea() const
 void Component::addKeyListener (KeyListener* const newListener)
 {
     if (keyListeners_ == 0)
-        keyListeners_ = new VoidArray();
+        keyListeners_ = new Array <KeyListener*>();
 
     keyListeners_->addIfNotAlreadyThere (newListener);
 }

@@ -38,12 +38,13 @@
 #include "../../events/juce_MessageListener.h"
 #include "../../events/juce_ListenerList.h"
 #include "../../text/juce_StringArray.h"
-#include "../../containers/juce_VoidArray.h"
+#include "../../containers/juce_Array.h"
 #include "../../containers/juce_NamedValueSet.h"
 class LookAndFeel;
 class MouseInputSource;
 class MouseInputSourceInternal;
 class ComponentPeer;
+
 
 //==============================================================================
 /**
@@ -51,7 +52,7 @@ class ComponentPeer;
 
 */
 class JUCE_API  Component  : public MouseListener,
-                             protected MessageListener
+                             public MessageListener
 {
 public:
     //==============================================================================
@@ -2002,7 +2003,7 @@ private:
     ImageEffectFilter* effect_;
     Image* bufferedImage_;
     Array <MouseListener*>* mouseListeners_;
-    VoidArray* keyListeners_;
+    Array <KeyListener*>* keyListeners_;
     ListenerList <ComponentListener> componentListeners;
     NamedValueSet properties;
 
@@ -2026,7 +2027,7 @@ private:
         bool currentlyModalFlag         : 1;
         bool isDisabledFlag             : 1;
         bool childCompFocusedFlag       : 1;
-#ifdef JUCE_DEBUG
+#if JUCE_DEBUG
         bool isInsidePaintCall          : 1;
 #endif
     };
@@ -2084,12 +2085,7 @@ private:
     // hierarchies. You might need to give your subclasses a private dummy constructor like
     // this one to avoid compiler warnings.
     Component (const Component&);
-
     Component& operator= (const Component&);
-
-    // (dummy method to cause a deliberate compile error - if you hit this, you need to update your
-    // subclass to use the new parameters to keyStateChanged)
-    virtual void keyStateChanged() {};
 
 protected:
     /** @internal */

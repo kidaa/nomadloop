@@ -30,7 +30,7 @@
 //==============================================================================
 // These are defined in juce_linux_Messaging.cpp
 extern Display* display;
-extern XContext improbableNumber;
+extern XContext windowHandleXContext;
 
 //==============================================================================
 namespace Atoms
@@ -491,13 +491,9 @@ public:
                             imageData = (uint8*) segmentInfo.shmaddr;
 
                             if (XShmAttach (display, &segmentInfo) != 0)
-                            {
                                 usingXShm = true;
-                            }
                             else
-                            {
-                                jassertfalse
-                            }
+                                jassertfalse;
                         }
                         else
                         {
@@ -552,9 +548,7 @@ public:
             }
 
             if (! XInitImage (xImage))
-            {
-                jassertfalse
-            }
+                jassertfalse;
         }
     }
 
@@ -664,7 +658,7 @@ private:
             if (((mask >> i) & 1) != 0)
                 return i - 7;
 
-        jassertfalse
+        jassertfalse;
         return 0;
     }
 };
@@ -721,7 +715,7 @@ public:
         XPointer peer = 0;
 
         ScopedXLock xlock;
-        if (! XFindContext (display, (XID) windowHandle, improbableNumber, &peer))
+        if (! XFindContext (display, (XID) windowHandle, windowHandleXContext, &peer))
         {
             if (peer != 0 && ! ComponentPeer::isValidPeer ((LinuxComponentPeer*) peer))
                 peer = 0;
@@ -1888,25 +1882,19 @@ private:
 
                 startTimer (repaintTimerPeriod);
 
-                LowLevelGraphicsSoftwareRenderer context (*image);
+                RectangleList adjustedList (originalRepaintRegion);
+                adjustedList.offsetAll (-totalArea.getX(), -totalArea.getY());
+                LowLevelGraphicsSoftwareRenderer context (*image, -totalArea.getX(), -totalArea.getY(), adjustedList);
 
-                context.setOrigin (-totalArea.getX(), -totalArea.getY());
-
-                if (context.clipToRectangleList (originalRepaintRegion))
+                if (peer->depth == 32)
                 {
-                    if (peer->depth == 32)
-                    {
-                        RectangleList::Iterator i (originalRepaintRegion);
+                    RectangleList::Iterator i (originalRepaintRegion);
 
-                        while (i.next())
-                        {
-                            const Rectangle<int>& r = *i.getRectangle();
-                            image->clear (r.getX() - totalArea.getX(), r.getY() - totalArea.getY(), r.getWidth(), r.getHeight());
-                        }
-                    }
-
-                    peer->handlePaint (context);
+                    while (i.next())
+                        image->clear (*i.getRectangle() - totalArea.getPosition());
                 }
+
+                peer->handlePaint (context);
 
                 if (! peer->maskedRegion.isEmpty())
                     originalRepaintRegion.subtract (peer->maskedRegion);
@@ -2245,10 +2233,10 @@ private:
                      GrabModeAsync, GrabModeAsync, None, None);
 
         // Set the window context to identify the window handle object
-        if (XSaveContext (display, (XID) wndH, improbableNumber, (XPointer) this))
+        if (XSaveContext (display, (XID) wndH, windowHandleXContext, (XPointer) this))
         {
             // Failed
-            jassertfalse
+            jassertfalse;
             Logger::outputDebugString ("Failed to create context information for window.\n");
             XDestroyWindow (display, wndH);
             wndH = 0;
@@ -2338,8 +2326,8 @@ private:
         ScopedXLock xlock;
 
         XPointer handlePointer;
-        if (! XFindContext (display, (XID) windowH, improbableNumber, &handlePointer))
-            XDeleteContext (display, (XID) windowH, improbableNumber);
+        if (! XFindContext (display, (XID) windowH, windowHandleXContext, &handlePointer))
+            XDeleteContext (display, (XID) windowH, windowHandleXContext);
 
         XDestroyWindow (display, windowH);
 
@@ -2931,7 +2919,7 @@ void Desktop::setMousePosition (const Point<int>& newPosition)
 //==============================================================================
 static bool screenSaverAllowed = true;
 
-void Desktop::setScreenSaverEnabled (const bool isEnabled) throw()
+void Desktop::setScreenSaverEnabled (const bool isEnabled)
 {
     if (screenSaverAllowed != isEnabled)
     {
@@ -2954,13 +2942,13 @@ void Desktop::setScreenSaverEnabled (const bool isEnabled) throw()
     }
 }
 
-bool Desktop::isScreenSaverEnabled() throw()
+bool Desktop::isScreenSaverEnabled()
 {
     return screenSaverAllowed;
 }
 
 //==============================================================================
-void* juce_createMouseCursorFromImage (const Image& image, int hotspotX, int hotspotY)
+void* MouseCursor::createMouseCursorFromImage (const Image& image, int hotspotX, int hotspotY)
 {
     ScopedXLock xlock;
     const unsigned int imageW = image.getWidth();
@@ -3085,117 +3073,64 @@ void* juce_createMouseCursorFromImage (const Image& image, int hotspotX, int hot
     return result;
 }
 
-void juce_deleteMouseCursor (void* const cursorHandle, const bool)
+void MouseCursor::deleteMouseCursor (void* const cursorHandle, const bool)
 {
     ScopedXLock xlock;
     if (cursorHandle != 0)
         XFreeCursor (display, (Cursor) cursorHandle);
 }
 
-void* juce_createStandardMouseCursor (MouseCursor::StandardCursorType type)
+void* MouseCursor::createStandardMouseCursor (MouseCursor::StandardCursorType type)
 {
     unsigned int shape;
 
     switch (type)
     {
-        case MouseCursor::NoCursor:
-        {
-            const Image im (Image::ARGB, 16, 16, true);
-            return juce_createMouseCursorFromImage (im, 0, 0);
-        }
+        case NormalCursor:                  return None; // Use parent cursor
+        case NoCursor:                      return createMouseCursorFromImage (Image (Image::ARGB, 16, 16, true), 0, 0);
 
-        case MouseCursor::NormalCursor:
-            return (void*) None; // Use parent cursor
+        case WaitCursor:                    shape = XC_watch; break;
+        case IBeamCursor:                   shape = XC_xterm; break;
+        case PointingHandCursor:            shape = XC_hand2; break;
+        case LeftRightResizeCursor:         shape = XC_sb_h_double_arrow; break;
+        case UpDownResizeCursor:            shape = XC_sb_v_double_arrow; break;
+        case UpDownLeftRightResizeCursor:   shape = XC_fleur; break;
+        case TopEdgeResizeCursor:           shape = XC_top_side; break;
+        case BottomEdgeResizeCursor:        shape = XC_bottom_side; break;
+        case LeftEdgeResizeCursor:          shape = XC_left_side; break;
+        case RightEdgeResizeCursor:         shape = XC_right_side; break;
+        case TopLeftCornerResizeCursor:     shape = XC_top_left_corner; break;
+        case TopRightCornerResizeCursor:    shape = XC_top_right_corner; break;
+        case BottomLeftCornerResizeCursor:  shape = XC_bottom_left_corner; break;
+        case BottomRightCornerResizeCursor: shape = XC_bottom_right_corner; break;
+        case CrosshairCursor:               shape = XC_crosshair; break;
 
-        case MouseCursor::DraggingHandCursor:
+        case DraggingHandCursor:
         {
-            static unsigned char dragHandData[] = {71,73,70,56,57,97,16,0,16,0,145,2,0,0,0,0,255,255,255,0,
-              0,0,0,0,0,33,249,4,1,0,0,2,0,44,0,0,0,0,16,0,
-              16,0,0,2,52,148,47,0,200,185,16,130,90,12,74,139,107,84,123,39,
-              132,117,151,116,132,146,248,60,209,138,98,22,203,114,34,236,37,52,77,217,
-              247,154,191,119,110,240,193,128,193,95,163,56,60,234,98,135,2,0,59 };
+            static unsigned char dragHandData[] = { 71,73,70,56,57,97,16,0,16,0,145,2,0,0,0,0,255,255,255,0,
+              0,0,0,0,0,33,249,4,1,0,0,2,0,44,0,0,0,0,16,0, 16,0,0,2,52,148,47,0,200,185,16,130,90,12,74,139,107,84,123,39,
+              132,117,151,116,132,146,248,60,209,138,98,22,203,114,34,236,37,52,77,217, 247,154,191,119,110,240,193,128,193,95,163,56,60,234,98,135,2,0,59 };
             const int dragHandDataSize = 99;
 
             const ScopedPointer <Image> im (ImageFileFormat::loadFrom (dragHandData, dragHandDataSize));
-            return juce_createMouseCursorFromImage (*im, 8, 7);
+            return createMouseCursorFromImage (*im, 8, 7);
         }
 
-        case MouseCursor::CopyingCursor:
+        case CopyingCursor:
         {
-            static unsigned char copyCursorData[] = {71,73,70,56,57,97,21,0,21,0,145,0,0,0,0,0,255,255,255,0,
-              128,128,255,255,255,33,249,4,1,0,0,3,0,44,0,0,0,0,21,0,
-              21,0,0,2,72,4,134,169,171,16,199,98,11,79,90,71,161,93,56,111,
-              78,133,218,215,137,31,82,154,100,200,86,91,202,142,12,108,212,87,235,174,
-              15,54,214,126,237,226,37,96,59,141,16,37,18,201,142,157,230,204,51,112,
+            static unsigned char copyCursorData[] = { 71,73,70,56,57,97,21,0,21,0,145,0,0,0,0,0,255,255,255,0,
+              128,128,255,255,255,33,249,4,1,0,0,3,0,44,0,0,0,0,21,0, 21,0,0,2,72,4,134,169,171,16,199,98,11,79,90,71,161,93,56,111,
+              78,133,218,215,137,31,82,154,100,200,86,91,202,142,12,108,212,87,235,174, 15,54,214,126,237,226,37,96,59,141,16,37,18,201,142,157,230,204,51,112,
               252,114,147,74,83,5,50,68,147,208,217,16,71,149,252,124,5,0,59,0,0 };
             const int copyCursorSize = 119;
 
             const ScopedPointer <Image> im (ImageFileFormat::loadFrom (copyCursorData, copyCursorSize));
-            return juce_createMouseCursorFromImage (*im, 1, 3);
+            return createMouseCursorFromImage (*im, 1, 3);
         }
 
-        case MouseCursor::WaitCursor:
-            shape = XC_watch;
-            break;
-
-        case MouseCursor::IBeamCursor:
-            shape = XC_xterm;
-            break;
-
-        case MouseCursor::PointingHandCursor:
-            shape = XC_hand2;
-            break;
-
-        case MouseCursor::LeftRightResizeCursor:
-            shape = XC_sb_h_double_arrow;
-            break;
-
-        case MouseCursor::UpDownResizeCursor:
-            shape = XC_sb_v_double_arrow;
-            break;
-
-        case MouseCursor::UpDownLeftRightResizeCursor:
-            shape = XC_fleur;
-            break;
-
-        case MouseCursor::TopEdgeResizeCursor:
-            shape = XC_top_side;
-            break;
-
-        case MouseCursor::BottomEdgeResizeCursor:
-            shape = XC_bottom_side;
-            break;
-
-        case MouseCursor::LeftEdgeResizeCursor:
-            shape = XC_left_side;
-            break;
-
-        case MouseCursor::RightEdgeResizeCursor:
-            shape = XC_right_side;
-            break;
-
-        case MouseCursor::TopLeftCornerResizeCursor:
-            shape = XC_top_left_corner;
-            break;
-
-        case MouseCursor::TopRightCornerResizeCursor:
-            shape = XC_top_right_corner;
-            break;
-
-        case MouseCursor::BottomLeftCornerResizeCursor:
-            shape = XC_bottom_left_corner;
-            break;
-
-        case MouseCursor::BottomRightCornerResizeCursor:
-            shape = XC_bottom_right_corner;
-            break;
-
-        case MouseCursor::CrosshairCursor:
-            shape = XC_crosshair;
-            break;
-
         default:
-            return (void*) None; // Use parent cursor
+            jassertfalse;
+            return None;
     }
 
     ScopedXLock xlock;
@@ -3303,7 +3238,7 @@ public:
                                         CWBorderPixel | CWColormap | CWEventMask,
                                         &swa);
 
-        XSaveContext (display, (XID) embeddedWindow, improbableNumber, (XPointer) peer);
+        XSaveContext (display, (XID) embeddedWindow, windowHandleXContext, (XPointer) peer);
 
         XMapWindow (display, embeddedWindow);
         XFreeColormap (display, colourMap);
@@ -3423,13 +3358,13 @@ void OpenGLPixelFormat::getAvailablePixelFormats (Component* component,
 //==============================================================================
 bool DragAndDropContainer::performExternalDragDropOfFiles (const StringArray& files, const bool canMoveFiles)
 {
-    jassertfalse    // not implemented!
+    jassertfalse;    // not implemented!
     return false;
 }
 
 bool DragAndDropContainer::performExternalDragDropOfText (const String& text)
 {
-    jassertfalse    // not implemented!
+    jassertfalse;    // not implemented!
     return false;
 }
 

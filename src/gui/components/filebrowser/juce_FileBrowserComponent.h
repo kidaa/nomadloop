@@ -29,7 +29,7 @@
 #include "juce_DirectoryContentsDisplayComponent.h"
 #include "juce_FilePreviewComponent.h"
 #include "../../../io/files/juce_File.h"
-#include "../../../containers/juce_BitArray.h"
+#include "../../../containers/juce_BigInteger.h"
 #include "../controls/juce_TextEditor.h"
 #include "../controls/juce_ComboBox.h"
 #include "../buttons/juce_DrawableButton.h"
@@ -113,6 +113,10 @@ public:
         @see getHighlightedFile
     */
     const File getSelectedFile (int index) const throw();
+
+    /** Deselects any files that are currently selected.
+    */
+    void deselectAllFiles();
 
     /** Returns true if the currently selected file(s) are usable.
 

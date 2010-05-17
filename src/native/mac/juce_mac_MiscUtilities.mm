@@ -85,7 +85,7 @@ bool AlertWindow::showNativeDialogBox (const String& title,
 }
 
 //==============================================================================
-bool DragAndDropContainer::performExternalDragDropOfFiles (const StringArray& files, const bool canMoveFiles)
+bool DragAndDropContainer::performExternalDragDropOfFiles (const StringArray& files, const bool /*canMoveFiles*/)
 {
     if (files.size() == 0)
         return false;
@@ -94,7 +94,7 @@ bool DragAndDropContainer::performExternalDragDropOfFiles (const StringArray& fi
 
     if (draggingSource == 0)
     {
-        jassertfalse  // This method must be called in response to a component's mouseDown or mouseDrag event!
+        jassertfalse;  // This method must be called in response to a component's mouseDown or mouseDrag event!
         return false;
     }
 
@@ -102,7 +102,7 @@ bool DragAndDropContainer::performExternalDragDropOfFiles (const StringArray& fi
 
     if (sourceComp == 0)
     {
-        jassertfalse  // This method must be called in response to a component's mouseDown or mouseDrag event!
+        jassertfalse;  // This method must be called in response to a component's mouseDown or mouseDrag event!
         return false;
     }
 
@@ -140,9 +140,9 @@ bool DragAndDropContainer::performExternalDragDropOfFiles (const StringArray& fi
     return true;
 }
 
-bool DragAndDropContainer::performExternalDragDropOfText (const String& text)
+bool DragAndDropContainer::performExternalDragDropOfText (const String& /*text*/)
 {
-    jassertfalse    // not implemented!
+    jassertfalse;    // not implemented!
     return false;
 }
 
@@ -174,7 +174,7 @@ class ScreenSaverDefeater   : public Timer,
                               public DeletedAtShutdown
 {
 public:
-    ScreenSaverDefeater() throw()
+    ScreenSaverDefeater()
     {
         startTimer (10000);
         timerCallback();
@@ -191,19 +191,15 @@ public:
 
 static ScreenSaverDefeater* screenSaverDefeater = 0;
 
-void Desktop::setScreenSaverEnabled (const bool isEnabled) throw()
+void Desktop::setScreenSaverEnabled (const bool isEnabled)
 {
     if (isEnabled)
-    {
         deleteAndZero (screenSaverDefeater);
-    }
     else if (screenSaverDefeater == 0)
-    {
         screenSaverDefeater = new ScreenSaverDefeater();
-    }
 }
 
-bool Desktop::isScreenSaverEnabled() throw()
+bool Desktop::isScreenSaverEnabled()
 {
     return screenSaverDefeater == 0;
 }
@@ -212,7 +208,7 @@ bool Desktop::isScreenSaverEnabled() throw()
 //==============================================================================
 static IOPMAssertionID screenSaverDisablerID = 0;
 
-void Desktop::setScreenSaverEnabled (const bool isEnabled) throw()
+void Desktop::setScreenSaverEnabled (const bool isEnabled)
 {
     if (isEnabled)
     {
@@ -237,7 +233,7 @@ void Desktop::setScreenSaverEnabled (const bool isEnabled) throw()
     }
 }
 
-bool Desktop::isScreenSaverEnabled() throw()
+bool Desktop::isScreenSaverEnabled()
 {
     return screenSaverDisablerID == 0;
 }

@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -24,7 +24,15 @@
 */
 
 #include "../../jucer_Headers.h"
+#include "../../model/Component/jucer_ComponentDocument.h"
+#include "../jucer_JucerTreeViewBase.h"
+#include "../Editor Base/jucer_EditorPanel.h"
+#include "../Editor Base/jucer_EditorDragOperation.h"
 #include "jucer_ComponentEditor.h"
+#include "jucer_ComponentEditorCanvas.h"
+#include "jucer_ComponentEditorTreeView.h"
+#include "jucer_ComponentEditorCodeView.h"
+#include "jucer_ComponentEditorToolbar.h"
 
 
 //==============================================================================
@@ -56,89 +64,41 @@ private:
     PropertyPanelWithTooltips* panel;
 };
 
+
 //==============================================================================
-class ComponentEditor::LayoutEditorHolder  : public Component
+class ComponentEditor::LayoutEditorHolder  : public EditorPanelBase
 {
 public:
     LayoutEditorHolder (ComponentEditor& editor_)
-        : editor (editor_), infoPanel (0)
+        : toolbarFactory (editor_),
+          editor (editor_)
     {
-        addAndMakeVisible (viewport = new Viewport());
     }
 
     ~LayoutEditorHolder()
     {
-        deleteAndZero (infoPanel);
-        deleteAllChildren();
+        shutdown();
     }
 
     void createCanvas()
     {
-        viewport->setViewedComponent (new ComponentEditorCanvas (editor));
-        addAndMakeVisible (infoPanel = new InfoPanel (editor));
+        initialise (new ComponentEditorCanvas (editor), toolbarFactory,
+                    new ComponentEditorTreeView::Root (editor));
     }
 
-    void resized()
+    SelectedItemSet<String>& getSelection()
     {
-        const int infoPanelWidth = 200;
-        viewport->setBounds (0, 0, getWidth() - infoPanelWidth, getHeight());
-
-        if (infoPanel != 0)
-            infoPanel->setBounds (getWidth() - infoPanelWidth, 0, infoPanelWidth, getHeight());
+        return editor.getSelection();
     }
 
-    Viewport* getViewport() const   { return viewport; }
+    void getSelectedItemProperties (Array<PropertyComponent*>& newComps)
+    {
+        editor.getSelectedItemProperties (newComps);
+    }
 
 private:
-    class InfoPanel  : public Component,
-                       public ChangeListener
-    {
-    public:
-        InfoPanel (ComponentEditor& editor_)
-          : editor (editor_)
-        {
-            setOpaque (true);
-
-            addAndMakeVisible (props = new PropertyPanel());
-
-            editor.getCanvas()->getSelection().addChangeListener (this);
-        }
-
-        ~InfoPanel()
-        {
-            editor.getCanvas()->getSelection().removeChangeListener (this);
-
-            props->clear();
-            deleteAllChildren();
-        }
-
-        void changeListenerCallback (void*)
-        {
-            Array <PropertyComponent*> newComps;
-            editor.getCanvas()->getSelectedItemProperties (newComps);
-
-            props->clear();
-            props->addProperties (newComps);
-        }
-
-        void paint (Graphics& g)
-        {
-            g.fillAll (Colour::greyLevel (0.92f));
-        }
-
-        void resized()
-        {
-            props->setSize (getWidth(), getHeight());
-        }
-
-    private:
-        ComponentEditor& editor;
-        PropertyPanel* props;
-    };
-
+    ComponentEditorToolbarFactory toolbarFactory;
     ComponentEditor& editor;
-    Viewport* viewport;
-    InfoPanel* infoPanel;
 };
 
 //==============================================================================
@@ -158,27 +118,11 @@ private:
     ComponentEditor& editor;
 };
 
-//==============================================================================
-class ComponentEditor::CodeEditorHolder  : public Component
-{
-public:
-    CodeEditorHolder (ComponentEditor& editor_)
-        : editor (editor_)
-    {
-    }
-
-    ~CodeEditorHolder()
-    {
-    }
-
-private:
-    ComponentEditor& editor;
-};
 
 //==============================================================================
-ComponentEditor::ComponentEditor (OpenDocumentManager::Document* document,
+ComponentEditor::ComponentEditor (OpenDocumentManager::Document* document_,
                                   Project* project_, ComponentDocument* componentDocument_)
-    : DocumentEditorComponent (document),
+    : DocumentEditorComponent (document_),
       project (project_),
       componentDocument (componentDocument_),
       classInfoHolder (0),
@@ -199,6 +143,7 @@ ComponentEditor::ComponentEditor (OpenDocumentManager::Document* document,
 
     addAndMakeVisible (tabs = new TabbedComponent (TabbedButtonBar::TabsAtRight));
     tabs->setTabBarDepth (22);
+    tabs->setOutline (0);
 
     tabs->addTab ("Class Settings", Colour::greyLevel (0.88f), classInfoHolder, true);
     tabs->addTab ("Components", Colours::white, layoutEditorHolder, true);
@@ -223,16 +168,119 @@ void ComponentEditor::resized()
     tabs->setBounds (getLocalBounds());
 }
 
-ComponentEditorCanvas* ComponentEditor::getCanvas() const
+const StringArray ComponentEditor::getSelectedIds() const
 {
-    return dynamic_cast <ComponentEditorCanvas*> (getViewport()->getViewedComponent());
+    StringArray ids;
+    const int num = selection.getNumSelected();
+    for (int i = 0; i < num; ++i)
+        ids.add (selection.getSelectedItem(i));
+
+    return ids;
 }
 
-Viewport* ComponentEditor::getViewport() const
+void ComponentEditor::getSelectedItemProperties (Array <PropertyComponent*>& props)
 {
-    return layoutEditorHolder->getViewport();
+    getDocument().createItemProperties (props, getSelectedIds());
 }
 
+void ComponentEditor::deleteSelection()
+{
+    const StringArray ids (getSelectedIds());
+    getSelection().deselectAll();
+
+    getDocument().beginNewTransaction();
+
+    for (int i = ids.size(); --i >= 0;)
+    {
+        const ValueTree comp (getDocument().getComponentWithID (ids[i]));
+
+        if (comp.isValid())
+            getDocument().removeComponent (comp);
+    }
+
+    getDocument().beginNewTransaction();
+}
+
+void ComponentEditor::deselectNonComponents()
+{
+    EditorCanvasBase::SelectedItems& sel = getSelection();
+
+    for (int i = sel.getNumSelected(); --i >= 0;)
+        if (! getDocument().getComponentWithID (sel.getSelectedItem (i)).isValid())
+            sel.deselect (sel.getSelectedItem (i));
+}
+
+void ComponentEditor::selectionToFront()
+{
+    getDocument().beginNewTransaction();
+
+    int index = 0;
+    for (int i = getDocument().getNumComponents(); --i >= 0;)
+    {
+        const ValueTree comp (getDocument().getComponent (index));
+
+        if (comp.isValid() && getSelection().isSelected (comp [ComponentDocument::idProperty]))
+        {
+            ValueTree parent (comp.getParent());
+            parent.moveChild (parent.indexOf (comp), -1, getDocument().getUndoManager());
+        }
+        else
+        {
+            ++index;
+        }
+    }
+
+    getDocument().beginNewTransaction();
+}
+
+void ComponentEditor::selectionToBack()
+{
+    getDocument().beginNewTransaction();
+
+    int index = getDocument().getNumComponents() - 1;
+    for (int i = getDocument().getNumComponents(); --i >= 0;)
+    {
+        const ValueTree comp (getDocument().getComponent (index));
+
+        if (comp.isValid() && getSelection().isSelected (comp [ComponentDocument::idProperty]))
+        {
+            ValueTree parent (comp.getParent());
+            parent.moveChild (parent.indexOf (comp), 0, getDocument().getUndoManager());
+        }
+        else
+        {
+            --index;
+        }
+    }
+
+    getDocument().beginNewTransaction();
+}
+
+//==============================================================================
+void ComponentEditor::showNewComponentMenu (Component* componentToAttachTo)
+{
+    PopupMenu m;
+    getDocument().addNewComponentMenuItems (m);
+
+    const int r = m.showAt (componentToAttachTo);
+
+    const ValueTree newComp (getDocument().performNewComponentMenuItem (r));
+
+    if (newComp.isValid())
+        getSelection().selectOnly (newComp [ComponentDocument::idProperty]);
+}
+
+//==============================================================================
+void ComponentEditor::test()
+{
+    ScopedPointer<Component> testComp (document->createViewer());
+    TooltipWindow tooltipWindow;
+
+    DialogWindow::showModalDialog ("Testing: " + getDocument().getClassName().toString(),
+                                   testComp, this, Colours::lightgrey, true, true);
+}
+
+//==============================================================================
 void ComponentEditor::getAllCommands (Array <CommandID>& commands)
 {
     DocumentEditorComponent::getAllCommands (commands);
@@ -241,6 +289,11 @@ void ComponentEditor::getAllCommands (Array <CommandID>& commands)
                               CommandIDs::redo,
                               CommandIDs::toFront,
                               CommandIDs::toBack,
+                              CommandIDs::test,
+                              CommandIDs::showOrHideProperties,
+                              CommandIDs::showOrHideTree,
+                              CommandIDs::showOrHideMarkers,
+                              CommandIDs::toggleSnapping,
                               StandardApplicationCommandIDs::del };
 
     commands.addArray (ids, numElementsInArray (ids));
@@ -271,6 +324,31 @@ void ComponentEditor::getCommandInfo (CommandID commandID, ApplicationCommandInf
         result.setInfo ("Send to Back", "Moves the selected items to the back", CommandCategories::editing, 0);
         break;
 
+    case CommandIDs::test:
+        result.setInfo ("Test", "Test the current component", CommandCategories::editing, 0);
+        result.defaultKeypresses.add (KeyPress ('t', ModifierKeys::commandModifier, 0));
+        break;
+
+    case CommandIDs::showOrHideProperties:
+        result.setInfo ("Show/Hide Tree", "Shows or hides the component tree view", CommandCategories::editing, 0);
+        result.setTicked (layoutEditorHolder != 0 && layoutEditorHolder->arePropertiesVisible());
+        break;
+
+    case CommandIDs::showOrHideTree:
+        result.setInfo ("Show/Hide Properties", "Shows or hides the component properties panel", CommandCategories::editing, 0);
+        result.setTicked (layoutEditorHolder != 0 && layoutEditorHolder->isTreeVisible());
+        break;
+
+    case CommandIDs::showOrHideMarkers:
+        result.setInfo ("Show/Hide Markers", "Shows or hides the markers", CommandCategories::editing, 0);
+        result.setTicked (layoutEditorHolder != 0 && layoutEditorHolder->areMarkersVisible());
+        break;
+
+    case CommandIDs::toggleSnapping:
+        result.setInfo ("Toggle snapping", "Turns object snapping on or off", CommandCategories::editing, 0);
+        result.setTicked (layoutEditorHolder != 0 && layoutEditorHolder->isSnappingEnabled());
+        break;
+
     case StandardApplicationCommandIDs::del:
         result.setInfo ("Delete", String::empty, CommandCategories::general, 0);
         result.defaultKeypresses.add (KeyPress (KeyPress::deleteKey, 0, 0));
@@ -288,23 +366,45 @@ bool ComponentEditor::perform (const InvocationInfo& info)
     switch (info.commandID)
     {
     case CommandIDs::undo:
+        getDocument().getUndoManager()->beginNewTransaction();
         getDocument().getUndoManager()->undo();
         return true;
 
     case CommandIDs::redo:
+        getDocument().getUndoManager()->beginNewTransaction();
         getDocument().getUndoManager()->redo();
         return true;
 
     case CommandIDs::toFront:
-        getCanvas()->selectionToFront();
+        selectionToFront();
         return true;
 
     case CommandIDs::toBack:
-        getCanvas()->selectionToBack();
+        selectionToBack();
+        return true;
+
+    case CommandIDs::test:
+        test();
+        return true;
+
+    case CommandIDs::showOrHideProperties:
+        layoutEditorHolder->showOrHideProperties();
+        return true;
+
+    case CommandIDs::showOrHideTree:
+        layoutEditorHolder->showOrHideTree();
+        return true;
+
+    case CommandIDs::showOrHideMarkers:
+        layoutEditorHolder->showOrHideMarkers();
+        return true;
+
+    case CommandIDs::toggleSnapping:
+        layoutEditorHolder->toggleSnapping();
         return true;
 
     case StandardApplicationCommandIDs::del:
-        getCanvas()->deleteSelection();
+        deleteSelection();
         return true;
 
     default:

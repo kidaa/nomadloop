@@ -176,7 +176,7 @@ void DocumentWindow::closeButtonPressed()
         still get cleaned-up if the app is quit by some other means (e.g. a cmd-Q on the mac
         or closing it via the taskbar icon on Windows).
     */
-    jassertfalse
+    jassertfalse;
 }
 
 void DocumentWindow::minimiseButtonPressed()
@@ -304,18 +304,18 @@ Button* DocumentWindow::getMaximiseButton() const throw()
 
 int DocumentWindow::getDesktopWindowStyleFlags() const
 {
-    int flags = ResizableWindow::getDesktopWindowStyleFlags();
+    int styleFlags = ResizableWindow::getDesktopWindowStyleFlags();
 
     if ((requiredButtons & minimiseButton) != 0)
-        flags |= ComponentPeer::windowHasMinimiseButton;
+        styleFlags |= ComponentPeer::windowHasMinimiseButton;
 
     if ((requiredButtons & maximiseButton) != 0)
-        flags |= ComponentPeer::windowHasMaximiseButton;
+        styleFlags |= ComponentPeer::windowHasMaximiseButton;
 
     if ((requiredButtons & closeButton) != 0)
-        flags |= ComponentPeer::windowHasCloseButton;
+        styleFlags |= ComponentPeer::windowHasCloseButton;
 
-    return flags;
+    return styleFlags;
 }
 
 void DocumentWindow::lookAndFeelChanged()

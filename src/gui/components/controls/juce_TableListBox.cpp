@@ -28,7 +28,7 @@
 BEGIN_JUCE_NAMESPACE
 
 #include "juce_TableListBox.h"
-#include "../../../containers/juce_BitArray.h"
+#include "../../../containers/juce_BigInteger.h"
 #include "../../../core/juce_Random.h"
 #include "../mouse/juce_DragAndDropContainer.h"
 #include "../../graphics/imaging/juce_Image.h"
@@ -100,7 +100,7 @@ public:
         {
             jassert (row >= 0);
 
-            const var::identifier tagPropertyName ("_tableLastUseNum");
+            const Identifier tagPropertyName ("_tableLastUseNum");
             const int newTag = Random::getSystemRandom().nextInt();
 
             const TableHeaderComponent* const header = owner.getHeader();
@@ -191,7 +191,7 @@ public:
     {
         if (isEnabled() && owner.getModel() != 0 && ! (e.mouseWasClicked() || isDragging))
         {
-            const SparseSet <int> selectedRows (owner.getSelectedRows());
+            const SparseSet<int> selectedRows (owner.getSelectedRows());
 
             if (selectedRows.size() > 0)
             {

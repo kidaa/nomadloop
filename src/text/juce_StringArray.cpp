@@ -46,21 +46,21 @@ StringArray::StringArray (const String& firstValue)
     strings.add (firstValue);
 }
 
-StringArray::StringArray (const juce_wchar** const initialStrings,
+StringArray::StringArray (const juce_wchar* const* const initialStrings,
                           const int numberOfStrings)
 {
     for (int i = 0; i < numberOfStrings; ++i)
         strings.add (initialStrings [i]);
 }
 
-StringArray::StringArray (const char** const initialStrings,
+StringArray::StringArray (const char* const* const initialStrings,
                           const int numberOfStrings)
 {
     for (int i = 0; i < numberOfStrings; ++i)
         strings.add (initialStrings [i]);
 }
 
-StringArray::StringArray (const juce_wchar** const initialStrings)
+StringArray::StringArray (const juce_wchar* const* const initialStrings)
 {
     int i = 0;
 
@@ -68,7 +68,7 @@ StringArray::StringArray (const juce_wchar** const initialStrings)
         strings.add (initialStrings [i++]);
 }
 
-StringArray::StringArray (const char** const initialStrings)
+StringArray::StringArray (const char* const* const initialStrings)
 {
     int i = 0;
 
@@ -116,6 +116,12 @@ const String& StringArray::operator[] (const int index) const throw()
     return String::empty;
 }
 
+String& StringArray::getReference (const int index) throw()
+{
+    jassert (((unsigned int) index) < (unsigned int) strings.size());
+    return strings.getReference (index);
+}
+
 void StringArray::add (const String& newString)
 {
     strings.add (newString);
@@ -136,7 +142,7 @@ void StringArray::addArray (const StringArray& otherArray, int startIndex, int n
 {
     if (startIndex < 0)
     {
-        jassertfalse
+        jassertfalse;
         startIndex = 0;
     }
 
@@ -222,6 +228,11 @@ void StringArray::removeString (const String& stringToRemove,
             if (stringToRemove == strings.getReference (i))
                 strings.remove (i);
     }
+}
+
+void StringArray::removeRange (int startIndex, int numberToRemove)
+{
+    strings.removeRange (startIndex, numberToRemove);
 }
 
 //==============================================================================
@@ -461,10 +472,10 @@ void StringArray::appendNumbersToDuplicates (const bool ignoreCase,
                                              const juce_wchar* postNumberString)
 {
     if (preNumberString == 0)
-        preNumberString = T(" (");
+        preNumberString = L" (";
 
     if (postNumberString == 0)
-        postNumberString = T(")");
+        postNumberString = L")";
 
     for (int i = 0; i < size() - 1; ++i)
     {

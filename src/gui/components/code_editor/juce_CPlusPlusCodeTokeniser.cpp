@@ -51,39 +51,70 @@ static bool isIdentifierStart (const juce_wchar c) throw()
 
 static bool isIdentifierBody (const juce_wchar c) throw()
 {
-    return CharacterFunctions::isLetter (c)
-            || CharacterFunctions::isDigit (c)
+    return CharacterFunctions::isLetterOrDigit (c)
             || c == '_' || c == '@';
+}
+
+static bool isReservedKeyword (const juce_wchar* const token, const int tokenLength) throw()
+{
+    static const juce_wchar* const keywords2Char[] =
+        { JUCE_T("if"), JUCE_T("do"), JUCE_T("or"), JUCE_T("id"), 0 };
+
+    static const juce_wchar* const keywords3Char[] =
+        { JUCE_T("for"), JUCE_T("int"), JUCE_T("new"), JUCE_T("try"), JUCE_T("xor"), JUCE_T("and"), JUCE_T("asm"), JUCE_T("not"), 0 };
+
+    static const juce_wchar* const keywords4Char[] =
+        { JUCE_T("bool"), JUCE_T("void"), JUCE_T("this"), JUCE_T("true"), JUCE_T("long"), JUCE_T("else"), JUCE_T("char"),
+          JUCE_T("enum"), JUCE_T("case"), JUCE_T("goto"), JUCE_T("auto"), 0 };
+
+    static const juce_wchar* const keywords5Char[] =
+        {  JUCE_T("while"), JUCE_T("bitor"), JUCE_T("break"), JUCE_T("catch"), JUCE_T("class"), JUCE_T("compl"), JUCE_T("const"), JUCE_T("false"),
+            JUCE_T("float"), JUCE_T("short"), JUCE_T("throw"), JUCE_T("union"), JUCE_T("using"), JUCE_T("or_eq"), 0 };
+
+    static const juce_wchar* const keywords6Char[] =
+        { JUCE_T("return"), JUCE_T("struct"), JUCE_T("and_eq"), JUCE_T("bitand"), JUCE_T("delete"), JUCE_T("double"), JUCE_T("extern"),
+          JUCE_T("friend"), JUCE_T("inline"), JUCE_T("not_eq"), JUCE_T("public"), JUCE_T("sizeof"), JUCE_T("static"), JUCE_T("signed"),
+          JUCE_T("switch"), JUCE_T("typeid"), JUCE_T("wchar_t"), JUCE_T("xor_eq"), 0};
+
+    static const juce_wchar* const keywordsOther[] =
+        { JUCE_T("const_cast"), JUCE_T("continue"), JUCE_T("default"), JUCE_T("explicit"), JUCE_T("mutable"), JUCE_T("namespace"),
+          JUCE_T("operator"), JUCE_T("private"), JUCE_T("protected"), JUCE_T("register"), JUCE_T("reinterpret_cast"), JUCE_T("static_cast"),
+          JUCE_T("template"), JUCE_T("typedef"), JUCE_T("typename"), JUCE_T("unsigned"), JUCE_T("virtual"), JUCE_T("volatile"),
+          JUCE_T("@implementation"), JUCE_T("@interface"), JUCE_T("@end"), JUCE_T("@synthesize"), JUCE_T("@dynamic"), JUCE_T("@public"),
+          JUCE_T("@private"), JUCE_T("@property"), JUCE_T("@protected"), JUCE_T("@class"), 0 };
+
+    const juce_wchar* const* k;
+
+    switch (tokenLength)
+    {
+        case 2:     k = keywords2Char; break;
+        case 3:     k = keywords3Char; break;
+        case 4:     k = keywords4Char; break;
+        case 5:     k = keywords5Char; break;
+        case 6:     k = keywords6Char; break;
+
+        default:
+            if (tokenLength < 2 || tokenLength > 16)
+                return false;
+
+            k = keywordsOther;
+            break;
+    }
+
+    int i = 0;
+    while (k[i] != 0)
+    {
+        if (k[i][0] == token[0] && CharacterFunctions::compare (k[i], token) == 0)
+            return true;
+
+        ++i;
+    }
+
+    return false;
 }
 
 static int parseIdentifier (CodeDocument::Iterator& source) throw()
 {
-    static const juce_wchar* keywords2Char[] =
-        { T("if"), T("do"), T("or"), 0 };
-
-    static const juce_wchar* keywords3Char[] =
-        { T("for"), T("int"), T("new"), T("try"), T("xor"), T("and"), T("asm"), T("not"), 0 };
-
-    static const juce_wchar* keywords4Char[] =
-        { T("bool"), T("void"), T("this"), T("true"), T("long"), T("else"), T("char"),
-          T("enum"), T("case"), T("goto"), T("auto"), 0 };
-
-    static const juce_wchar* keywords5Char[] =
-        {  T("while"), T("bitor"), T("break"), T("catch"), T("class"), T("compl"), T("const"), T("false"),
-            T("float"), T("short"), T("throw"), T("union"), T("using"), T("or_eq"), 0 };
-
-    static const juce_wchar* keywords6Char[] =
-        { T("return"), T("struct"), T("and_eq"), T("bitand"), T("delete"), T("double"), T("extern"),
-          T("friend"), T("inline"), T("not_eq"), T("public"), T("sizeof"), T("static"), T("signed"),
-          T("switch"), T("typeid"), T("wchar_t"), T("xor_eq"), 0};
-
-    static const juce_wchar* keywordsOther[] =
-        { T("const_cast"), T("continue"), T("default"), T("explicit"), T("mutable"), T("namespace"),
-          T("operator"), T("private"), T("protected"), T("register"), T("reinterpret_cast"), T("static_cast"),
-          T("template"), T("typedef"), T("typename"), T("unsigned"), T("virtual"), T("volatile"),
-          T("@implementation"), T("@interface"), T("@end"), T("@synthesize"), T("@dynamic"), T("@public"),
-          T("@private"), T("@property"), T("@protected"), T("@class"), 0 };
-
     int tokenLength = 0;
     juce_wchar possibleIdentifier [19];
 
@@ -100,26 +131,9 @@ static int parseIdentifier (CodeDocument::Iterator& source) throw()
     if (tokenLength > 1 && tokenLength <= 16)
     {
         possibleIdentifier [tokenLength] = 0;
-        const juce_wchar** k;
 
-        switch (tokenLength)
-        {
-            case 2:     k = keywords2Char; break;
-            case 3:     k = keywords3Char; break;
-            case 4:     k = keywords4Char; break;
-            case 5:     k = keywords5Char; break;
-            case 6:     k = keywords6Char; break;
-            default:    k = keywordsOther; break;
-        }
-
-        int i = 0;
-        while (k[i] != 0)
-        {
-            if (k[i][0] == possibleIdentifier[0] && CharacterFunctions::compare (k[i], possibleIdentifier) == 0)
-                return CPlusPlusCodeTokeniser::tokenType_builtInKeyword;
-
-            ++i;
-        }
+        if (isReservedKeyword (possibleIdentifier, tokenLength))
+            return CPlusPlusCodeTokeniser::tokenType_builtInKeyword;
     }
 
     return CPlusPlusCodeTokeniser::tokenType_identifier;
@@ -551,25 +565,28 @@ int CPlusPlusCodeTokeniser::readNextToken (CodeDocument::Iterator& source)
         break;
     }
 
-    //jassert (result != tokenType_unknown);
     return result;
 }
 
 const StringArray CPlusPlusCodeTokeniser::getTokenTypes()
 {
-    StringArray s;
-    s.add ("Error");
-    s.add ("Comment");
-    s.add ("C++ keyword");
-    s.add ("Identifier");
-    s.add ("Integer literal");
-    s.add ("Float literal");
-    s.add ("String literal");
-    s.add ("Operator");
-    s.add ("Bracket");
-    s.add ("Punctuation");
-    s.add ("Preprocessor line");
-    return s;
+    const char* const types[] =
+    {
+        "Error",
+        "Comment",
+        "C++ keyword",
+        "Identifier",
+        "Integer literal",
+        "Float literal",
+        "String literal",
+        "Operator",
+        "Bracket",
+        "Punctuation",
+        "Preprocessor line",
+        0
+    };
+
+    return StringArray (types);
 }
 
 const Colour CPlusPlusCodeTokeniser::getDefaultColour (const int tokenType)
@@ -595,5 +612,9 @@ const Colour CPlusPlusCodeTokeniser::getDefaultColour (const int tokenType)
     return Colours::black;
 }
 
+bool CPlusPlusCodeTokeniser::isReservedKeyword (const String& token) throw()
+{
+    return CppTokeniser::isReservedKeyword (token, token.length());
+}
 
 END_JUCE_NAMESPACE

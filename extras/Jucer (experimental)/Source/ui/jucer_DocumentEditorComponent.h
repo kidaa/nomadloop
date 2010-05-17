@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -33,7 +33,8 @@
 /**
 */
 class DocumentEditorComponent  : public Component,
-                                 public ApplicationCommandTarget
+                                 public ApplicationCommandTarget,
+                                 public OpenDocumentManager::DocumentCloseListener
 {
 public:
     //==============================================================================
@@ -41,7 +42,7 @@ public:
     ~DocumentEditorComponent();
 
     OpenDocumentManager::Document* getDocument() const              { return document; }
-    virtual void deleteSelf();
+    void documentAboutToClose (OpenDocumentManager::Document* document);
 
     //==============================================================================
     ApplicationCommandTarget* getNextCommandTarget();

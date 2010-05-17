@@ -30,7 +30,7 @@
 #include "../../../events/juce_AsyncUpdater.h"
 #include "../../../events/juce_ChangeBroadcaster.h"
 #include "../../../audio/midi/juce_MidiKeyboardState.h"
-#include "../../../containers/juce_BitArray.h"
+#include "../../../containers/juce_BigInteger.h"
 
 
 //==============================================================================
@@ -263,7 +263,7 @@ public:
 
         @see getOctaveForMiddleC
     */
-    void setOctaveForMiddleC (int octaveNumForMiddleC) throw();
+    void setOctaveForMiddleC (int octaveNumForMiddleC);
 
     /** This returns the value set by setOctaveForMiddleC().
         @see setOctaveForMiddleC

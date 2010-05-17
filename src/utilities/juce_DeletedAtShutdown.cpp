@@ -28,49 +28,45 @@
 BEGIN_JUCE_NAMESPACE
 
 #include "juce_DeletedAtShutdown.h"
-#include "../containers/juce_VoidArray.h"
+#include "../containers/juce_Array.h"
 #include "../threads/juce_ScopedLock.h"
 #include "../application/juce_Application.h"
 
 
 //==============================================================================
-static VoidArray objectsToDelete;
-static CriticalSection lock;
-
-//==============================================================================
 DeletedAtShutdown::DeletedAtShutdown()
 {
-    const ScopedLock sl (lock);
-    objectsToDelete.add (this);
+    const ScopedLock sl (getLock());
+    getObjects().add (this);
 }
 
 DeletedAtShutdown::~DeletedAtShutdown()
 {
-    const ScopedLock sl (lock);
-    objectsToDelete.removeValue (this);
+    const ScopedLock sl (getLock());
+    getObjects().removeValue (this);
 }
 
 void DeletedAtShutdown::deleteAll()
 {
     // make a local copy of the array, so it can't get into a loop if something
     // creates another DeletedAtShutdown object during its destructor.
-    VoidArray localCopy;
+    Array <DeletedAtShutdown*> localCopy;
 
     {
-        const ScopedLock sl (lock);
-        localCopy = objectsToDelete;
+        const ScopedLock sl (getLock());
+        localCopy = getObjects();
     }
 
     for (int i = localCopy.size(); --i >= 0;)
     {
         JUCE_TRY
         {
-            DeletedAtShutdown* deletee = static_cast <DeletedAtShutdown*> (localCopy.getUnchecked(i));
+            DeletedAtShutdown* deletee = localCopy.getUnchecked(i);
 
             // double-check that it's not already been deleted during another object's destructor.
             {
-                const ScopedLock sl (lock);
-                if (! objectsToDelete.contains (deletee))
+                const ScopedLock sl (getLock());
+                if (! getObjects().contains (deletee))
                     deletee = 0;
             }
 
@@ -81,9 +77,21 @@ void DeletedAtShutdown::deleteAll()
 
     // if no objects got re-created during shutdown, this should have been emptied by their
     // destructors
-    jassert (objectsToDelete.size() == 0);
+    jassert (getObjects().size() == 0);
 
-    objectsToDelete.clear(); // just to make sure the array doesn't have any memory still allocated
+    getObjects().clear(); // just to make sure the array doesn't have any memory still allocated
+}
+
+CriticalSection& DeletedAtShutdown::getLock()
+{
+    static CriticalSection lock;
+    return lock;
+}
+
+Array <DeletedAtShutdown*>& DeletedAtShutdown::getObjects()
+{
+    static Array <DeletedAtShutdown*> objects;
+    return objects;
 }
 
 END_JUCE_NAMESPACE

@@ -111,6 +111,9 @@ public:
     /** Returns the number of buttons that the window currently has. */
     int getNumButtons() const;
 
+    /** Invokes a click of one of the buttons. */
+    void triggerButtonClick (const String& buttonName);
+
     //==============================================================================
     /** Adds a textbox to the window for entering strings.
 
@@ -359,8 +362,8 @@ private:
     ComponentBoundsConstrainer constrainer;
     ComponentDragger dragger;
     Rectangle<int> textArea;
-    VoidArray buttons, textBoxes, comboBoxes;
-    VoidArray progressBars, customComps, textBlocks, allComps;
+    Array<void*> buttons, textBoxes, comboBoxes;
+    Array<void*> progressBars, customComps, textBlocks, allComps;
     StringArray textboxNames, comboBoxNames;
     Font font;
     Component* associatedComponent;

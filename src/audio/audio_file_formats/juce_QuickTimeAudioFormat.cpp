@@ -70,7 +70,7 @@ BEGIN_JUCE_NAMESPACE
 bool juce_OpenQuickTimeMovieFromStream (InputStream* input, Movie& movie, Handle& dataHandle);
 
 static const char* const quickTimeFormatName = "QuickTime file";
-static const juce_wchar* const quickTimeExtensions[] =    { T(".mov"), T(".mp3"), T(".mp4"), 0 };
+static const char* const quickTimeExtensions[] = { ".mov", ".mp3", ".mp4", 0 };
 
 //==============================================================================
 class QTAudioReader     : public AudioFormatReader
@@ -197,7 +197,9 @@ public:
         bufferList->mNumberBuffers = 1;
         bufferList->mBuffers[0].mNumberChannels = inputStreamDesc.mChannelsPerFrame;
         bufferList->mBuffers[0].mDataByteSize = (UInt32) (samplesPerFrame * inputStreamDesc.mBytesPerFrame) + 16;
-        bufferList->mBuffers[0].mData = malloc (bufferList->mBuffers[0].mDataByteSize);
+
+        dataBuffer.malloc (bufferList->mBuffers[0].mDataByteSize);
+        bufferList->mBuffers[0].mData = dataBuffer;
 
         sampleRate = inputStreamDesc.mSampleRate;
         bitsPerSample = 16;
@@ -220,8 +222,6 @@ public:
 
         checkThreadIsAttached();
         DisposeMovie (movie);
-
-        juce_free (bufferList->mBuffers[0].mData);
 
 #if JUCE_MAC
         ExitMoviesOnThread ();
@@ -307,6 +307,7 @@ private:
     MovieAudioExtractionRef extractor;
     AudioStreamBasicDescription inputStreamDesc;
     HeapBlock <AudioBufferList> bufferList;
+    HeapBlock <char> dataBuffer;
     Handle dataHandle;
 
     //==============================================================================
@@ -333,7 +334,7 @@ private:
 
 //==============================================================================
 QuickTimeAudioFormat::QuickTimeAudioFormat()
-    : AudioFormat (TRANS (quickTimeFormatName), (const juce_wchar**) quickTimeExtensions)
+    : AudioFormat (TRANS (quickTimeFormatName), StringArray (quickTimeExtensions))
 {
 }
 
@@ -383,7 +384,7 @@ AudioFormatWriter* QuickTimeAudioFormat::createWriterFor (OutputStream* /*stream
                                                           const StringPairArray& /*metadataValues*/,
                                                           int /*qualityOptionIndex*/)
 {
-    jassertfalse // not yet implemented!
+    jassertfalse; // not yet implemented!
     return 0;
 }
 

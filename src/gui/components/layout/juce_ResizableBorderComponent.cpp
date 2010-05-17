@@ -110,6 +110,25 @@ const Rectangle<int> ResizableBorderComponent::Zone::resizeRectangleBy (Rectangl
     return b;
 }
 
+const Rectangle<float> ResizableBorderComponent::Zone::resizeRectangleBy (Rectangle<float> b, const Point<float>& offset) const throw()
+{
+    if (isDraggingWholeObject())
+        return b + offset;
+
+    if (isDraggingLeftEdge())
+        b.setLeft (b.getX() + offset.getX());
+
+    if (isDraggingRightEdge())
+        b.setWidth (jmax (0.0f, b.getWidth() + offset.getX()));
+
+    if (isDraggingTopEdge())
+        b.setTop (b.getY() + offset.getY());
+
+    if (isDraggingBottomEdge())
+        b.setHeight (jmax (0.0f, b.getHeight() + offset.getY()));
+
+    return b;
+}
 
 //==============================================================================
 ResizableBorderComponent::ResizableBorderComponent (Component* const componentToResize,
@@ -145,7 +164,7 @@ void ResizableBorderComponent::mouseDown (const MouseEvent& e)
 {
     if (component == 0)
     {
-        jassertfalse // You've deleted the component that this resizer was supposed to be using!
+        jassertfalse; // You've deleted the component that this resizer was supposed to be using!
         return;
     }
 
@@ -161,7 +180,7 @@ void ResizableBorderComponent::mouseDrag (const MouseEvent& e)
 {
     if (component == 0)
     {
-        jassertfalse // You've deleted the component that this resizer was supposed to be using!
+        jassertfalse; // You've deleted the component that this resizer was supposed to be using!
         return;
     }
 

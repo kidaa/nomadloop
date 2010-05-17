@@ -59,18 +59,18 @@ void AudioFormatManager::registerFormat (AudioFormat* newFormat,
 
     if (newFormat != 0)
     {
-#ifdef JUCE_DEBUG
+#if JUCE_DEBUG
         for (int i = getNumKnownFormats(); --i >= 0;)
         {
             if (getKnownFormat (i)->getFormatName() == newFormat->getFormatName())
             {
-                jassertfalse // trying to add the same format twice!
+                jassertfalse; // trying to add the same format twice!
             }
         }
 #endif
 
         if (makeThisTheDefaultFormat)
-            defaultFormatIndex = knownFormats.size();
+            defaultFormatIndex = getNumKnownFormats();
 
         knownFormats.add (newFormat);
     }
@@ -97,9 +97,6 @@ void AudioFormatManager::registerBasicFormats()
 
 void AudioFormatManager::clearFormats()
 {
-    for (int i = getNumKnownFormats(); --i >= 0;)
-        delete getKnownFormat(i);
-
     knownFormats.clear();
     defaultFormatIndex = 0;
 }
@@ -111,7 +108,7 @@ int AudioFormatManager::getNumKnownFormats() const
 
 AudioFormat* AudioFormatManager::getKnownFormat (const int index) const
 {
-    return (AudioFormat*) knownFormats [index];
+    return knownFormats [index];
 }
 
 AudioFormat* AudioFormatManager::getDefaultFormat() const
@@ -165,7 +162,7 @@ AudioFormatReader* AudioFormatManager::createReaderFor (const File& file)
 {
     // you need to actually register some formats before the manager can
     // use them to open a file!
-    jassert (knownFormats.size() > 0);
+    jassert (getNumKnownFormats() > 0);
 
     for (int i = 0; i < getNumKnownFormats(); ++i)
     {
@@ -192,7 +189,7 @@ AudioFormatReader* AudioFormatManager::createReaderFor (InputStream* audioFileSt
 {
     // you need to actually register some formats before the manager can
     // use them to open a file!
-    jassert (knownFormats.size() > 0);
+    jassert (getNumKnownFormats() > 0);
 
     ScopedPointer <InputStream> in (audioFileStream);
 

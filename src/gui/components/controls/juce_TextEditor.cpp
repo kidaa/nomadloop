@@ -1036,15 +1036,17 @@ void TextEditor::doUndoRedo (const bool isRedo)
 void TextEditor::setMultiLine (const bool shouldBeMultiLine,
                                const bool shouldWordWrap)
 {
-    multiline = shouldBeMultiLine;
-    wordWrap = shouldWordWrap && shouldBeMultiLine;
+    if (multiline != shouldBeMultiLine
+         || wordWrap != (shouldWordWrap && shouldBeMultiLine))
+    {
+        multiline = shouldBeMultiLine;
+        wordWrap = shouldWordWrap && shouldBeMultiLine;
 
-    setScrollbarsShown (scrollbarVisible);
-
-    viewport->setViewPosition (0, 0);
-
-    resized();
-    scrollToMakeSureCursorIsVisible();
+        setScrollbarsShown (scrollbarVisible);
+        viewport->setViewPosition (0, 0);
+        resized();
+        scrollToMakeSureCursorIsVisible();
+    }
 }
 
 bool TextEditor::isMultiLine() const
@@ -1052,24 +1054,33 @@ bool TextEditor::isMultiLine() const
     return multiline;
 }
 
-void TextEditor::setScrollbarsShown (bool enabled)
+void TextEditor::setScrollbarsShown (bool shown)
 {
-    scrollbarVisible = enabled;
-
-    enabled = enabled && isMultiLine();
-
-    viewport->setScrollBarsShown (enabled, enabled);
+    if (scrollbarVisible != shown)
+    {
+        scrollbarVisible = shown;
+        shown = shown && isMultiLine();
+        viewport->setScrollBarsShown (shown, shown);
+    }
 }
 
 void TextEditor::setReadOnly (const bool shouldBeReadOnly)
 {
-    readOnly = shouldBeReadOnly;
-    enablementChanged();
+    if (readOnly != shouldBeReadOnly)
+    {
+        readOnly = shouldBeReadOnly;
+        enablementChanged();
+    }
 }
 
 bool TextEditor::isReadOnly() const
 {
     return readOnly || ! isEnabled();
+}
+
+bool TextEditor::isTextInputActive() const
+{
+    return ! isReadOnly();
 }
 
 void TextEditor::setReturnKeyStartsNewLine (const bool shouldStartNewLine)
@@ -1206,12 +1217,12 @@ void TextEditor::setText (const String& newText,
         if (sendTextChangeMessage)
             textChanged();
 
+        updateTextHolderSize();
+        scrollToMakeSureCursorIsVisible();
+        undoManager.clearUndoHistory();
+
         repaint();
     }
-
-    updateTextHolderSize();
-    scrollToMakeSureCursorIsVisible();
-    undoManager.clearUndoHistory();
 }
 
 //==============================================================================
@@ -1626,10 +1637,10 @@ void TextEditor::copy()
 {
     if (passwordCharacter == 0)
     {
-        const String selection (getHighlightedText());
+        const String selectedText (getHighlightedText());
 
-        if (selection.isNotEmpty())
-            SystemClipboard::copyTextToClipboard (selection);
+        if (selectedText.isNotEmpty())
+            SystemClipboard::copyTextToClipboard (selectedText);
     }
 }
 
@@ -2035,7 +2046,7 @@ bool TextEditor::keyStateChanged (const bool isKeyDown)
     if (! isKeyDown)
         return false;
 
-#if JUCE_WIN32
+#if JUCE_WINDOWS
     if (KeyPress (KeyPress::F4Key, ModifierKeys::altModifier, 0).isCurrentlyDown())
         return false;  // We need to explicitly allow alt-F4 to pass through on Windows
 #endif
@@ -2185,7 +2196,7 @@ void TextEditor::handleCommandMessage (const int commandId)
         break;
 
     default:
-        jassertfalse
+        jassertfalse;
         break;
     }
 }

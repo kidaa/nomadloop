@@ -60,6 +60,11 @@ const File FileListComponent::getSelectedFile (int index) const
     return fileList.getFile (getSelectedRow (index));
 }
 
+void FileListComponent::deselectAllFiles()
+{
+    deselectAllRows();
+}
+
 void FileListComponent::scrollToTop()
 {
     getVerticalScrollBar()->setCurrentRangeStart (0);
@@ -142,7 +147,7 @@ public:
         {
             newFile = root.getChildFile (fileInfo->filename);
             newFileSize = File::descriptionOfSizeInBytes (fileInfo->fileSize);
-            newModTime = fileInfo->modificationTime.formatted (T("%d %b '%y %H:%M"));
+            newModTime = fileInfo->modificationTime.formatted ("%d %b '%y %H:%M");
         }
 
         if (newFile != file

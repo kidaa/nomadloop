@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -28,17 +28,129 @@
 
 
 //==============================================================================
+class PopupColourSelector   : public Component,
+                              public ChangeListener,
+                              public Value::Listener,
+                              public ButtonListener
+{
+public:
+    PopupColourSelector (const Value& colourValue_,
+                         const Colour& defaultColour_,
+                         const bool canResetToDefault)
+        : defaultButton ("Reset to Default"),
+          colourValue (colourValue_),
+          defaultColour (defaultColour_)
+    {
+        addAndMakeVisible (&selector);
+        selector.setName ("Colour");
+        selector.setCurrentColour (getColour());
+        selector.addChangeListener (this);
+
+        if (canResetToDefault)
+        {
+            addAndMakeVisible (&defaultButton);
+            defaultButton.addButtonListener (this);
+        }
+
+        colourValue.addListener (this);
+    }
+
+    ~PopupColourSelector()
+    {
+    }
+
+    static void showAt (Component* comp, const Value& colourValue,
+                        const Colour& defaultColour, const bool canResetToDefault)
+    {
+        PopupColourSelector colourSelector (colourValue, defaultColour, canResetToDefault);
+
+        PopupMenu m;
+        m.addCustomItem (1234, &colourSelector, 300, 400, false);
+        m.showAt (comp);
+    }
+
+    void resized()
+    {
+        if (defaultButton.isVisible())
+        {
+            selector.setBounds (0, 0, getWidth(), getHeight() - 30);
+            defaultButton.changeWidthToFitText (22);
+            defaultButton.setTopLeftPosition (10, getHeight() - 26);
+        }
+        else
+        {
+            selector.setBounds (0, 0, getWidth(), getHeight());
+        }
+    }
+
+    const Colour getColour() const
+    {
+        if (colourValue.toString().isEmpty())
+            return defaultColour;
+
+        return Colour::fromString (colourValue.toString());
+    }
+
+    void setColour (const Colour& newColour)
+    {
+        if (getColour() != newColour)
+        {
+            if (newColour == defaultColour && defaultButton.isVisible())
+                colourValue = var::null;
+            else
+                colourValue = newColour.toDisplayString (true);
+        }
+    }
+
+    void buttonClicked (Button*)
+    {
+        setColour (defaultColour);
+        selector.setCurrentColour (defaultColour);
+    }
+
+    void changeListenerCallback (void* source)
+    {
+        if (selector.getCurrentColour() != getColour())
+            setColour (selector.getCurrentColour());
+    }
+
+    void valueChanged (Value&)
+    {
+        selector.setCurrentColour (getColour());
+    }
+
+private:
+    class ColourSelectorWithSwatches    : public ColourSelector
+    {
+    public:
+        ColourSelectorWithSwatches() {}
+
+        int getNumSwatches() const                      { return StoredSettings::getInstance()->swatchColours.size(); }
+        const Colour getSwatchColour (int index) const  { return StoredSettings::getInstance()->swatchColours [index]; }
+        void setSwatchColour (int index, const Colour& newColour) const { StoredSettings::getInstance()->swatchColours.set (index, newColour); }
+    };
+
+    ColourSelectorWithSwatches selector;
+    TextButton defaultButton;
+    Value colourValue;
+    Colour defaultColour;
+};
+
+//==============================================================================
 /**
     A component that shows a colour swatch with hex ARGB value, and which pops up
     a colour selector when you click it.
 */
 class ColourEditorComponent    : public Component,
-                                 public ChangeListener
+                                 public Value::Listener
 {
 public:
-    ColourEditorComponent (const bool canResetToDefault_)
-        : canResetToDefault (canResetToDefault_)
+    ColourEditorComponent (ComponentDocument& document_, const Value& colourValue_,
+                           const Colour& defaultColour_, const bool canResetToDefault_)
+        : document (document_), colourValue (colourValue_), defaultColour (defaultColour_),
+          canResetToDefault (canResetToDefault_)
     {
+        colourValue.addListener (this);
     }
 
     ~ColourEditorComponent()
@@ -47,8 +159,9 @@ public:
 
     void paint (Graphics& g)
     {
-        g.fillAll (Colours::grey);
+        const Colour colour (getColour());
 
+        g.fillAll (Colours::grey);
         g.fillCheckerBoard (2, 2, getWidth() - 4, getHeight() - 4,
                             10, 10,
                             Colour (0xffdddddd).overlaidWith (colour),
@@ -61,123 +174,88 @@ public:
                           Justification::centred, 1);
     }
 
-    virtual void setColour (const Colour& newColour) = 0;
-    virtual void resetToDefault() = 0;
-    virtual const Colour getColour() const = 0;
+    const Colour getColour() const
+    {
+        if (colourValue.toString().isEmpty())
+            return defaultColour;
+
+        return Colour::fromString (colourValue.toString());
+    }
+
+    void setColour (const Colour& newColour)
+    {
+        if (getColour() != newColour)
+        {
+            if (newColour == defaultColour && canResetToDefault)
+                colourValue = var::null;
+            else
+                colourValue = newColour.toDisplayString (true);
+        }
+    }
+
+    void resetToDefault()
+    {
+        setColour (defaultColour);
+    }
 
     void refresh()
     {
         const Colour col (getColour());
 
-        if (col != colour)
+        if (col != lastColour)
         {
-            colour = col;
+            lastColour = col;
             repaint();
         }
     }
 
     void mouseDown (const MouseEvent& e)
     {
-        ColourSelectorComp colourSelector (this, canResetToDefault);
-
-        PopupMenu m;
-        m.addCustomItem (1234, &colourSelector, 300, 400, false);
-        m.showAt (this);
+        document.getUndoManager()->beginNewTransaction();
+        PopupColourSelector::showAt (this, colourValue, defaultColour, canResetToDefault);
     }
 
-    void changeListenerCallback (void* source)
+    void valueChanged (Value&)
     {
-        const ColourSelector* const cs = (const ColourSelector*) source;
-
-        if (cs->getCurrentColour() != getColour())
-            setColour (cs->getCurrentColour());
+        refresh();
     }
 
     juce_UseDebuggingNewOperator
 
 private:
-    Colour colour;
-    bool canResetToDefault;
+    ComponentDocument& document;
+    Value colourValue;
+    Colour lastColour;
+    const Colour defaultColour;
+    const bool canResetToDefault;
+};
 
-    class ColourSelectorComp   : public Component,
-                                 public ButtonListener
+//==============================================================================
+class ColourPropertyComponent  : public PropertyComponent
+{
+public:
+    //==============================================================================
+    ColourPropertyComponent (ComponentDocument& document, const String& name, const Value& colour,
+                             const Colour& defaultColour, bool canResetToDefault)
+        : PropertyComponent (name),
+          colourEditor (document, colour, defaultColour, canResetToDefault)
     {
-    public:
-        ColourSelectorComp (ColourEditorComponent* owner_,
-                            const bool canResetToDefault)
-            : owner (owner_),
-              defaultButton (0)
-        {
-            addAndMakeVisible (selector = new ColourSelectorWithSwatches());
-            selector->setName ("Colour");
-            selector->setCurrentColour (owner->getColour());
-            selector->addChangeListener (owner);
+        addAndMakeVisible (&colourEditor);
+    }
 
-            if (canResetToDefault)
-            {
-                addAndMakeVisible (defaultButton = new TextButton ("Reset to Default"));
-                defaultButton->addButtonListener (this);
-            }
-        }
+    ~ColourPropertyComponent()
+    {
+    }
 
-        ~ColourSelectorComp()
-        {
-            deleteAllChildren();
-        }
+    void resized()
+    {
+        colourEditor.setBounds (getLookAndFeel().getPropertyComponentContentPosition (*this));
+    }
 
-        void resized()
-        {
-            if (defaultButton != 0)
-            {
-                selector->setBounds (0, 0, getWidth(), getHeight() - 30);
-                defaultButton->changeWidthToFitText (22);
-                defaultButton->setTopLeftPosition (10, getHeight() - 26);
-            }
-            else
-            {
-                selector->setBounds (0, 0, getWidth(), getHeight());
-            }
-        }
+    void refresh() {}
 
-        void buttonClicked (Button*)
-        {
-            owner->resetToDefault();
-            owner->refresh();
-            selector->setCurrentColour (owner->getColour());
-        }
-
-    private:
-        class ColourSelectorWithSwatches    : public ColourSelector
-        {
-        public:
-            ColourSelectorWithSwatches()
-            {
-            }
-
-            ~ColourSelectorWithSwatches()
-            {
-            }
-
-            int getNumSwatches() const
-            {
-                return StoredSettings::getInstance()->swatchColours.size();
-            }
-
-            const Colour getSwatchColour (const int index) const
-            {
-                return StoredSettings::getInstance()->swatchColours [index];
-            }
-
-            void setSwatchColour (const int index, const Colour& newColour) const
-            {
-                StoredSettings::getInstance()->swatchColours.set (index, newColour);
-            }
-        };
-
-        ColourEditorComponent* owner;
-        ColourSelectorWithSwatches* selector;
-        TextButton* defaultButton;
-    };
+protected:
+    ColourEditorComponent colourEditor;
 };
 
 

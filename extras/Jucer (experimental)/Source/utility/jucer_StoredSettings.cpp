@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -78,6 +78,26 @@ void StoredSettings::flush()
     // recent files...
     recentFiles.restoreFromString (props->getValue ("recentFiles"));
     recentFiles.removeNonExistentFiles();
+
+    // swatch colours...
+    swatchColours.clear();
+
+    #define COL(col)  Colours::col,
+
+    const Colour colours[] =
+    {
+        #include "jucer_Colours.h"
+        Colours::transparentBlack
+    };
+
+    #undef COL
+
+    for (int i = 0; i < numSwatchColours; ++i)
+    {
+        Colour defaultCol (colours [2 + i]);
+        swatchColours.add (Colour (props->getValue ("swatchColour" + String (i),
+                                                    hexString8Digits (defaultCol.getARGB())).getHexValue32()));
+    }
 }
 
 const File StoredSettings::getLastProject() const
@@ -92,10 +112,10 @@ void StoredSettings::setLastProject (const File& file)
 
 const File StoredSettings::getLastKnownJuceFolder() const
 {
-    File defaultJuceFolder (findDefaultJuceFolder());
+    File defaultJuceFolder (FileHelpers::findDefaultJuceFolder());
     File f (props->getValue ("lastJuceFolder", defaultJuceFolder.getFullPathName()));
 
-    if ((! isJuceFolder (f)) && isJuceFolder (defaultJuceFolder))
+    if ((! FileHelpers::isJuceFolder (f)) && FileHelpers::isJuceFolder (defaultJuceFolder))
         f = defaultJuceFolder;
 
     return f;
@@ -103,6 +123,14 @@ const File StoredSettings::getLastKnownJuceFolder() const
 
 void StoredSettings::setLastKnownJuceFolder (const File& file)
 {
-    jassert (isJuceFolder (file));
+    jassert (FileHelpers::isJuceFolder (file));
     props->setValue ("lastJuceFolder", file.getFullPathName());
+}
+
+const StringArray& StoredSettings::getFontNames()
+{
+    if (fontNames.size() == 0)
+        fontNames = Font::findAllTypefaceNames();
+
+    return fontNames;
 }

@@ -89,7 +89,7 @@ static void jack_Log (const String& s)
     std::cerr << s << std::endl;
 }
 
-static void dumpJackErrorMessage (const jack_status_t status) throw()
+static void dumpJackErrorMessage (const jack_status_t status)
 {
     if (status & JackServerFailed || status & JackServerError)
         jack_Log ("Unable to connect to JACK server");
@@ -445,7 +445,7 @@ private:
     HeapBlock <float*> inChans, outChans;
     int totalNumberOfInputChannels;
     int totalNumberOfOutputChannels;
-    VoidArray inputPorts, outputPorts;
+    Array<void*> inputPorts, outputPorts;
 };
 
 

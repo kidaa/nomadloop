@@ -176,10 +176,13 @@ int FileBrowserComponent::getNumSelectedFiles() const throw()
 
 const File FileBrowserComponent::getSelectedFile (int index) const throw()
 {
+    if ((flags & canSelectDirectories) != 0 && filenameBox->getText().isEmpty())
+        return currentRoot;
+
     if (! filenameBox->isReadOnly())
         return currentRoot.getChildFile (filenameBox->getText());
-    else
-        return chosenFiles[index];
+
+    return chosenFiles[index];
 }
 
 bool FileBrowserComponent::currentFileIsValid() const
@@ -193,6 +196,11 @@ bool FileBrowserComponent::currentFileIsValid() const
 const File FileBrowserComponent::getHighlightedFile() const throw()
 {
     return fileListComponent->getSelectedFile (0);
+}
+
+void FileBrowserComponent::deselectAllFiles()
+{
+    fileListComponent->deselectAllFiles();
 }
 
 //==============================================================================
@@ -231,7 +239,7 @@ void FileBrowserComponent::setRoot (const File& newRootDirectory)
         String path (newRootDirectory.getFullPathName());
 
         if (path.isEmpty())
-            path += File::separator;
+            path = File::separatorString;
 
         StringArray rootNames, rootPaths;
         getRoots (rootNames, rootPaths);
@@ -259,7 +267,7 @@ void FileBrowserComponent::setRoot (const File& newRootDirectory)
 
     String currentRootName (currentRoot.getFullPathName());
     if (currentRootName.isEmpty())
-        currentRootName += File::separator;
+        currentRootName = File::separatorString;
 
     currentPathBox->setText (currentRootName, true);
 
@@ -349,6 +357,9 @@ void FileBrowserComponent::fileDoubleClicked (const File& f)
     if (f.isDirectory())
     {
         setRoot (f);
+
+        if ((flags & canSelectDirectories) != 0)
+            filenameBox->setText (String::empty);
     }
     else
     {
@@ -359,6 +370,8 @@ void FileBrowserComponent::fileDoubleClicked (const File& f)
 
 bool FileBrowserComponent::keyPressed (const KeyPress& key)
 {
+    (void) key;
+
 #if JUCE_LINUX || JUCE_WINDOWS
     if (key.getModifiers().isCommandDown()
          && (key.getKeyCode() == 'H' || key.getKeyCode() == 'h'))

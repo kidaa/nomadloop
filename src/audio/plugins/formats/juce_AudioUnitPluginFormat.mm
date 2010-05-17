@@ -552,6 +552,27 @@ void AudioUnitPluginInstance::initialise()
 void AudioUnitPluginInstance::prepareToPlay (double sampleRate_,
                                              int samplesPerBlockExpected)
 {
+    if (audioUnit != 0)
+    {
+        Float64 sampleRateIn = 0, sampleRateOut = 0;
+        UInt32 sampleRateSize = sizeof (sampleRateIn);
+        AudioUnitGetProperty (audioUnit, kAudioUnitProperty_SampleRate, kAudioUnitScope_Input, 0, &sampleRateIn, &sampleRateSize);
+        AudioUnitGetProperty (audioUnit, kAudioUnitProperty_SampleRate, kAudioUnitScope_Output, 0, &sampleRateOut, &sampleRateSize);
+
+        if (sampleRateIn != sampleRate_ || sampleRateOut != sampleRate_)
+        {
+            if (initialised)
+            {
+                AudioUnitUninitialize (audioUnit);
+                initialised = false;
+            }
+
+            Float64 sr = sampleRate_;
+            AudioUnitSetProperty (audioUnit, kAudioUnitProperty_SampleRate, kAudioUnitScope_Input, 0, &sr, sizeof (Float64));
+            AudioUnitSetProperty (audioUnit, kAudioUnitProperty_SampleRate, kAudioUnitScope_Output, 0, &sr, sizeof (Float64));
+        }
+    }
+
     initialise();
 
     if (initialised)
@@ -583,16 +604,12 @@ void AudioUnitPluginInstance::prepareToPlay (double sampleRate_,
         stream.mBitsPerChannel = 32;
         stream.mChannelsPerFrame = numIns;
 
-        OSStatus err = AudioUnitSetProperty (audioUnit,
-                                             kAudioUnitProperty_StreamFormat,
-                                             kAudioUnitScope_Input,
+        OSStatus err = AudioUnitSetProperty (audioUnit, kAudioUnitProperty_StreamFormat, kAudioUnitScope_Input,
                                              0, &stream, sizeof (stream));
 
         stream.mChannelsPerFrame = numOuts;
 
-        err = AudioUnitSetProperty (audioUnit,
-                                    kAudioUnitProperty_StreamFormat,
-                                    kAudioUnitScope_Output,
+        err = AudioUnitSetProperty (audioUnit, kAudioUnitProperty_StreamFormat, kAudioUnitScope_Output,
                                     0, &stream, sizeof (stream));
 
         outputBufferList.calloc (sizeof (AudioBufferList) + sizeof (AudioBuffer) * (numOuts + 1), 1);
@@ -829,8 +846,6 @@ OSStatus AudioUnitPluginInstance::getTransportState (Boolean* outIsPlaying,
 
 
 //==============================================================================
-static VoidArray activeWindows;
-
 class AudioUnitPluginWindowCocoa    : public AudioProcessorEditor
 {
 public:
@@ -840,8 +855,6 @@ public:
           wrapper (0)
     {
         addAndMakeVisible (wrapper = new NSViewComponent());
-
-        activeWindows.add (this);
 
         setOpaque (true);
         setVisible (true);
@@ -855,7 +868,6 @@ public:
         const bool wasValid = isValid();
 
         wrapper->setView (0);
-        activeWindows.removeValue (this);
 
         if (wasValid)
             plugin.editorBeingDeleted (this);
@@ -947,8 +959,6 @@ public:
     {
         addAndMakeVisible (innerWrapper = new InnerWrapperComponent (this));
 
-        activeWindows.add (this);
-
         setOpaque (true);
         setVisible (true);
         setSize (400, 300);
@@ -964,7 +974,6 @@ public:
     ~AudioUnitPluginWindowCarbon()
     {
         innerWrapper = 0;
-        activeWindows.removeValue (this);
 
         if (isValid())
             plugin.editorBeingDeleted (this);
@@ -992,13 +1001,6 @@ public:
     bool keyPressed (const KeyPress&)
     {
         return false;
-    }
-
-    //==============================================================================
-    void broughtToFront()
-    {
-        activeWindows.removeValue (this);
-        activeWindows.add (this);
     }
 
     //==============================================================================
@@ -1291,7 +1293,7 @@ const String AudioUnitPluginInstance::getProgramName (int index)
 
 void AudioUnitPluginInstance::changeProgramName (int index, const String& newName)
 {
-    jassertfalse // xxx not implemented!
+    jassertfalse; // xxx not implemented!
 }
 
 //==============================================================================

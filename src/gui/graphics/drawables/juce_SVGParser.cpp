@@ -734,8 +734,8 @@ private:
 
                 gradient.isRadial = fillXml->hasTagName ("radialGradient");
 
-                float width = viewBoxW;
-                float height = viewBoxH;
+                float gradientWidth = viewBoxW;
+                float gradientHeight = viewBoxH;
                 float dx = 0.0f;
                 float dy = 0.0f;
 
@@ -746,31 +746,29 @@ private:
                     const Rectangle<float> bounds (path.getBounds());
                     dx = bounds.getX();
                     dy = bounds.getY();
-                    width = bounds.getWidth();
-                    height = bounds.getHeight();
+                    gradientWidth = bounds.getWidth();
+                    gradientHeight = bounds.getHeight();
                 }
 
                 if (gradient.isRadial)
                 {
-                    gradient.x1 = dx + getCoordLength (fillXml->getStringAttribute ("cx", "50%"), width);
-                    gradient.y1 = dy + getCoordLength (fillXml->getStringAttribute ("cy", "50%"), height);
+                    gradient.point1.setXY (dx + getCoordLength (fillXml->getStringAttribute ("cx", "50%"), gradientWidth),
+                                           dy + getCoordLength (fillXml->getStringAttribute ("cy", "50%"), gradientHeight));
 
-                    const float radius = getCoordLength (fillXml->getStringAttribute ("r", "50%"), width);
-
-                    gradient.x2 = gradient.x1 + radius;
-                    gradient.y2 = gradient.y1;
+                    const float radius = getCoordLength (fillXml->getStringAttribute ("r", "50%"), gradientWidth);
+                    gradient.point2 = gradient.point1 + Point<float> (radius, 0.0f);
 
                     //xxx (the fx, fy focal point isn't handled properly here..)
                 }
                 else
                 {
-                    gradient.x1 = dx + getCoordLength (fillXml->getStringAttribute ("x1", "0%"), width);
-                    gradient.y1 = dy + getCoordLength (fillXml->getStringAttribute ("y1", "0%"), height);
+                    gradient.point1.setXY (dx + getCoordLength (fillXml->getStringAttribute ("x1", "0%"), gradientWidth),
+                                           dy + getCoordLength (fillXml->getStringAttribute ("y1", "0%"), gradientHeight));
 
-                    gradient.x2 = dx + getCoordLength (fillXml->getStringAttribute ("x2", "100%"), width);
-                    gradient.y2 = dy + getCoordLength (fillXml->getStringAttribute ("y2", "0%"), height);
+                    gradient.point2.setXY (dx + getCoordLength (fillXml->getStringAttribute ("x2", "100%"), gradientWidth),
+                                           dy + getCoordLength (fillXml->getStringAttribute ("y2", "0%"), gradientHeight));
 
-                    if (gradient.x1 == gradient.x2 && gradient.y1 == gradient.y2)
+                    if (gradient.point1 == gradient.point2)
                         return Colour (gradient.getColour (gradient.getNumColours() - 1));
                 }
 
@@ -791,7 +789,7 @@ private:
 
     const PathStrokeType getStrokeFor (const XmlElement* const xml) const
     {
-        const String width (getStyleAttribute (xml, "stroke-width"));
+        const String strokeWidth (getStyleAttribute (xml, "stroke-width"));
         const String cap (getStyleAttribute (xml, "stroke-linecap"));
         const String join (getStyleAttribute (xml, "stroke-linejoin"));
 
@@ -814,10 +812,10 @@ private:
 
         float ox = 0.0f, oy = 0.0f;
         transform.transformPoint (ox, oy);
-        float x = getCoordLength (width, viewBoxW), y = 0.0f;
+        float x = getCoordLength (strokeWidth, viewBoxW), y = 0.0f;
         transform.transformPoint (x, y);
 
-        return PathStrokeType (width.isNotEmpty() ? juce_hypotf (x - ox, y - oy) : 1.0f,
+        return PathStrokeType (strokeWidth.isNotEmpty() ? juce_hypotf (x - ox, y - oy) : 1.0f,
                                joinStyle, capStyle);
     }
 
@@ -1180,13 +1178,13 @@ private:
             }
             else if (t.startsWithIgnoreCase ("skewX"))
             {
-                trans = AffineTransform (1.0f, tanf (numbers[0] * (float_Pi / 180.0f)), 0.0f,
+                trans = AffineTransform (1.0f, std::tan (numbers[0] * (float_Pi / 180.0f)), 0.0f,
                                          0.0f, 1.0f, 0.0f);
             }
             else if (t.startsWithIgnoreCase ("skewY"))
             {
                 trans = AffineTransform (1.0f, 0.0f, 0.0f,
-                                         tanf (numbers[0] * (float_Pi / 180.0f)), 1.0f, 0.0f);
+                                         std::tan (numbers[0] * (float_Pi / 180.0f)), 1.0f, 0.0f);
             }
 
             result = trans.followedBy (result);
@@ -1222,15 +1220,15 @@ private:
 
         if (s <= 1.0)
         {
-            c = sqrt (jmax (0.0, ((rx2 * ry2) - (rx2 * yp2) - (ry2 * xp2))
-                                   / (( rx2 * yp2) + (ry2 * xp2))));
+            c = std::sqrt (jmax (0.0, ((rx2 * ry2) - (rx2 * yp2) - (ry2 * xp2))
+                                         / (( rx2 * yp2) + (ry2 * xp2))));
 
             if (largeArc == sweep)
                 c = -c;
         }
         else
         {
-            const double s2 = sqrt (s);
+            const double s2 = std::sqrt (s);
             rx *= s2;
             ry *= s2;
             rx2 = rx * rx;

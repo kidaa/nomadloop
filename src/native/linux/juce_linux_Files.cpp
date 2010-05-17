@@ -33,91 +33,31 @@ static const short U_NFS_SUPER_MAGIC = 0x6969;     // linux/nfs_fs.h
 static const short U_SMB_SUPER_MAGIC = 0x517B;     // linux/smb_fs.h
 
 //==============================================================================
-void juce_getFileTimes (const String& fileName,
-                        int64& modificationTime,
-                        int64& accessTime,
-                        int64& creationTime)
+bool File::copyInternal (const File& dest) const
 {
-    modificationTime = 0;
-    accessTime = 0;
-    creationTime = 0;
+    FileInputStream in (*this);
 
-    struct stat info;
-    const int res = stat (fileName.toUTF8(), &info);
-    if (res == 0)
+    if (dest.deleteFile())
     {
-        modificationTime = (int64) info.st_mtime * 1000;
-        accessTime = (int64) info.st_atime * 1000;
-        creationTime = (int64) info.st_ctime * 1000;
-    }
-}
-
-bool juce_setFileTimes (const String& fileName,
-                        int64 modificationTime,
-                        int64 accessTime,
-                        int64 creationTime)
-{
-    struct utimbuf times;
-    times.actime = (time_t) (accessTime / 1000);
-    times.modtime = (time_t) (modificationTime / 1000);
-
-    return utime (fileName.toUTF8(), &times) == 0;
-}
-
-bool juce_setFileReadOnly (const String& fileName, bool isReadOnly)
-{
-    struct stat info;
-    const int res = stat (fileName.toUTF8(), &info);
-    if (res != 0)
-        return false;
-
-    info.st_mode &= 0777;   // Just permissions
-
-    if( isReadOnly )
-        info.st_mode &= ~(S_IWUSR | S_IWGRP | S_IWOTH);
-    else
-        // Give everybody write permission?
-        info.st_mode |= S_IWUSR | S_IWGRP | S_IWOTH;
-
-    return chmod (fileName.toUTF8(), info.st_mode) == 0;
-}
-
-bool juce_copyFile (const String& s, const String& d)
-{
-    const File source (s), dest (d);
-
-    FileInputStream* in = source.createInputStream();
-    bool ok = false;
-
-    if (in != 0)
-    {
-        if (dest.deleteFile())
         {
-            FileOutputStream* const out = dest.createOutputStream();
+            FileOutputStream out (dest);
 
-            if (out != 0)
-            {
-                const int bytesCopied = out->writeFromInputStream (*in, -1);
-                delete out;
+            if (out.failedToOpen())
+                return false;
 
-                ok = (bytesCopied == source.getSize());
-
-                if (! ok)
-                    dest.deleteFile();
-            }
+            if (out.writeFromInputStream (in, -1) == getSize())
+                return true;
         }
 
-        delete in;
+        dest.deleteFile();
     }
 
-    return ok;
+    return false;
 }
 
-const StringArray juce_getFileSystemRoots()
+void File::findFileSystemRoots (Array<File>& destArray)
 {
-    StringArray s;
-    s.add ("/");
-    return s;
+    destArray.add (File ("/"));
 }
 
 //==============================================================================
@@ -125,11 +65,8 @@ bool File::isOnCDRomDrive() const
 {
     struct statfs buf;
 
-    if (statfs (getFullPathName().toUTF8(), &buf) == 0)
-        return (buf.f_type == U_ISOFS_SUPER_MAGIC);
-
-    // Assume not if this fails for some reason
-    return false;
+    return statfs (getFullPathName().toUTF8(), &buf) == 0
+             && buf.f_type == U_ISOFS_SUPER_MAGIC;
 }
 
 bool File::isOnHardDisk() const
@@ -160,7 +97,7 @@ bool File::isOnHardDisk() const
 
 bool File::isOnRemovableDrive() const
 {
-    jassertfalse // xxx not implemented for linux!
+    jassertfalse; // xxx not implemented for linux!
     return false;
 }
 
@@ -230,7 +167,7 @@ const File File::getSpecialLocation (const SpecialLocationType type)
         return juce_getExecutableFile();
 
     default:
-        jassertfalse // unknown type?
+        jassertfalse; // unknown type?
         break;
     }
 
@@ -275,129 +212,95 @@ bool File::moveToTrash() const
 }
 
 //==============================================================================
-struct FindFileStruct
+class DirectoryIterator::NativeIterator::Pimpl
 {
-    String parentDir, wildCard;
-    DIR* dir;
-
-    bool getNextMatch (String& result, bool* const isDir, bool* const isHidden, int64* const fileSize,
-                       Time* const modTime, Time* const creationTime, bool* const isReadOnly)
+public:
+    Pimpl (const File& directory, const String& wildCard_)
+        : parentDir (File::addTrailingSeparator (directory.getFullPathName())),
+          wildCard (wildCard_),
+          dir (opendir (directory.getFullPathName().toUTF8()))
     {
-        const char* const wildcardUTF8 = wildCard.toUTF8();
+        if (wildCard == "*.*")
+            wildCard = "*";
+
+        wildcardUTF8 = wildCard.toUTF8();
+    }
+
+    ~Pimpl()
+    {
+        if (dir != 0)
+            closedir (dir);
+    }
+
+    bool next (String& filenameFound,
+               bool* const isDir, bool* const isHidden, int64* const fileSize,
+               Time* const modTime, Time* const creationTime, bool* const isReadOnly)
+    {
+        if (dir == 0)
+            return false;
 
         for (;;)
         {
             struct dirent* const de = readdir (dir);
 
             if (de == 0)
-                break;
+                return false;
 
             if (fnmatch (wildcardUTF8, de->d_name, FNM_CASEFOLD) == 0)
             {
-                result = String::fromUTF8 (de->d_name);
+                filenameFound = String::fromUTF8 (de->d_name);
+                const String path (parentDir + filenameFound);
 
-                const String path (parentDir + result);
-
-                if (isDir != 0 || fileSize != 0)
+                if (isDir != 0 || fileSize != 0 || modTime != 0 || creationTime != 0)
                 {
                     struct stat info;
-                    const bool statOk = (stat (path.toUTF8(), &info) == 0);
+                    const bool statOk = juce_stat (path, info);
 
-                    if (isDir != 0)
-                        *isDir = path.isEmpty() || (statOk && ((info.st_mode & S_IFDIR) != 0));
-
-                    if (isHidden != 0)
-                        *isHidden = (de->d_name[0] == '.');
-
-                    if (fileSize != 0)
-                        *fileSize = statOk ? info.st_size : 0;
+                    if (isDir != 0)         *isDir = statOk && ((info.st_mode & S_IFDIR) != 0);
+                    if (fileSize != 0)      *fileSize = statOk ? info.st_size : 0;
+                    if (modTime != 0)       *modTime = statOk ? (int64) info.st_mtime * 1000 : 0;
+                    if (creationTime != 0)  *creationTime = statOk ? (int64) info.st_ctime * 1000 : 0;
                 }
 
-                if (modTime != 0 || creationTime != 0)
-                {
-                    int64 m, a, c;
-                    juce_getFileTimes (path, m, a, c);
-
-                    if (modTime != 0)
-                        *modTime = m;
-
-                    if (creationTime != 0)
-                        *creationTime = c;
-                }
+                if (isHidden != 0)
+                    *isHidden = filenameFound.startsWithChar ('.');
 
                 if (isReadOnly != 0)
-                    *isReadOnly = ! juce_canWriteToFile (path);
+                    *isReadOnly = access (path.toUTF8(), W_OK) != 0;
 
                 return true;
             }
         }
-
-        return false;
     }
+
+private:
+    String parentDir, wildCard;
+    const char* wildcardUTF8;
+    DIR* dir;
+
+    Pimpl (const Pimpl&);
+    Pimpl& operator= (const Pimpl&);
 };
 
-// returns 0 on failure
-void* juce_findFileStart (const String& directory, const String& wildCard, String& firstResultFile,
-                          bool* isDir, bool* isHidden, int64* fileSize, Time* modTime,
-                          Time* creationTime, bool* isReadOnly)
+DirectoryIterator::NativeIterator::NativeIterator (const File& directory, const String& wildCard)
+    : pimpl (new DirectoryIterator::NativeIterator::Pimpl (directory, wildCard))
 {
-    DIR* d = opendir (directory.toUTF8());
-
-    if (d != 0)
-    {
-        FindFileStruct* ff = new FindFileStruct();
-        ff->parentDir = directory;
-
-        if (!ff->parentDir.endsWithChar (File::separator))
-            ff->parentDir += File::separator;
-
-        ff->wildCard = wildCard;
-        if (wildCard == "*.*")
-            ff->wildCard = "*";
-
-        ff->dir = d;
-
-        if (ff->getNextMatch (firstResultFile, isDir, isHidden, fileSize, modTime, creationTime, isReadOnly))
-        {
-            return ff;
-        }
-        else
-        {
-            firstResultFile = String::empty;
-            isDir = false;
-            isHidden = false;
-            closedir (d);
-            delete ff;
-        }
-    }
-
-    return 0;
 }
 
-bool juce_findFileNext (void* handle, String& resultFile,
-                        bool* isDir, bool* isHidden, int64* fileSize, Time* modTime, Time* creationTime, bool* isReadOnly)
+DirectoryIterator::NativeIterator::~NativeIterator()
 {
-    FindFileStruct* const ff = (FindFileStruct*) handle;
-
-    if (ff != 0)
-        return ff->getNextMatch (resultFile, isDir, isHidden, fileSize, modTime, creationTime, isReadOnly);
-
-    return false;
 }
 
-void juce_findFileClose (void* handle)
+bool DirectoryIterator::NativeIterator::next (String& filenameFound,
+                                              bool* const isDir, bool* const isHidden, int64* const fileSize,
+                                              Time* const modTime, Time* const creationTime, bool* const isReadOnly)
 {
-    FindFileStruct* const ff = (FindFileStruct*) handle;
-
-    if (ff != 0)
-    {
-        closedir (ff->dir);
-        delete ff;
-    }
+    return pimpl->next (filenameFound, isDir, isHidden, fileSize, modTime, creationTime, isReadOnly);
 }
 
-bool juce_launchFile (const String& fileName,
-                      const String& parameters)
+
+//==============================================================================
+bool PlatformUtilities::openDocument (const String& fileName, const String& parameters)
 {
     String cmdString (fileName.replace (" ", "\\ ",false));
     cmdString << " " << parameters;

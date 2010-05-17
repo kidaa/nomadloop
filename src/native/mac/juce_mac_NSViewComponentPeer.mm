@@ -421,11 +421,13 @@ END_JUCE_NAMESPACE
 
 - (BOOL) acceptsFirstMouse: (NSEvent*) ev
 {
+    (void) ev;
     return YES;
 }
 
 - (void) frameChanged: (NSNotification*) n
 {
+    (void) n;
     if (owner != 0)
         owner->redirectMovedOrResized();
 }
@@ -483,10 +485,13 @@ END_JUCE_NAMESPACE
 
 - (void) doCommandBySelector: (SEL) aSelector
 {
+    (void) aSelector;
 }
 
 - (void) setMarkedText: (id) aString selectedRange: (NSRange) selectionRange
 {
+    (void) selectionRange;
+
     if (stringBeingComposed == 0)
         stringBeingComposed = new String();
 
@@ -567,6 +572,7 @@ END_JUCE_NAMESPACE
 
 - (NSRect) firstRectForCharacterRange: (NSRange) theRange
 {
+    (void) theRange;
     JUCE_NAMESPACE::Component* const comp = dynamic_cast <JUCE_NAMESPACE::Component*> (owner->findCurrentTextInputTarget());
 
     if (comp == 0)
@@ -582,6 +588,7 @@ END_JUCE_NAMESPACE
 
 - (unsigned int) characterIndexForPoint: (NSPoint) thePoint
 {
+    (void) thePoint;
     return NSNotFound;
 }
 
@@ -667,6 +674,7 @@ END_JUCE_NAMESPACE
 
 - (BOOL) prepareForDragOperation: (id <NSDraggingInfo>) sender
 {
+    (void) sender;
     return YES;
 }
 
@@ -677,6 +685,7 @@ END_JUCE_NAMESPACE
 
 - (void) concludeDragOperation: (id <NSDraggingInfo>) sender
 {
+    (void) sender;
 }
 
 @end
@@ -705,11 +714,13 @@ END_JUCE_NAMESPACE
 
 - (BOOL) windowShouldClose: (id) window
 {
+    (void) window;
     return owner == 0 || owner->windowShouldClose();
 }
 
 - (NSRect) constrainFrameRect: (NSRect) frameRect toScreen: (NSScreen*) screen
 {
+    (void) screen;
     if (owner != 0)
         frameRect = owner->constrainRect (frameRect);
 
@@ -718,6 +729,7 @@ END_JUCE_NAMESPACE
 
 - (NSSize) windowWillResize: (NSWindow*) window toSize: (NSSize) proposedFrameSize
 {
+    (void) window;
     if (isZooming)
         return proposedFrameSize;
 
@@ -740,6 +752,8 @@ END_JUCE_NAMESPACE
 
 - (void) windowWillMove: (NSNotification*) notification
 {
+    (void) notification;
+
     if (JUCE_NAMESPACE::Component::getCurrentlyModalComponent() != 0
           && owner->getComponent()->isCurrentlyBlockedByAnotherModalComponent()
           && (owner->getStyleFlags() & JUCE_NAMESPACE::ComponentPeer::windowHasTitleBar) != 0)
@@ -1178,19 +1192,23 @@ void NSViewComponentPeer::toFront (bool makeActiveWindow)
 
 void NSViewComponentPeer::toBehind (ComponentPeer* other)
 {
-    NSViewComponentPeer* o = (NSViewComponentPeer*) other;
+    NSViewComponentPeer* const otherPeer = dynamic_cast <NSViewComponentPeer*> (other);
+    jassert (otherPeer != 0); // wrong type of window?
 
-    if (isSharedWindow)
+    if (otherPeer != 0)
     {
-        [[view superview] addSubview: view
-                          positioned: NSWindowBelow
-                          relativeTo: o->view];
-    }
-    else
-    {
-        [window orderWindow: NSWindowBelow
-                 relativeTo: o->window != 0 ? [o->window windowNumber]
-                                            : nil ];
+        if (isSharedWindow)
+        {
+            [[view superview] addSubview: view
+                              positioned: NSWindowBelow
+                              relativeTo: otherPeer->view];
+        }
+        else
+        {
+            [window orderWindow: NSWindowBelow
+                     relativeTo: otherPeer->window != 0 ? [otherPeer->window windowNumber]
+                                                        : nil ];
+        }
     }
 }
 
@@ -1487,25 +1505,28 @@ void NSViewComponentPeer::drawRect (NSRect r)
                     (int) (r.size.height + 0.5f),
                     ! getComponent()->isOpaque());
 
-        LowLevelGraphicsSoftwareRenderer context (temp);
-        context.setOrigin (-roundToInt (r.origin.x),
-                           -roundToInt ([view frame].size.height - (r.origin.y + r.size.height)));
+        const int xOffset = -roundToInt (r.origin.x);
+        const int yOffset = -roundToInt ([view frame].size.height - (r.origin.y + r.size.height));
 
         const NSRect* rects = 0;
         NSInteger numRects = 0;
         [view getRectsBeingDrawn: &rects count: &numRects];
 
+        const Rectangle<int> clipBounds (temp.getBounds());
+
         RectangleList clip;
         for (int i = 0; i < numRects; ++i)
         {
-            clip.addWithoutMerging (Rectangle<int> (roundToInt (rects[i].origin.x),
-                                                    roundToInt ([view frame].size.height - (rects[i].origin.y + rects[i].size.height)),
-                                                    roundToInt (rects[i].size.width),
-                                                    roundToInt (rects[i].size.height)));
+            clip.addWithoutMerging (clipBounds.getIntersection (Rectangle<int> (roundToInt (rects[i].origin.x) + xOffset,
+                                                                                roundToInt ([view frame].size.height - (rects[i].origin.y + rects[i].size.height)) + yOffset,
+                                                                                roundToInt (rects[i].size.width),
+                                                                                roundToInt (rects[i].size.height))));
         }
 
-        if (context.clipToRectangleList (clip))
+        if (! clip.isEmpty())
         {
+            LowLevelGraphicsSoftwareRenderer context (temp, xOffset, yOffset, clip);
+
             insideDrawRect = true;
             handlePaint (context);
             insideDrawRect = false;

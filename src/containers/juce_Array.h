@@ -91,10 +91,11 @@ public:
 
         @param values   the array to copy from
     */
-    explicit Array (const ElementType* values)
+    template <typename TypeToCreateFrom>
+    explicit Array (const TypeToCreateFrom* values)
        : numUsed (0)
     {
-        while (*values != 0)
+        while (*values != TypeToCreateFrom())
             add (*values++);
     }
 
@@ -103,7 +104,8 @@ public:
         @param values       the array to copy from
         @param numValues    the number of values in the array
     */
-    Array (const ElementType* values, int numValues)
+    template <typename TypeToCreateFrom>
+    Array (const TypeToCreateFrom* values, int numValues)
        : numUsed (numValues)
     {
         data.setAllocatedSize (numValues);
@@ -275,6 +277,15 @@ public:
         const ScopedLockType lock (getLock());
         return (numUsed > 0) ? data.elements [numUsed - 1]
                              : ElementType();
+    }
+
+    /** Returns a pointer to the actual array data.
+        This pointer will only be valid until the next time a non-const method
+        is called on the array.
+    */
+    inline ElementType* getRawDataPointer() throw()
+    {
+        return data.elements;
     }
 
     //==============================================================================
@@ -560,7 +571,7 @@ public:
 
         if (startIndex < 0)
         {
-            jassertfalse
+            jassertfalse;
             startIndex = 0;
         }
 

@@ -45,7 +45,7 @@
     it to be true or false.
 */
 #ifndef JUCE_FORCE_DEBUG
-  #define JUCE_FORCE_DEBUG 0
+  //#define JUCE_FORCE_DEBUG 0
 #endif
 
 //=============================================================================
@@ -227,7 +227,7 @@
     If you're not using any embedded web-pages, turning this off may reduce your code size.
 */
 #ifndef JUCE_WEB_BROWSER
-  #define JUCE_WEB_BROWSER 0
+  #define JUCE_WEB_BROWSER 1
 #endif
 
 

@@ -68,7 +68,7 @@ public:
         When created, you'll need to set up the slider's style and range with setSliderStyle(),
         setRange(), etc.
     */
-    explicit Slider (const String& componentName);
+    explicit Slider (const String& componentName = String::empty);
 
     /** Destructor. */
     ~Slider();
@@ -578,14 +578,6 @@ public:
         @see SliderListener::sliderValueChanged
     */
     virtual void valueChanged();
-
-    /** Callback to indicate that the user has just moved the slider.
-        Note - the valueChanged() method has changed its format and now no longer has
-        any parameters. Update your code to use the new version.
-        This version has been left here with an int as its return value to cause
-        a syntax error if you've got existing code that uses the old version.
-    */
-    virtual int valueChanged (double) { jassertfalse; return 0; }
 
     //==============================================================================
     /** Subclasses can override this to convert a text string to a value.

@@ -209,6 +209,11 @@ void Graphics::setFont (const float newFontHeight, const int newFontStyleFlags)
     context->setFont (f);
 }
 
+const Font Graphics::getCurrentFont() const
+{
+    return context->getFont();
+}
+
 //==============================================================================
 void Graphics::drawSingleLineText (const String& text, const int startX, const int baselineY) const
 {
@@ -532,7 +537,7 @@ void Graphics::drawHorizontalLine (const int y, float left, float right) const
 
 void Graphics::drawLine (float x1, float y1, float x2, float y2) const
 {
-    context->drawLine (x1, y1, x2, y2);
+    context->drawLine (Line<float> (x1, y1, x2, y2));
 }
 
 void Graphics::drawLine (const float startX, const float startY,
@@ -544,12 +549,12 @@ void Graphics::drawLine (const float startX, const float startY,
     fillPath (p);
 }
 
-void Graphics::drawLine (const Line& line) const
+void Graphics::drawLine (const Line<float>& line) const
 {
     drawLine (line.getStartX(), line.getStartY(), line.getEndX(), line.getEndY());
 }
 
-void Graphics::drawLine (const Line& line, const float lineThickness) const
+void Graphics::drawLine (const Line<float>& line, const float lineThickness) const
 {
     drawLine (line.getStartX(), line.getStartY(), line.getEndX(), line.getEndY(), lineThickness);
 }

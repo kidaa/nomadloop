@@ -54,27 +54,27 @@ public:
                                 treated as empty strings
         @param numberOfStrings  how many items there are in the array
     */
-    StringArray (const juce_wchar** strings, int numberOfStrings);
+    StringArray (const juce_wchar* const* strings, int numberOfStrings);
 
     /** Creates a copy of an array of string literals.
         @param strings          an array of strings to add. Null pointers in the array will be
                                 treated as empty strings
         @param numberOfStrings  how many items there are in the array
     */
-    StringArray (const char** strings, int numberOfStrings);
+    StringArray (const char* const* strings, int numberOfStrings);
 
     /** Creates a copy of a null-terminated array of string literals.
         Each item from the array passed-in is added, until it encounters a null pointer,
         at which point it stops.
     */
-    explicit StringArray (const juce_wchar** strings);
+    explicit StringArray (const juce_wchar* const* strings);
 
     /** Creates a copy of a null-terminated array of string literals.
 
         Each item from the array passed-in is added, until it encounters a null pointer,
         at which point it stops.
     */
-    explicit StringArray (const char** strings);
+    explicit StringArray (const char* const* strings);
 
     /** Destructor. */
     ~StringArray();
@@ -107,6 +107,12 @@ public:
         string it refers to may disappear when the array changes.
     */
     const String& operator[] (int index) const throw();
+
+    /** Returns a reference to one of the strings in the array.
+        This lets you modify a string in-place in the array, but you must be sure that
+        the index is in-range.
+    */
+    String& getReference (int index) throw();
 
     /** Searches for a string in the array.
 
@@ -220,6 +226,19 @@ public:
     */
     void removeString (const String& stringToRemove,
                        bool ignoreCase = false);
+
+    /** Removes a range of elements from the array.
+
+        This will remove a set of elements, starting from the given index,
+        and move subsequent elements down to close the gap.
+
+        If the range extends beyond the bounds of the array, it will
+        be safely clipped to the size of the array.
+
+        @param startIndex       the index of the first element to remove
+        @param numberToRemove   how many elements should be removed
+    */
+    void removeRange (int startIndex, int numberToRemove);
 
     /** Removes any duplicated elements from the array.
 

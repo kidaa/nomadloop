@@ -27,7 +27,7 @@
 #define __JUCE_COLOURGRADIENT_JUCEHEADER__
 
 #include "juce_Colour.h"
-#include "../geometry/juce_AffineTransform.h"
+#include "../geometry/juce_Point.h"
 #include "../../../containers/juce_Array.h"
 #include "../../../containers/juce_HeapBlock.h"
 
@@ -61,7 +61,7 @@ public:
     */
     ColourGradient (const Colour& colour1, float x1, float y1,
                     const Colour& colour2, float x2, float y2,
-                    bool isRadial) throw();
+                    bool isRadial);
 
     /** Creates an uninitialised gradient.
 
@@ -71,7 +71,7 @@ public:
     ColourGradient() throw();
 
     /** Destructor */
-    ~ColourGradient() throw();
+    ~ColourGradient();
 
     //==============================================================================
     /** Removes any colours that have been added.
@@ -79,7 +79,7 @@ public:
         This will also remove any start and end colours, so the gradient won't work. You'll
         need to add more colours with addColour().
     */
-    void clearColours() throw();
+    void clearColours();
 
     /** Adds a colour at a point along the length of the gradient.
 
@@ -92,7 +92,7 @@ public:
         @param colour                       the colour that should be used at this point
     */
     void addColour (double proportionAlongGradient,
-                    const Colour& colour) throw();
+                    const Colour& colour);
 
     /** Multiplies the alpha value of all the colours by the given scale factor */
     void multiplyOpacity (float multiplier) throw();
@@ -123,7 +123,7 @@ public:
         This will resize the HeapBlock, fill it with the colours, and will return the number of
         colours that it added.
     */
-    int createLookupTable (const AffineTransform& transform, HeapBlock <PixelARGB>& resultLookupTable) const throw();
+    int createLookupTable (const AffineTransform& transform, HeapBlock <PixelARGB>& resultLookupTable) const;
 
     /** Returns true if all colours are opaque. */
     bool isOpaque() const throw();
@@ -132,14 +132,10 @@ public:
     bool isInvisible() const throw();
 
     //==============================================================================
-    float x1;
-    float y1;
-
-    float x2;
-    float y2;
+    Point<float> point1, point2;
 
     /** If true, the gradient should be filled circularly, centred around
-        (x1, y1), with (x2, y2) defining a point on the circumference.
+        point1, with point2 defining a point on the circumference.
 
         If false, the gradient is linear between the two points.
     */
@@ -149,7 +145,19 @@ public:
     juce_UseDebuggingNewOperator
 
 private:
-    Array <uint32> colours;
+    struct ColourPoint
+    {
+        ColourPoint() throw() {}
+
+        ColourPoint (uint32 position_, const Colour& colour_) throw()
+            : position (position_), colour (colour_)
+        {}
+
+        uint32 position;
+        Colour colour;
+    };
+
+    Array <ColourPoint> colours;
 };
 
 
