@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -45,7 +45,7 @@ public:
         @param fileToRead   the file to read from - if the file can't be accessed for some
                             reason, then the stream will just contain no data
     */
-    FileInputStream (const File& fileToRead);
+    explicit FileInputStream (const File& fileToRead);
 
     /** Destructor. */
     ~FileInputStream();

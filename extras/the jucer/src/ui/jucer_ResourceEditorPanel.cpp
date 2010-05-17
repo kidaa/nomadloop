@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -202,7 +202,7 @@ public:
         else if (columnId == 2)
             return direction * first->originalFilename.compare (second->originalFilename);
         else if (columnId == 3)
-            return direction * first->data.getSize() - second->data.getSize();
+            return direction * (int) first->data.getSize() - (int) second->data.getSize();
 
         return 0;
     }

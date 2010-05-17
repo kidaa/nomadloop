@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -100,7 +100,7 @@ static HWND findMDIParentOf (HWND w)
         zeromem (windowType, sizeof (windowType));
         GetClassName (parent, windowType, 31);
 
-        if (String (windowType).equalsIgnoreCase (T("MDIClient")))
+        if (String (windowType).equalsIgnoreCase ("MDIClient"))
         {
             w = parent;
             break;

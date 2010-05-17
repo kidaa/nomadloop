@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -164,8 +164,7 @@ public:
         active or inactive), you should call ApplicationCommandManager::commandStatusChanged()
         to cause the manager to refresh its status.
     */
-    virtual void getCommandInfo (const CommandID commandID,
-                                 ApplicationCommandInfo& result) = 0;
+    virtual void getCommandInfo (CommandID commandID, ApplicationCommandInfo& result) = 0;
 
     /** This must actually perform the specified command.
 

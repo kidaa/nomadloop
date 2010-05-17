@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -37,14 +37,14 @@ class JUCE_API  SystemClipboard
 {
 public:
     /** Copies a string of text onto the clipboard */
-    static void copyTextToClipboard (const String& text) throw();
+    static void copyTextToClipboard (const String& text);
 
     /** Gets the current clipboard's contents.
 
         Obviously this might have come from another app, so could contain
         anything..
     */
-    static const String getTextFromClipboard() throw();
+    static const String getTextFromClipboard();
 };
 
 #endif   // __JUCE_SYSTEMCLIPBOARD_JUCEHEADER__

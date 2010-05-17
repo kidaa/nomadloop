@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -158,7 +158,7 @@ bool QuickTimeMovieComponent::loadMovie (InputStream* movieStream,
     {
         // You're trying to open a movie when the control hasn't yet been created, probably because
         // you've not yet added this component to a Window and made the whole component hierarchy visible.
-        jassertfalse
+        jassertfalse;
     }
 
     return movieLoaded;
@@ -335,7 +335,7 @@ static Handle createHandleDataRef (Handle dataHandle, const char* fileName)
 static CFStringRef juceStringToCFString (const String& s)
 {
     const int len = s.length();
-    const juce_wchar* const t = (const juce_wchar*) s;
+    const juce_wchar* const t = s;
 
     HeapBlock <UniChar> temp (len + 2);
     for (int i = 0; i <= len; ++i)
@@ -390,7 +390,7 @@ bool juce_OpenQuickTimeMovieFromStream (InputStream* input, Movie& movie, Handle
     props[prop].propClass = kQTPropertyClass_DataLocation;
     props[prop].propID = kQTDataLocationPropertyID_DataReference;
     props[prop].propValueSize = sizeof (dr);
-    props[prop].propValueAddress = (void*) &dr;
+    props[prop].propValueAddress = &dr;
     ++prop;
 
     FileInputStream* const fin = dynamic_cast <FileInputStream*> (input);

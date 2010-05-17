@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -34,7 +34,7 @@ BEGIN_JUCE_NAMESPACE
 //==============================================================================
 SamplerSound::SamplerSound (const String& name_,
                             AudioFormatReader& source,
-                            const BitArray& midiNotes_,
+                            const BigInteger& midiNotes_,
                             const int midiNoteForNormalPitch,
                             const double attackTimeSecs,
                             const double releaseTimeSecs,
@@ -170,7 +170,7 @@ void SamplerVoice::controllerMoved (const int /*controllerNumber*/,
 //==============================================================================
 void SamplerVoice::renderNextBlock (AudioSampleBuffer& outputBuffer, int startSample, int numSamples)
 {
-    const SamplerSound* const playingSound = (SamplerSound*) (SynthesiserSound*) getCurrentlyPlayingSound();
+    const SamplerSound* const playingSound = static_cast <SamplerSound*> (getCurrentlyPlayingSound().getObject());
 
     if (playingSound != 0)
     {

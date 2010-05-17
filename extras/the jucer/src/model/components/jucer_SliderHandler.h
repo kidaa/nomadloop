@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -201,7 +201,7 @@ private:
             choices.add ("Three Value Vertical");
         }
 
-        void setIndex (const int newIndex)
+        void setIndex (int newIndex)
         {
             const Slider::SliderStyle types[] = { Slider::LinearHorizontal,
                                                   Slider::LinearVertical,
@@ -288,7 +288,7 @@ private:
             choices.add ("Text box below");
         }
 
-        void setIndex (const int newIndex)
+        void setIndex (int newIndex)
         {
             const Slider::TextEntryBoxPosition types[] = { Slider::NoTextBox,
                                                            Slider::TextBoxLeft,
@@ -364,7 +364,7 @@ private:
         {
         }
 
-        void setState (const bool newState)
+        void setState (bool newState)
         {
             document.perform (new SliderEditableChangeAction (component, *document.getComponentLayout(), newState),
                               T("Change Slider editability"));

@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -99,7 +99,7 @@ public:
 
 private:
     //==============================================================================
-#if JUCE_WIN32
+#if JUCE_WINDOWS
   #if JUCE_64BIT
     // To avoid including windows.h in the public Juce includes, we'll just allocate a
     // block of memory here that's big enough to be used internally as a windows critical
@@ -144,6 +144,10 @@ public:
 
     /** A dummy scoped-unlocker type to use with a dummy critical section. */
     typedef ScopedLockType ScopedUnlockType;
+
+private:
+    DummyCriticalSection (const DummyCriticalSection&);
+    DummyCriticalSection& operator= (const DummyCriticalSection&);
 };
 
 

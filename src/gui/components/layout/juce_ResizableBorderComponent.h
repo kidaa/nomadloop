@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -66,8 +66,8 @@ public:
 
         @see ComponentBoundsConstrainer
     */
-    ResizableBorderComponent (Component* const componentToResize,
-                              ComponentBoundsConstrainer* const constrainer);
+    ResizableBorderComponent (Component* componentToResize,
+                              ComponentBoundsConstrainer* constrainer);
 
     /** Destructor. */
     ~ResizableBorderComponent();
@@ -86,6 +86,74 @@ public:
     */
     const BorderSize getBorderThickness() const;
 
+
+    //==============================================================================
+    /** Represents the different sections of a resizable border, which allow it to
+        resized in different ways.
+    */
+    class Zone
+    {
+    public:
+        //==============================================================================
+        enum Zones
+        {
+            centre  = 0,
+            left    = 1,
+            top     = 2,
+            right   = 4,
+            bottom  = 8
+        };
+
+        //==============================================================================
+        /** Creates a Zone from a combination of the flags in \enum Zones. */
+        explicit Zone (int zoneFlags = 0) throw();
+        Zone (const Zone& other) throw();
+        Zone& operator= (const Zone& other) throw();
+
+        bool operator== (const Zone& other) const throw();
+        bool operator!= (const Zone& other) const throw();
+
+        //==============================================================================
+        /** Given a point within a rectangle with a resizable border, this returns the
+            zone that the point lies within.
+        */
+        static const Zone fromPositionOnBorder (const Rectangle<int>& totalSize,
+                                                const BorderSize& border,
+                                                const Point<int>& position);
+
+        /** Returns an appropriate mouse-cursor for this resize zone. */
+        const MouseCursor getMouseCursor() const throw();
+
+        /** Returns true if dragging this zone will move the enire object without resizing it. */
+        bool isDraggingWholeObject() const throw()      { return zone == centre; }
+        /** Returns true if dragging this zone will move the object's left edge. */
+        bool isDraggingLeftEdge() const throw()         { return (zone & left) != 0; }
+        /** Returns true if dragging this zone will move the object's right edge. */
+        bool isDraggingRightEdge() const throw()        { return (zone & right) != 0; }
+        /** Returns true if dragging this zone will move the object's top edge. */
+        bool isDraggingTopEdge() const throw()          { return (zone & top) != 0; }
+        /** Returns true if dragging this zone will move the object's bottom edge. */
+        bool isDraggingBottomEdge() const throw()       { return (zone & bottom) != 0; }
+
+        /** Resizes this rectangle by the given amount, moving just the edges that this zone
+            applies to.
+        */
+        const Rectangle<int> resizeRectangleBy (Rectangle<int> original,
+                                                const Point<int>& distance) const throw();
+
+        /** Resizes this rectangle by the given amount, moving just the edges that this zone
+            applies to.
+        */
+        const Rectangle<float> resizeRectangleBy (Rectangle<float> original,
+                                                  const Point<float>& distance) const throw();
+
+        /** Returns the raw flags for this zone. */
+        int getZoneFlags() const throw()                { return zone; }
+
+    private:
+        //==============================================================================
+        int zone;
+    };
 
     //==============================================================================
     juce_UseDebuggingNewOperator
@@ -111,7 +179,7 @@ private:
     ComponentBoundsConstrainer* constrainer;
     BorderSize borderSize;
     Rectangle<int> originalBounds;
-    int mouseZone;
+    Zone mouseZone;
 
     void updateMouseZone (const MouseEvent& e);
 

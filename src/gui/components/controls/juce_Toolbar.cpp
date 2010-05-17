@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -40,7 +40,7 @@ BEGIN_JUCE_NAMESPACE
 #include "juce_ComboBox.h"
 #include "../buttons/juce_TextButton.h"
 
-const tchar* const Toolbar::toolbarDragDescriptor = T("_toolbarItem_");
+const char* const Toolbar::toolbarDragDescriptor = "_toolbarItem_";
 
 
 //==============================================================================
@@ -329,7 +329,7 @@ void Toolbar::addItemInternal (ToolbarItemFactory& factory,
 
     if (tc != 0)
     {
-#ifdef JUCE_DEBUG
+#if JUCE_DEBUG
         Array <int> allowedIds;
         factory.getAllToolbarItemIds (allowedIds);
 
@@ -420,10 +420,10 @@ void Toolbar::setStyle (const ToolbarItemStyle& newStyle)
 
 const String Toolbar::toString() const
 {
-    String s (T("TB:"));
+    String s ("TB:");
 
     for (int i = 0; i < getNumItems(); ++i)
-        s << getItemId(i) << T(' ');
+        s << getItemId(i) << ' ';
 
     return s.trimEnd();
 }
@@ -431,7 +431,7 @@ const String Toolbar::toString() const
 bool Toolbar::restoreFromString (ToolbarItemFactory& factoryToUse,
                                  const String& savedVersion)
 {
-    if (! savedVersion.startsWith (T("TB:")))
+    if (! savedVersion.startsWith ("TB:"))
         return false;
 
     StringArray tokens;

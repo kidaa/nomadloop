@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -231,10 +231,7 @@ void DropShadower::updateShadows()
     {
         // keep a cached version of the image to save doing the gaussian too often
         String imageId;
-        imageId << shadowEdge << T(',')
-                << xOffset << T(',')
-                << yOffset << T(',')
-                << alpha;
+        imageId << shadowEdge << ',' << xOffset << ',' << yOffset << ',' << alpha;
 
         const int hash = imageId.hashCode();
 
@@ -255,10 +252,8 @@ void DropShadower::updateShadows()
             blurKernel.createGaussianBlur (blurRadius);
 
             blurKernel.applyToImage (*bigIm, 0,
-                                     xOffset,
-                                     yOffset,
-                                     bigIm->getWidth(),
-                                     bigIm->getHeight());
+                                     Rectangle<int> (xOffset, yOffset,
+                                                     bigIm->getWidth(), bigIm->getHeight()));
 
             ImageCache::addImageToCache (bigIm, hash);
         }
@@ -329,12 +324,8 @@ void DropShadower::updateShadows()
         bringShadowWindowsToFront();
 }
 
-void DropShadower::setShadowImage (Image* const src,
-                                   const int num,
-                                   const int w,
-                                   const int h,
-                                   const int sx,
-                                   const int sy)
+void DropShadower::setShadowImage (Image* const src, const int num, const int w, const int h,
+                                   const int sx, const int sy)
 {
     shadowImageSections[num] = new Image (Image::ARGB, w, h, true);
 

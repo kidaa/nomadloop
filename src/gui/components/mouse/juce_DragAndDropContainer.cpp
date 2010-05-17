@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -342,7 +342,7 @@ void DragAndDropContainer::startDragging (const String& sourceDescription,
 
         if (dragImage == 0)
         {
-            dragImage = sourceComponent->createComponentSnapshot (Rectangle<int> (0, 0, sourceComponent->getWidth(), sourceComponent->getHeight()));
+            dragImage = sourceComponent->createComponentSnapshot (sourceComponent->getLocalBounds());
 
             if (dragImage->getFormat() != Image::ARGB)
             {
@@ -359,8 +359,7 @@ void DragAndDropContainer::startDragging (const String& sourceDescription,
             const int hi = 400;
 
             Point<int> relPos (sourceComponent->globalPositionToRelative (lastMouseDown));
-            Point<int> clipped (Rectangle<int> (0, 0, dragImage->getWidth(), dragImage->getHeight())
-                                    .getConstrainedPoint (relPos));
+            Point<int> clipped (dragImage->getBounds().getConstrainedPoint (relPos));
 
             for (int y = dragImage->getHeight(); --y >= 0;)
             {
@@ -369,7 +368,7 @@ void DragAndDropContainer::startDragging (const String& sourceDescription,
                 for (int x = dragImage->getWidth(); --x >= 0;)
                 {
                     const int dx = x - clipped.getX();
-                    const int distance = roundToInt (sqrt (dx * dx + dy));
+                    const int distance = roundToInt (std::sqrt (dx * dx + dy));
 
                     if (distance > lo)
                     {
@@ -387,10 +386,9 @@ void DragAndDropContainer::startDragging (const String& sourceDescription,
         else
         {
             if (imageOffsetFromMouse == 0)
-                imageOffset = Point<int> (dragImage->getWidth() / -2,
-                                          dragImage->getHeight() / -2);
+                imageOffset = -dragImage->getBounds().getCentre();
             else
-                imageOffset = *imageOffsetFromMouse;
+                imageOffset = -(dragImage->getBounds().getConstrainedPoint (-*imageOffsetFromMouse));
         }
 
         dragImageComponent = new DragImageComponent (dragImage.release(), sourceDescription, sourceComponent,

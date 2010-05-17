@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -91,6 +91,12 @@ public:
     /** Returns true if this process is being hosted by a debugger.
     */
     static bool JUCE_CALLTYPE isRunningUnderDebugger();
+
+
+private:
+    Process();
+    Process (const Process&);
+    Process& operator= (const Process&);
 };
 
 

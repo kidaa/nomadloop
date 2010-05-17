@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -69,7 +69,7 @@ public:
                                         in which case it will be released with ImageCache::release().
     */
     void setImage (Image* imageToUse,
-                   const bool releaseWhenNotNeeded);
+                   bool releaseWhenNotNeeded);
 
     /** Returns the current image. */
     Image* getImage() const throw()                             { return image; }
@@ -78,7 +78,7 @@ public:
     void clearImage();
 
     /** Sets the opacity to use when drawing the image. */
-    void setOpacity (const float newOpacity);
+    void setOpacity (float newOpacity);
 
     /** Returns the image's opacity. */
     float getOpacity() const throw()                            { return opacity; }
@@ -108,9 +108,9 @@ public:
     /** @internal */
     Drawable* createCopy() const;
     /** @internal */
-    ValueTree createValueTree() const throw();
+    ValueTree createValueTree() const;
     /** @internal */
-    static DrawableImage* createFromValueTree (const ValueTree& tree) throw();
+    static DrawableImage* createFromValueTree (const ValueTree& tree);
 
     //==============================================================================
     juce_UseDebuggingNewOperator

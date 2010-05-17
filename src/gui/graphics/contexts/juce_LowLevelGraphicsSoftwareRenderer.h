@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -27,7 +27,7 @@
 #define __JUCE_LOWLEVELGRAPHICSSOFTWARERENDERER_JUCEHEADER__
 
 #include "juce_LowLevelGraphicsContext.h"
-class LLGCSavedState;
+
 
 //==============================================================================
 /**
@@ -42,6 +42,7 @@ class JUCE_API  LowLevelGraphicsSoftwareRenderer    : public LowLevelGraphicsCon
 public:
     //==============================================================================
     LowLevelGraphicsSoftwareRenderer (Image& imageToRenderOn);
+    LowLevelGraphicsSoftwareRenderer (Image& imageToRenderOn, int xOffset, int yOffset, const RectangleList& initialClip);
     ~LowLevelGraphicsSoftwareRenderer();
 
     bool isVectorDevice() const;
@@ -68,16 +69,16 @@ public:
     void setInterpolationQuality (Graphics::ResamplingQuality quality);
 
     //==============================================================================
-    void fillRect (const Rectangle<int>& r, const bool replaceExistingContents);
+    void fillRect (const Rectangle<int>& r, bool replaceExistingContents);
     void fillPath (const Path& path, const AffineTransform& transform);
 
     void drawImage (const Image& sourceImage, const Rectangle<int>& srcClip,
-                    const AffineTransform& transform, const bool fillEntireClipAsTiles);
+                    const AffineTransform& transform, bool fillEntireClipAsTiles);
 
-    void drawLine (double x1, double y1, double x2, double y2);
+    void drawLine (const Line <float>& line);
 
-    void drawVerticalLine (const int x, double top, double bottom);
-    void drawHorizontalLine (const int x, double top, double bottom);
+    void drawVerticalLine (int x, float top, float bottom);
+    void drawHorizontalLine (int x, float top, float bottom);
 
     //==============================================================================
     void setFont (const Font& newFont);
@@ -92,8 +93,14 @@ protected:
     //==============================================================================
     Image& image;
 
-    ScopedPointer <LLGCSavedState> currentState;
-    OwnedArray <LLGCSavedState> stateStack;
+    class GlyphCache;
+    class CachedGlyph;
+    class SavedState;
+    friend class ScopedPointer <SavedState>;
+    friend class OwnedArray <SavedState>;
+    friend class OwnedArray <CachedGlyph>;
+    ScopedPointer <SavedState> currentState;
+    OwnedArray <SavedState> stateStack;
 
     LowLevelGraphicsSoftwareRenderer (const LowLevelGraphicsSoftwareRenderer& other);
     LowLevelGraphicsSoftwareRenderer& operator= (const LowLevelGraphicsSoftwareRenderer&);

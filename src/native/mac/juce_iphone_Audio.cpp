@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -34,7 +34,7 @@ class IPhoneAudioIODevice  : public AudioIODevice
 public:
     //==============================================================================
     IPhoneAudioIODevice (const String& deviceName)
-        : AudioIODevice (deviceName, T("Audio")),
+        : AudioIODevice (deviceName, "Audio"),
           audioUnit (0),
           isRunning (false),
           callback (0),
@@ -98,8 +98,8 @@ public:
         return 1024;
     }
 
-    const String open (const BitArray& inputChannels,
-                       const BitArray& outputChannels,
+    const String open (const BigInteger& inputChannels,
+                       const BigInteger& outputChannels,
                        double sampleRate,
                        int bufferSize)
     {
@@ -138,8 +138,7 @@ public:
         isRunning = true;
         propertyChanged (0, 0, 0);  // creates and starts the AU
 
-        lastError = audioUnit != 0 ? String::empty
-                                   : T("Couldn't open the device");
+        lastError = audioUnit != 0 ? "" : "Couldn't open the device";
         return lastError;
     }
 
@@ -178,12 +177,12 @@ public:
         return 16;
     }
 
-    const BitArray getActiveOutputChannels() const
+    const BigInteger getActiveOutputChannels() const
     {
         return activeOutputChans;
     }
 
-    const BitArray getActiveInputChannels() const
+    const BigInteger getActiveInputChannels() const
     {
         return activeInputChans;
     }
@@ -251,7 +250,7 @@ private:
     AudioUnit audioUnit;
     UInt32 audioInputIsAvailable;
     AudioIODeviceCallback* callback;
-    BitArray activeOutputChans, activeInputChans;
+    BigInteger activeOutputChans, activeInputChans;
 
     AudioSampleBuffer floatData;
     float* inputChannels[3];
@@ -529,7 +528,7 @@ class IPhoneAudioIODeviceType  : public AudioIODeviceType
 public:
     //==============================================================================
     IPhoneAudioIODeviceType()
-        : AudioIODeviceType (T("iPhone Audio"))
+        : AudioIODeviceType ("iPhone Audio")
     {
     }
 
@@ -542,19 +541,19 @@ public:
     {
     }
 
-    const StringArray getDeviceNames (const bool wantInputNames) const
+    const StringArray getDeviceNames (bool wantInputNames) const
     {
         StringArray s;
         s.add ("iPhone Audio");
         return s;
     }
 
-    int getDefaultDeviceIndex (const bool forInput) const
+    int getDefaultDeviceIndex (bool forInput) const
     {
         return 0;
     }
 
-    int getIndexOfDevice (AudioIODevice* device, const bool asInput) const
+    int getIndexOfDevice (AudioIODevice* device, bool asInput) const
     {
         return device != 0 ? 0 : -1;
     }

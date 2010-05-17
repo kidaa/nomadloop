@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -81,12 +81,11 @@ void BooleanPropertyComponent::paint (Graphics& g)
 {
     PropertyComponent::paint (g);
 
-    const Rectangle<int> r (button->getBounds());
     g.setColour (Colours::white);
-    g.fillRect (r);
+    g.fillRect (button->getBounds());
 
     g.setColour (findColour (ComboBox::outlineColourId));
-    g.drawRect (r.getX(), r.getY(), r.getWidth(), r.getHeight());
+    g.drawRect (button->getBounds());
 }
 
 void BooleanPropertyComponent::refresh()

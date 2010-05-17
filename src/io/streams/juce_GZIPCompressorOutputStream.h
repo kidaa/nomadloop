@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -54,10 +54,10 @@ public:
         @param noWrap                           this is used internally by the ZipFile class
                                                 and should be ignored by user applications
     */
-    GZIPCompressorOutputStream (OutputStream* const destStream,
+    GZIPCompressorOutputStream (OutputStream* destStream,
                                 int compressionLevel = 0,
-                                const bool deleteDestStreamWhenDestroyed = false,
-                                const bool noWrap = false);
+                                bool deleteDestStreamWhenDestroyed = false,
+                                bool noWrap = false);
 
     /** Destructor. */
     ~GZIPCompressorOutputStream();

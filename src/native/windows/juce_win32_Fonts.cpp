@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -38,7 +38,7 @@ static int CALLBACK wfontEnum2 (ENUMLOGFONTEXW* lpelfe,
     {
         const String fontName (lpelfe->elfLogFont.lfFaceName);
 
-        ((StringArray*) lParam)->addIfNotAlreadyThere (fontName.removeCharacters (T("@")));
+        ((StringArray*) lParam)->addIfNotAlreadyThere (fontName.removeCharacters ("@"));
     }
 
     return 1;
@@ -74,7 +74,7 @@ static int CALLBACK wfontEnum1 (ENUMLOGFONTEXW* lpelfe,
     return 1;
 }
 
-const StringArray Font::findAllTypefaceNames() throw()
+const StringArray Font::findAllTypefaceNames()
 {
     StringArray results;
     HDC dc = CreateCompatibleDC (0);
@@ -104,7 +104,7 @@ const StringArray Font::findAllTypefaceNames() throw()
 
 extern bool juce_IsRunningInWine();
 
-void Font::getPlatformDefaultFontNames (String& defaultSans, String& defaultSerif, String& defaultFixed) throw()
+void Font::getPlatformDefaultFontNames (String& defaultSans, String& defaultSerif, String& defaultFixed)
 {
     if (juce_IsRunningInWine())
     {
@@ -127,13 +127,13 @@ class FontDCHolder  : private DeletedAtShutdown
 {
 public:
     //==============================================================================
-    FontDCHolder() throw()
+    FontDCHolder()
         : dc (0), numKPs (0), size (0),
           bold (false), italic (false)
     {
     }
 
-    ~FontDCHolder() throw()
+    ~FontDCHolder()
     {
         if (dc != 0)
         {
@@ -147,7 +147,7 @@ public:
     juce_DeclareSingleton_SingleThreaded_Minimal (FontDCHolder);
 
     //==============================================================================
-    HDC loadFont (const String& fontName_, const bool bold_, const bool italic_, const int size_) throw()
+    HDC loadFont (const String& fontName_, const bool bold_, const bool italic_, const int size_)
     {
         if (fontName != fontName_ || bold != bold_ || italic != italic_ || size != size_)
         {
@@ -205,12 +205,12 @@ public:
                 }
                 else
                 {
-                    jassertfalse
+                    jassertfalse;
                 }
             }
             else
             {
-                jassertfalse
+                jassertfalse;
             }
         }
 
@@ -218,7 +218,7 @@ public:
     }
 
     //==============================================================================
-    KERNINGPAIR* getKerningPairs (int& numKPs_) throw()
+    KERNINGPAIR* getKerningPairs (int& numKPs_)
     {
         if (kps == 0)
         {
@@ -268,7 +268,7 @@ public:
                             tm.tmDefaultChar);
     }
 
-    bool loadGlyphIfPossible (const juce_wchar character)
+    bool loadGlyphIfPossible (juce_wchar character)
     {
         HDC dc = FontDCHolder::getInstance()->loadFont (name, isBold, isItalic, 0);
 
@@ -383,6 +383,8 @@ public:
 
         return true;
     }
+
+    juce_UseDebuggingNewOperator
 };
 
 const Typeface::Ptr Typeface::createSystemTypefaceFor (const Font& font)

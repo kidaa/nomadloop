@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -213,8 +213,8 @@ char* NP_GetMIMEDescription()
     static String mimeDesc;
 
     mimeDesc = String (T(JuceBrowserPlugin_MimeType))
-                + T(":") + String (T(JuceBrowserPlugin_FileSuffix))
-                + T(":") + String (T(JuceBrowserPlugin_Name));
+                + ":" + String (T(JuceBrowserPlugin_FileSuffix))
+                + ":" + String (T(JuceBrowserPlugin_Name));
 
     return (char*) (const char*) mimeDesc.toUTF8();
 }
@@ -400,7 +400,7 @@ public:
                 setVisible (true);
 
                 oldWinProc = SubclassWindow (parentHWND, (WNDPROC) interceptingWinProc);
-                SetWindowLongPtr (parentHWND, GWL_USERDATA, (LONG_PTR) this);
+                SetWindowLongPtr (parentHWND, GWLP_USERDATA, (LONG_PTR) this);
 
                 resizeToParentWindow (window->width, window->height);
             }
@@ -542,7 +542,7 @@ public:
 //==============================================================================
 static NPIdentifier getIdentifierFromString (const var::identifier& s) throw()
 {
-    return browser.getstringidentifier (s.name.toUTF8());
+    return browser.getstringidentifier (s.toString().toUTF8());
 }
 
 static const var createValueFromNPVariant (NPP npp, const NPVariant& v);
@@ -849,7 +849,7 @@ static const var createValueFromNPVariant (NPP npp, const NPVariant& v)
         return var (String::fromUTF8 ((const char*) (NPVARIANT_TO_STRING (v).utf8characters),
                                       (int) NPVARIANT_TO_STRING (v).utf8length));
 #endif
-    else if (NPVARIANT_IS_OBJECT (v))
+    else if (NPVARIANT_IS_OBJECT (v) && npp != 0)
         return var (new DynamicObjectWrappingNPObject (npp, NPVARIANT_TO_OBJECT (v)));
 
     return var();
@@ -872,7 +872,7 @@ static void createNPVariantFromValue (NPP npp, NPVariant& out, const var& v)
         memcpy (stringCopy, utf8, utf8Len);
         STRINGZ_TO_NPVARIANT (stringCopy, out);
     }
-    else if (v.isObject())
+    else if (v.isObject() && npp != 0)
         OBJECT_TO_NPVARIANT (NPObjectWrappingDynamicObject::create (npp, v), out);
     else
         VOID_TO_NPVARIANT (out);
@@ -934,10 +934,10 @@ private:
     {
         const String version (browser.uagent (npp));
 
-        if (! version.containsIgnoreCase (T(" AppleWebKit/")))
+        if (! version.containsIgnoreCase (" AppleWebKit/"))
             return true;
 
-        int versionNum = version.fromFirstOccurrenceOf (T(" AppleWebKit/"), false, true).getIntValue();
+        int versionNum = version.fromFirstOccurrenceOf (" AppleWebKit/", false, true).getIntValue();
 
         return versionNum == 0 || versionNum >= 420;
     }

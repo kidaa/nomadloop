@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -56,10 +56,10 @@ public:
                                             uncompressed stream will be, then it can supply this
                                             value, which will be returned by getTotalLength()
     */
-    GZIPDecompressorInputStream (InputStream* const sourceStream,
-                                 const bool deleteSourceWhenDestroyed,
-                                 const bool noWrap = false,
-                                 const int64 uncompressedStreamLength = -1);
+    GZIPDecompressorInputStream (InputStream* sourceStream,
+                                 bool deleteSourceWhenDestroyed,
+                                 bool noWrap = false,
+                                 int64 uncompressedStreamLength = -1);
 
     /** Destructor. */
     ~GZIPDecompressorInputStream();

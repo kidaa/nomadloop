@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -36,17 +36,17 @@ BEGIN_JUCE_NAMESPACE
 
 //==============================================================================
 static const char* const wavFormatName = "WAV file";
-static const tchar* const wavExtensions[] =    { T(".wav"), T(".bwf"), 0 };
+static const char* const wavExtensions[] = { ".wav", ".bwf", 0 };
 
 
 //==============================================================================
-const tchar* const WavAudioFormat::bwavDescription      = T("bwav description");
-const tchar* const WavAudioFormat::bwavOriginator       = T("bwav originator");
-const tchar* const WavAudioFormat::bwavOriginatorRef    = T("bwav originator ref");
-const tchar* const WavAudioFormat::bwavOriginationDate  = T("bwav origination date");
-const tchar* const WavAudioFormat::bwavOriginationTime  = T("bwav origination time");
-const tchar* const WavAudioFormat::bwavTimeReference    = T("bwav time reference");
-const tchar* const WavAudioFormat::bwavCodingHistory    = T("bwav coding history");
+const char* const WavAudioFormat::bwavDescription      = "bwav description";
+const char* const WavAudioFormat::bwavOriginator       = "bwav originator";
+const char* const WavAudioFormat::bwavOriginatorRef    = "bwav originator ref";
+const char* const WavAudioFormat::bwavOriginationDate  = "bwav origination date";
+const char* const WavAudioFormat::bwavOriginationTime  = "bwav origination time";
+const char* const WavAudioFormat::bwavTimeReference    = "bwav time reference";
+const char* const WavAudioFormat::bwavCodingHistory    = "bwav coding history";
 
 const StringPairArray WavAudioFormat::createBWAVMetadata (const String& description,
                                                           const String& originator,
@@ -60,8 +60,8 @@ const StringPairArray WavAudioFormat::createBWAVMetadata (const String& descript
     m.set (bwavDescription, description);
     m.set (bwavOriginator, originator);
     m.set (bwavOriginatorRef, originatorRef);
-    m.set (bwavOriginationDate, date.formatted (T("%Y-%m-%d")));
-    m.set (bwavOriginationTime, date.formatted (T("%H:%M:%S")));
+    m.set (bwavOriginationDate, date.formatted ("%Y-%m-%d"));
+    m.set (bwavOriginationTime, date.formatted ("%H:%M:%S"));
     m.set (bwavTimeReference, String (timeReferenceSamples));
     m.set (bwavCodingHistory, codingHistory);
 
@@ -426,7 +426,7 @@ public:
 
             if (bitsPerSample == 16)
             {
-                const short* src = (const short*) tempBuffer;
+                const short* src = reinterpret_cast <const short*> (tempBuffer);
 
                 if (numChannels > 1)
                 {
@@ -465,7 +465,7 @@ public:
             }
             else if (bitsPerSample == 24)
             {
-                const char* src = (const char*) tempBuffer;
+                const char* src = tempBuffer;
 
                 if (numChannels > 1)
                 {
@@ -705,7 +705,7 @@ public:
 
         const int bytes = numChannels * numSamples * bitsPerSample / 8;
         tempBlock.ensureSize (bytes, false);
-        char* buffer = (char*) tempBlock.getData();
+        char* buffer = static_cast <char*> (tempBlock.getData());
 
         const int* left = data[0];
         const int* right = data[1];
@@ -734,7 +734,7 @@ public:
         }
         else if (bitsPerSample == 24)
         {
-            char* b = (char*) buffer;
+            char* b = buffer;
 
             if (numChannels > 1)
             {
@@ -820,7 +820,7 @@ public:
 
 //==============================================================================
 WavAudioFormat::WavAudioFormat()
-    : AudioFormat (TRANS (wavFormatName), (const tchar**) wavExtensions)
+    : AudioFormat (TRANS (wavFormatName), StringArray (wavExtensions))
 {
 }
 

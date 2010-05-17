@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -61,8 +61,8 @@ public:
 
         @see ComponentBoundsConstrainer
     */
-    ResizableCornerComponent (Component* const componentToResize,
-                              ComponentBoundsConstrainer* const constrainer);
+    ResizableCornerComponent (Component* componentToResize,
+                              ComponentBoundsConstrainer* constrainer);
 
     /** Destructor. */
     ~ResizableCornerComponent();

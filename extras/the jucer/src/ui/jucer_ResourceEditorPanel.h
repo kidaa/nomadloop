@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -53,7 +53,7 @@ public:
     void paintCell (Graphics& g, int rowNumber, int columnId, int width, int height, bool rowIsSelected);
     Component* refreshComponentForCell (int rowNumber, int columnId, bool isRowSelected, Component* existingComponentToUpdate);
     int getColumnAutoSizeWidth (int columnId);
-    void sortOrderChanged (int newSortColumnId, const bool isForwards);
+    void sortOrderChanged (int newSortColumnId, bool isForwards);
     void selectedRowsChanged (int lastRowSelected);
 
     //==============================================================================

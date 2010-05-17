@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -182,6 +182,7 @@ public:
                       << (mode == stretched ? "RectanglePlacement::stretchToFit"
                                             : (mode == proportionalReducingOnly ? "RectanglePlacement::centred | RectanglePlacement::onlyReduceInSize"
                                                                                 : "RectanglePlacement::centred"))
+                      << ", " << valueToFloat (opacity)
                       << ");\n\n";
 
                     paintMethodCode += r;
@@ -311,7 +312,7 @@ public:
             Rectangle<int> r (getCurrentBounds (parentArea));
             Rectangle<float> bounds (image->getBounds());
 
-            r.setSize ((int) (bounds.getWidth() + 1.0f), (int) (bounds.getHeight() + 1.0f));
+            r.setSize ((int) (bounds.getWidth() + 0.999f), (int) (bounds.getHeight() + 0.999f));
 
             setCurrentBounds (r, parentArea, true);
         }
@@ -442,14 +443,14 @@ private:
             element->getDocument()->removeChangeListener (this);
         }
 
-        void setValue (const double newValue)
+        void setValue (double newValue)
         {
             element->getDocument()->getUndoManager().undoCurrentTransactionOnly();
 
             element->setOpacity (newValue, true);
         }
 
-        const double getValue() const
+        double getValue() const
         {
             return element->getOpacity();
         }
@@ -483,7 +484,7 @@ private:
             element->getDocument()->removeChangeListener (this);
         }
 
-        void setIndex (const int newIndex)
+        void setIndex (int newIndex)
         {
             element->setStretchMode ((StretchMode) newIndex, true);
         }

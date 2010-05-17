@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -49,9 +49,9 @@ public:
         @param deleteSourceWhenDestroyed    whether the sourceStream that is passed in should be
                                             deleted by this object when it is itself deleted.
     */
-    BufferedInputStream (InputStream* const sourceStream,
-                         const int bufferSize,
-                         const bool deleteSourceWhenDestroyed);
+    BufferedInputStream (InputStream* sourceStream,
+                         int bufferSize,
+                         bool deleteSourceWhenDestroyed);
 
     /** Destructor.
 

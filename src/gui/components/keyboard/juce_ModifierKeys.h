@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -46,7 +46,7 @@ public:
         @see    shiftModifier, ctrlModifier, altModifier, leftButtonModifier,
                 rightButtonModifier, commandModifier, popupMenuClickModifier
     */
-    ModifierKeys (const int flags = 0) throw();
+    ModifierKeys (int flags = 0) throw();
 
     /** Creates a copy of another object. */
     ModifierKeys (const ModifierKeys& other) throw();

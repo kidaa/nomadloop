@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -41,8 +41,13 @@ class JUCE_API  WaitableEvent
 {
 public:
     //==============================================================================
-    /** Creates a WaitableEvent object. */
-    WaitableEvent() throw();
+    /** Creates a WaitableEvent object.
+
+        @param manualReset  If this is false, the event will be reset automatically when the wait()
+                            method is called. If manualReset is true, then once the event is signalled,
+                            the only way to reset it will be by calling the reset() method.
+    */
+    WaitableEvent (bool manualReset = false) throw();
 
     /** Destructor.
 
@@ -57,8 +62,8 @@ public:
         This will wait until the object's signal() method is called by another thread,
         or until the timeout expires.
 
-        After the event has been signalled, this method will return true and reset
-        the event.
+        After the event has been signalled, this method will return true and if manualReset
+        was set to false in the WaitableEvent's constructor, then the event will be reset.
 
         @param timeOutMilliseconds  the maximum time to wait, in milliseconds. A negative
                                     value will cause it to wait forever.
@@ -66,7 +71,7 @@ public:
         @returns    true if the object has been signalled, false if the timeout expires first.
         @see signal, reset
     */
-    bool wait (const int timeOutMilliseconds = -1) const throw();
+    bool wait (int timeOutMilliseconds = -1) const throw();
 
     //==============================================================================
     /** Wakes up any threads that are currently waiting on this object.

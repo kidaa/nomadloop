@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -36,15 +36,17 @@ BEGIN_JUCE_NAMESPACE
 
 
 //==============================================================================
-static const float minFontHeight = 0.1f;
-static const float maxFontHeight = 10000.0f;
-static const float defaultFontHeight = 14.0f;
+namespace FontValues
+{
+    static float limitFontHeight (const float height) throw()
+    {
+        return jlimit (0.1f, 10000.0f, height);
+    }
 
-static const tchar* const juce_defaultFontNameSans = T("<Sans-Serif>");
-static const tchar* const juce_defaultFontNameSerif = T("<Serif>");
-static const tchar* const juce_defaultFontNameMono = T("<Monospaced>");
+    static const float defaultFontHeight = 14.0f;
 
-void clearUpDefaultFontNames() throw(); // in juce_LookAndFeel.cpp
+    static String fallbackFont;
+}
 
 //==============================================================================
 Font::SharedFontInternal::SharedFontInternal (const String& typefaceName_, const float height_, const float horizontalScale_,
@@ -74,13 +76,13 @@ Font::SharedFontInternal::SharedFontInternal (const SharedFontInternal& other) t
 
 //==============================================================================
 Font::Font() throw()
-    : font (new SharedFontInternal (juce_defaultFontNameSans, defaultFontHeight,
+    : font (new SharedFontInternal (getDefaultSansSerifFontName(), FontValues::defaultFontHeight,
                                     1.0f, 0, 0, Font::plain, 0))
 {
 }
 
 Font::Font (const float fontHeight, const int styleFlags_) throw()
-    : font (new SharedFontInternal (juce_defaultFontNameSans, jlimit (minFontHeight, maxFontHeight, fontHeight),
+    : font (new SharedFontInternal (getDefaultSansSerifFontName(), FontValues::limitFontHeight (fontHeight),
                                     1.0f, 0, 0, styleFlags_, 0))
 {
 }
@@ -88,7 +90,7 @@ Font::Font (const float fontHeight, const int styleFlags_) throw()
 Font::Font (const String& typefaceName_,
             const float fontHeight,
             const int styleFlags_) throw()
-    : font (new SharedFontInternal (typefaceName_, jlimit (minFontHeight, maxFontHeight, fontHeight),
+    : font (new SharedFontInternal (typefaceName_, FontValues::limitFontHeight (fontHeight),
                                     1.0f, 0, 0, styleFlags_, 0))
 {
 }
@@ -109,7 +111,7 @@ Font::~Font() throw()
 }
 
 Font::Font (const Typeface::Ptr& typeface) throw()
-    : font (new SharedFontInternal (typeface->getName(), defaultFontHeight,
+    : font (new SharedFontInternal (typeface->getName(), FontValues::defaultFontHeight,
                                     1.0f, 0, 0, Font::plain, typeface))
 {
 }
@@ -138,17 +140,20 @@ void Font::dupeInternalIfShared() throw()
 //==============================================================================
 const String Font::getDefaultSansSerifFontName() throw()
 {
-    return juce_defaultFontNameSans;
+    static const String name ("<Sans-Serif>");
+    return name;
 }
 
 const String Font::getDefaultSerifFontName() throw()
 {
-    return juce_defaultFontNameSerif;
+    static const String name ("<Serif>");
+    return name;
 }
 
 const String Font::getDefaultMonospacedFontName() throw()
 {
-    return juce_defaultFontNameMono;
+    static const String name ("<Monospaced>");
+    return name;
 }
 
 void Font::setTypefaceName (const String& faceName) throw()
@@ -163,22 +168,20 @@ void Font::setTypefaceName (const String& faceName) throw()
 }
 
 //==============================================================================
-static String fallbackFont;
-
 const String Font::getFallbackFontName() throw()
 {
-    return fallbackFont;
+    return FontValues::fallbackFont;
 }
 
 void Font::setFallbackFontName (const String& name) throw()
 {
-    fallbackFont = name;
+    FontValues::fallbackFont = name;
 }
 
 //==============================================================================
 void Font::setHeight (float newHeight) throw()
 {
-    newHeight = jlimit (minFontHeight, maxFontHeight, newHeight);
+    newHeight = FontValues::limitFontHeight (newHeight);
 
     if (font->height != newHeight)
     {
@@ -189,7 +192,7 @@ void Font::setHeight (float newHeight) throw()
 
 void Font::setHeightWithoutChangingWidth (float newHeight) throw()
 {
-    newHeight = jlimit (minFontHeight, maxFontHeight, newHeight);
+    newHeight = FontValues::limitFontHeight (newHeight);
 
     if (font->height != newHeight)
     {
@@ -215,7 +218,7 @@ void Font::setSizeAndStyle (float newHeight,
                             const float newHorizontalScale,
                             const float newKerningAmount) throw()
 {
-    newHeight = jlimit (minFontHeight, maxFontHeight, newHeight);
+    newHeight = FontValues::limitFontHeight (newHeight);
 
     if (font->height != newHeight
          || font->horizontalScale != newHorizontalScale
@@ -332,9 +335,56 @@ void Font::findFonts (Array<Font>& destArray) throw()
     const StringArray names (findAllTypefaceNames());
 
     for (int i = 0; i < names.size(); ++i)
-        destArray.add (Font (names[i], defaultFontHeight, Font::plain));
+        destArray.add (Font (names[i], FontValues::defaultFontHeight, Font::plain));
 }
 
+//==============================================================================
+const String Font::toString() const
+{
+    String s (getTypefaceName());
+
+    if (s == getDefaultSansSerifFontName())
+        s = String::empty;
+    else
+        s += "; ";
+
+    s += String (getHeight(), 1);
+
+    if (isBold())
+        s += " bold";
+
+    if (isItalic())
+        s += " italic";
+
+    return s;
+}
+
+const Font Font::fromString (const String& fontDescription)
+{
+    String name;
+
+    const int separator = fontDescription.indexOfChar (';');
+
+    if (separator > 0)
+        name = fontDescription.substring (0, separator).trim();
+
+    if (name.isEmpty())
+        name = getDefaultSansSerifFontName();
+
+    String sizeAndStyle (fontDescription.substring (separator + 1));
+
+    float height = sizeAndStyle.getFloatValue();
+    if (height <= 0)
+        height = 10.0f;
+
+    int flags = Font::plain;
+    if (sizeAndStyle.containsIgnoreCase ("bold"))
+        flags |= Font::bold;
+    if (sizeAndStyle.containsIgnoreCase ("italic"))
+        flags |= Font::italic;
+
+    return Font (name, height, flags);
+}
 
 //==============================================================================
 class TypefaceCache  : public DeletedAtShutdown
@@ -349,7 +399,6 @@ public:
 
     ~TypefaceCache()
     {
-        clearUpDefaultFontNames();
         clearSingletonInstance();
     }
 

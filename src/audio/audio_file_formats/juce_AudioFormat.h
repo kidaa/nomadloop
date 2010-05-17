@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -161,7 +161,7 @@ protected:
                                 be returned by getFileExtension()
     */
     AudioFormat (const String& formatName,
-                 const tchar** const fileExtensions);
+                 const StringArray& fileExtensions);
 
 private:
     //==============================================================================

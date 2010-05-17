@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -43,7 +43,7 @@ ResizableWindow::ResizableWindow (const String& name,
       fullscreen (false),
       lastNonFullScreenPos (50, 50, 256, 256),
       constrainer (0)
-#ifdef JUCE_DEBUG
+#if JUCE_DEBUG
       , hasBeenResized (false)
 #endif
 {
@@ -63,7 +63,7 @@ ResizableWindow::ResizableWindow (const String& name,
       fullscreen (false),
       lastNonFullScreenPos (50, 50, 256, 256),
       constrainer (0)
-#ifdef JUCE_DEBUG
+#if JUCE_DEBUG
       , hasBeenResized (false)
 #endif
 {
@@ -88,12 +88,12 @@ ResizableWindow::~ResizableWindow()
 
 int ResizableWindow::getDesktopWindowStyleFlags() const
 {
-    int flags = TopLevelWindow::getDesktopWindowStyleFlags();
+    int styleFlags = TopLevelWindow::getDesktopWindowStyleFlags();
 
-    if (isResizable() && (flags & ComponentPeer::windowHasTitleBar) != 0)
-        flags |= ComponentPeer::windowIsResizable;
+    if (isResizable() && (styleFlags & ComponentPeer::windowHasTitleBar) != 0)
+        styleFlags |= ComponentPeer::windowIsResizable;
 
-    return flags;
+    return styleFlags;
 }
 
 //==============================================================================
@@ -103,7 +103,7 @@ void ResizableWindow::setContentComponent (Component* const newContentComponent,
 {
     resizeToFitContent = resizeToFit;
 
-    if (newContentComponent != (Component*) contentComponent)
+    if (newContentComponent != static_cast <Component*> (contentComponent))
     {
         if (! deleteOldOne)
             removeChildComponent (contentComponent.release());
@@ -177,7 +177,7 @@ void ResizableWindow::resized()
 
     updateLastPos();
 
-#ifdef JUCE_DEBUG
+#if JUCE_DEBUG
     hasBeenResized = true;
 #endif
 }
@@ -309,7 +309,7 @@ void ResizableWindow::paint (Graphics& g)
                                                     getBorderThickness(), *this);
     }
 
-#ifdef JUCE_DEBUG
+#if JUCE_DEBUG
     /* If this fails, then you've probably written a subclass with a resized()
        callback but forgotten to make it call its parent class's resized() method.
 
@@ -392,7 +392,7 @@ void ResizableWindow::setFullScreen (const bool shouldBeFullScreen)
             }
             else
             {
-                jassertfalse
+                jassertfalse;
             }
         }
         else
@@ -427,7 +427,7 @@ void ResizableWindow::setMinimised (const bool shouldMinimise)
         }
         else
         {
-            jassertfalse
+            jassertfalse;
         }
     }
 }
@@ -462,7 +462,7 @@ bool ResizableWindow::restoreWindowStateFromString (const String& s)
     tokens.removeEmptyStrings();
     tokens.trim();
 
-    const bool fs = tokens[0].startsWithIgnoreCase (T("fs"));
+    const bool fs = tokens[0].startsWithIgnoreCase ("fs");
     const int firstCoord = fs ? 1 : 0;
 
     if (tokens.size() != firstCoord + 4)
@@ -520,7 +520,7 @@ void ResizableWindow::mouseDrag (const MouseEvent& e)
 }
 
 //==============================================================================
-#ifdef JUCE_DEBUG
+#if JUCE_DEBUG
 void ResizableWindow::addChildComponent (Component* const child, int zOrder)
 {
     /* Agh! You shouldn't add components directly to a ResizableWindow - this class
@@ -533,7 +533,7 @@ void ResizableWindow::addChildComponent (Component* const child, int zOrder)
        If you really know what you're doing and want to avoid this assertion, just call
        Component::addChildComponent directly.
    */
-    jassertfalse
+    jassertfalse;
 
     Component::addChildComponent (child, zOrder);
 }
@@ -550,7 +550,7 @@ void ResizableWindow::addAndMakeVisible (Component* const child, int zOrder)
        If you really know what you're doing and want to avoid this assertion, just call
        Component::addAndMakeVisible directly.
    */
-    jassertfalse
+    jassertfalse;
 
     Component::addAndMakeVisible (child, zOrder);
 }

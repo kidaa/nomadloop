@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -297,7 +297,7 @@ int64 AudioFormatReader::searchForLevel (int64 startSample,
 
             if (usesFloatingPointData)
             {
-                const float sample1 = fabsf (((float*) tempBuffer[0]) [index]);
+                const float sample1 = std::abs (((float*) tempBuffer[0]) [index]);
 
                 if (sample1 >= magnitudeRangeMinimum
                      && sample1 <= magnitudeRangeMaximum)
@@ -306,7 +306,7 @@ int64 AudioFormatReader::searchForLevel (int64 startSample,
                 }
                 else if (numChannels > 1)
                 {
-                    const float sample2 = fabsf (((float*) tempBuffer[1]) [index]);
+                    const float sample2 = std::abs (((float*) tempBuffer[1]) [index]);
 
                     matches = (sample2 >= magnitudeRangeMinimum
                                  && sample2 <= magnitudeRangeMaximum);
@@ -512,7 +512,7 @@ bool AudioFormatWriter::writeFromAudioSource (AudioSource& source,
 
 //==============================================================================
 AudioFormat::AudioFormat (const String& name,
-                          const tchar** const extensions)
+                          const StringArray& extensions)
   : formatName (name),
     fileExtensions (extensions)
 {

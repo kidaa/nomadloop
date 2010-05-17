@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -54,7 +54,7 @@ public:
     /** Creates a gradient fill type.
         @see setGradient
     */
-    FillType (const ColourGradient& gradient) throw();
+    FillType (const ColourGradient& gradient);
 
     /** Creates a tiled image fill type. The transform allows you to set the scaling, offset
         and rotation of the pattern.
@@ -63,10 +63,10 @@ public:
     FillType (const Image& image, const AffineTransform& transform) throw();
 
     /** Creates a copy of another FillType. */
-    FillType (const FillType& other) throw();
+    FillType (const FillType& other);
 
     /** Makes a copy of another FillType. */
-    FillType& operator= (const FillType& other) throw();
+    FillType& operator= (const FillType& other);
 
     /** Destructor. */
     ~FillType() throw();
@@ -85,7 +85,7 @@ public:
     void setColour (const Colour& newColour) throw();
 
     /** Turns this object into a gradient fill. */
-    void setGradient (const ColourGradient& newGradient) throw();
+    void setGradient (const ColourGradient& newGradient);
 
     /** Turns this object into a tiled image fill type. The transform allows you to set
         the scaling, offset and rotation of the pattern.
@@ -96,7 +96,7 @@ public:
         If the fill is a solid colour, this just changes the opacity of that colour. For
         gradients and image tiles, it changes the opacity that will be used for them.
     */
-    void setOpacity (const float newOpacity) throw();
+    void setOpacity (float newOpacity) throw();
 
     /** Returns the current opacity to be applied to the colour, gradient, or image.
         @see setOpacity

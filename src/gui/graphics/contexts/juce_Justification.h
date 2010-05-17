@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -41,7 +41,7 @@ class JUCE_API  Justification
 public:
     //==============================================================================
     /** Creates a Justification object using a combination of flags. */
-    inline Justification (const int flags_) throw()  : flags (flags_) {}
+    inline Justification (int flags_) throw()  : flags (flags_) {}
 
     /** Creates a copy of another Justification object. */
     Justification (const Justification& other) throw();
@@ -49,6 +49,8 @@ public:
     /** Copies another Justification object. */
     Justification& operator= (const Justification& other) throw();
 
+    bool operator== (const Justification& other) const throw()      { return flags == other.flags; }
+    bool operator!= (const Justification& other) const throw()      { return flags != other.flags; }
 
     //==============================================================================
     /** Returns the raw flags that are set for this Justification object. */
@@ -58,7 +60,7 @@ public:
 
         @returns true if any of the flags passed in are set on this object.
     */
-    inline bool testFlags (const int flagsToTest) const throw()     { return (flags & flagsToTest) != 0; }
+    inline bool testFlags (int flagsToTest) const throw()           { return (flags & flagsToTest) != 0; }
 
     /** Returns just the flags from this object that deal with vertical layout. */
     int getOnlyVerticalFlags() const throw();
@@ -72,10 +74,8 @@ public:
         The (x, y) position of the rectangle will be updated to position it inside the
         given space according to the justification flags.
     */
-    void applyToRectangle (int& x, int& y,
-                           const int w, const int h,
-                           const int spaceX, const int spaceY,
-                           const int spaceW, const int spaceH) const throw();
+    void applyToRectangle (int& x, int& y, int w, int h,
+                           int spaceX, int spaceY, int spaceW, int spaceH) const throw();
 
 
     //==============================================================================

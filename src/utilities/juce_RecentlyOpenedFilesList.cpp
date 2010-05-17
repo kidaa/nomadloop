@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -130,7 +130,7 @@ int RecentlyOpenedFilesList::createPopupMenuItems (PopupMenu& menuToAddTo,
 //==============================================================================
 const String RecentlyOpenedFilesList::toString() const
 {
-    return files.joinIntoString (T("\n"));
+    return files.joinIntoString ("\n");
 }
 
 void RecentlyOpenedFilesList::restoreFromString (const String& stringifiedVersion)

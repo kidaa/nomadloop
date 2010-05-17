@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -441,7 +441,7 @@ private:
             element->getDocument()->removeChangeListener (this);
         }
 
-        void setIndex (const int newIndex)
+        void setIndex (int newIndex)
         {
             Font f (element->getFont());
 
@@ -486,7 +486,7 @@ private:
             element->getDocument()->removeChangeListener (this);
         }
 
-        void setValue (const double newValue)
+        void setValue (double newValue)
         {
             element->getDocument()->getUndoManager().undoCurrentTransactionOnly();
 
@@ -496,7 +496,7 @@ private:
             element->setFont (f, true);
         }
 
-        const double getValue() const
+        double getValue() const
         {
             return element->getFont().getHeight();
         }

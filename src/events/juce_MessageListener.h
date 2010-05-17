@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -72,7 +72,7 @@ public:
                             references to it after calling this method.
         @see handleMessage
     */
-    void postMessage (Message* const message) const throw();
+    void postMessage (Message* message) const throw();
 
     //==============================================================================
     /** Checks whether this MessageListener has been deleted.

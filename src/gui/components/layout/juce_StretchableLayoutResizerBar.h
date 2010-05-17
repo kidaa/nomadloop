@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -56,9 +56,9 @@ public:
                                     right; false for a horizontal one that you drag up and
                                     down
     */
-    StretchableLayoutResizerBar (StretchableLayoutManager* const layoutToUse,
-                                 const int itemIndexInLayout,
-                                 const bool isBarVertical);
+    StretchableLayoutResizerBar (StretchableLayoutManager* layoutToUse,
+                                 int itemIndexInLayout,
+                                 bool isBarVertical);
 
     /** Destructor. */
     ~StretchableLayoutResizerBar();

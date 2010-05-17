@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -85,7 +85,7 @@ public:
 
             for (int i = windows.size(); --i >= 0;)
             {
-                TopLevelWindow* const tlw = (TopLevelWindow*) windows.getUnchecked (i);
+                TopLevelWindow* const tlw = windows.getUnchecked (i);
                 tlw->setWindowActive (isWindowActive (tlw));
 
                 i = jmin (i, windows.size() - 1);
@@ -95,7 +95,7 @@ public:
         }
     }
 
-    bool addWindow (TopLevelWindow* const w) throw()
+    bool addWindow (TopLevelWindow* const w)
     {
         windows.add (w);
         startTimer (10);
@@ -103,7 +103,7 @@ public:
         return isWindowActive (w);
     }
 
-    void removeWindow (TopLevelWindow* const w) throw()
+    void removeWindow (TopLevelWindow* const w)
     {
         startTimer (10);
 
@@ -116,12 +116,12 @@ public:
             deleteInstance();
     }
 
-    VoidArray windows;
+    Array <TopLevelWindow*> windows;
 
 private:
     TopLevelWindow* currentActive;
 
-    bool isWindowActive (TopLevelWindow* const tlw) const throw()
+    bool isWindowActive (TopLevelWindow* const tlw) const
     {
         return (tlw == currentActive
                  || tlw->isParentOf (currentActive)
@@ -176,7 +176,7 @@ void TopLevelWindow::focusOfChildComponentChanged (FocusChangeType)
         TopLevelWindowManager::getInstance()->startTimer (10);
 }
 
-void TopLevelWindow::setWindowActive (const bool isNowActive) throw()
+void TopLevelWindow::setWindowActive (const bool isNowActive)
 {
     if (windowIsActive_ != isNowActive)
     {
@@ -202,15 +202,15 @@ void TopLevelWindow::visibilityChanged()
 
 int TopLevelWindow::getDesktopWindowStyleFlags() const
 {
-    int flags = ComponentPeer::windowAppearsOnTaskbar;
+    int styleFlags = ComponentPeer::windowAppearsOnTaskbar;
 
     if (useDropShadow)
-        flags |= ComponentPeer::windowHasDropShadow;
+        styleFlags |= ComponentPeer::windowHasDropShadow;
 
     if (useNativeTitleBar)
-        flags |= ComponentPeer::windowHasTitleBar;
+        styleFlags |= ComponentPeer::windowHasTitleBar;
 
-    return flags;
+    return styleFlags;
 }
 
 void TopLevelWindow::setDropShadowEnabled (const bool useShadow)
@@ -319,7 +319,7 @@ int TopLevelWindow::getNumTopLevelWindows() throw()
 
 TopLevelWindow* TopLevelWindow::getTopLevelWindow (const int index) throw()
 {
-    return (TopLevelWindow*) TopLevelWindowManager::getInstance()->windows [index];
+    return static_cast <TopLevelWindow*> (TopLevelWindowManager::getInstance()->windows [index]);
 }
 
 TopLevelWindow* TopLevelWindow::getActiveTopLevelWindow() throw()

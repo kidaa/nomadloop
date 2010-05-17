@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -28,7 +28,6 @@
 
 #include "../../../containers/juce_ReferenceCountedObject.h"
 class Image;
-class SharedMouseCursorInternal;
 class ComponentPeer;
 class Component;
 
@@ -75,10 +74,10 @@ public:
 
     //==============================================================================
     /** Creates the standard arrow cursor. */
-    MouseCursor() throw();
+    MouseCursor();
 
     /** Creates one of the standard mouse cursor */
-    MouseCursor (const StandardCursorType type) throw();
+    MouseCursor (StandardCursorType type);
 
     /** Creates a custom cursor from an image.
 
@@ -89,19 +88,17 @@ public:
         @param hotSpotX the x position of the cursor's hotspot within the image
         @param hotSpotY the y position of the cursor's hotspot within the image
     */
-    MouseCursor (const Image& image,
-                 const int hotSpotX,
-                 const int hotSpotY) throw();
+    MouseCursor (const Image& image, int hotSpotX, int hotSpotY);
 
     //==============================================================================
     /** Creates a copy of another cursor object. */
-    MouseCursor (const MouseCursor& other) throw();
+    MouseCursor (const MouseCursor& other);
 
     /** Copies this cursor from another object. */
-    MouseCursor& operator= (const MouseCursor& other) throw();
+    MouseCursor& operator= (const MouseCursor& other);
 
     /** Destructor. */
-    ~MouseCursor() throw();
+    ~MouseCursor();
 
     /** Checks whether two mouse cursors are the same.
 
@@ -130,7 +127,7 @@ public:
 
         @see MessageManager::setTimeBeforeShowingWaitCursor
     */
-    static void showWaitCursor() throw();
+    static void showWaitCursor();
 
     /** If showWaitCursor has been called, this will return the mouse to its
         normal state.
@@ -140,19 +137,25 @@ public:
 
         @see showWaitCursor
     */
-    static void hideWaitCursor() throw();
+    static void hideWaitCursor();
 
 
     //==============================================================================
     juce_UseDebuggingNewOperator
 
 private:
-    ReferenceCountedObjectPtr <SharedMouseCursorInternal> cursorHandle;
+    class SharedCursorHandle;
+    friend class SharedCursorHandle;
+    SharedCursorHandle* cursorHandle;
 
     friend class MouseInputSourceInternal;
-    void showInWindow (ComponentPeer* window) const throw();
-    void showInAllWindows() const throw();
+    void showInWindow (ComponentPeer* window) const;
+    void showInAllWindows() const;
     void* getHandle() const throw();
+
+    static void* createMouseCursorFromImage (const Image& image, int hotspotX, int hotspotY);
+    static void* createStandardMouseCursor (MouseCursor::StandardCursorType type);
+    static void deleteMouseCursor (void* cursorHandle, bool isStandard);
 };
 
 #endif   // __JUCE_MOUSECURSOR_JUCEHEADER__

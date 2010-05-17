@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -28,9 +28,9 @@
 
 #include "../geometry/juce_AffineTransform.h"
 #include "../geometry/juce_Rectangle.h"
+#include "../geometry/juce_RectangleList.h"
 #include "../../../containers/juce_MemoryBlock.h"
 class Path;
-class RectangleList;
 class Image;
 
 
@@ -67,8 +67,7 @@ public:
 
     /** Creates an edge table containing a rectangle.
     */
-    EdgeTable (const float x, const float y,
-               const float w, const float h);
+    EdgeTable (const Rectangle<float>& rectangleToAdd);
 
     /** Creates a copy of another edge table. */
     EdgeTable (const EdgeTable& other);
@@ -106,7 +105,9 @@ public:
                                         @code
                                         inline void setEdgeTableYPos (int y);
                                         inline void handleEdgeTablePixel (int x, int alphaLevel) const;
+                                        inline void handleEdgeTablePixelFull (int x) const;
                                         inline void handleEdgeTableLine (int x, int width, int alphaLevel) const;
+                                        inline void handleEdgeTableLineFull (int x, int width) const;
                                         @endcode
                                         (these don't necessarily have to be 'const', but it might help it go faster)
     */
@@ -154,9 +155,9 @@ public:
                         if (levelAccumulator > 0)
                         {
                             if (levelAccumulator >> 8)
-                                levelAccumulator = 0xff;
-
-                            iterationCallback.handleEdgeTablePixel (x, levelAccumulator);
+                                iterationCallback.handleEdgeTablePixelFull (x);
+                            else
+                                iterationCallback.handleEdgeTablePixel (x, levelAccumulator);
                         }
 
                         // if there's a run of similar pixels, do it all in one go..
@@ -178,13 +179,14 @@ public:
 
                 if (levelAccumulator > 0)
                 {
-                    levelAccumulator >>= 8;
-                    if (levelAccumulator >> 8)
-                        levelAccumulator = 0xff;
-
                     x >>= 8;
                     jassert (x >= bounds.getX() && x < bounds.getRight());
-                    iterationCallback.handleEdgeTablePixel (x, levelAccumulator);
+
+                    levelAccumulator >>= 8;
+                    if (levelAccumulator >> 8)
+                        iterationCallback.handleEdgeTablePixelFull (x);
+                    else
+                        iterationCallback.handleEdgeTablePixel (x, levelAccumulator);
                 }
             }
         }
@@ -200,12 +202,12 @@ private:
     int maxEdgesPerLine, lineStrideElements;
     bool needToCheckEmptinesss;
 
-    void addEdgePoint (const int x, const int y, const int winding) throw();
-    void remapTableForNumEdges (const int newNumEdgesPerLine) throw();
-    void intersectWithEdgeTableLine (const int y, const int* otherLine) throw();
+    void addEdgePoint (int x, int y, int winding) throw();
+    void remapTableForNumEdges (int newNumEdgesPerLine) throw();
+    void intersectWithEdgeTableLine (int y, const int* otherLine) throw();
     void clipEdgeTableLineToRange (int* line, int x1, int x2) throw();
-    void sanitiseLevels (const bool useNonZeroWinding) throw();
-    static void copyEdgeTableData (int* dest, const int destLineStride, const int* src, const int srcLineStride, int numLines) throw();
+    void sanitiseLevels (bool useNonZeroWinding) throw();
+    static void copyEdgeTableData (int* dest, int destLineStride, const int* src, int srcLineStride, int numLines) throw();
 };
 
 

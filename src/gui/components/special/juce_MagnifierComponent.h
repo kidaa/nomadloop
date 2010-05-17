@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -60,8 +60,8 @@ public:
                                     be deleted when this component is deleted. If false,
                                     it's the caller's responsibility to delete it later.
     */
-    MagnifierComponent (Component* const contentComponent,
-                        const bool deleteContentCompWhenNoLongerNeeded);
+    MagnifierComponent (Component* contentComponent,
+                        bool deleteContentCompWhenNoLongerNeeded);
 
     /** Destructor. */
     ~MagnifierComponent();
@@ -114,7 +114,7 @@ private:
     void mouseWheelMove (const MouseEvent& e, float, float);
 
     void passOnMouseEventToPeer (const MouseEvent& e);
-    int scaleInt (const int n) const;
+    int scaleInt (int n) const;
 
     MagnifierComponent (const MagnifierComponent&);
     MagnifierComponent& operator= (const MagnifierComponent&);

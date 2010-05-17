@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -73,11 +73,21 @@ class JUCE_API  ValueTree
 {
 public:
     //==============================================================================
+    /** Creates an empty, invalid ValueTree.
+
+        A ValueTree that is created with this constructor can't actually be used for anything,
+        it's just a default 'null' ValueTree that can be returned to indicate some sort of failure.
+        To create a real one, use the constructor that takes a string.
+
+        @see ValueTree::invalid
+    */
+    ValueTree() throw();
+
     /** Creates an empty ValueTree with the given type name.
         Like an XmlElement, each ValueTree node has a type, which you can access with
         getType() and hasType().
     */
-    ValueTree (const String& type);
+    explicit ValueTree (const Identifier& type);
 
     /** Creates a reference to another ValueTree. */
     ValueTree (const ValueTree& other);
@@ -120,7 +130,7 @@ public:
     /** Returns true if the node has this type.
         The comparison is case-sensitive.
     */
-    bool hasType (const String& typeName) const;
+    bool hasType (const Identifier& typeName) const;
 
     //==============================================================================
     /** Returns the value of a named property.
@@ -128,36 +138,43 @@ public:
         You can also use operator[] to get a property.
         @see var, setProperty, hasProperty
     */
-    const var& getProperty (const var::identifier& name) const;
+    const var& getProperty (const Identifier& name) const;
+
+    /** Returns the value of a named property, or a user-specified default if the property doesn't exist.
+        If no such property has been set, this will return the value of defaultReturnValue.
+        You can also use operator[] and getProperty to get a property.
+        @see var, getProperty, setProperty, hasProperty
+    */
+    const var getProperty (const Identifier& name, const var& defaultReturnValue) const;
 
     /** Returns the value of a named property.
         If no such property has been set, this will return a void variant. This is the same as
         calling getProperty().
         @see getProperty
     */
-    const var& operator[] (const var::identifier& name) const;
+    const var& operator[] (const Identifier& name) const;
 
     /** Changes a named property of the node.
         If the undoManager parameter is non-null, its UndoManager::perform() method will be used,
         so that this change can be undone.
         @see var, getProperty, removeProperty
     */
-    void setProperty (const var::identifier& name, const var& newValue, UndoManager* const undoManager);
+    void setProperty (const Identifier& name, const var& newValue, UndoManager* undoManager);
 
     /** Returns true if the node contains a named property. */
-    bool hasProperty (const var::identifier& name) const;
+    bool hasProperty (const Identifier& name) const;
 
     /** Removes a property from the node.
         If the undoManager parameter is non-null, its UndoManager::perform() method will be used,
         so that this change can be undone.
     */
-    void removeProperty (const var::identifier& name, UndoManager* const undoManager);
+    void removeProperty (const Identifier& name, UndoManager* undoManager);
 
     /** Removes all properties from the node.
         If the undoManager parameter is non-null, its UndoManager::perform() method will be used,
         so that this change can be undone.
     */
-    void removeAllProperties (UndoManager* const undoManager);
+    void removeAllProperties (UndoManager* undoManager);
 
     /** Returns the total number of properties that the node contains.
         @see getProperty.
@@ -167,7 +184,7 @@ public:
     /** Returns the identifier of the property with a given index.
         @see getNumProperties
     */
-    const var::identifier getPropertyName (int index) const;
+    const Identifier getPropertyName (int index) const;
 
     /** Returns a Value object that can be used to control and respond to one of the tree's properties.
 
@@ -175,7 +192,7 @@ public:
         it needs to change the value. Attaching a Value::Listener to the value object will provide
         callbacks whenever the property changes.
     */
-    Value getPropertyAsValue (const var::identifier& name, UndoManager* const undoManager) const;
+    Value getPropertyAsValue (const Identifier& name, UndoManager* undoManager) const;
 
     //==============================================================================
     /** Returns the number of child nodes belonging to this one.
@@ -193,7 +210,7 @@ public:
         If no such node is found, it'll return an invalid node. (See isValid() to find out
         whether a node is valid).
     */
-    ValueTree getChildWithName (const String& type) const;
+    ValueTree getChildWithName (const Identifier& type) const;
 
     /** Looks for the first child node that has the speficied property value.
 
@@ -203,7 +220,7 @@ public:
         If no such node is found, it'll return an invalid node. (See isValid() to find out
         whether a node is valid).
     */
-    ValueTree getChildWithProperty (const var::identifier& propertyName, const var& propertyValue) const;
+    ValueTree getChildWithProperty (const Identifier& propertyName, const var& propertyValue) const;
 
     /** Adds a child to this node.
 
@@ -216,30 +233,50 @@ public:
         If the undoManager parameter is non-null, its UndoManager::perform() method will be used,
         so that this change can be undone.
     */
-    void addChild (ValueTree child, int index, UndoManager* const undoManager);
+    void addChild (ValueTree child, int index, UndoManager* undoManager);
 
     /** Removes the specified child from this node's child-list.
         If the undoManager parameter is non-null, its UndoManager::perform() method will be used,
         so that this change can be undone.
     */
-    void removeChild (ValueTree& child, UndoManager* const undoManager);
+    void removeChild (const ValueTree& child, UndoManager* undoManager);
 
     /** Removes a child from this node's child-list.
         If the undoManager parameter is non-null, its UndoManager::perform() method will be used,
         so that this change can be undone.
     */
-    void removeChild (const int childIndex, UndoManager* const undoManager);
+    void removeChild (int childIndex, UndoManager* undoManager);
 
     /** Removes all child-nodes from this node.
         If the undoManager parameter is non-null, its UndoManager::perform() method will be used,
         so that this change can be undone.
     */
-    void removeAllChildren (UndoManager* const undoManager);
+    void removeAllChildren (UndoManager* undoManager);
+
+    /** Moves one of the children to a different index.
+
+        This will move the child to a specified index, shuffling along any intervening
+        items as required. So for example, if you have a list of { 0, 1, 2, 3, 4, 5 }, then
+        calling move (2, 4) would result in { 0, 1, 3, 4, 2, 5 }.
+
+        @param currentIndex     the index of the item to be moved. If this isn't a
+                                valid index, then nothing will be done
+        @param newIndex         the index at which you'd like this item to end up. If this
+                                is less than zero, the value will be moved to the end
+                                of the list
+        @param undoManager      the optional UndoManager to use to store this transaction
+    */
+    void moveChild (int currentIndex, int newIndex, UndoManager* undoManager);
 
     /** Returns true if this node is anywhere below the specified parent node.
         This returns true if the node is a child-of-a-child, as well as a direct child.
     */
     bool isAChildOf (const ValueTree& possibleParent) const;
+
+    /** Returns the index of a child item in this parent.
+        If the child isn't found, this returns -1.
+    */
+    int indexOf (const ValueTree& child) const;
 
     /** Returns the parent node that contains this one.
         If the node has no parent, this will return an invalid node. (See isValid() to find out
@@ -273,9 +310,11 @@ public:
     */
     void writeToStream (OutputStream& output);
 
-    /** Reloads a tree from a stream that was written with writeToStream().
-    */
+    /** Reloads a tree from a stream that was written with writeToStream(). */
     static ValueTree readFromStream (InputStream& input);
+
+    /** Reloads a tree from a data block that was written with writeToStream(). */
+    static ValueTree readFromData (const void* data, size_t numBytes);
 
     //==============================================================================
     /** Listener class for events that happen to a ValueTree.
@@ -301,7 +340,7 @@ public:
             simply check the tree parameter in this callback to make sure it's the tree you're interested in.
         */
         virtual void valueTreePropertyChanged (ValueTree& treeWhosePropertyHasChanged,
-                                               const var::identifier& property) = 0;
+                                               const Identifier& property) = 0;
 
         /** This method is called when a child sub-tree is added or removed.
 
@@ -377,42 +416,54 @@ public:
         }
     }
 
+    /** An invalid ValueTree that can be used if you need to return one as an error condition, etc.
+        This invalid object is equivalent to ValueTree created with its default constructor.
+    */
+    static const ValueTree invalid;
+
     //==============================================================================
     juce_UseDebuggingNewOperator
 
 private:
-    friend class ValueTreeSetPropertyAction;
-    friend class ValueTreeChildChangeAction;
+    class SetPropertyAction;
+    friend class SetPropertyAction;
+    class AddOrRemoveChildAction;
+    friend class AddOrRemoveChildAction;
+    class MoveChildAction;
+    friend class MoveChildAction;
 
     class JUCE_API  SharedObject    : public ReferenceCountedObject
     {
     public:
-        SharedObject (const String& type);
+        explicit SharedObject (const Identifier& type);
         SharedObject (const SharedObject& other);
         ~SharedObject();
 
-        const String type;
+        const Identifier type;
         NamedValueSet properties;
         ReferenceCountedArray <SharedObject> children;
         SortedSet <ValueTree*> valueTreesWithListeners;
         SharedObject* parent;
 
-        void sendPropertyChangeMessage (const var::identifier& property);
-        void sendPropertyChangeMessage (ValueTree& tree, const var::identifier& property);
+        void sendPropertyChangeMessage (const Identifier& property);
+        void sendPropertyChangeMessage (ValueTree& tree, const Identifier& property);
         void sendChildChangeMessage();
         void sendChildChangeMessage (ValueTree& tree);
         void sendParentChangeMessage();
-        const var& getProperty (const var::identifier& name) const;
-        void setProperty (const var::identifier& name, const var& newValue, UndoManager* const undoManager);
-        bool hasProperty (const var::identifier& name) const;
-        void removeProperty (const var::identifier& name, UndoManager* const undoManager);
-        void removeAllProperties (UndoManager* const undoManager);
-        bool isAChildOf (const SharedObject* const possibleParent) const;
-        ValueTree getChildWithName (const String& type) const;
-        ValueTree getChildWithProperty (const var::identifier& propertyName, const var& propertyValue) const;
-        void addChild (SharedObject* child, int index, UndoManager* const undoManager);
-        void removeChild (const int childIndex, UndoManager* const undoManager);
-        void removeAllChildren (UndoManager* const undoManager);
+        const var& getProperty (const Identifier& name) const;
+        const var getProperty (const Identifier& name, const var& defaultReturnValue) const;
+        void setProperty (const Identifier& name, const var& newValue, UndoManager*);
+        bool hasProperty (const Identifier& name) const;
+        void removeProperty (const Identifier& name, UndoManager*);
+        void removeAllProperties (UndoManager*);
+        bool isAChildOf (const SharedObject* possibleParent) const;
+        int indexOf (const ValueTree& child) const;
+        ValueTree getChildWithName (const Identifier& type) const;
+        ValueTree getChildWithProperty (const Identifier& propertyName, const var& propertyValue) const;
+        void addChild (SharedObject* child, int index, UndoManager*);
+        void removeChild (int childIndex, UndoManager*);
+        void removeAllChildren (UndoManager*);
+        void moveChild (int currentIndex, int newIndex, UndoManager*);
         XmlElement* createXml() const;
 
         juce_UseDebuggingNewOperator
@@ -434,16 +485,21 @@ private:
 
     private:
         ElementComparator& comparator;
+
+        ComparatorAdapter (const ComparatorAdapter&);
+        ComparatorAdapter& operator= (const ComparatorAdapter&);
     };
 
     friend class SharedObject;
-
     typedef ReferenceCountedObjectPtr <SharedObject> SharedObjectPtr;
 
-    ReferenceCountedObjectPtr <SharedObject> object;
+    SharedObjectPtr object;
     ListenerList <Listener> listeners;
 
-    ValueTree (SharedObject* const object_);
+#if JUCE_MSVC && ! DOXYGEN
+ public:  // (workaround for VC6)
+#endif
+    explicit ValueTree (SharedObject*);
 };
 
 

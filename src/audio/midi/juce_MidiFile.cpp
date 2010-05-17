@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -55,7 +55,7 @@ namespace MidiFileHelpers
         }
     }
 
-    static bool parseMidiHeader (const char* &data, short& timeFormat, short& fileType, short& numberOfTracks) throw()
+    static bool parseMidiHeader (const uint8* &data, short& timeFormat, short& fileType, short& numberOfTracks) throw()
     {
         unsigned int ch = (int) ByteOrder::bigEndianInt (data);
         data += 4;
@@ -163,17 +163,17 @@ namespace MidiFileHelpers
 }
 
 //==============================================================================
-MidiFile::MidiFile() throw()
+MidiFile::MidiFile()
    : timeFormat ((short) (unsigned short) 0xe728)
 {
 }
 
-MidiFile::~MidiFile() throw()
+MidiFile::~MidiFile()
 {
     clear();
 }
 
-void MidiFile::clear() throw()
+void MidiFile::clear()
 {
     tracks.clear();
 }
@@ -189,7 +189,7 @@ const MidiMessageSequence* MidiFile::getTrack (const int index) const throw()
     return tracks [index];
 }
 
-void MidiFile::addTrack (const MidiMessageSequence& trackSequence) throw()
+void MidiFile::addTrack (const MidiMessageSequence& trackSequence)
 {
     tracks.add (new MidiMessageSequence (trackSequence));
 }
@@ -202,7 +202,7 @@ short MidiFile::getTimeFormat() const throw()
 
 void MidiFile::setTicksPerQuarterNote (const int ticks) throw()
 {
-    timeFormat = (short)ticks;
+    timeFormat = (short) ticks;
 }
 
 void MidiFile::setSmpteTimeFormat (const int framesPerSecond,
@@ -266,12 +266,12 @@ bool MidiFile::readFrom (InputStream& sourceStream)
     if (sourceStream.readIntoMemoryBlock (data, maxSensibleMidiFileSize))
     {
         size_t size = data.getSize();
-        const char* d = (char*) data.getData();
+        const uint8* d = static_cast <const uint8*> (data.getData());
         short fileType, expectedTracks;
 
         if (size > 16 && MidiFileHelpers::parseMidiHeader (d, timeFormat, fileType, expectedTracks))
         {
-            size -= (int) (d - (char*) data.getData());
+            size -= (int) (d - static_cast <const uint8*> (data.getData()));
 
             int track = 0;
 
@@ -307,7 +307,7 @@ bool MidiFile::readFrom (InputStream& sourceStream)
 
 // a comparator that puts all the note-offs before note-ons that have the same time
 int MidiFile::compareElements (const MidiMessageSequence::MidiEventHolder* const first,
-                               const MidiMessageSequence::MidiEventHolder* const second) throw()
+                               const MidiMessageSequence::MidiEventHolder* const second)
 {
     const double diff = (first->message.getTimeStamp() - second->message.getTimeStamp());
 
@@ -326,7 +326,7 @@ int MidiFile::compareElements (const MidiMessageSequence::MidiEventHolder* const
     }
 }
 
-void MidiFile::readNextTrack (const char* data, int size)
+void MidiFile::readNextTrack (const uint8* data, int size)
 {
     double time = 0;
     char lastStatusByte = 0;
@@ -336,13 +336,13 @@ void MidiFile::readNextTrack (const char* data, int size)
     while (size > 0)
     {
         int bytesUsed;
-        const int delay = MidiMessage::readVariableLengthVal ((const uint8*) data, bytesUsed);
+        const int delay = MidiMessage::readVariableLengthVal (data, bytesUsed);
         data += bytesUsed;
         size -= bytesUsed;
         time += delay;
 
         int messSize = 0;
-        const MidiMessage mm ((const uint8*) data, size, messSize, lastStatusByte, time);
+        const MidiMessage mm (data, size, messSize, lastStatusByte, time);
 
         if (messSize <= 0)
             break;

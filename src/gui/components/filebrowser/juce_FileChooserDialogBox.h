@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -43,15 +43,15 @@
 
     @code
     {
-        WildcardFileFilter wildcardFilter (T("*.foo"), T("Foo files"));
+        WildcardFileFilter wildcardFilter ("*.foo", "Foo files");
 
         FileBrowserComponent browser (FileBrowserComponent::loadFileMode,
                                       File::nonexistent,
                                       &wildcardFilter,
                                       0);
 
-        FileChooserDialogBox dialogBox (T("Open some kind of file"),
-                                        T("Please choose some kind of file that you want to open..."),
+        FileChooserDialogBox dialogBox ("Open some kind of file",
+                                        "Please choose some kind of file that you want to open...",
                                         browser,
                                         getLookAndFeel().alertWindowBackground);
 
@@ -89,7 +89,7 @@ public:
     FileChooserDialogBox (const String& title,
                           const String& instructions,
                           FileBrowserComponent& browserComponent,
-                          const bool warnAboutOverwritingExistingFiles,
+                          bool warnAboutOverwritingExistingFiles,
                           const Colour& backgroundColour);
 
     /** Destructor. */

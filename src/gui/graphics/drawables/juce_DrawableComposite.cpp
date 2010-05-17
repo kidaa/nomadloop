@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -61,7 +61,7 @@ void DrawableComposite::insertDrawable (Drawable* drawable,
         }
         else
         {
-            jassertfalse // trying to add a drawable that's already in here!
+            jassertfalse; // trying to add a drawable that's already in here!
         }
     }
 }
@@ -183,9 +183,9 @@ Drawable* DrawableComposite::createCopy() const
 }
 
 //==============================================================================
-ValueTree DrawableComposite::createValueTree() const throw()
+ValueTree DrawableComposite::createValueTree() const
 {
-    ValueTree v (T("Group"));
+    ValueTree v ("Group");
 
     if (getName().isNotEmpty())
         v.setProperty ("id", getName(), 0);
@@ -213,7 +213,7 @@ ValueTree DrawableComposite::createValueTree() const throw()
     return v;
 }
 
-DrawableComposite* DrawableComposite::createFromValueTree (const ValueTree& tree) throw()
+DrawableComposite* DrawableComposite::createFromValueTree (const ValueTree& tree)
 {
     if (! tree.hasType ("Group"))
         return 0;

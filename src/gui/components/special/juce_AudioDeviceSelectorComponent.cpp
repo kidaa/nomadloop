@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -57,7 +57,7 @@ public:
     {
         const float newLevel = (float) manager->getCurrentInputLevel();
 
-        if (fabsf (level - newLevel) > 0.005f)
+        if (std::abs (level - newLevel) > 0.005f)
         {
             level = newLevel;
             repaint();
@@ -73,12 +73,15 @@ public:
 private:
     AudioDeviceManager* const manager;
     float level;
+
+    SimpleDeviceManagerInputLevelMeter (const SimpleDeviceManagerInputLevelMeter&);
+    SimpleDeviceManagerInputLevelMeter& operator= (const SimpleDeviceManagerInputLevelMeter&);
 };
 
 
 //==============================================================================
-class MidiInputSelectorComponentListBox  : public ListBox,
-                                           public ListBoxModel
+class AudioDeviceSelectorComponent::MidiInputSelectorComponentListBox  : public ListBox,
+                                                                         public ListBoxModel
 {
 public:
     //==============================================================================
@@ -398,7 +401,7 @@ public:
         if (error.isNotEmpty())
         {
             AlertWindow::showMessageBox (AlertWindow::WarningIcon,
-                                         T("Error when trying to open audio device!"),
+                                         "Error when trying to open audio device!",
                                          error);
         }
     }
@@ -556,7 +559,7 @@ public:
                 for (int i = 0; i < numRates; ++i)
                 {
                     const int rate = roundToInt (currentDevice->getSampleRate (i));
-                    sampleRateDropDown->addItem (String (rate) + T(" Hz"), rate);
+                    sampleRateDropDown->addItem (String (rate) + " Hz", rate);
                 }
 
                 sampleRateDropDown->setSelectedId (roundToInt (currentDevice->getCurrentSampleRate()), true);
@@ -588,9 +591,9 @@ public:
                 {
                     const int bs = currentDevice->getBufferSizeSamples (i);
                     bufferSizeDropDown->addItem (String (bs)
-                                                  + T(" samples (")
+                                                  + " samples ("
                                                   + String (bs * 1000.0 / currentRate, 1)
-                                                  + T(" ms)"),
+                                                  + " ms)",
                                                  bs);
                 }
 
@@ -723,18 +726,20 @@ public:
 
                     for (int i = 0; i < items.size(); i += 2)
                     {
-                        String name (items[i]);
-                        String name2 (items[i + 1]);
-
+                        const String name (items[i]);
+                        const String name2 (items[i + 1]);
                         String commonBit;
 
                         for (int j = 0; j < name.length(); ++j)
                             if (name.substring (0, j).equalsIgnoreCase (name2.substring (0, j)))
                                 commonBit = name.substring (0, j);
 
-                        pairs.add (name.trim()
-                                    + " + "
-                                    + name2.substring (commonBit.length()).trim());
+                        // Make sure we only split the name at a space, because otherwise, things
+                        // like "input 11" + "input 12" would become "input 11 + 2"
+                        while (commonBit.isNotEmpty() && ! CharacterFunctions::isWhitespace (commonBit.getLastCharacter()))
+                            commonBit = commonBit.dropLastCharacters (1);
+
+                        pairs.add (name.trim() + " + " + name2.substring (commonBit.length()).trim());
                     }
 
                     items = pairs;
@@ -853,9 +858,9 @@ public:
 
                 if (setup.useStereoPairs)
                 {
-                    BitArray bits;
-                    BitArray& original = (type == audioInputType ? config.inputChannels
-                                                                 : config.outputChannels);
+                    BigInteger bits;
+                    BigInteger& original = (type == audioInputType ? config.inputChannels
+                                                                   : config.outputChannels);
 
                     int i;
                     for (i = 0; i < 256; i += 2)
@@ -898,7 +903,7 @@ public:
             }
         }
 
-        static void flipBit (BitArray& chans, int index, int minNumber, int maxNumber)
+        static void flipBit (BigInteger& chans, int index, int minNumber, int maxNumber)
         {
             const int numActive = chans.countNumberOfSetBits();
 

@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -34,7 +34,7 @@ BEGIN_JUCE_NAMESPACE
 //==============================================================================
 MidiKeyboardState::MidiKeyboardState()
 {
-    zeromem (noteStates, sizeof (noteStates));
+    zerostruct (noteStates);
 }
 
 MidiKeyboardState::~MidiKeyboardState()
@@ -45,7 +45,7 @@ MidiKeyboardState::~MidiKeyboardState()
 void MidiKeyboardState::reset()
 {
     const ScopedLock sl (lock);
-    zeromem (noteStates, sizeof (noteStates));
+    zerostruct (noteStates);
     eventsToAdd.clear();
 }
 
@@ -87,8 +87,7 @@ void MidiKeyboardState::noteOnInternal  (const int midiChannel, const int midiNo
         noteStates [midiNoteNumber] |= (1 << (midiChannel - 1));
 
         for (int i = listeners.size(); --i >= 0;)
-            ((MidiKeyboardStateListener*) listeners.getUnchecked(i))
-                ->handleNoteOn (this, midiChannel, midiNoteNumber, velocity);
+            listeners.getUnchecked(i)->handleNoteOn (this, midiChannel, midiNoteNumber, velocity);
     }
 }
 
@@ -113,8 +112,7 @@ void MidiKeyboardState::noteOffInternal  (const int midiChannel, const int midiN
         noteStates [midiNoteNumber] &= ~(1 << (midiChannel - 1));
 
         for (int i = listeners.size(); --i >= 0;)
-            ((MidiKeyboardStateListener*) listeners.getUnchecked(i))
-                ->handleNoteOff (this, midiChannel, midiNoteNumber);
+            listeners.getUnchecked(i)->handleNoteOff (this, midiChannel, midiNoteNumber);
     }
 }
 

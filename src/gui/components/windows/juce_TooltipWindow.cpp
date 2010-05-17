@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -42,11 +42,13 @@ TooltipWindow::TooltipWindow (Component* const parentComponent,
                               const int millisecondsBeforeTipAppears_)
     : Component ("tooltip"),
       millisecondsBeforeTipAppears (millisecondsBeforeTipAppears_),
+      mouseClicks (0),
       lastHideTime (0),
       lastComponentUnderMouse (0),
       changedCompsSinceShown (true)
 {
-    startTimer (123);
+    if (Desktop::getInstance().getMainMouseSource().canHover())
+        startTimer (123);
 
     setAlwaysOnTop (true);
     setOpaque (true);

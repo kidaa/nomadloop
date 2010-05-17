@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -49,7 +49,7 @@ class JUCE_API  ComponentMovementWatcher    : public ComponentListener
 public:
     //==============================================================================
     /** Creates a ComponentMovementWatcher to watch a given target component. */
-    ComponentMovementWatcher (Component* const component);
+    ComponentMovementWatcher (Component* component);
 
     /** Destructor. */
     ~ComponentMovementWatcher();
@@ -78,7 +78,7 @@ private:
     //==============================================================================
     Component::SafePointer<Component> component;
     ComponentPeer* lastPeer;
-    VoidArray registeredParentComps;
+    Array <Component*> registeredParentComps;
     bool reentrant;
     Rectangle<int> lastBounds;
 

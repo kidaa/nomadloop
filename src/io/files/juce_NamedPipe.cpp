@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -26,7 +26,6 @@
 #include "../../core/juce_StandardHeader.h"
 
 BEGIN_JUCE_NAMESPACE
-
 
 #include "juce_NamedPipe.h"
 
@@ -65,7 +64,5 @@ const String NamedPipe::getName() const
 }
 
 // other methods for this class are implemented in the platform-specific files
-
-
 
 END_JUCE_NAMESPACE

@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -34,7 +34,7 @@ BEGIN_JUCE_NAMESPACE
 //==============================================================================
 MemoryOutputStream::MemoryOutputStream (const size_t initialSize,
                                         const size_t blockSizeToIncreaseBy,
-                                        MemoryBlock* const memoryBlockToWriteTo) throw()
+                                        MemoryBlock* const memoryBlockToWriteTo)
   : data (memoryBlockToWriteTo),
     position (0),
     size (0),
@@ -46,7 +46,7 @@ MemoryOutputStream::MemoryOutputStream (const size_t initialSize,
         data->setSize (initialSize, false);
 }
 
-MemoryOutputStream::~MemoryOutputStream() throw()
+MemoryOutputStream::~MemoryOutputStream()
 {
     flush();
 }
@@ -63,7 +63,7 @@ void MemoryOutputStream::reset() throw()
     size = 0;
 }
 
-bool MemoryOutputStream::write (const void* buffer, int howMany)
+bool MemoryOutputStream::write (const void* const buffer, int howMany)
 {
     if (howMany > 0)
     {
@@ -88,20 +88,12 @@ bool MemoryOutputStream::write (const void* buffer, int howMany)
 
 const char* MemoryOutputStream::getData() const throw()
 {
+    char* const d = static_cast <char*> (data->getData());
+
     if (data->getSize() > size)
-        ((char*) data->getData()) [size] = 0;
+        d [size] = 0;
 
-    return (const char*) data->getData();
-}
-
-size_t MemoryOutputStream::getDataSize() const throw()
-{
-    return size;
-}
-
-int64 MemoryOutputStream::getPosition()
-{
-    return position;
+    return d;
 }
 
 bool MemoryOutputStream::setPosition (int64 newPosition)
@@ -117,6 +109,11 @@ bool MemoryOutputStream::setPosition (int64 newPosition)
         // trying to make it bigger isn't a good thing to do..
         return false;
     }
+}
+
+const String MemoryOutputStream::toUTF8() const
+{
+    return String (getData(), getDataSize());
 }
 
 END_JUCE_NAMESPACE

@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -117,68 +117,143 @@ namespace jpeglibNamespace
 #endif
 }
 
+#undef max
+#undef min
+
 #if JUCE_MSVC
   #pragma warning (pop)
 #endif
 
 BEGIN_JUCE_NAMESPACE
 
-#include "../juce_Image.h"
+#include "../juce_ImageFileFormat.h"
 #include "../../../../io/streams/juce_InputStream.h"
 #include "../../../../io/streams/juce_OutputStream.h"
 #include "../../colour/juce_PixelFormats.h"
 
-using namespace jpeglibNamespace;
+//==============================================================================
+namespace JPEGHelpers
+{
+    using namespace jpeglibNamespace;
 
-#if ! JUCE_MSVC
- using jpeglibNamespace::boolean;
-#endif
+    #if ! JUCE_MSVC
+     using jpeglibNamespace::boolean;
+    #endif
+
+    struct JPEGDecodingFailure {};
+
+    static void fatalErrorHandler (j_common_ptr)
+    {
+        throw JPEGDecodingFailure();
+    }
+
+    static void silentErrorCallback1 (j_common_ptr)         {}
+    static void silentErrorCallback2 (j_common_ptr, int)    {}
+    static void silentErrorCallback3 (j_common_ptr, char*)  {}
+
+    static void setupSilentErrorHandler (struct jpeg_error_mgr& err)
+    {
+        zerostruct (err);
+
+        err.error_exit = fatalErrorHandler;
+        err.emit_message = silentErrorCallback2;
+        err.output_message = silentErrorCallback1;
+        err.format_message = silentErrorCallback3;
+        err.reset_error_mgr = silentErrorCallback1;
+    }
+
+
+    //==============================================================================
+    static void dummyCallback1 (j_decompress_ptr)
+    {
+    }
+
+    static void jpegSkip (j_decompress_ptr decompStruct, long num)
+    {
+        decompStruct->src->next_input_byte += num;
+
+        num = jmin (num, (long) decompStruct->src->bytes_in_buffer);
+        decompStruct->src->bytes_in_buffer -= num;
+    }
+
+    static boolean jpegFill (j_decompress_ptr)
+    {
+        return 0;
+    }
+
+    //==============================================================================
+    static const int jpegBufferSize = 512;
+
+    struct JuceJpegDest  : public jpeg_destination_mgr
+    {
+        OutputStream* output;
+        char* buffer;
+    };
+
+    static void jpegWriteInit (j_compress_ptr)
+    {
+    }
+
+    static void jpegWriteTerminate (j_compress_ptr cinfo)
+    {
+        JuceJpegDest* const dest = static_cast <JuceJpegDest*> (cinfo->dest);
+
+        const size_t numToWrite = jpegBufferSize - dest->free_in_buffer;
+        dest->output->write (dest->buffer, (int) numToWrite);
+    }
+
+    static boolean jpegWriteFlush (j_compress_ptr cinfo)
+    {
+        JuceJpegDest* const dest = static_cast <JuceJpegDest*> (cinfo->dest);
+
+        const int numToWrite = jpegBufferSize;
+
+        dest->next_output_byte = reinterpret_cast <JOCTET*> (dest->buffer);
+        dest->free_in_buffer = jpegBufferSize;
+
+        return dest->output->write (dest->buffer, numToWrite);
+    }
+}
 
 //==============================================================================
-struct JPEGDecodingFailure {};
-
-static void fatalErrorHandler (j_common_ptr)
-{
-    throw JPEGDecodingFailure();
-}
-
-static void silentErrorCallback1 (j_common_ptr)         {}
-static void silentErrorCallback2 (j_common_ptr, int)    {}
-static void silentErrorCallback3 (j_common_ptr, char*)  {}
-
-static void setupSilentErrorHandler (struct jpeg_error_mgr& err)
-{
-    zerostruct (err);
-
-    err.error_exit = fatalErrorHandler;
-    err.emit_message = silentErrorCallback2;
-    err.output_message = silentErrorCallback1;
-    err.format_message = silentErrorCallback3;
-    err.reset_error_mgr = silentErrorCallback1;
-}
-
-
-//==============================================================================
-static void dummyCallback1 (j_decompress_ptr)
+JPEGImageFormat::JPEGImageFormat()
+    : quality (-1.0f)
 {
 }
 
-static void jpegSkip (j_decompress_ptr decompStruct, long num)
-{
-    decompStruct->src->next_input_byte += num;
+JPEGImageFormat::~JPEGImageFormat()     {}
 
-    num = jmin (num, (long) decompStruct->src->bytes_in_buffer);
-    decompStruct->src->bytes_in_buffer -= num;
+void JPEGImageFormat::setQuality (const float newQuality)
+{
+    quality = newQuality;
 }
 
-static boolean jpegFill (j_decompress_ptr)
+const String JPEGImageFormat::getFormatName()
 {
-    return 0;
+    return "JPEG";
 }
 
-//==============================================================================
-Image* juce_loadJPEGImageFromStream (InputStream& in)
+bool JPEGImageFormat::canUnderstand (InputStream& in)
 {
+    const int bytesNeeded = 10;
+    uint8 header [bytesNeeded];
+
+    if (in.read (header, bytesNeeded) == bytesNeeded)
+    {
+        return header[0] == 0xff
+            && header[1] == 0xd8
+            && header[2] == 0xff
+            && (header[3] == 0xe0 || header[3] == 0xe1);
+    }
+
+    return false;
+}
+
+Image* JPEGImageFormat::decodeImage (InputStream& in)
+{
+    using namespace jpeglibNamespace;
+    using namespace JPEGHelpers;
+
     MemoryBlock mb;
     in.readIntoMemoryBlock (mb);
 
@@ -203,7 +278,7 @@ Image* juce_loadJPEGImageFromStream (InputStream& in)
         jpegDecompStruct.src->resync_to_restart = jpeg_resync_to_restart;
         jpegDecompStruct.src->term_source       = dummyCallback1;
 
-        jpegDecompStruct.src->next_input_byte   = (const unsigned char*) mb.getData();
+        jpegDecompStruct.src->next_input_byte   = static_cast <const unsigned char*> (mb.getData());
         jpegDecompStruct.src->bytes_in_buffer   = mb.getSize();
 
         try
@@ -271,49 +346,15 @@ Image* juce_loadJPEGImageFromStream (InputStream& in)
     return image;
 }
 
-
-//==============================================================================
-static const int jpegBufferSize = 512;
-
-struct JuceJpegDest  : public jpeg_destination_mgr
+bool JPEGImageFormat::writeImageToStream (const Image& image, OutputStream& out)
 {
-    OutputStream* output;
-    char* buffer;
-};
+    using namespace jpeglibNamespace;
+    using namespace JPEGHelpers;
 
-static void jpegWriteInit (j_compress_ptr)
-{
-}
-
-static void jpegWriteTerminate (j_compress_ptr cinfo)
-{
-    JuceJpegDest* const dest = (JuceJpegDest*) cinfo->dest;
-
-    const size_t numToWrite = jpegBufferSize - dest->free_in_buffer;
-    dest->output->write (dest->buffer, (int) numToWrite);
-}
-
-static boolean jpegWriteFlush (j_compress_ptr cinfo)
-{
-    JuceJpegDest* const dest = (JuceJpegDest*) cinfo->dest;
-
-    const int numToWrite = jpegBufferSize;
-
-    dest->next_output_byte = (JOCTET*) dest->buffer;
-    dest->free_in_buffer = jpegBufferSize;
-
-    return dest->output->write (dest->buffer, numToWrite);
-}
-
-//==============================================================================
-bool juce_writeJPEGImageToStream (const Image& image,
-                                  OutputStream& out,
-                                  float quality)
-{
     if (image.hasAlphaChannel())
     {
         // this method could fill the background in white and still save the image..
-        jassertfalse
+        jassertfalse;
         return true;
     }
 
@@ -330,7 +371,7 @@ bool juce_writeJPEGImageToStream (const Image& image,
 
     dest.output = &out;
     HeapBlock <char> tempBuffer (jpegBufferSize);
-    dest.buffer = (char*) tempBuffer;
+    dest.buffer = tempBuffer;
     dest.next_output_byte = (JOCTET*) dest.buffer;
     dest.free_in_buffer = jpegBufferSize;
     dest.init_destination = jpegWriteInit;
@@ -350,7 +391,7 @@ bool juce_writeJPEGImageToStream (const Image& image,
 
     jpegCompStruct.dct_method = JDCT_FLOAT;
     jpegCompStruct.optimize_coding = 1;
-//    jpegCompStruct.smoothing_factor = 10;
+    //jpegCompStruct.smoothing_factor = 10;
 
     if (quality < 0.0f)
         quality = 0.85f;
@@ -362,8 +403,7 @@ bool juce_writeJPEGImageToStream (const Image& image,
     const int strideBytes = jpegCompStruct.image_width * jpegCompStruct.input_components;
 
     JSAMPARRAY buffer = (*jpegCompStruct.mem->alloc_sarray) ((j_common_ptr) &jpegCompStruct,
-                                                    JPOOL_IMAGE,
-                                                    strideBytes, 1);
+                                                             JPOOL_IMAGE, strideBytes, 1);
 
     const Image::BitmapData srcData (image, 0, 0, jpegCompStruct.image_width, jpegCompStruct.image_height);
 

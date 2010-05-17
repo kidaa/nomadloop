@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -35,7 +35,7 @@ BEGIN_JUCE_NAMESPACE
 SubregionStream::SubregionStream (InputStream* const sourceStream,
                                   const int64 startPositionInSourceStream_,
                                   const int64 lengthOfSourceStream_,
-                                  const bool deleteSourceWhenDestroyed) throw()
+                                  const bool deleteSourceWhenDestroyed)
   : source (sourceStream),
     startPositionInSourceStream (startPositionInSourceStream_),
     lengthOfSourceStream (lengthOfSourceStream_)
@@ -46,7 +46,7 @@ SubregionStream::SubregionStream (InputStream* const sourceStream,
     setPosition (0);
 }
 
-SubregionStream::~SubregionStream() throw()
+SubregionStream::~SubregionStream()
 {
 }
 

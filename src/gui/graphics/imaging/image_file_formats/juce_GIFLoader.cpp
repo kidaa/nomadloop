@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -114,12 +114,12 @@ GIFLoader::~GIFLoader()
 
 bool GIFLoader::getSizeFromHeader (int& w, int& h)
 {
-    unsigned char b [8];
+    char b[8];
 
     if (input.read (b, 6) == 6)
     {
-        if ((strncmp ("GIF87a", (char*) b, 6) == 0)
-             || (strncmp ("GIF89a", (char*) b, 6) == 0))
+        if ((strncmp ("GIF87a", b, 6) == 0)
+             || (strncmp ("GIF89a", b, 6) == 0))
         {
             if (input.read (b, 4) == 4)
             {
@@ -418,16 +418,10 @@ bool GIFLoader::readImage (const int width, const int height,
             {
                 switch (pass)
                 {
-                case 0:
-                case 1:
-                    ypos += 8;
-                    break;
-                case 2:
-                    ypos += 4;
-                    break;
-                case 3:
-                    ypos += 2;
-                    break;
+                    case 0:
+                    case 1:     ypos += 8; break;
+                    case 2:     ypos += 4; break;
+                    case 3:     ypos += 2; break;
                 }
 
                 while (ypos >= height)
@@ -436,17 +430,10 @@ bool GIFLoader::readImage (const int width, const int height,
 
                     switch (pass)
                     {
-                    case 1:
-                        ypos = 4;
-                        break;
-                    case 2:
-                        ypos = 2;
-                        break;
-                    case 3:
-                        ypos = 1;
-                        break;
-                    default:
-                        return true;
+                        case 1:     ypos = 4; break;
+                        case 2:     ypos = 2; break;
+                        case 3:     ypos = 1; break;
+                        default:    return true;
                     }
                 }
             }

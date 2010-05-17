@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -42,6 +42,7 @@ ToolbarButton::ToolbarButton (const int itemId_,
      normalImage (normalImage_),
      toggledOnImage (toggledOnImage_)
 {
+    jassert (normalImage_ != 0);
 }
 
 ToolbarButton::~ToolbarButton()

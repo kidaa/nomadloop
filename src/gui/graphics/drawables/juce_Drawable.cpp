@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -105,7 +105,7 @@ Drawable* Drawable::createFromImageData (const void* data, const size_t numBytes
         XmlDocument doc (asString);
         ScopedPointer <XmlElement> outer (doc.getDocumentElement (true));
 
-        if (outer != 0 && outer->hasTagName (T("svg")))
+        if (outer != 0 && outer->hasTagName ("svg"))
         {
             ScopedPointer <XmlElement> svg (doc.getDocumentElement());
 
@@ -133,7 +133,7 @@ Drawable* Drawable::createFromImageFile (const File& file)
 }
 
 //==============================================================================
-Drawable* Drawable::createFromValueTree (const ValueTree& tree) throw()
+Drawable* Drawable::createFromValueTree (const ValueTree& tree)
 {
     Drawable* d = DrawablePath::createFromValueTree (tree);
 

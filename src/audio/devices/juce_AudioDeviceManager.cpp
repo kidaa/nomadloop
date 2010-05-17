@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -110,6 +110,8 @@ AudioIODeviceType* juce_createAudioIODeviceType_JACK();
 
 void AudioDeviceManager::createAudioDeviceTypes (OwnedArray <AudioIODeviceType>& list)
 {
+    (void) list; // (to avoid 'unused param' warnings)
+
     #if JUCE_WINDOWS
      #if JUCE_WASAPI
      if (SystemStats::getOperatingSystemType() >= SystemStats::WinVista)
@@ -155,7 +157,7 @@ const String AudioDeviceManager::initialise (const int numInputChannelsNeeded,
     numInputChansNeeded = numInputChannelsNeeded;
     numOutputChansNeeded = numOutputChannelsNeeded;
 
-    if (e != 0 && e->hasTagName (T("DEVICESETUP")))
+    if (e != 0 && e->hasTagName ("DEVICESETUP"))
     {
         lastExplicitSettings = new XmlElement (*e);
 
@@ -165,18 +167,18 @@ const String AudioDeviceManager::initialise (const int numInputChannelsNeeded,
         if (preferredSetupOptions != 0)
             setup = *preferredSetupOptions;
 
-        if (e->getStringAttribute (T("audioDeviceName")).isNotEmpty())
+        if (e->getStringAttribute ("audioDeviceName").isNotEmpty())
         {
             setup.inputDeviceName = setup.outputDeviceName
-                = e->getStringAttribute (T("audioDeviceName"));
+                = e->getStringAttribute ("audioDeviceName");
         }
         else
         {
-            setup.inputDeviceName = e->getStringAttribute (T("audioInputDeviceName"));
-            setup.outputDeviceName = e->getStringAttribute (T("audioOutputDeviceName"));
+            setup.inputDeviceName = e->getStringAttribute ("audioInputDeviceName");
+            setup.outputDeviceName = e->getStringAttribute ("audioOutputDeviceName");
         }
 
-        currentDeviceType = e->getStringAttribute (T("deviceType"));
+        currentDeviceType = e->getStringAttribute ("deviceType");
         if (currentDeviceType.isEmpty())
         {
             AudioIODeviceType* const type = findType (setup.inputDeviceName, setup.outputDeviceName);
@@ -187,20 +189,20 @@ const String AudioDeviceManager::initialise (const int numInputChannelsNeeded,
                 currentDeviceType = availableDeviceTypes[0]->getTypeName();
         }
 
-        setup.bufferSize = e->getIntAttribute (T("audioDeviceBufferSize"));
-        setup.sampleRate = e->getDoubleAttribute (T("audioDeviceRate"));
+        setup.bufferSize = e->getIntAttribute ("audioDeviceBufferSize");
+        setup.sampleRate = e->getDoubleAttribute ("audioDeviceRate");
 
-        setup.inputChannels.parseString (e->getStringAttribute (T("audioDeviceInChans"), T("11")), 2);
-        setup.outputChannels.parseString (e->getStringAttribute (T("audioDeviceOutChans"), T("11")), 2);
+        setup.inputChannels.parseString (e->getStringAttribute ("audioDeviceInChans", "11"), 2);
+        setup.outputChannels.parseString (e->getStringAttribute ("audioDeviceOutChans", "11"), 2);
 
-        setup.useDefaultInputChannels = ! e->hasAttribute (T("audioDeviceInChans"));
-        setup.useDefaultOutputChannels = ! e->hasAttribute (T("audioDeviceOutChans"));
+        setup.useDefaultInputChannels = ! e->hasAttribute ("audioDeviceInChans");
+        setup.useDefaultOutputChannels = ! e->hasAttribute ("audioDeviceOutChans");
 
         error = setAudioDeviceSetup (setup, true);
 
         midiInsFromXml.clear();
-        forEachXmlChildElementWithTagName (*e, c, T("MIDIINPUT"))
-            midiInsFromXml.add (c->getStringAttribute (T("name")));
+        forEachXmlChildElementWithTagName (*e, c, "MIDIINPUT")
+            midiInsFromXml.add (c->getStringAttribute ("name"));
 
         const StringArray allMidiIns (MidiInput::getDevices());
 
@@ -211,7 +213,7 @@ const String AudioDeviceManager::initialise (const int numInputChannelsNeeded,
             error = initialise (numInputChannelsNeeded, numOutputChannelsNeeded, 0,
                                 false, preferredDefaultDeviceName);
 
-        setDefaultMidiOutput (e->getStringAttribute (T("defaultMidiOutput")));
+        setDefaultMidiOutput (e->getStringAttribute ("defaultMidiOutput"));
 
         return error;
     }
@@ -537,7 +539,7 @@ void AudioDeviceManager::restartLastAudioDevice()
             // This method will only reload the last device that was running
             // before closeAudioDevice() was called - you need to actually open
             // one first, with setAudioDevice().
-            jassertfalse
+            jassertfalse;
             return;
         }
 
@@ -643,7 +645,7 @@ void AudioDeviceManager::audioDeviceIOCallbackInt (const float** inputChannelDat
             float s = 0;
 
             for (int i = 0; i < numInputChannels; ++i)
-                s += fabsf (inputChannelData[i][j]);
+                s += std::abs (inputChannelData[i][j]);
 
             s /= numInputChannels;
 
@@ -944,7 +946,7 @@ void AudioDeviceManager::playTestSound()
         const double phasePerSample = double_Pi * 2.0 / (sampleRate / frequency);
 
         for (int i = 0; i < soundLength; ++i)
-            samples[i] = amplitude * (float) sin (i * phasePerSample);
+            samples[i] = amplitude * (float) std::sin (i * phasePerSample);
 
         newSound->applyGainRamp (0, 0, soundLength / 10, 0.0f, 1.0f);
         newSound->applyGainRamp (0, soundLength - soundLength / 4, soundLength / 4, 1.0f, 0.0f);

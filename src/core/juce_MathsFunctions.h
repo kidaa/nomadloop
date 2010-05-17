@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -112,11 +112,11 @@ inline Type jmax (const Type a, const Type b, const Type c, const Type d)       
 
 /** Returns the smaller of two values. */
 template <typename Type>
-inline Type jmin (const Type a, const Type b)                                               { return (a > b) ? b : a; }
+inline Type jmin (const Type a, const Type b)                                               { return (b < a) ? b : a; }
 
 /** Returns the smaller of three values. */
 template <typename Type>
-inline Type jmin (const Type a, const Type b, const Type c)                                 { return (a > b) ? ((b > c) ? c : b) : ((a > c) ? c : a); }
+inline Type jmin (const Type a, const Type b, const Type c)                                 { return (b < a) ? ((c < b) ? c : b) : ((c < a) ? c : a); }
 
 /** Returns the smaller of four values. */
 template <typename Type>
@@ -148,7 +148,7 @@ inline Type jlimit (const Type lowerLimit,
     jassert (lowerLimit <= upperLimit); // if these are in the wrong order, results are unpredictable..
 
     return (valueToConstrain < lowerLimit) ? lowerLimit
-                                           : ((valueToConstrain > upperLimit) ? upperLimit
+                                           : ((upperLimit < valueToConstrain) ? upperLimit
                                                                               : valueToConstrain);
 }
 
@@ -173,7 +173,7 @@ inline void swapVariables (Type& variable1, Type& variable2)
     @endcode
 */
 template <typename Type>
-inline int numElementsInArray (Type& array)         { return (int) (sizeof (array) / sizeof (array[0])); }
+inline int numElementsInArray (Type& array)         { return static_cast<int> (sizeof (array) / sizeof (array[0])); }
 
 //==============================================================================
 // Some useful maths functions that aren't always present with all compilers and build settings.
@@ -191,7 +191,7 @@ inline double juce_hypot (double a, double b)
 
 /** Using juce_hypot and juce_hypotf is easier than dealing with all the different
     versions of these functions of various platforms and compilers. */
-inline float juce_hypotf (float a, float b)
+inline float juce_hypotf (float a, float b) throw()
 {
   #if JUCE_WINDOWS
     return (float) _hypot (a, b);
@@ -201,9 +201,26 @@ inline float juce_hypotf (float a, float b)
 }
 
 /** 64-bit abs function. */
-inline int64 abs64 (const int64 n)
+inline int64 abs64 (const int64 n) throw()
 {
     return (n >= 0) ? n : -n;
+}
+
+/** This templated negate function will negate pointers as well as integers */
+template <typename Type>
+inline Type juce_negate (Type n) throw()
+{
+    return sizeof (Type) == 1 ? (Type) -(char) n
+        : (sizeof (Type) == 2 ? (Type) -(short) n
+        : (sizeof (Type) == 4 ? (Type) -(int) n
+        : ((Type) -(int64) n)));
+}
+
+/** This templated negate function will negate pointers as well as integers */
+template <typename Type>
+inline Type* juce_negate (Type* n) throw()
+{
+    return (Type*) -(pointer_sized_int) n;
 }
 
 
@@ -298,6 +315,47 @@ inline int roundDoubleToInt (const double value) throw()
 inline int roundFloatToInt (const float value) throw()
 {
     return roundToInt (value);
+}
+
+//==============================================================================
+/** This namespace contains a few template classes for helping work out class type variations.
+*/
+namespace TypeHelpers
+{
+    /** The ParameterType struct is used to find the best type to use when passing some kind
+        of object as a parameter.
+
+        Of course, this is only likely to be useful in certain esoteric template situations.
+
+        Because "typename TypeHelpers::ParameterType<SomeClass>::type" is a bit of a mouthful, there's
+        a PARAMETER_TYPE(SomeClass) macro that you can use to get the same effect.
+
+        E.g. "myFunction (PARAMETER_TYPE (int), PARAMETER_TYPE (MyObject))"
+        would evaluate to "myfunction (int, const MyObject&)", keeping any primitive types as
+        pass-by-value, but passing objects as a const reference, to avoid copying.
+    */
+#if defined (_MSC_VER) && _MSC_VER <= 1400
+    #define PARAMETER_TYPE(a) a
+#else
+    template <typename Type> struct ParameterType                   { typedef const Type& type; };
+    template <typename Type> struct ParameterType <Type&>           { typedef Type& type; };
+    template <typename Type> struct ParameterType <Type*>           { typedef Type* type; };
+    template <>              struct ParameterType <char>            { typedef char type; };
+    template <>              struct ParameterType <unsigned char>   { typedef unsigned char type; };
+    template <>              struct ParameterType <short>           { typedef short type; };
+    template <>              struct ParameterType <unsigned short>  { typedef unsigned short type; };
+    template <>              struct ParameterType <int>             { typedef int type; };
+    template <>              struct ParameterType <unsigned int>    { typedef unsigned int type; };
+    template <>              struct ParameterType <long>            { typedef long type; };
+    template <>              struct ParameterType <unsigned long>   { typedef unsigned long type; };
+    template <>              struct ParameterType <int64>           { typedef int64 type; };
+    template <>              struct ParameterType <uint64>          { typedef uint64 type; };
+    template <>              struct ParameterType <bool>            { typedef bool type; };
+    template <>              struct ParameterType <float>           { typedef float type; };
+    template <>              struct ParameterType <double>          { typedef double type; };
+
+    #define PARAMETER_TYPE(a)    typename TypeHelpers::ParameterType<a>::type
+#endif
 }
 
 

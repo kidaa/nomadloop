@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -101,7 +101,7 @@ public:
 
     /** Set this to false to stop mouse events being allowed through to the control.
     */
-    void setMouseEventsAllowed (const bool eventsCanReachControl);
+    void setMouseEventsAllowed (bool eventsCanReachControl);
 
     /** Returns true if mouse events are allowed to get through to the control.
     */
@@ -116,16 +116,17 @@ public:
     juce_UseDebuggingNewOperator
 
 private:
-    class ActiveXControlData;
-    friend class ActiveXControlData;
-    void* control;
+    class Pimpl;
+    friend class Pimpl;
+    friend class ScopedPointer <Pimpl>;
+    ScopedPointer <Pimpl> control;
     bool mouseEventsAllowed;
+
+    void setControlBounds (const Rectangle<int>& bounds) const;
+    void setControlVisible (bool b) const;
 
     ActiveXControlComponent (const ActiveXControlComponent&);
     ActiveXControlComponent& operator= (const ActiveXControlComponent&);
-
-    void setControlBounds (const Rectangle<int>& bounds) const;
-    void setControlVisible (const bool b) const;
 };
 
 #endif

@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -66,11 +66,6 @@ void juce_setCurrentThreadName (const String& /*name*/)
 {
 }
 
-Thread::ThreadID Thread::getCurrentThreadId()
-{
-    return (ThreadID) pthread_self();
-}
-
 bool juce_setThreadPriority (void* handle, int priority)
 {
     if (handle == 0)
@@ -83,15 +78,20 @@ bool juce_setThreadPriority (void* handle, int priority)
     return pthread_setschedparam ((pthread_t) handle, policy, &param) == 0;
 }
 
+Thread::ThreadID Thread::getCurrentThreadId()
+{
+    return static_cast <ThreadID> (pthread_self());
+}
+
 void Thread::yield()
 {
     sched_yield();
 }
 
-void Thread::setCurrentThreadAffinityMask (const uint32 affinityMask)
+void Thread::setCurrentThreadAffinityMask (const uint32 /*affinityMask*/)
 {
     // xxx
-    jassertfalse
+    jassertfalse;
 }
 
 //==============================================================================
@@ -106,12 +106,12 @@ bool Process::isForegroundProcess()
 
 void Process::raisePrivilege()
 {
-    jassertfalse
+    jassertfalse;
 }
 
 void Process::lowerPrivilege()
 {
-    jassertfalse
+    jassertfalse;
 }
 
 void Process::terminate()
@@ -119,7 +119,7 @@ void Process::terminate()
     exit (0);
 }
 
-void Process::setPriority (ProcessPriority p)
+void Process::setPriority (ProcessPriority)
 {
     // xxx
 }

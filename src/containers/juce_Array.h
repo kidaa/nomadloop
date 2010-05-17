@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -47,7 +47,7 @@
     you do this, the array doesn't take any ownership of the objects - see the OwnedArray class or the
     ReferenceCountedArray class for more powerful ways of holding lists of objects.
 
-    For holding lists of strings, you can use Array <String>, but it's usually better to use the
+    For holding lists of strings, you can use Array\<String\>, but it's usually better to use the
     specialised class StringArray, which provides more useful functions.
 
     To make all the array's methods thread-safe, pass in "CriticalSection" as the templated
@@ -59,6 +59,13 @@ template <typename ElementType,
           typename TypeOfCriticalSectionToUse = DummyCriticalSection>
 class Array
 {
+private:
+  #if defined (_MSC_VER) && _MSC_VER <= 1400
+    typedef const ElementType& ParameterType;
+  #else
+    typedef PARAMETER_TYPE (ElementType) ParameterType;
+  #endif
+
 public:
     //==============================================================================
     /** Creates an empty array. */
@@ -84,10 +91,11 @@ public:
 
         @param values   the array to copy from
     */
-    explicit Array (const ElementType* values)
+    template <typename TypeToCreateFrom>
+    explicit Array (const TypeToCreateFrom* values)
        : numUsed (0)
     {
-        while (*values != 0)
+        while (*values != TypeToCreateFrom())
             add (*values++);
     }
 
@@ -96,7 +104,8 @@ public:
         @param values       the array to copy from
         @param numValues    the number of values in the array
     */
-    Array (const ElementType* values, int numValues)
+    template <typename TypeToCreateFrom>
+    Array (const TypeToCreateFrom* values, int numValues)
        : numUsed (numValues)
     {
         data.setAllocatedSize (numValues);
@@ -270,6 +279,15 @@ public:
                              : ElementType();
     }
 
+    /** Returns a pointer to the actual array data.
+        This pointer will only be valid until the next time a non-const method
+        is called on the array.
+    */
+    inline ElementType* getRawDataPointer() throw()
+    {
+        return data.elements;
+    }
+
     //==============================================================================
     /** Finds the index of the first element which matches the value passed in.
 
@@ -279,7 +297,7 @@ public:
         @param elementToLookFor   the value or object to look for
         @returns                  the index of the object, or -1 if it's not found
     */
-    int indexOf (const ElementType& elementToLookFor) const
+    int indexOf (ParameterType elementToLookFor) const
     {
         const ScopedLockType lock (getLock());
         const ElementType* e = data.elements.getData();
@@ -288,7 +306,7 @@ public:
         while (e != end)
         {
             if (elementToLookFor == *e)
-                return (int) (e - data.elements.getData());
+                return static_cast <int> (e - data.elements.getData());
 
             ++e;
         }
@@ -301,7 +319,7 @@ public:
         @param elementToLookFor     the value or object to look for
         @returns                    true if the item is found
     */
-    bool contains (const ElementType& elementToLookFor) const
+    bool contains (ParameterType elementToLookFor) const
     {
         const ScopedLockType lock (getLock());
         const ElementType* e = data.elements.getData();
@@ -322,9 +340,9 @@ public:
     /** Appends a new element at the end of the array.
 
         @param newElement       the new object to add to the array
-        @see set, insert, addIfNotAlreadyThere, addSorted, addArray
+        @see set, insert, addIfNotAlreadyThere, addSorted, addUsingDefaultSort, addArray
     */
-    void add (const ElementType& newElement)
+    void add (ParameterType newElement)
     {
         const ScopedLockType lock (getLock());
         data.ensureAllocatedSize (numUsed + 1);
@@ -341,9 +359,9 @@ public:
         @param indexToInsertAt    the index at which the new element should be
                                   inserted (pass in -1 to add it to the end)
         @param newElement         the new object to add to the array
-        @see add, addSorted, set
+        @see add, addSorted, addUsingDefaultSort, set
     */
-    void insert (int indexToInsertAt, const ElementType& newElement)
+    void insert (int indexToInsertAt, ParameterType newElement)
     {
         const ScopedLockType lock (getLock());
         data.ensureAllocatedSize (numUsed + 1);
@@ -377,7 +395,7 @@ public:
         @param numberOfTimesToInsertIt  how many copies of the value to insert
         @see insert, add, addSorted, set
     */
-    void insertMultiple (int indexToInsertAt, const ElementType& newElement,
+    void insertMultiple (int indexToInsertAt, ParameterType newElement,
                          int numberOfTimesToInsertIt)
     {
         if (numberOfTimesToInsertIt > 0)
@@ -452,7 +470,7 @@ public:
 
         @param newElement   the new object to add to the array
     */
-    void addIfNotAlreadyThere (const ElementType& newElement)
+    void addIfNotAlreadyThere (ParameterType newElement)
     {
         const ScopedLockType lock (getLock());
 
@@ -469,7 +487,7 @@ public:
         @param newValue         the new value to set for this index.
         @see add, insert
     */
-    void set (const int indexToChange, const ElementType& newValue)
+    void set (const int indexToChange, ParameterType newValue)
     {
         jassert (indexToChange >= 0);
         const ScopedLockType lock (getLock());
@@ -494,7 +512,7 @@ public:
         @param newValue         the new value to set for this index.
         @see set, getUnchecked
     */
-    void setUnchecked (const int indexToChange, const ElementType& newValue)
+    void setUnchecked (const int indexToChange, ParameterType newValue)
     {
         const ScopedLockType lock (getLock());
         jassert (((unsigned int) indexToChange) < (unsigned int) numUsed);
@@ -553,7 +571,7 @@ public:
 
         if (startIndex < 0)
         {
-            jassertfalse
+            jassertfalse;
             startIndex = 0;
         }
 
@@ -573,13 +591,28 @@ public:
         @param comparator   the comparator to use to compare the elements - see the sort()
                             method for details about the form this object should take
         @param newElement   the new element to insert to the array
-        @see add, sort
+        @see addUsingDefaultSort, add, sort
     */
     template <class ElementComparator>
-    void addSorted (ElementComparator& comparator, const ElementType& newElement)
+    void addSorted (ElementComparator& comparator, ParameterType newElement)
     {
         const ScopedLockType lock (getLock());
         insert (findInsertIndexInSortedArray (comparator, data.elements.getData(), newElement, 0, numUsed), newElement);
+    }
+
+    /** Inserts a new element into the array, assuming that the array is sorted.
+
+        This will use the DefaultElementComparator class for sorting, so your ElementType
+        must be suitable for use with that class. If the array isn't sorted, the behaviour of this
+        method will be unpredictable.
+
+        @param newElement   the new element to insert to the array
+        @see addSorted, sort
+    */
+    void addUsingDefaultSort (ParameterType newElement)
+    {
+        DefaultElementComparator <ElementType> comparator;
+        addSorted (comparator, newElement);
     }
 
     /** Finds the index of an element in the array, assuming that the array is sorted.
@@ -595,7 +628,7 @@ public:
         @see addSorted, sort
     */
     template <class ElementComparator>
-    int indexOfSorted (ElementComparator& comparator, const ElementType& elementToLookFor) const
+    int indexOfSorted (ElementComparator& comparator, ParameterType elementToLookFor) const
     {
         (void) comparator;  // if you pass in an object with a static compareElements() method, this
                             // avoids getting warning messages about the parameter being unused
@@ -674,7 +707,7 @@ public:
         @param valueToRemove   the object to try to remove
         @see remove, removeRange
     */
-    void removeValue (const ElementType& valueToRemove)
+    void removeValue (ParameterType valueToRemove)
     {
         const ScopedLockType lock (getLock());
         ElementType* e = data.elements;
@@ -683,7 +716,7 @@ public:
         {
             if (valueToRemove == *e)
             {
-                remove ((int) (e - data.elements.getData()));
+                remove (static_cast <int> (e - data.elements.getData()));
                 break;
             }
 
@@ -711,7 +744,7 @@ public:
 
         if (endIndex > startIndex)
         {
-            ElementType* e = data.elements + startIndex;
+            ElementType* const e = data.elements + startIndex;
 
             numberToRemove = endIndex - startIndex;
             for (int i = 0; i < numberToRemove; ++i)

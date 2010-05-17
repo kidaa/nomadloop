@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -54,13 +54,13 @@ const String LocalisedStrings::translate (const String& text) const
 
 static int findCloseQuote (const String& text, int startPos)
 {
-    tchar lastChar = 0;
+    juce_wchar lastChar = 0;
 
     for (;;)
     {
-        const tchar c = text [startPos];
+        const juce_wchar c = text [startPos];
 
-        if (c == 0 || (c == T('"') && lastChar != T('\\')))
+        if (c == 0 || (c == '"' && lastChar != '\\'))
             break;
 
         lastChar = c;
@@ -72,11 +72,11 @@ static int findCloseQuote (const String& text, int startPos)
 
 static const String unescapeString (const String& s)
 {
-    return s.replace (T("\\\""), T("\""))
-            .replace (T("\\\'"), T("\'"))
-            .replace (T("\\t"), T("\t"))
-            .replace (T("\\r"), T("\r"))
-            .replace (T("\\n"), T("\n"));
+    return s.replace ("\\\"", "\"")
+            .replace ("\\\'", "\'")
+            .replace ("\\t", "\t")
+            .replace ("\\r", "\r")
+            .replace ("\\n", "\n");
 }
 
 void LocalisedStrings::loadFromText (const String& fileContents)
@@ -88,7 +88,7 @@ void LocalisedStrings::loadFromText (const String& fileContents)
     {
         String line (lines[i].trim());
 
-        if (line.startsWithChar (T('"')))
+        if (line.startsWithChar ('"'))
         {
             int closeQuote = findCloseQuote (line, 1);
 
@@ -105,11 +105,11 @@ void LocalisedStrings::loadFromText (const String& fileContents)
                     translations.set (originalText, newText);
             }
         }
-        else if (line.startsWithIgnoreCase (T("language:")))
+        else if (line.startsWithIgnoreCase ("language:"))
         {
             languageName = line.substring (9).trim();
         }
-        else if (line.startsWithIgnoreCase (T("countries:")))
+        else if (line.startsWithIgnoreCase ("countries:"))
         {
             countryCodes.addTokens (line.substring (10).trim(), true);
             countryCodes.trim();

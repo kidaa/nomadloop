@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -52,11 +52,11 @@ juce_ImplementSingleton_SingleThreaded (AudioPluginFormatManager);
 //==============================================================================
 void AudioPluginFormatManager::addDefaultFormats()
 {
-#ifdef JUCE_DEBUG
+#if JUCE_DEBUG
     // you should only call this method once!
     for (int i = formats.size(); --i >= 0;)
     {
-  #if JUCE_PLUGINHOST_VST
+  #if JUCE_PLUGINHOST_VST && ! (JUCE_MAC && JUCE_64BIT)
         jassert (dynamic_cast <VSTPluginFormat*> (formats[i]) == 0);
   #endif
 
@@ -64,7 +64,7 @@ void AudioPluginFormatManager::addDefaultFormats()
         jassert (dynamic_cast <AudioUnitPluginFormat*> (formats[i]) == 0);
   #endif
 
-  #if JUCE_PLUGINHOST_DX && JUCE_WIN32
+  #if JUCE_PLUGINHOST_DX && JUCE_WINDOWS
         jassert (dynamic_cast <DirectXPluginFormat*> (formats[i]) == 0);
   #endif
 
@@ -78,11 +78,11 @@ void AudioPluginFormatManager::addDefaultFormats()
     formats.add (new AudioUnitPluginFormat());
 #endif
 
-#if JUCE_PLUGINHOST_VST
+#if JUCE_PLUGINHOST_VST && ! (JUCE_MAC && JUCE_64BIT)
     formats.add (new VSTPluginFormat());
 #endif
 
-#if JUCE_PLUGINHOST_DX && JUCE_WIN32
+#if JUCE_PLUGINHOST_DX && JUCE_WINDOWS
     formats.add (new DirectXPluginFormat());
 #endif
 

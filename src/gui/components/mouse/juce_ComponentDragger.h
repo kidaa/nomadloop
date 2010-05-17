@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -99,6 +99,9 @@ public:
 private:
     ComponentBoundsConstrainer* constrainer;
     Point<int> originalPos;
+
+    ComponentDragger (const ComponentDragger&);
+    ComponentDragger& operator= (const ComponentDragger&);
 };
 
 #endif   // __JUCE_COMPONENTDRAGGER_JUCEHEADER__

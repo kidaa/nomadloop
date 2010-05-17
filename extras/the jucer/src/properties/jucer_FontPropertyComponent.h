@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -56,7 +56,7 @@ public:
     //==============================================================================
     juce_UseDebuggingNewOperator
 
-    void setIndex (const int newIndex);
+    void setIndex (int newIndex);
     int getIndex() const;
 };
 

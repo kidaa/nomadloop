@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -89,6 +89,11 @@
  // If you're missing these headers, try installing the libxrender-dev and libxcomposite-dev
  #include <X11/extensions/Xrender.h>
  #include <X11/extensions/Xcomposite.h>
+#endif
+
+#if JUCE_USE_XCURSOR
+ // If you're missing this header, try installing the libxcursor-dev package
+ #include <X11/Xcursor/Xcursor.h>
 #endif
 
 #if JUCE_OPENGL

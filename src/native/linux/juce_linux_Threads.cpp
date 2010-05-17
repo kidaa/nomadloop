@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -37,9 +37,6 @@ void JUCE_API juce_threadEntryPoint (void*);
 
 void* threadEntryProc (void* value)
 {
-    // New threads start off as root when running suid
-    Process::lowerPrivilege();
-
     juce_threadEntryPoint (value);
     return 0;
 }
@@ -51,7 +48,7 @@ void* juce_createThread (void* userData)
     if (pthread_create (&handle, 0, threadEntryProc, userData) == 0)
     {
         pthread_detach (handle);
-        return (void*)handle;
+        return (void*) handle;
     }
 
     return 0;
@@ -60,7 +57,7 @@ void* juce_createThread (void* userData)
 void juce_killThread (void* handle)
 {
     if (handle != 0)
-        pthread_cancel ((pthread_t)handle);
+        pthread_cancel ((pthread_t) handle);
 }
 
 void juce_setCurrentThreadName (const String& /*name*/)
@@ -72,26 +69,25 @@ Thread::ThreadID Thread::getCurrentThreadId()
     return (ThreadID) pthread_self();
 }
 
-/*
- * This is all a bit non-ideal... the trouble is that on Linux you
- * need to call setpriority to affect the dynamic priority for
- * non-realtime processes, but this requires the pid, which is not
- * accessible from the pthread_t.  We could get it by calling getpid
- * once each thread has started, but then we would need a list of
- * running threads etc etc.
- * Also there is no such thing as IDLE priority on Linux.
- * For the moment, map idle, low and normal process priorities to
- * SCHED_OTHER, with the thread priority ignored for these classes.
- * Map high priority processes to the lower half of the SCHED_RR
- * range, and realtime to the upper half
- */
+/*  This is all a bit non-ideal... the trouble is that on Linux you
+    need to call setpriority to affect the dynamic priority for
+    non-realtime processes, but this requires the pid, which is not
+    accessible from the pthread_t.  We could get it by calling getpid
+    once each thread has started, but then we would need a list of
+    running threads etc etc.
+    Also there is no such thing as IDLE priority on Linux.
+    For the moment, map idle, low and normal process priorities to
+    SCHED_OTHER, with the thread priority ignored for these classes.
+    Map high priority processes to the lower half of the SCHED_RR
+    range, and realtime to the upper half.
 
-// priority 1 to 10 where 5=normal, 1=low. If the handle is 0, sets the
-// priority of the current thread
+    priority 1 to 10 where 5=normal, 1=low. If the handle is 0, sets the
+    priority of the current thread
+*/
 bool juce_setThreadPriority (void* handle, int priority)
 {
     struct sched_param param;
-    int policy, maxp, minp, pri;
+    int policy;
 
     if (handle == 0)
         handle = (void*) pthread_self();
@@ -99,25 +95,30 @@ bool juce_setThreadPriority (void* handle, int priority)
     if (pthread_getschedparam ((pthread_t) handle, &policy, &param) == 0
          && policy != SCHED_OTHER)
     {
-        minp = sched_get_priority_min(policy);
-        maxp = sched_get_priority_max(policy);
+        int minp = sched_get_priority_min (policy);
+        int maxp = sched_get_priority_max (policy);
 
-        pri = ((maxp - minp) / 2) * (priority - 1) / 9;
+        int pri = ((maxp - minp) / 2) * (priority - 1) / 9;
 
         if (param.__sched_priority >= (minp + (maxp - minp) / 2))
-            // Realtime process priority
-            param.__sched_priority = minp + ((maxp - minp) / 2) + pri;
+            param.__sched_priority = minp + ((maxp - minp) / 2) + pri;  // (realtime)
         else
-            // High process priority
-            param.__sched_priority = minp + pri;
+            param.__sched_priority = minp + pri;  // (high)
 
         param.sched_priority = jlimit (1, 127, 1 + (priority * 126) / 11);
-
         return pthread_setschedparam ((pthread_t) handle, policy, &param) == 0;
     }
 
     return false;
 }
+
+/* Remove this macro if you're having problems compiling the cpu affinity
+   calls (the API for these has changed about quite a bit in various Linux
+   versions, and a lot of distros seem to ship with obsolete versions)
+*/
+#if defined (CPU_ISSET) && ! defined (SUPPORT_AFFINITIES)
+  #define SUPPORT_AFFINITIES 1
+#endif
 
 void Thread::setCurrentThreadAffinityMask (const uint32 affinityMask)
 {
@@ -134,17 +135,16 @@ void Thread::setCurrentThreadAffinityMask (const uint32 affinityMask)
        version of glibc installed.
 
        If you don't want to update your copy of glibc and don't care about cpu affinities,
-       then you can just disable all this stuff by removing the SUPPORT_AFFINITIES macro
-       from the linuxincludes.h file.
+       then you can just disable all this stuff by setting the SUPPORT_AFFINITIES macro to 0.
     */
     sched_setaffinity (getpid(), sizeof (cpu_set_t), &affinity);
     sched_yield();
 
 #else
     /* affinities aren't supported because either the appropriate header files weren't found,
-       or the SUPPORT_AFFINITIES macro was turned off in linuxheaders.h
+       or the SUPPORT_AFFINITIES macro was turned off
     */
-    jassertfalse
+    jassertfalse;
 #endif
 }
 
@@ -237,7 +237,7 @@ void Process::lowerPrivilege()
 
 void* PlatformUtilities::loadDynamicLibrary (const String& name)
 {
-    return dlopen ((const char*) name.toUTF8(), RTLD_LOCAL | RTLD_NOW);
+    return dlopen (name.toUTF8(), RTLD_LOCAL | RTLD_NOW);
 }
 
 void PlatformUtilities::freeDynamicLibrary (void* handle)

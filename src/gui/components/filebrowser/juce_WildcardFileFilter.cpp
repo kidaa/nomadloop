@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -35,7 +35,7 @@ WildcardFileFilter::WildcardFileFilter (const String& fileWildcardPatterns,
                                         const String& directoryWildcardPatterns,
                                         const String& description_)
     : FileFilter (description_.isEmpty() ? fileWildcardPatterns
-                                         : (description_ + T(" (") + fileWildcardPatterns + T(")")))
+                                         : (description_ + " (" + fileWildcardPatterns + ")"))
 {
     parse (fileWildcardPatterns, fileWildcards);
     parse (directoryWildcardPatterns, directoryWildcards);
@@ -56,9 +56,9 @@ bool WildcardFileFilter::isDirectorySuitable (const File& file) const
 }
 
 //==============================================================================
-void WildcardFileFilter::parse (const String& pattern, StringArray& result) throw()
+void WildcardFileFilter::parse (const String& pattern, StringArray& result)
 {
-    result.addTokens (pattern.toLowerCase(), T(";,"), T("\"'"));
+    result.addTokens (pattern.toLowerCase(), ";,", "\"'");
 
     result.trim();
     result.removeEmptyStrings();
@@ -66,11 +66,11 @@ void WildcardFileFilter::parse (const String& pattern, StringArray& result) thro
     // special case for *.*, because people use it to mean "any file", but it
     // would actually ignore files with no extension.
     for (int i = result.size(); --i >= 0;)
-        if (result[i] == T("*.*"))
-            result.set (i, T("*"));
+        if (result[i] == "*.*")
+            result.set (i, "*");
 }
 
-bool WildcardFileFilter::match (const File& file, const StringArray& wildcards) throw()
+bool WildcardFileFilter::match (const File& file, const StringArray& wildcards)
 {
     const String filename (file.getFileName());
 

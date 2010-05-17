@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -52,7 +52,7 @@
 
 //==============================================================================
 #define juceFilterObjectPropertyID 0x1a45ffe9
-static VoidArray activePlugins, activeUIs;
+static Array<void*> activePlugins, activeUIs;
 
 static const short channelConfigs[][2] = { JucePlugin_PreferredChannelConfigurations };
 static const int numChannelConfigs = sizeof (channelConfigs) / sizeof (*channelConfigs);
@@ -654,7 +654,9 @@ public:
             juceFilter->prepareToPlay (GetSampleRate(),
                                        GetMaxFramesPerSlice());
 
+            midiEvents.ensureSize (2048);
             midiEvents.clear();
+            incomingEvents.ensureSize (2048);
             incomingEvents.clear();
 
             channels.calloc (jmax (juceFilter->getNumInputChannels(),
@@ -766,7 +768,7 @@ public:
             {
                 const ScopedLock sl (incomingMidiLock);
                 midiEvents.clear();
-                incomingEvents.swap (midiEvents);
+                incomingEvents.swapWith (midiEvents);
             }
 
             {

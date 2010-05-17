@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -63,9 +63,9 @@ public:
                             to draw itself with button over/down states when the mouse
                             moves over it or clicks
     */
-    ToolbarItemComponent (const int itemId,
+    ToolbarItemComponent (int itemId,
                           const String& labelText,
-                          const bool isBeingUsedAsAButton);
+                          bool isBeingUsedAsAButton);
 
     /** Destructor. */
     ~ToolbarItemComponent();

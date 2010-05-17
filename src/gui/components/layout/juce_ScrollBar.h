@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -27,6 +27,7 @@
 #define __JUCE_SCROLLBAR_JUCEHEADER__
 
 #include "../../../events/juce_AsyncUpdater.h"
+#include "../../../containers/juce_Range.h"
 #include "../../../events/juce_Timer.h"
 #include "../buttons/juce_Button.h"
 class ScrollBar;
@@ -88,8 +89,8 @@ public:
         @param isVertical           whether it should be a vertical or horizontal bar
         @param buttonsAreVisible    whether to show the up/down or left/right buttons
     */
-    ScrollBar (const bool isVertical,
-               const bool buttonsAreVisible = true);
+    ScrollBar (bool isVertical,
+               bool buttonsAreVisible = true);
 
     /** Destructor. */
     ~ScrollBar();
@@ -105,43 +106,73 @@ public:
 
         @param shouldBeVertical     true makes it vertical; false makes it horizontal.
     */
-    void setOrientation (const bool shouldBeVertical) throw();
+    void setOrientation (bool shouldBeVertical);
 
     /** Shows or hides the scrollbar's buttons. */
-    void setButtonVisibility (const bool buttonsAreVisible);
+    void setButtonVisibility (bool buttonsAreVisible);
 
     /** Tells the scrollbar whether to make itself invisible when not needed.
 
         The default behaviour is for a scrollbar to become invisible when the thumb
         fills the whole of its range (i.e. when it can't be moved). Setting this
         value to false forces the bar to always be visible.
+        @see autoHides()
     */
-    void setAutoHide (const bool shouldHideWhenFullRange);
+    void setAutoHide (bool shouldHideWhenFullRange);
+
+    /** Returns true if this scrollbar is set to auto-hide when its thumb is as big
+        as its maximum range.
+        @see setAutoHide
+    */
+    bool autoHides() const throw();
 
     //==============================================================================
     /** Sets the minimum and maximum values that the bar will move between.
 
-        The bar's thumb will always be constrained so that the top of the thumb
-        will be >= minimum, and the bottom of the thumb <= maximum.
+        The bar's thumb will always be constrained so that the entire thumb lies
+        within this range.
 
         @see setCurrentRange
     */
-    void setRangeLimits (const double minimum,
-                         const double maximum) throw();
+    void setRangeLimits (const Range<double>& newRangeLimit);
+
+    /** Sets the minimum and maximum values that the bar will move between.
+
+        The bar's thumb will always be constrained so that the entire thumb lies
+        within this range.
+
+        @see setCurrentRange
+    */
+    void setRangeLimits (double minimum, double maximum);
+
+    /** Returns the current limits on the thumb position.
+        @see setRangeLimits
+    */
+    const Range<double> getRangeLimit() const throw()               { return totalRange; }
 
     /** Returns the lower value that the thumb can be set to.
 
         This is the value set by setRangeLimits().
     */
-    double getMinimumRangeLimit() const throw()                     { return minimum; }
+    double getMinimumRangeLimit() const throw()                     { return totalRange.getStart(); }
 
     /** Returns the upper value that the thumb can be set to.
 
         This is the value set by setRangeLimits().
     */
-    double getMaximumRangeLimit() const throw()                     { return maximum; }
+    double getMaximumRangeLimit() const throw()                     { return totalRange.getEnd(); }
 
     //==============================================================================
+    /** Changes the position of the scrollbar's 'thumb'.
+
+        If this method call actually changes the scrollbar's position, it will trigger an
+        asynchronous call to ScrollBarListener::scrollBarMoved() for all the listeners that
+        are registered.
+
+        @see getCurrentRange. setCurrentRangeStart
+    */
+    void setCurrentRange (const Range<double>& newRange);
+
     /** Changes the position of the scrollbar's 'thumb'.
 
         This sets both the position and size of the thumb - to just set the position without
@@ -159,8 +190,7 @@ public:
                             size is beyond these limits, it will be clipped.
         @see setCurrentRangeStart, getCurrentRangeStart, getCurrentRangeSize
     */
-    void setCurrentRange (double newStart,
-                          double newSize) throw();
+    void setCurrentRange (double newStart, double newSize);
 
     /** Moves the bar's thumb position.
 
@@ -173,19 +203,22 @@ public:
 
         @see setCurrentRange
     */
-    void setCurrentRangeStart (double newStart) throw();
+    void setCurrentRangeStart (double newStart);
+
+    /** Returns the current thumb range.
+        @see getCurrentRange, setCurrentRange
+    */
+    const Range<double> getCurrentRange() const throw()             { return visibleRange; }
 
     /** Returns the position of the top of the thumb.
-
-        @see setCurrentRangeStart
+        @see getCurrentRange, setCurrentRangeStart
     */
-    double getCurrentRangeStart() const throw()                     { return rangeStart; }
+    double getCurrentRangeStart() const throw()                     { return visibleRange.getStart(); }
 
     /** Returns the current size of the thumb.
-
-        @see setCurrentRange
+        @see getCurrentRange, setCurrentRange
     */
-    double getCurrentRangeSize() const throw()                      { return rangeSize; }
+    double getCurrentRangeSize() const throw()                      { return visibleRange.getLength(); }
 
     //==============================================================================
     /** Sets the amount by which the up and down buttons will move the bar.
@@ -193,7 +226,7 @@ public:
         The value here is in terms of the total range, and is added or subtracted
         from the thumb position when the user clicks an up/down (or left/right) button.
     */
-    void setSingleStepSize (const double newSingleStepSize) throw();
+    void setSingleStepSize (double newSingleStepSize);
 
     /** Moves the scrollbar by a number of single-steps.
 
@@ -203,7 +236,7 @@ public:
         A positive value here will move the bar down or to the right, a negative
         value moves it up or to the left.
     */
-    void moveScrollbarInSteps (const int howManySteps) throw();
+    void moveScrollbarInSteps (int howManySteps);
 
     /** Moves the scroll bar up or down in pages.
 
@@ -213,19 +246,19 @@ public:
         A positive value here will move the bar down or to the right, a negative
         value moves it up or to the left.
     */
-    void moveScrollbarInPages (const int howManyPages) throw();
+    void moveScrollbarInPages (int howManyPages);
 
     /** Scrolls to the top (or left).
 
         This is the same as calling setCurrentRangeStart (getMinimumRangeLimit());
     */
-    void scrollToTop() throw();
+    void scrollToTop();
 
     /** Scrolls to the bottom (or right).
 
         This is the same as calling setCurrentRangeStart (getMaximumRangeLimit() - getCurrentRangeSize());
     */
-    void scrollToBottom() throw();
+    void scrollToBottom();
 
     /** Changes the delay before the up and down buttons autorepeat when they are held
         down.
@@ -234,9 +267,9 @@ public:
 
         @see Button::setRepeatSpeed
     */
-    void setButtonRepeatSpeed (const int initialDelayInMillisecs,
-                               const int repeatDelayInMillisecs,
-                               const int minimumDelayInMillisecs = -1) throw();
+    void setButtonRepeatSpeed (int initialDelayInMillisecs,
+                               int repeatDelayInMillisecs,
+                               int minimumDelayInMillisecs = -1);
 
     //==============================================================================
     /** A set of colour IDs to use to change the colour of various aspects of the component.
@@ -255,10 +288,10 @@ public:
 
     //==============================================================================
     /** Registers a listener that will be called when the scrollbar is moved. */
-    void addListener (ScrollBarListener* const listener) throw();
+    void addListener (ScrollBarListener* listener);
 
     /** Deregisters a previously-registered listener. */
-    void removeListener (ScrollBarListener* const listener) throw();
+    void removeListener (ScrollBarListener* listener);
 
     //==============================================================================
     /** @internal */
@@ -284,18 +317,18 @@ public:
 
 private:
     //==============================================================================
-    double minimum, maximum;
-    double rangeStart, rangeSize;
+    Range <double> totalRange, visibleRange;
     double singleStepSize, dragStartRange;
     int thumbAreaStart, thumbAreaSize, thumbStart, thumbSize;
     int dragStartMousePos, lastMousePos;
     int initialDelayInMillisecs, repeatDelayInMillisecs, minimumDelayInMillisecs;
-    bool vertical, isDraggingThumb, alwaysVisible;
-    Button* upButton;
-    Button* downButton;
+    bool vertical, isDraggingThumb, autohides;
+    class ScrollbarButton;
+    ScrollbarButton* upButton;
+    ScrollbarButton* downButton;
     ListenerList <ScrollBarListener> listeners;
 
-    void updateThumbPosition() throw();
+    void updateThumbPosition();
     void timerCallback();
 
     ScrollBar (const ScrollBar&);

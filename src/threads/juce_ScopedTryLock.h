@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -75,7 +75,7 @@ public:
         otherwise there are no guarantees what will happen! Best just to use it
         as a local stack object, rather than creating one with the new() operator.
     */
-    inline ScopedTryLock (const CriticalSection& lock) throw()      : lock_ (lock), lockWasSuccessful (lock.tryEnter()) {}
+    inline explicit ScopedTryLock (const CriticalSection& lock) throw()   : lock_ (lock), lockWasSuccessful (lock.tryEnter()) {}
 
     /** Destructor.
 
@@ -84,13 +84,10 @@ public:
         Make sure this object is created and deleted by the same thread,
         otherwise there are no guarantees what will happen!
     */
-    inline ~ScopedTryLock() throw()                                 { if (lockWasSuccessful) lock_.exit(); }
+    inline ~ScopedTryLock() throw()                                       { if (lockWasSuccessful) lock_.exit(); }
 
-    /** Lock state
-
-    @return True if the CriticalSection is locked.
-    */
-    bool isLocked() const throw()                                   { return lockWasSuccessful; }
+    /** Returns true if the CriticalSection was successfully locked. */
+    bool isLocked() const throw()                                         { return lockWasSuccessful; }
 
 private:
     //==============================================================================

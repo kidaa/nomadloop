@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -83,7 +83,7 @@ public:
         When first created, the thread is not running. Use the startThread()
         method to start it.
     */
-    TimeSliceThread (const String& threadName);
+    explicit TimeSliceThread (const String& threadName);
 
     /** Destructor.
 
@@ -100,20 +100,20 @@ public:
         The client's callbacks will start immediately (possibly before the method
         has returned).
     */
-    void addTimeSliceClient (TimeSliceClient* const client);
+    void addTimeSliceClient (TimeSliceClient* client);
 
     /** Removes a client from the list.
 
         This method will make sure that all callbacks to the client have completely
         finished before the method returns.
     */
-    void removeTimeSliceClient (TimeSliceClient* const client);
+    void removeTimeSliceClient (TimeSliceClient* client);
 
     /** Returns the number of registered clients. */
     int getNumClients() const;
 
     /** Returns one of the registered clients. */
-    TimeSliceClient* getClient (const int index) const;
+    TimeSliceClient* getClient (int index) const;
 
     //==============================================================================
     /** @internal */

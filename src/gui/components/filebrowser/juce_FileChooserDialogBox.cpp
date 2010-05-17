@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -106,9 +106,9 @@ void FileChooserDialogBox::buttonClicked (Button* button)
         {
             if (! AlertWindow::showOkCancelBox (AlertWindow::WarningIcon,
                                                 TRANS("File already exists"),
-                                                TRANS("There's already a file called:\n\n")
-                                                + content->chooserComponent->getSelectedFile(0).getFullPathName()
-                                                + T("\n\nAre you sure you want to overwrite it?"),
+                                                TRANS("There's already a file called:")
+                                                  + "\n\n" + content->chooserComponent->getSelectedFile(0).getFullPathName()
+                                                  + "\n\n" + TRANS("Are you sure you want to overwrite it?"),
                                                 TRANS("overwrite"),
                                                 TRANS("cancel")))
             {
@@ -164,10 +164,9 @@ void FileChooserDialogBox::ContentComponent::resized()
 {
     getLookAndFeel().createFileChooserHeaderText (getName(), instructions, text, getWidth());
 
-    float left, top, right, bottom;
-    text.getBoundingBox (0, text.getNumGlyphs(), left, top, right, bottom, false);
+    const Rectangle<float> bb (text.getBoundingBox (0, text.getNumGlyphs(), false));
 
-    const int y = roundToInt (bottom) + 10;
+    const int y = roundToInt (bb.getBottom()) + 10;
     const int buttonHeight = 26;
     const int buttonY = getHeight() - buttonHeight - 8;
 

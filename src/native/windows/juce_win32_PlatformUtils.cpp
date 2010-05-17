@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -35,18 +35,18 @@ static HKEY findKeyForPath (String name,
 {
     HKEY rootKey = 0;
 
-    if (name.startsWithIgnoreCase (T("HKEY_CURRENT_USER\\")))
+    if (name.startsWithIgnoreCase ("HKEY_CURRENT_USER\\"))
         rootKey = HKEY_CURRENT_USER;
-    else if (name.startsWithIgnoreCase (T("HKEY_LOCAL_MACHINE\\")))
+    else if (name.startsWithIgnoreCase ("HKEY_LOCAL_MACHINE\\"))
         rootKey = HKEY_LOCAL_MACHINE;
-    else if (name.startsWithIgnoreCase (T("HKEY_CLASSES_ROOT\\")))
+    else if (name.startsWithIgnoreCase ("HKEY_CLASSES_ROOT\\"))
         rootKey = HKEY_CLASSES_ROOT;
 
     if (rootKey != 0)
     {
-        name = name.substring (name.indexOfChar (T('\\')) + 1);
+        name = name.substring (name.indexOfChar ('\\') + 1);
 
-        const int lastSlash = name.lastIndexOfChar (T('\\'));
+        const int lastSlash = name.lastIndexOfChar ('\\');
         valueName = name.substring (lastSlash + 1);
         name = name.substring (0, lastSlash);
 
@@ -191,14 +191,14 @@ bool juce_IsRunningInWine()
 }
 
 //==============================================================================
-const String JUCE_CALLTYPE PlatformUtilities::getCurrentCommandLineParams() throw()
+const String JUCE_CALLTYPE PlatformUtilities::getCurrentCommandLineParams()
 {
     String s (::GetCommandLineW());
 
     StringArray tokens;
     tokens.addTokens (s, true); // tokenise so that we can remove the initial filename argument
 
-    return tokens.joinIntoString (T(" "), 1);
+    return tokens.joinIntoString (" ", 1);
 }
 
 //==============================================================================

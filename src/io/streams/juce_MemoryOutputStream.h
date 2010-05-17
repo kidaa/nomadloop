@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -50,15 +50,15 @@ public:
                                     will allocate its own storage internally, which you can
                                     access using getData() and getDataSize()
     */
-    MemoryOutputStream (const size_t initialSize = 256,
-                        const size_t granularity = 256,
-                        MemoryBlock* const memoryBlockToWriteTo = 0) throw();
+    MemoryOutputStream (size_t initialSize = 256,
+                        size_t granularity = 256,
+                        MemoryBlock* memoryBlockToWriteTo = 0);
 
     /** Destructor.
 
         This will free any data that was written to it.
     */
-    ~MemoryOutputStream() throw();
+    ~MemoryOutputStream();
 
     //==============================================================================
     /** Returns a pointer to the data that has been written to the stream.
@@ -71,15 +71,18 @@ public:
 
         @see getData
     */
-    size_t getDataSize() const throw();
+    size_t getDataSize() const throw()                  { return size; }
 
     /** Resets the stream, clearing any data that has been written to it so far. */
     void reset() throw();
 
+    /** Returns a String created from the (UTF8) data that has been written to the stream. */
+    const String toUTF8() const;
+
     //==============================================================================
     void flush();
     bool write (const void* buffer, int howMany);
-    int64 getPosition();
+    int64 getPosition()                                 { return position; }
     bool setPosition (int64 newPosition);
 
 
@@ -90,6 +93,9 @@ private:
     MemoryBlock* data;
     ScopedPointer <MemoryBlock> dataToDelete;
     size_t position, size, blockSize;
+
+    MemoryOutputStream (const MemoryOutputStream&);
+    MemoryOutputStream& operator= (const MemoryOutputStream&);
 };
 
 #endif   // __JUCE_MEMORYOUTPUTSTREAM_JUCEHEADER__

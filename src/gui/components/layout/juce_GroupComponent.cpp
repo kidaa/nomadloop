@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -46,7 +46,7 @@ GroupComponent::~GroupComponent()
 }
 
 //==============================================================================
-void GroupComponent::setText (const String& newText) throw()
+void GroupComponent::setText (const String& newText)
 {
     if (text != newText)
     {
@@ -55,7 +55,7 @@ void GroupComponent::setText (const String& newText) throw()
     }
 }
 
-const String GroupComponent::getText() const throw()
+const String GroupComponent::getText() const
 {
     return text;
 }
@@ -63,7 +63,7 @@ const String GroupComponent::getText() const throw()
 //==============================================================================
 void GroupComponent::setTextLabelPosition (const Justification& newJustification)
 {
-    if (justification.getFlags() != newJustification.getFlags())
+    if (justification != newJustification)
     {
         justification = newJustification;
         repaint();

@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -184,7 +184,9 @@ public:
                                                   keyCode: 0];
 
             [menu performKeyEquivalent: f35Event];
-            [menu removeItem: item]; // (this throws if the item isn't actually in the menu)
+
+            if ([menu indexOfItem: item] >= 0)
+                [menu removeItem: item]; // (this throws if the item isn't actually in the menu)
         }
 
         [menu release];
@@ -245,7 +247,7 @@ public:
     void addMenuItem (PopupMenu::MenuItemIterator& iter, NSMenu* menuToAddTo,
                       const int topLevelMenuId, const int topLevelIndex)
     {
-        NSString* text = juceStringToNS (iter.itemName.upToFirstOccurrenceOf (T("<end>"), false, true));
+        NSString* text = juceStringToNS (iter.itemName.upToFirstOccurrenceOf ("<end>", false, true));
 
         if (text == 0)
             text = @"";
@@ -300,27 +302,32 @@ public:
                 {
                     const KeyPress& kp = keyPresses.getReference(0);
 
-                    juce_wchar key = kp.getTextCharacter();
+                    if (kp.getKeyCode() != KeyPress::backspaceKey
+                         && kp.getKeyCode() != KeyPress::deleteKey) // (adding these is annoying because it flashes the menu bar
+                                                                    // every time you press the key while editing text)
+                    {
+                        juce_wchar key = kp.getTextCharacter();
 
-                    if (kp.getKeyCode() == KeyPress::backspaceKey)
-                        key = NSBackspaceCharacter;
-                    else if (kp.getKeyCode() == KeyPress::deleteKey)
-                        key = NSDeleteCharacter;
-                    else if (key == 0)
-                        key = (juce_wchar) kp.getKeyCode();
+                        if (kp.getKeyCode() == KeyPress::backspaceKey)
+                            key = NSBackspaceCharacter;
+                        else if (kp.getKeyCode() == KeyPress::deleteKey)
+                            key = NSDeleteCharacter;
+                        else if (key == 0)
+                            key = (juce_wchar) kp.getKeyCode();
 
-                    unsigned int mods = 0;
-                    if (kp.getModifiers().isShiftDown())
-                        mods |= NSShiftKeyMask;
-                    if (kp.getModifiers().isCtrlDown())
-                        mods |= NSControlKeyMask;
-                    if (kp.getModifiers().isAltDown())
-                        mods |= NSAlternateKeyMask;
-                    if (kp.getModifiers().isCommandDown())
-                        mods |= NSCommandKeyMask;
+                        unsigned int mods = 0;
+                        if (kp.getModifiers().isShiftDown())
+                            mods |= NSShiftKeyMask;
+                        if (kp.getModifiers().isCtrlDown())
+                            mods |= NSControlKeyMask;
+                        if (kp.getModifiers().isAltDown())
+                            mods |= NSAlternateKeyMask;
+                        if (kp.getModifiers().isCommandDown())
+                            mods |= NSCommandKeyMask;
 
-                    [item setKeyEquivalent: juceStringToNS (String::charToString (key))];
-                    [item setKeyEquivalentModifierMask: mods];
+                        [item setKeyEquivalent: juceStringToNS (String::charToString (key))];
+                        [item setKeyEquivalentModifierMask: mods];
+                    }
                 }
             }
         }
@@ -405,6 +412,8 @@ END_JUCE_NAMESPACE
 
 - (void) menuNeedsUpdate: (NSMenu*) menu;
 {
+    (void) menu;
+
     if (JuceMainMenuHandler::instance != 0)
         JuceMainMenuHandler::instance->updateMenus();
 }

@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -41,34 +41,39 @@ StringArray::StringArray (const StringArray& other)
 {
 }
 
-StringArray::StringArray (const juce_wchar** const initialStrings,
+StringArray::StringArray (const String& firstValue)
+{
+    strings.add (firstValue);
+}
+
+StringArray::StringArray (const juce_wchar* const* const initialStrings,
                           const int numberOfStrings)
 {
     for (int i = 0; i < numberOfStrings; ++i)
-        add (initialStrings [i]);
+        strings.add (initialStrings [i]);
 }
 
-StringArray::StringArray (const char** const initialStrings,
+StringArray::StringArray (const char* const* const initialStrings,
                           const int numberOfStrings)
 {
     for (int i = 0; i < numberOfStrings; ++i)
-        add (initialStrings [i]);
+        strings.add (initialStrings [i]);
 }
 
-StringArray::StringArray (const juce_wchar** const initialStrings)
+StringArray::StringArray (const juce_wchar* const* const initialStrings)
 {
     int i = 0;
 
     while (initialStrings[i] != 0)
-        add (initialStrings [i++]);
+        strings.add (initialStrings [i++]);
 }
 
-StringArray::StringArray (const char** const initialStrings)
+StringArray::StringArray (const char* const* const initialStrings)
 {
     int i = 0;
 
     while (initialStrings[i] != 0)
-        add (initialStrings [i++]);
+        strings.add (initialStrings [i++]);
 }
 
 StringArray& StringArray::operator= (const StringArray& other)
@@ -81,7 +86,7 @@ StringArray::~StringArray()
 {
 }
 
-bool StringArray::operator== (const StringArray& other) const
+bool StringArray::operator== (const StringArray& other) const throw()
 {
     if (other.size() != size())
         return false;
@@ -93,7 +98,7 @@ bool StringArray::operator== (const StringArray& other) const
     return true;
 }
 
-bool StringArray::operator!= (const StringArray& other) const
+bool StringArray::operator!= (const StringArray& other) const throw()
 {
     return ! operator== (other);
 }
@@ -109,6 +114,12 @@ const String& StringArray::operator[] (const int index) const throw()
         return strings.getReference (index);
 
     return String::empty;
+}
+
+String& StringArray::getReference (const int index) throw()
+{
+    jassert (((unsigned int) index) < (unsigned int) strings.size());
+    return strings.getReference (index);
 }
 
 void StringArray::add (const String& newString)
@@ -131,7 +142,7 @@ void StringArray::addArray (const StringArray& otherArray, int startIndex, int n
 {
     if (startIndex < 0)
     {
-        jassertfalse
+        jassertfalse;
         startIndex = 0;
     }
 
@@ -219,6 +230,11 @@ void StringArray::removeString (const String& stringToRemove,
     }
 }
 
+void StringArray::removeRange (int startIndex, int numberToRemove)
+{
+    strings.removeRange (startIndex, numberToRemove);
+}
+
 //==============================================================================
 void StringArray::removeEmptyStrings (const bool removeWhitespaceStrings)
 {
@@ -302,7 +318,7 @@ const String StringArray::joinIntoString (const String& separator, int start, in
     String result;
     result.preallocateStorage (charsNeeded);
 
-    juce_wchar* dest = (juce_wchar*) result;
+    juce_wchar* dest = result;
 
     while (start < last)
     {
@@ -327,64 +343,31 @@ const String StringArray::joinIntoString (const String& separator, int start, in
     return result;
 }
 
-int StringArray::addTokens (const tchar* const text, const bool preserveQuotedStrings)
+int StringArray::addTokens (const String& text, const bool preserveQuotedStrings)
 {
-    return addTokens (text,
-                      T(" \n\r\t"),
-                      preserveQuotedStrings ? T("\"") : 0);
+    return addTokens (text, " \n\r\t", preserveQuotedStrings ? "\"" : "");
 }
 
-int StringArray::addTokens (const tchar* const text, const tchar* breakCharacters, const tchar* quoteCharacters)
+int StringArray::addTokens (const String& text, const String& breakCharacters, const String& quoteCharacters)
 {
     int num = 0;
 
-    if (text != 0 && *text != 0)
+    if (text.isNotEmpty())
     {
-        if (breakCharacters == 0)
-            breakCharacters = T("");
-
-        if (quoteCharacters == 0)
-            quoteCharacters = T("");
-
         bool insideQuotes = false;
-        tchar currentQuoteChar = 0;
-
+        juce_wchar currentQuoteChar = 0;
         int i = 0;
         int tokenStart = 0;
 
         for (;;)
         {
-            const tchar c = text[i];
+            const juce_wchar c = text[i];
 
-            bool isBreak = (c == 0);
-
-            if (! (insideQuotes || isBreak))
-            {
-                const tchar* b = breakCharacters;
-                while (*b != 0)
-                {
-                    if (*b++ == c)
-                    {
-                        isBreak = true;
-                        break;
-                    }
-                }
-            }
+            const bool isBreak = (c == 0) || ((! insideQuotes) && breakCharacters.containsChar (c));
 
             if (! isBreak)
             {
-                bool isQuote = false;
-                const tchar* q = quoteCharacters;
-                while (*q != 0)
-                {
-                    if (*q++ == c)
-                    {
-                        isQuote = true;
-                        break;
-                    }
-                }
-
-                if (isQuote)
+                if (quoteCharacters.containsChar (c))
                 {
                     if (insideQuotes)
                     {
@@ -402,7 +385,7 @@ int StringArray::addTokens (const tchar* const text, const tchar* breakCharacter
             }
             else
             {
-                add (String (text + tokenStart, i - tokenStart));
+                add (String (static_cast <const juce_wchar*> (text) + tokenStart, i - tokenStart));
 
                 ++num;
                 tokenStart = i + 1;
@@ -418,47 +401,45 @@ int StringArray::addTokens (const tchar* const text, const tchar* breakCharacter
     return num;
 }
 
-int StringArray::addLines (const tchar* text)
+int StringArray::addLines (const String& sourceText)
 {
     int numLines = 0;
+    const juce_wchar* text = sourceText;
 
-    if (text != 0)
+    while (*text != 0)
     {
+        const juce_wchar* const startOfLine = text;
+
         while (*text != 0)
         {
-            const tchar* const startOfLine = text;
-
-            while (*text != 0)
+            if (*text == '\r')
             {
-                if (*text == T('\r'))
-                {
-                    ++text;
-                    if (*text == T('\n'))
-                        ++text;
-
-                    break;
-                }
-
-                if (*text == T('\n'))
-                {
-                    ++text;
-                    break;
-                }
-
                 ++text;
+                if (*text == '\n')
+                    ++text;
+
+                break;
             }
 
-            const tchar* endOfLine = text;
-            if (endOfLine > startOfLine && (*(endOfLine - 1) == T('\r') || *(endOfLine - 1) == T('\n')))
-                --endOfLine;
+            if (*text == '\n')
+            {
+                ++text;
+                break;
+            }
 
-            if (endOfLine > startOfLine && (*(endOfLine - 1) == T('\r') || *(endOfLine - 1) == T('\n')))
-                --endOfLine;
-
-            add (String (startOfLine, jmax (0, (int) (endOfLine - startOfLine))));
-
-            ++numLines;
+            ++text;
         }
+
+        const juce_wchar* endOfLine = text;
+        if (endOfLine > startOfLine && (*(endOfLine - 1) == '\r' || *(endOfLine - 1) == '\n'))
+            --endOfLine;
+
+        if (endOfLine > startOfLine && (*(endOfLine - 1) == '\r' || *(endOfLine - 1) == '\n'))
+            --endOfLine;
+
+        add (String (startOfLine, jmax (0, (int) (endOfLine - startOfLine))));
+
+        ++numLines;
     }
 
     return numLines;
@@ -487,9 +468,15 @@ void StringArray::removeDuplicates (const bool ignoreCase)
 
 void StringArray::appendNumbersToDuplicates (const bool ignoreCase,
                                              const bool appendNumberToFirstInstance,
-                                             const tchar* const preNumberString,
-                                             const tchar* const postNumberString)
+                                             const juce_wchar* preNumberString,
+                                             const juce_wchar* postNumberString)
 {
+    if (preNumberString == 0)
+        preNumberString = L" (";
+
+    if (postNumberString == 0)
+        postNumberString = L")";
+
     for (int i = 0; i < size() - 1; ++i)
     {
         String& s = strings.getReference(i);

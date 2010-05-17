@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -43,7 +43,7 @@ DynamicLibraryLoader::~DynamicLibraryLoader()
 
 void* DynamicLibraryLoader::findProcAddress (const String& functionName)
 {
-    return (void*) GetProcAddress ((HMODULE) libHandle, functionName.toCString());
+    return GetProcAddress ((HMODULE) libHandle, functionName.toCString());
 }
 
 

@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -33,8 +33,8 @@ BEGIN_JUCE_NAMESPACE
 
 //==============================================================================
 DrawablePath::DrawablePath()
-    : mainFill (FillType (Colours::black)),
-      strokeFill (FillType (Colours::transparentBlack)),
+    : mainFill (Colours::black),
+      strokeFill (Colours::transparentBlack),
       strokeType (0.0f)
 {
 }
@@ -44,29 +44,29 @@ DrawablePath::~DrawablePath()
 }
 
 //==============================================================================
-void DrawablePath::setPath (const Path& newPath) throw()
+void DrawablePath::setPath (const Path& newPath)
 {
     path = newPath;
     updateOutline();
 }
 
-void DrawablePath::setFill (const FillType& newFill) throw()
+void DrawablePath::setFill (const FillType& newFill)
 {
     mainFill = newFill;
 }
 
-void DrawablePath::setStrokeFill (const FillType& newFill) throw()
+void DrawablePath::setStrokeFill (const FillType& newFill)
 {
     strokeFill = newFill;
 }
 
-void DrawablePath::setStrokeType (const PathStrokeType& newStrokeType) throw()
+void DrawablePath::setStrokeType (const PathStrokeType& newStrokeType)
 {
     strokeType = newStrokeType;
     updateOutline();
 }
 
-void DrawablePath::setStrokeThickness (const float newThickness) throw()
+void DrawablePath::setStrokeThickness (const float newThickness)
 {
     setStrokeType (PathStrokeType (newThickness, strokeType.getJointStyle(), strokeType.getEndStyle()));
 }
@@ -133,19 +133,17 @@ static const FillType readFillTypeFromTree (const ValueTree& v)
 {
     const String type (v["type"].toString());
 
-    if (type.equalsIgnoreCase (T("solid")))
+    if (type.equalsIgnoreCase ("solid"))
     {
         const String colour (v ["colour"].toString());
-        return FillType (Colour (colour.isEmpty() ? (uint32) 0xff000000
-                                                  : (uint32) colour.getHexValue32()));
+        return Colour (colour.isEmpty() ? (uint32) 0xff000000
+                                        : (uint32) colour.getHexValue32());
     }
     else if (type.equalsIgnoreCase ("gradient"))
     {
         ColourGradient g;
-        g.x1 = v["x1"];
-        g.y1 = v["y1"];
-        g.x2 = v["x2"];
-        g.y2 = v["y2"];
+        g.point1.setXY (v["x1"], v["y1"]);
+        g.point2.setXY (v["x2"], v["y2"]);
         g.isRadial = v["radial"];
 
         StringArray colours;
@@ -155,10 +153,10 @@ static const FillType readFillTypeFromTree (const ValueTree& v)
             g.addColour (colours[i * 2].getDoubleValue(),
                          Colour ((uint32)  colours[i * 2 + 1].getHexValue32()));
 
-        return FillType (g);
+        return g;
     }
 
-    jassertfalse
+    jassertfalse;
     return FillType();
 }
 
@@ -168,16 +166,16 @@ static ValueTree createTreeForFillType (const String& tagName, const FillType& f
 
     if (fillType.isColour())
     {
-        v.setProperty ("type", T("solid"), 0);
+        v.setProperty ("type", "solid", 0);
         v.setProperty ("colour", String::toHexString ((int) fillType.colour.getARGB()), 0);
     }
     else if (fillType.isGradient())
     {
-        v.setProperty ("type", T("gradient"), 0);
-        v.setProperty ("x1", fillType.gradient->x1, 0);
-        v.setProperty ("y1", fillType.gradient->y1, 0);
-        v.setProperty ("x2", fillType.gradient->x2, 0);
-        v.setProperty ("y2", fillType.gradient->y2, 0);
+        v.setProperty ("type", "gradient", 0);
+        v.setProperty ("x1", fillType.gradient->point1.getX(), 0);
+        v.setProperty ("y1", fillType.gradient->point1.getY(), 0);
+        v.setProperty ("x2", fillType.gradient->point2.getX(), 0);
+        v.setProperty ("y2", fillType.gradient->point2.getY(), 0);
         v.setProperty ("radial", fillType.gradient->isRadial, 0);
 
         String s;
@@ -189,33 +187,33 @@ static ValueTree createTreeForFillType (const String& tagName, const FillType& f
     }
     else
     {
-        jassertfalse //xxx
+        jassertfalse; //xxx
     }
 
     return v;
 }
 
-ValueTree DrawablePath::createValueTree() const throw()
+ValueTree DrawablePath::createValueTree() const
 {
-    ValueTree v (T("Path"));
+    ValueTree v ("Path");
 
-    v.addChild (createTreeForFillType (T("fill"), mainFill), -1, 0);
-    v.addChild (createTreeForFillType (T("stroke"), strokeFill), -1, 0);
+    v.addChild (createTreeForFillType ("fill", mainFill), -1, 0);
+    v.addChild (createTreeForFillType ("stroke", strokeFill), -1, 0);
 
     if (getName().isNotEmpty())
         v.setProperty ("id", getName(), 0);
 
     v.setProperty ("strokeWidth", (double) strokeType.getStrokeThickness(), 0);
     v.setProperty ("jointStyle", strokeType.getJointStyle() == PathStrokeType::mitered
-                                    ? T("miter") : (strokeType.getJointStyle() == PathStrokeType::curved ? T("curved") : T("bevel")), 0);
+                                    ? "miter" : (strokeType.getJointStyle() == PathStrokeType::curved ? "curved" : "bevel"), 0);
     v.setProperty ("capStyle", strokeType.getEndStyle() == PathStrokeType::butt
-                                    ? T("butt") : (strokeType.getEndStyle() == PathStrokeType::square ? T("square") : T("round")), 0);
+                                    ? "butt" : (strokeType.getEndStyle() == PathStrokeType::square ? "square" : "round"), 0);
     v.setProperty ("path", path.toString(), 0);
 
     return v;
 }
 
-DrawablePath* DrawablePath::createFromValueTree (const ValueTree& tree) throw()
+DrawablePath* DrawablePath::createFromValueTree (const ValueTree& tree)
 {
     if (! tree.hasType ("Path"))
         return 0;
@@ -223,20 +221,20 @@ DrawablePath* DrawablePath::createFromValueTree (const ValueTree& tree) throw()
     DrawablePath* p = new DrawablePath();
 
     p->setName (tree ["id"]);
-    p->mainFill = readFillTypeFromTree (tree.getChildWithName (T("fill")));
-    p->strokeFill = readFillTypeFromTree (tree.getChildWithName (T("stroke")));
+    p->mainFill = readFillTypeFromTree (tree.getChildWithName ("fill"));
+    p->strokeFill = readFillTypeFromTree (tree.getChildWithName ("stroke"));
 
     const String jointStyle (tree ["jointStyle"].toString());
     const String endStyle (tree ["capStyle"].toString());
 
     p->strokeType
         = PathStrokeType (tree ["strokeWidth"],
-                          jointStyle.equalsIgnoreCase (T("curved")) ? PathStrokeType::curved
-                                                                    : (jointStyle.equalsIgnoreCase (T("bevel")) ? PathStrokeType::beveled
-                                                                                                                : PathStrokeType::mitered),
-                          endStyle.equalsIgnoreCase (T("square")) ? PathStrokeType::square
-                                                                  : (endStyle.equalsIgnoreCase (T("round")) ? PathStrokeType::rounded
-                                                                                                            : PathStrokeType::butt));
+                          jointStyle.equalsIgnoreCase ("curved") ? PathStrokeType::curved
+                                                                 : (jointStyle.equalsIgnoreCase ("bevel") ? PathStrokeType::beveled
+                                                                                                          : PathStrokeType::mitered),
+                          endStyle.equalsIgnoreCase ("square") ? PathStrokeType::square
+                                                               : (endStyle.equalsIgnoreCase ("round") ? PathStrokeType::rounded
+                                                                                                      : PathStrokeType::butt));
 
     p->path.clear();
     p->path.restoreFromString (tree ["path"]);

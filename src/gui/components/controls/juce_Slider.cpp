@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -268,13 +268,19 @@ void Slider::setTextBoxStyle (const TextEntryBoxPosition newPosition,
                               const int textEntryBoxWidth,
                               const int textEntryBoxHeight)
 {
-    textBoxPos = newPosition;
-    editableText = ! isReadOnly;
-    textBoxWidth = textEntryBoxWidth;
-    textBoxHeight = textEntryBoxHeight;
+    if (textBoxPos != newPosition
+         || editableText != (! isReadOnly)
+         || textBoxWidth != textEntryBoxWidth
+         || textBoxHeight != textEntryBoxHeight)
+    {
+        textBoxPos = newPosition;
+        editableText = ! isReadOnly;
+        textBoxWidth = textEntryBoxWidth;
+        textBoxHeight = textEntryBoxHeight;
 
-    repaint();
-    lookAndFeelChanged();
+        repaint();
+        lookAndFeelChanged();
+    }
 }
 
 void Slider::setTextBoxIsEditable (const bool shouldBeEditable)
@@ -632,12 +638,17 @@ void Slider::setTextValueSuffix (const String& suffix)
     }
 }
 
+const String Slider::getTextValueSuffix() const
+{
+    return textSuffix;
+}
+
 const String Slider::getTextFromValue (double v)
 {
-    if (numDecimalPlaces > 0)
-        return String (v, numDecimalPlaces) + textSuffix;
+    if (getNumDecimalPlacesToDisplay() > 0)
+        return String (v, getNumDecimalPlacesToDisplay()) + getTextValueSuffix();
     else
-        return String (roundToInt (v)) + textSuffix;
+        return String (roundToInt (v)) + getTextValueSuffix();
 }
 
 double Slider::getValueFromText (const String& text)
@@ -647,10 +658,10 @@ double Slider::getValueFromText (const String& text)
     if (t.endsWith (textSuffix))
         t = t.substring (0, t.length() - textSuffix.length());
 
-    while (t.startsWithChar (T('+')))
+    while (t.startsWithChar ('+'))
         t = t.substring (1).trimStart();
 
-    return t.initialSectionContainingOnly (T("0123456789.,-"))
+    return t.initialSectionContainingOnly ("0123456789.,-")
             .getDoubleValue();
 }
 
@@ -737,7 +748,7 @@ void Slider::buttonClicked (Button* button)
 double Slider::constrainedValue (double value) const
 {
     if (interval > 0)
-        value = minimum + interval * floor ((value - minimum) / interval + 0.5);
+        value = minimum + interval * std::floor ((value - minimum) / interval + 0.5);
 
     if (value <= minimum || maximum <= minimum)
         value = minimum;
@@ -807,7 +818,7 @@ float Slider::getPositionOfValue (const double value)
     }
     else
     {
-        jassertfalse // not a valid call on a slider that doesn't work linearly!
+        jassertfalse; // not a valid call on a slider that doesn't work linearly!
         return 0.0f;
     }
 }
@@ -1048,9 +1059,9 @@ void Slider::mouseDown (const MouseEvent& e)
             {
                 const float mousePos = (float) (isVertical() ? e.y : e.x);
 
-                const float normalPosDistance = fabsf (getLinearSliderPos (currentValue.getValue()) - mousePos);
-                const float minPosDistance = fabsf (getLinearSliderPos (valueMin.getValue()) - 0.1f - mousePos);
-                const float maxPosDistance = fabsf (getLinearSliderPos (valueMax.getValue()) + 0.1f - mousePos);
+                const float normalPosDistance = std::abs (getLinearSliderPos (currentValue.getValue()) - mousePos);
+                const float minPosDistance = std::abs (getLinearSliderPos (valueMin.getValue()) - 0.1f - mousePos);
+                const float maxPosDistance = std::abs (getLinearSliderPos (valueMax.getValue()) + 0.1f - mousePos);
 
                 if (style == TwoValueHorizontal || style == TwoValueVertical)
                 {
@@ -1182,9 +1193,9 @@ void Slider::modifierKeysChanged (const ModifierKeys& modifiers)
 
 static double smallestAngleBetween (double a1, double a2)
 {
-    return jmin (fabs (a1 - a2),
-                 fabs (a1 + double_Pi * 2.0 - a2),
-                 fabs (a2 + double_Pi * 2.0 - a1));
+    return jmin (std::abs (a1 - a2),
+                 std::abs (a1 + double_Pi * 2.0 - a2),
+                 std::abs (a2 + double_Pi * 2.0 - a1));
 }
 
 void Slider::mouseDrag (const MouseEvent& e)
@@ -1200,13 +1211,13 @@ void Slider::mouseDrag (const MouseEvent& e)
 
             if (dx * dx + dy * dy > 25)
             {
-                double angle = atan2 ((double) dx, (double) -dy);
+                double angle = std::atan2 ((double) dx, (double) -dy);
                 while (angle < 0.0)
                     angle += double_Pi * 2.0;
 
                 if (rotaryStop && ! e.mouseWasClicked())
                 {
-                    if (fabs (angle - lastAngle) > double_Pi)
+                    if (std::abs (angle - lastAngle) > double_Pi)
                     {
                         if (angle >= lastAngle)
                             angle -= double_Pi * 2.0;
@@ -1309,7 +1320,7 @@ void Slider::mouseDrag (const MouseEvent& e)
                 if (speed != 0)
                 {
                     speed = 0.2 * velocityModeSensitivity
-                              * (1.0 + sin (double_Pi * (1.5 + jmin (0.5, velocityModeOffset
+                              * (1.0 + std::sin (double_Pi * (1.5 + jmin (0.5, velocityModeOffset
                                                                             + jmax (0.0, (double) (speed - velocityModeThreshold))
                                                                                 / maxSpeed))));
 
@@ -1396,7 +1407,7 @@ void Slider::mouseWheelMove (const MouseEvent& e, float wheelIncrementX, float w
             const double newValue = proportionOfLengthToValue (jlimit (0.0, 1.0, currentPos + proportionDelta));
 
             double delta = (newValue != value)
-                            ? jmax (fabs (newValue - value), interval) : 0;
+                            ? jmax (std::abs (newValue - value), interval) : 0;
 
             if (value > newValue)
                 delta = -delta;

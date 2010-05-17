@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -56,7 +56,7 @@ public:
         component itself).
     */
     virtual void findLassoItemsInArea (Array <SelectableItemType>& itemsFound,
-                                       int x, int y, int width, int height) = 0;
+                                       const Rectangle<int>& area) = 0;
 
     /** Returns the SelectedItemSet that the lasso should update.
 
@@ -106,7 +106,7 @@ public:
         The fill colour is used to fill the lasso'ed rectangle, and the outline
         colour is used to draw a line around its edge.
     */
-    LassoComponent (const int outlineThickness_ = 1)
+    explicit LassoComponent (const int outlineThickness_ = 1)
         : source (0),
           outlineThickness (outlineThickness_)
     {
@@ -141,6 +141,7 @@ public:
             originalSelection = lassoSource->getLassoSelection().getItemArray();
 
         setSize (0, 0);
+        dragStartPos = e.getMouseDownPosition();
     }
 
     /** Call this in your mouseDrag event, to update the lasso's position.
@@ -159,14 +160,11 @@ public:
     {
         if (source != 0)
         {
-            const int x1 = e.getMouseDownX();
-            const int y1 = e.getMouseDownY();
-
-            setBounds (jmin (x1, e.x), jmin (y1, e.y), abs (e.x - x1), abs (e.y - y1));
+            setBounds (Rectangle<int> (dragStartPos, e.getPosition()));
             setVisible (true);
 
             Array <SelectableItemType> itemsInLasso;
-            source->findLassoItemsInArea (itemsInLasso, getX(), getY(), getWidth(), getHeight());
+            source->findLassoItemsInArea (itemsInLasso, getBounds());
 
             if (e.mods.isShiftDown())
             {
@@ -230,7 +228,7 @@ public:
     }
 
     /** @internal */
-    bool hitTest (int x, int y)         { return false; }
+    bool hitTest (int, int)             { return false; }
 
     //==============================================================================
     juce_UseDebuggingNewOperator
@@ -239,6 +237,7 @@ private:
     Array <SelectableItemType> originalSelection;
     LassoSource <SelectableItemType>* source;
     int outlineThickness;
+    Point<int> dragStartPos;
 };
 
 

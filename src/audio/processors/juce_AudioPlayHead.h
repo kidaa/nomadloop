@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -105,6 +105,12 @@ public:
             (When isRecording is true, then isPlaying will also be true).
         */
         bool isRecording;
+
+        //==============================================================================
+        bool operator== (const CurrentPositionInfo& other) const throw();
+        bool operator!= (const CurrentPositionInfo& other) const throw();
+
+        void resetToDefault();
     };
 
     //==============================================================================

@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -49,7 +49,7 @@ public:
 
         @see Button
     */
-    TextButton (const String& buttonName,
+    TextButton (const String& buttonName = String::empty,
                 const String& toolTip = String::empty);
 
     /** Destructor. */
@@ -81,7 +81,7 @@ public:
         If newHeight is >= 0, the button's height will be changed to this
         value. If it's less than zero, its height will be unaffected.
     */
-    void changeWidthToFitText (const int newHeight = -1);
+    void changeWidthToFitText (int newHeight = -1);
 
     /** This can be overridden to use different fonts than the default one.
 

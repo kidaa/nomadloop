@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -41,7 +41,6 @@ BEGIN_JUCE_NAMESPACE
 
 #include "juce_GZIPCompressorOutputStream.h"
 
-using namespace zlibNamespace;
 
 //==============================================================================
 // internal helper object that holds the zlib structures so they don't have to be
@@ -59,6 +58,7 @@ public:
           finished (false),
           shouldFinish (false)
     {
+        using namespace zlibNamespace;
         zerostruct (stream);
 
         streamIsValid = (deflateInit2 (&stream, compLevel, Z_DEFLATED,
@@ -68,6 +68,7 @@ public:
 
     ~GZIPCompressorHelper()
     {
+        using namespace zlibNamespace;
         if (streamIsValid)
             deflateEnd (&stream);
     }
@@ -77,7 +78,7 @@ public:
         return dataSize <= 0;
     }
 
-    void setInput (uint8* const newData, const int size) throw()
+    void setInput (const uint8* const newData, const int size) throw()
     {
         data = newData;
         dataSize = size;
@@ -85,9 +86,10 @@ public:
 
     int doNextBlock (uint8* const dest, const int destSize) throw()
     {
+        using namespace zlibNamespace;
         if (streamIsValid)
         {
-            stream.next_in = data;
+            stream.next_in = const_cast <uint8*> (data);
             stream.next_out = dest;
             stream.avail_in = dataSize;
             stream.avail_out = destSize;
@@ -117,8 +119,8 @@ public:
     }
 
 private:
-    z_stream stream;
-    uint8* data;
+    zlibNamespace::z_stream stream;
+    const uint8* data;
     int dataSize, compLevel, strategy;
     bool setParams, streamIsValid;
 
@@ -167,7 +169,7 @@ bool GZIPCompressorOutputStream::write (const void* destBuffer, int howMany)
 {
     if (! helper->finished)
     {
-        helper->setInput ((uint8*) destBuffer, howMany);
+        helper->setInput (static_cast <const uint8*> (destBuffer), howMany);
 
         while (! helper->needsInput())
         {
@@ -196,7 +198,7 @@ int64 GZIPCompressorOutputStream::getPosition()
 
 bool GZIPCompressorOutputStream::setPosition (int64 /*newPosition*/)
 {
-    jassertfalse // can't do it!
+    jassertfalse; // can't do it!
     return false;
 }
 

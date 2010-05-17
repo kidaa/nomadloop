@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -35,15 +35,24 @@
 #if ! JUCE_USE_INTRINSICS
 // In newer compilers, the inline versions of these are used (in juce_Atomic.h), but in
 // older ones we have to actually call the ops as win32 functions..
-void  Atomic::increment (int32& variable)                { InterlockedIncrement (reinterpret_cast <volatile long*> (&variable)); }
-int32 Atomic::incrementAndReturn (int32& variable)       { return InterlockedIncrement (reinterpret_cast <volatile long*> (&variable)); }
-void  Atomic::decrement (int32& variable)                { InterlockedDecrement (reinterpret_cast <volatile long*> (&variable)); }
-int32 Atomic::decrementAndReturn (int32& variable)       { return InterlockedDecrement (reinterpret_cast <volatile long*> (&variable)); }
-int32 Atomic::compareAndExchange (int32& destination, int32 newValue, int32 oldValue)
-                                                         { return InterlockedCompareExchange (reinterpret_cast <volatile long*> (&destination), newValue, oldValue); }
-#endif
+long juce_InterlockedExchange (volatile long* a, long b) throw()                 { return InterlockedExchange (a, b); }
+long juce_InterlockedIncrement (volatile long* a) throw()                        { return InterlockedIncrement (a); }
+long juce_InterlockedDecrement (volatile long* a) throw()                        { return InterlockedDecrement (a); }
+long juce_InterlockedExchangeAdd (volatile long* a, long b) throw()              { return InterlockedExchangeAdd (a, b); }
+long juce_InterlockedCompareExchange (volatile long* a, long b, long c) throw()  { return InterlockedCompareExchange (a, b, c); }
 
-void* Atomic::swapPointers (void* volatile* value1, void* volatile value2)   { return InterlockedExchangePointer (value1, value2); }
+__int64 juce_InterlockedCompareExchange64 (volatile __int64* value, __int64 newValue, __int64 valueToCompare) throw()
+{
+    jassertfalse; // This operation isn't available in old MS compiler versions!
+
+    __int64 oldValue = *value;
+    if (oldValue == valueToCompare)
+        *value = newValue;
+
+    return oldValue;
+}
+
+#endif
 
 //==============================================================================
 CriticalSection::CriticalSection() throw()
@@ -79,8 +88,8 @@ void CriticalSection::exit() const throw()
 }
 
 //==============================================================================
-WaitableEvent::WaitableEvent() throw()
-    : internal (CreateEvent (0, FALSE, FALSE, 0))
+WaitableEvent::WaitableEvent (const bool manualReset) throw()
+    : internal (CreateEvent (0, manualReset ? TRUE : FALSE, FALSE, 0))
 {
 }
 
@@ -128,18 +137,14 @@ void juce_CloseThreadHandle (void* handle)
 void* juce_createThread (void* userData)
 {
     unsigned int threadId;
-
-    return (void*) _beginthreadex (0, 0,
-                                   &threadEntryProc,
-                                   userData,
-                                   0, &threadId);
+    return (void*) _beginthreadex (0, 0, &threadEntryProc, userData, 0, &threadId);
 }
 
 void juce_killThread (void* handle)
 {
     if (handle != 0)
     {
-#ifdef JUCE_DEBUG
+#if JUCE_DEBUG
         OutputDebugString (_T("** Warning - Forced thread termination **\n"));
 #endif
         TerminateThread (handle, 0);
@@ -148,7 +153,7 @@ void juce_killThread (void* handle)
 
 void juce_setCurrentThreadName (const String& name)
 {
-#if defined (JUCE_DEBUG) && JUCE_MSVC
+#if JUCE_DEBUG && JUCE_MSVC
     struct
     {
         DWORD dwType;
@@ -162,11 +167,9 @@ void juce_setCurrentThreadName (const String& name)
     info.dwThreadID = GetCurrentThreadId();
     info.dwFlags = 0;
 
-    #define MS_VC_EXCEPTION 0x406d1388
-
     __try
     {
-        RaiseException (MS_VC_EXCEPTION, 0, sizeof (info) / sizeof (ULONG_PTR), (ULONG_PTR*) &info);
+        RaiseException (0x406d1388 /*MS_VC_EXCEPTION*/, 0, sizeof (info) / sizeof (ULONG_PTR), (ULONG_PTR*) &info);
     }
     __except (EXCEPTION_CONTINUE_EXECUTION)
     {}
@@ -214,7 +217,7 @@ static HANDLE sleepEvent = 0;
 void juce_initialiseThreadEvents()
 {
     if (sleepEvent == 0)
-#ifdef JUCE_DEBUG
+#if JUCE_DEBUG
         sleepEvent = CreateEvent (0, 0, 0, _T("Juce Sleep Event"));
 #else
         sleepEvent = CreateEvent (0, 0, 0, 0);
@@ -256,25 +259,11 @@ void juce_repeatLastProcessPriority()
 
         switch (lastProcessPriority)
         {
-        case Process::LowPriority:
-            p = IDLE_PRIORITY_CLASS;
-            break;
-
-        case Process::NormalPriority:
-            p = NORMAL_PRIORITY_CLASS;
-            break;
-
-        case Process::HighPriority:
-            p = HIGH_PRIORITY_CLASS;
-            break;
-
-        case Process::RealtimePriority:
-            p = REALTIME_PRIORITY_CLASS;
-            break;
-
-        default:
-            jassertfalse // bad priority value
-            return;
+            case Process::LowPriority:          p = IDLE_PRIORITY_CLASS; break;
+            case Process::NormalPriority:       p = NORMAL_PRIORITY_CLASS; break;
+            case Process::HighPriority:         p = HIGH_PRIORITY_CLASS; break;
+            case Process::RealtimePriority:     p = REALTIME_PRIORITY_CLASS; break;
+            default:                            jassertfalse; return; // bad priority value
         }
 
         SetPriorityClass (GetCurrentProcess(), p);
@@ -304,17 +293,17 @@ bool JUCE_CALLTYPE Process::isRunningUnderDebugger()
 //==============================================================================
 void Process::raisePrivilege()
 {
-    jassertfalse // xxx not implemented
+    jassertfalse; // xxx not implemented
 }
 
 void Process::lowerPrivilege()
 {
-    jassertfalse // xxx not implemented
+    jassertfalse; // xxx not implemented
 }
 
 void Process::terminate()
 {
-#if defined (JUCE_DEBUG) && JUCE_MSVC && JUCE_CHECK_MEMORY_LEAKS
+#if JUCE_DEBUG && JUCE_MSVC && JUCE_CHECK_MEMORY_LEAKS
     _CrtDumpMemoryLeaks();
 #endif
 
@@ -329,7 +318,7 @@ void* PlatformUtilities::loadDynamicLibrary (const String& name)
 
     JUCE_TRY
     {
-        result = (void*) LoadLibrary (name);
+        result = LoadLibrary (name);
     }
     JUCE_CATCH_ALL
 
@@ -348,53 +337,97 @@ void PlatformUtilities::freeDynamicLibrary (void* h)
 
 void* PlatformUtilities::getProcedureEntryPoint (void* h, const String& name)
 {
-    return (h != 0) ? (void*) GetProcAddress ((HMODULE) h, name.toCString()) : 0;
+    return (h != 0) ? GetProcAddress ((HMODULE) h, name.toCString()) : 0;
 }
 
 
 //==============================================================================
+class InterProcessLock::Pimpl
+{
+public:
+    Pimpl (const String& name, const int timeOutMillisecs)
+        : handle (0), refCount (1)
+    {
+        handle = CreateMutex (0, TRUE, "Global\\" + name.replaceCharacter ('\\','/'));
+
+        if (handle != 0 && GetLastError() == ERROR_ALREADY_EXISTS)
+        {
+            if (timeOutMillisecs == 0)
+            {
+                close();
+                return;
+            }
+
+            switch (WaitForSingleObject (handle, timeOutMillisecs < 0 ? INFINITE : timeOutMillisecs))
+            {
+            case WAIT_OBJECT_0:
+            case WAIT_ABANDONED:
+                break;
+
+            case WAIT_TIMEOUT:
+            default:
+                close();
+                break;
+            }
+        }
+    }
+
+    ~Pimpl()
+    {
+        close();
+    }
+
+    void close()
+    {
+        if (handle != 0)
+        {
+            ReleaseMutex (handle);
+            CloseHandle (handle);
+            handle = 0;
+        }
+    }
+
+    HANDLE handle;
+    int refCount;
+};
+
 InterProcessLock::InterProcessLock (const String& name_)
-    : internal (0),
-      name (name_),
-      reentrancyLevel (0)
+    : name (name_)
 {
 }
 
 InterProcessLock::~InterProcessLock()
 {
-    exit();
 }
 
 bool InterProcessLock::enter (const int timeOutMillisecs)
 {
-    if (reentrancyLevel++ == 0)
-    {
-        internal = CreateMutex (0, TRUE, "Global\\" + name);
+    const ScopedLock sl (lock);
 
-        if (internal != 0 && GetLastError() == ERROR_ALREADY_EXISTS)
-        {
-            if (timeOutMillisecs == 0
-                 || WaitForSingleObject (internal, (timeOutMillisecs < 0) ? INFINITE : timeOutMillisecs)
-                       == WAIT_TIMEOUT)
-            {
-                ReleaseMutex (internal);
-                CloseHandle (internal);
-                internal = 0;
-            }
-        }
+    if (pimpl == 0)
+    {
+        pimpl = new Pimpl (name, timeOutMillisecs);
+
+        if (pimpl->handle == 0)
+            pimpl = 0;
+    }
+    else
+    {
+        pimpl->refCount++;
     }
 
-    return (internal != 0);
+    return pimpl != 0;
 }
 
 void InterProcessLock::exit()
 {
-    if (--reentrancyLevel == 0 && internal != 0)
-    {
-        ReleaseMutex (internal);
-        CloseHandle (internal);
-        internal = 0;
-    }
+    const ScopedLock sl (lock);
+
+    // Trying to release the lock too many times!
+    jassert (pimpl != 0);
+
+    if (pimpl != 0 && --(pimpl->refCount) == 0)
+        pimpl = 0;
 }
 
 

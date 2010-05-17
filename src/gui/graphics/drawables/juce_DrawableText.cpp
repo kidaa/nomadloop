@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -26,7 +26,6 @@
 #include "../../../core/juce_StandardHeader.h"
 
 BEGIN_JUCE_NAMESPACE
-
 
 #include "juce_DrawableText.h"
 
@@ -67,11 +66,7 @@ void DrawableText::render (const Drawable::RenderingContext& context) const
 
 const Rectangle<float> DrawableText::getBounds() const
 {
-    float x, y, w, h;
-    text.getBoundingBox (0, -1, x, y, w, h, false); // (really returns top, left, bottom, right)
-    w -= x;
-    h -= y;
-    return Rectangle<float> (x, y, w, h);
+    return text.getBoundingBox (0, -1, false);
 }
 
 bool DrawableText::hitTest (float x, float y) const
@@ -90,18 +85,18 @@ Drawable* DrawableText::createCopy() const
 }
 
 //==============================================================================
-ValueTree DrawableText::createValueTree() const throw()
+ValueTree DrawableText::createValueTree() const
 {
-    ValueTree v (T("Text"));
+    ValueTree v ("Text");
 
     if (getName().isNotEmpty())
         v.setProperty ("id", getName(), 0);
 
-    jassertfalse // xxx not finished!
+    jassertfalse; // xxx not finished!
     return v;
 }
 
-DrawableText* DrawableText::createFromValueTree (const ValueTree& tree) throw()
+DrawableText* DrawableText::createFromValueTree (const ValueTree& tree)
 {
     if (! tree.hasType ("Text"))
         return 0;
@@ -110,7 +105,7 @@ DrawableText* DrawableText::createFromValueTree (const ValueTree& tree) throw()
 
     dt->setName (tree ["id"]);
 
-    jassertfalse // xxx not finished!
+    jassertfalse; // xxx not finished!
 
     return dt;
 }

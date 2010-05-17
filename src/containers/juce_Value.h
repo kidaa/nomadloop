@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -44,10 +44,9 @@
     object - this means that multiple Value objects can all refer to the same piece of
     data, allowing all of them to be notified when any of them changes it.
 
-    The base class of Value contains a simple var object, but subclasses can be
-    created that map a Value onto any kind of underlying data, e.g.
-    ValueTree::getPropertyAsValue() returns a Value object that is a wrapper
-    for one of its properties.
+    When you create a Value with its default constructor, it acts as a wrapper around a
+    simple var object, but by creating a Value that refers to a custom subclass of ValueSource,
+    you can map the Value onto any kind of underlying data.
 */
 class JUCE_API  Value
 {
@@ -65,7 +64,7 @@ public:
     Value (const Value& other);
 
     /** Creates a Value that is set to the specified value. */
-    Value (const var& initialValue);
+    explicit Value (const var& initialValue);
 
     /** Destructor. */
     ~Value();
@@ -157,10 +156,10 @@ public:
 
         @see removeListener
     */
-    void addListener (Listener* const listener);
+    void addListener (Listener* listener);
 
     /** Removes a listener that was previously added with addListener(). */
-    void removeListener (Listener* const listener);
+    void removeListener (Listener* listener);
 
 
     //==============================================================================
@@ -180,6 +179,7 @@ public:
 
         /** Returns the current value of this object. */
         virtual const var getValue() const = 0;
+
         /** Changes the current value.
             This must also trigger a change message if the value actually changes.
         */
@@ -191,7 +191,7 @@ public:
             If dispatchSynchronously is true, the method will call all the listeners
             before returning; otherwise it'll dispatch a message and make the call later.
         */
-        void sendChangeMessage (const bool dispatchSynchronously);
+        void sendChangeMessage (bool dispatchSynchronously);
 
         //==============================================================================
         juce_UseDebuggingNewOperator
@@ -208,11 +208,14 @@ public:
 
 
     //==============================================================================
-    /** @internal */
-    explicit Value (ValueSource* const valueSource);
-    /** @internal */
-    ValueSource& getValueSource()       { return *value; }
+    /** Creates a Value object that uses this valueSource object as its underlying data. */
+    explicit Value (ValueSource* valueSource);
 
+    /** Returns the ValueSource that this value is referring to. */
+    ValueSource& getValueSource() throw()           { return *value; }
+
+
+    //==============================================================================
     juce_UseDebuggingNewOperator
 
 private:
@@ -226,6 +229,9 @@ private:
     // do a by-value or by-reference copy.
     Value& operator= (const Value& other);
 };
+
+/** Writes a Value to an OutputStream as a UTF8 string. */
+OutputStream& JUCE_CALLTYPE operator<< (OutputStream& stream, const Value& value);
 
 
 #endif   // __JUCE_VALUE_JUCEHEADER__

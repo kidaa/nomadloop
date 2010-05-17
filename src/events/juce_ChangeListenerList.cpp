@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -87,7 +87,7 @@ void ChangeListenerList::sendSynchronousChangeMessage (void* const objectThatHas
 
     for (int i = listeners.size(); --i >= 0;)
     {
-        ChangeListener* const l = (ChangeListener*) listeners.getUnchecked (i);
+        ChangeListener* const l = static_cast <ChangeListener*> (listeners.getUnchecked (i));
 
         {
             const ScopedUnlock tempUnlocker (lock);

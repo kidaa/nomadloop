@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -143,7 +143,9 @@ void Button::setToggleState (const bool shouldBeOn,
 {
     if (shouldBeOn != lastToggleState)
     {
-        isOn = shouldBeOn;
+        if (isOn != shouldBeOn)  // this test means that if the value is void rather than explicitly set to
+            isOn = shouldBeOn;   // false, it won't be changed unless the required value is true.
+
         lastToggleState = shouldBeOn;
         repaint();
 

@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -66,6 +66,9 @@ public:
     */
     const File getSelectedFile (int index = 0) const;
 
+    /** Deselects any files that are currently selected. */
+    void deselectAllFiles();
+
     /** Scrolls the list to the top. */
     void scrollToTop();
 
@@ -74,7 +77,7 @@ public:
         The string that you pass in here will be returned by the getDragSourceDescription()
         of the items in the tree. For more info, see TreeViewItem::getDragSourceDescription().
     */
-    void setDragAndDropDescription (const String& description) throw();
+    void setDragAndDropDescription (const String& description);
 
     /** Returns the last value that was set by setDragAndDropDescription().
     */

@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -113,7 +113,7 @@ void JUCEApplication::unhandledException (const std::exception*,
                                           const String&,
                                           const int)
 {
-    jassertfalse
+    jassertfalse;
 }
 
 void JUCEApplication::sendUnhandledException (const std::exception* const e,
@@ -144,7 +144,7 @@ void JUCEApplication::getCommandInfo (const CommandID commandID, ApplicationComm
                         "Application",
                         0);
 
-        result.defaultKeypresses.add (KeyPress (T('q'), ModifierKeys::commandModifier, 0));
+        result.defaultKeypresses.add (KeyPress ('q', ModifierKeys::commandModifier, 0));
     }
 }
 
@@ -230,7 +230,7 @@ int JUCEApplication::shutdownAppAndClearUp()
     ScopedPointer<JUCEApplication> app (appInstance);
     int returnValue = 0;
 
-    MessageManager::getInstance()->deregisterBroadcastListener ((JUCEApplication*) app);
+    MessageManager::getInstance()->deregisterBroadcastListener (static_cast <JUCEApplication*> (app));
 
     static bool reentrancyCheck = false;
 
@@ -342,7 +342,7 @@ void JUCE_PUBLIC_FUNCTION initialiseJuce_GUI()
             // Ended up here? If so, TURN ON RTTI in your compiler settings!! And if you
             // got as far as this catch statement, then why haven't you got exception catching
             // turned on in the debugger???
-            jassertfalse
+            jassertfalse;
         }
 #endif
     }

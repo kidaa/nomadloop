@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -192,7 +192,7 @@ ApplicationCommandTarget::CommandTargetMessageInvoker::~CommandTargetMessageInvo
 
 void ApplicationCommandTarget::CommandTargetMessageInvoker::handleMessage (const Message& message)
 {
-    const ScopedPointer <InvocationInfo> info ((InvocationInfo*) message.pointerParameter);
+    const ScopedPointer <InvocationInfo> info (static_cast <InvocationInfo*> (message.pointerParameter));
     owner->tryToInvoke (*info, false);
 }
 

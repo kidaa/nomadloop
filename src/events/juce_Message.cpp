@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -32,10 +32,10 @@ BEGIN_JUCE_NAMESPACE
 
 //==============================================================================
 Message::Message() throw()
-{
-}
-
-Message::~Message() throw()
+    : intParameter1 (0),
+      intParameter2 (0),
+      intParameter3 (0),
+      pointerParameter (0)
 {
 }
 
@@ -47,6 +47,10 @@ Message::Message (const int intParameter1_,
       intParameter2 (intParameter2_),
       intParameter3 (intParameter3_),
       pointerParameter (pointerParameter_)
+{
+}
+
+Message::~Message() throw()
 {
 }
 

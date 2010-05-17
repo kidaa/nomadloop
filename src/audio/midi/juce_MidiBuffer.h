@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -47,7 +47,7 @@ public:
     MidiBuffer() throw();
 
     /** Creates a MidiBuffer containing a single midi message. */
-    MidiBuffer (const MidiMessage& message) throw();
+    explicit MidiBuffer (const MidiMessage& message) throw();
 
     /** Creates a copy of another MidiBuffer. */
     MidiBuffer (const MidiBuffer& other) throw();
@@ -155,7 +155,13 @@ public:
         This is a quick operation, because no memory allocating or copying is done, it
         just swaps the internal state of the two buffers.
     */
-    void swap (MidiBuffer& other);
+    void swapWith (MidiBuffer& other);
+
+    /** Preallocates some memory for the buffer to use.
+        This helps to avoid needing to reallocate space when the buffer has messages
+        added to it.
+    */
+    void ensureSize (size_t minimumNumBytes);
 
     //==============================================================================
     /**
@@ -229,8 +235,11 @@ private:
     MemoryBlock data;
     int bytesUsed;
 
-    uint8* getData() const throw()       { return reinterpret_cast <uint8*> (data.getData()); }
+    uint8* getData() const throw();
     uint8* findEventAfter (uint8* d, const int samplePosition) const throw();
+    static int getEventTime (const void* d) throw();
+    static uint16 getEventDataSize (const void* d) throw();
+    static uint16 getEventTotalSize (const void* d) throw();
 };
 
 

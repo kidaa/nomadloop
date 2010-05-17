@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -50,14 +50,14 @@ FilenameComponent::FilenameComponent (const String& name,
       wildcard (fileBrowserWildcard),
       enforcedSuffix (enforcedSuffix_)
 {
-    addAndMakeVisible (filenameBox = new ComboBox (T("fn")));
+    addAndMakeVisible (filenameBox = new ComboBox ("fn"));
     filenameBox->setEditableText (canEditFilename);
     filenameBox->addListener (this);
     filenameBox->setTextWhenNothingSelected (textWhenNothingSelected);
     filenameBox->setTextWhenNoChoicesAvailable (TRANS("(no recently seleced files)"));
 
     browseButton = 0;
-    setBrowseButtonText (T("..."));
+    setBrowseButtonText ("...");
 
     setCurrentFile (currentFile, true);
 }
@@ -105,7 +105,7 @@ void FilenameComponent::setTooltip (const String& newTooltip)
     filenameBox->setTooltip (newTooltip);
 }
 
-void FilenameComponent::setDefaultBrowseTarget (const File& newDefaultDirectory) throw()
+void FilenameComponent::setDefaultBrowseTarget (const File& newDefaultDirectory)
 {
     defaultBrowseFile = newDefaultDirectory;
 }
@@ -237,12 +237,12 @@ void FilenameComponent::addRecentlyUsedFile (const File& file)
 }
 
 //==============================================================================
-void FilenameComponent::addListener (FilenameComponentListener* const listener) throw()
+void FilenameComponent::addListener (FilenameComponentListener* const listener)
 {
     listeners.add (listener);
 }
 
-void FilenameComponent::removeListener (FilenameComponentListener* const listener) throw()
+void FilenameComponent::removeListener (FilenameComponentListener* const listener)
 {
     listeners.remove (listener);
 }

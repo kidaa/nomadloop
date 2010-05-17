@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -26,7 +26,7 @@
 #ifndef __JUCE_PRIMES_JUCEHEADER__
 #define __JUCE_PRIMES_JUCEHEADER__
 
-#include "../containers/juce_BitArray.h"
+#include "../containers/juce_BigInteger.h"
 
 
 //==============================================================================
@@ -35,7 +35,7 @@
 
     This class contains static methods for generating and testing prime numbers.
 
-    @see BitArray
+    @see BigInteger
 */
 class JUCE_API  Primes
 {
@@ -50,10 +50,10 @@ public:
         which to seed the random number generation, improving the security of the
         keys generated.
     */
-    static const BitArray createProbablePrime (int bitLength,
-                                               int certainty,
-                                               const int* randomSeeds = 0,
-                                               int numRandomSeeds = 0) throw();
+    static const BigInteger createProbablePrime (int bitLength,
+                                                 int certainty,
+                                                 const int* randomSeeds = 0,
+                                                 int numRandomSeeds = 0);
 
     /** Tests a number to see if it's prime.
 
@@ -63,8 +63,13 @@ public:
         The certainty parameter specifies how many iterations to use when testing - a
         safe value might be anything over about 20-30.
     */
-    static bool isProbablyPrime (const BitArray& number,
-                                 int certainty) throw();
+    static bool isProbablyPrime (const BigInteger& number, int certainty);
+
+
+private:
+    Primes();
+    Primes (const Primes&);
+    Primes& operator= (const Primes&);
 };
 
 

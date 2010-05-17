@@ -3,7 +3,7 @@
 <VisualStudioProject ProjectType="Visual C++"
                      Version="9.00"
                      Name="HelloWorld"
-                     ProjectGUID="{E29E0A3E-FB4C-D74C-B035-BEF5617409AB}"
+                     ProjectGUID="{6ABB053F-FD6B-A828-D0FF-2D3BE343D9F7}"
                      TargetFrameworkVersion="131072">
   <Platforms>
     <Platform Name="Win32"/>
@@ -33,7 +33,7 @@
             BufferSecurityCheck=""
             DebugInformationFormat="4"
             AdditionalIncludeDirectories=""
-            PreprocessorDefinitions="WIN32;_WINDOWS;_DEBUG"
+            PreprocessorDefinitions="JUCER_VS2008_78A5006;WIN32;_WINDOWS;_DEBUG"
             RuntimeLibrary="1"
             RuntimeTypeInfo="true"
             UsePrecompiledHeader="0"
@@ -54,8 +54,6 @@
             GenerateDebugInformation="true"
             ProgramDatabaseFile=".\Debug\HelloWorld.pdb"
             SubSystem="2"
-            RandomizedBaseAddress="1"
-            DataExecutionPrevention="0"
             TargetMachine="1"/>
       <Tool Name="VCALinkTool"/>
       <Tool Name="VCManifestTool"/>
@@ -91,7 +89,7 @@
             InlineFunctionExpansion="1"
             StringPooling="true"
             AdditionalIncludeDirectories=""
-            PreprocessorDefinitions="WIN32;_WINDOWS;NDEBUG"
+            PreprocessorDefinitions="JUCER_VS2008_78A5006;WIN32;_WINDOWS;NDEBUG"
             RuntimeLibrary="0"
             RuntimeTypeInfo="true"
             UsePrecompiledHeader="0"
@@ -115,8 +113,6 @@
             GenerateManifest="false"
             OptimizeReferences="2"
             EnableCOMDATFolding="2"
-            RandomizedBaseAddress="1"
-            DataExecutionPrevention="0"
             TargetMachine="1"/>
       <Tool Name="VCALinkTool"/>
       <Tool Name="VCManifestTool"/>

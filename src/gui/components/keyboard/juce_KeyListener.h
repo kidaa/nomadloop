@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -73,7 +73,7 @@ public:
         @param isKeyDown                true if a key is being pressed, false if one is being released
         @see KeyPress, Component::keyStateChanged
     */
-    virtual bool keyStateChanged (const bool isKeyDown, Component* originatingComponent);
+    virtual bool keyStateChanged (bool isKeyDown, Component* originatingComponent);
 };
 
 

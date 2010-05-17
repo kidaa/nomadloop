@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -60,8 +60,7 @@ public:
 
     ComponentLayout& getLayout() const throw()                  { return layout; }
 
-    void findLassoItemsInArea (Array <Component*>& results,
-                               int x, int y, int w, int h);
+    void findLassoItemsInArea (Array <Component*>& results, const Rectangle<int>& area);
 
     SelectedItemSet <Component*>& getLassoSelection();
 

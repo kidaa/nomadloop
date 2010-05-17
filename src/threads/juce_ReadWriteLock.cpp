@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -109,7 +109,7 @@ void ReadWriteLock::exitRead() const throw()
         }
     }
 
-    jassertfalse // unlocking a lock that wasn't locked..
+    jassertfalse; // unlocking a lock that wasn't locked..
 }
 
 //==============================================================================

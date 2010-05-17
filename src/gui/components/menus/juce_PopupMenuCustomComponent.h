@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -74,7 +74,7 @@ protected:
         a click on this component and use that to trigger it. If it's false, then it's
         up to your class to manually trigger the item if it wants to.
     */
-    PopupMenuCustomComponent (const bool isTriggeredAutomatically = true);
+    PopupMenuCustomComponent (bool isTriggeredAutomatically = true);
 
 
 private:

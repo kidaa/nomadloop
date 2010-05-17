@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -26,7 +26,7 @@
 #ifndef __JUCE_SAMPLER_JUCEHEADER__
 #define __JUCE_SAMPLER_JUCEHEADER__
 
-#include "../../containers/juce_BitArray.h"
+#include "../../containers/juce_BigInteger.h"
 #include "juce_Synthesiser.h"
 
 
@@ -66,11 +66,11 @@ public:
     */
     SamplerSound (const String& name,
                   AudioFormatReader& source,
-                  const BitArray& midiNotes,
-                  const int midiNoteForNormalPitch,
-                  const double attackTimeSecs,
-                  const double releaseTimeSecs,
-                  const double maxSampleLengthSeconds);
+                  const BigInteger& midiNotes,
+                  int midiNoteForNormalPitch,
+                  double attackTimeSecs,
+                  double releaseTimeSecs,
+                  double maxSampleLengthSeconds);
 
     /** Destructor. */
     ~SamplerSound();
@@ -99,7 +99,7 @@ private:
     String name;
     ScopedPointer <AudioSampleBuffer> data;
     double sourceSampleRate;
-    BitArray midiNotes;
+    BigInteger midiNotes;
     int length, attackSamples, releaseSamples;
     int midiRootNote;
 };

@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -340,7 +340,7 @@ void MenuBarComponent::mouseUp (const MouseEvent& e)
 
     updateItemUnderMouse (e2.x, e2.y);
 
-    if (itemUnderMouse < 0 && dynamic_cast <DummyMenuComponent*> ((Component*) currentPopup) != 0)
+    if (itemUnderMouse < 0 && dynamic_cast <DummyMenuComponent*> (static_cast <Component*> (currentPopup)) != 0)
         hideCurrentMenu();
 }
 

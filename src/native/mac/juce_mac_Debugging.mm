@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -28,7 +28,7 @@
 #if JUCE_INCLUDED_FILE
 
 //==============================================================================
-void Logger::outputDebugString (const String& text) throw()
+void Logger::outputDebugString (const String& text)
 {
     std::cerr << text << std::endl;
 }

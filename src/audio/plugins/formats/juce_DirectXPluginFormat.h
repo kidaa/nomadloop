@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -28,7 +28,7 @@
 
 #include "../juce_AudioPluginFormat.h"
 
-#if JUCE_PLUGINHOST_DX && JUCE_WIN32
+#if JUCE_PLUGINHOST_DX && JUCE_WINDOWS
 
 
 //   Sorry, this file is just a placeholder at the moment!...

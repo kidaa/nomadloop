@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -566,7 +566,7 @@ float AudioSampleBuffer::getRMSLevel (const int channel,
         sum += sample * sample;
     }
 
-    return (float) sqrt (sum / numSamples);
+    return (float) std::sqrt (sum / numSamples);
 }
 
 void AudioSampleBuffer::readFromAudioReader (AudioFormatReader* reader,
@@ -607,7 +607,7 @@ void AudioSampleBuffer::readFromAudioReader (AudioFormatReader* reader,
         {
             for (int j = 0; j < 2; ++j)
             {
-                float* const d = (float*) (chans[j]);
+                float* const d = reinterpret_cast <float*> (chans[j]);
 
                 if (d != 0)
                 {

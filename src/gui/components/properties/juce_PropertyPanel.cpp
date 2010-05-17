@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -33,7 +33,7 @@ BEGIN_JUCE_NAMESPACE
 
 
 //==============================================================================
-class PropertyHolderComponent  : public Component
+class PropertyPanel::PropertyHolderComponent  : public Component
 {
 public:
     PropertyHolderComponent()
@@ -49,9 +49,12 @@ public:
     {
     }
 
-    void updateLayout (const int width);
-
+    void updateLayout (int width);
     void refreshAll() const;
+
+private:
+    PropertyHolderComponent (const PropertyHolderComponent&);
+    PropertyHolderComponent& operator= (const PropertyHolderComponent&);
 };
 
 //==============================================================================
@@ -180,9 +183,12 @@ public:
 private:
     int titleHeight;
     bool isOpen_;
+
+    PropertySectionComponent (const PropertySectionComponent&);
+    PropertySectionComponent& operator= (const PropertySectionComponent&);
 };
 
-void PropertyHolderComponent::updateLayout (const int width)
+void PropertyPanel::PropertyHolderComponent::updateLayout (const int width)
 {
     int y = 0;
 
@@ -203,7 +209,7 @@ void PropertyHolderComponent::updateLayout (const int width)
     repaint();
 }
 
-void PropertyHolderComponent::refreshAll() const
+void PropertyPanel::PropertyHolderComponent::refreshAll() const
 {
     for (int i = getNumChildComponents(); --i >= 0;)
     {
@@ -289,19 +295,19 @@ void PropertyPanel::addSection (const String& sectionTitle,
 void PropertyPanel::updatePropHolderLayout() const
 {
     const int maxWidth = viewport->getMaximumVisibleWidth();
-    ((PropertyHolderComponent*) propertyHolderComponent)->updateLayout (maxWidth);
+    propertyHolderComponent->updateLayout (maxWidth);
 
     const int newMaxWidth = viewport->getMaximumVisibleWidth();
     if (maxWidth != newMaxWidth)
     {
         // need to do this twice because of scrollbars changing the size, etc.
-        ((PropertyHolderComponent*) propertyHolderComponent)->updateLayout (newMaxWidth);
+        propertyHolderComponent->updateLayout (newMaxWidth);
     }
 }
 
 void PropertyPanel::refreshAll() const
 {
-    ((PropertyHolderComponent*) propertyHolderComponent)->refreshAll();
+    propertyHolderComponent->refreshAll();
 }
 
 //==============================================================================
@@ -385,7 +391,7 @@ void PropertyPanel::setSectionEnabled (const int sectionIndex, const bool should
 //==============================================================================
 XmlElement* PropertyPanel::getOpennessState() const
 {
-    XmlElement* const xml = new XmlElement (T("PROPERTYPANELSTATE"));
+    XmlElement* const xml = new XmlElement ("PROPERTYPANELSTATE");
 
     xml->setAttribute ("scrollPos", viewport->getViewPositionY());
 
@@ -406,14 +412,14 @@ XmlElement* PropertyPanel::getOpennessState() const
 
 void PropertyPanel::restoreOpennessState (const XmlElement& xml)
 {
-    if (xml.hasTagName (T("PROPERTYPANELSTATE")))
+    if (xml.hasTagName ("PROPERTYPANELSTATE"))
     {
         const StringArray sections (getSectionNames());
 
-        forEachXmlChildElementWithTagName (xml, e, T("SECTION"))
+        forEachXmlChildElementWithTagName (xml, e, "SECTION")
         {
-            setSectionOpen (sections.indexOf (e->getStringAttribute (T("name"))),
-                            e->getBoolAttribute (T("open")));
+            setSectionOpen (sections.indexOf (e->getStringAttribute ("name")),
+                            e->getBoolAttribute ("open"));
         }
 
         viewport->setViewPosition (viewport->getViewPositionX(),

@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -144,9 +144,9 @@ Drawable* DrawableImage::createCopy() const
 }
 
 //==============================================================================
-ValueTree DrawableImage::createValueTree() const throw()
+ValueTree DrawableImage::createValueTree() const
 {
-    ValueTree v (T("Image"));
+    ValueTree v ("Image");
 
     if (getName().isNotEmpty())
         v.setProperty ("id", getName(), 0);
@@ -175,7 +175,7 @@ ValueTree DrawableImage::createValueTree() const throw()
     return v;
 }
 
-DrawableImage* DrawableImage::createFromValueTree (const ValueTree& tree) throw()
+DrawableImage* DrawableImage::createFromValueTree (const ValueTree& tree)
 {
     if (! tree.hasType ("Image"))
         return 0;

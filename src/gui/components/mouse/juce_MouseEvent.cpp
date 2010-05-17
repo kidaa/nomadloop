@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -64,7 +64,7 @@ const MouseEvent MouseEvent::getEventRelativeTo (Component* const otherComponent
 {
     if (otherComponent == 0)
     {
-        jassertfalse
+        jassertfalse;
         return *this;
     }
 

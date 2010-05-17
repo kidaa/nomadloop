@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -351,7 +351,7 @@ public:
     juce_UseDebuggingNewOperator
 };
 
-static VoidArray activePlugins;
+static Array<void*> activePlugins;
 
 
 //==============================================================================
@@ -672,7 +672,7 @@ public:
                 int i;
                 for (i = 0; i < numOut; ++i)
                 {
-                    float* chan = (float*) tempChannels.getUnchecked(i);
+                    float* chan = tempChannels.getUnchecked(i);
 
                     if (chan == 0)
                     {
@@ -779,6 +779,8 @@ public:
         deleteTempChannels();
 
         filter->prepareToPlay (rate, blockSize);
+
+        midiEvents.ensureSize (2048);
         midiEvents.clear();
 
         setInitialDelay (filter->getLatencySamples());
@@ -786,7 +788,7 @@ public:
         AudioEffectX::resume();
 
 #if JucePlugin_ProducesMidiOutput
-        outgoingEvents.ensureSize (64);
+        outgoingEvents.ensureSize (512);
 #endif
 
 #if JucePlugin_WantsMidiInput && ! JUCE_USE_VSTSDK_2_4
@@ -1415,7 +1417,7 @@ private:
     VstSpeakerArrangementType speakerIn, speakerOut;
     int numInChans, numOutChans;
     HeapBlock <float*> channels;
-    VoidArray tempChannels; // see note in processReplacing()
+    Array<float*> tempChannels; // see note in processReplacing()
     bool hasCreatedTempChannels;
     bool shouldDeleteEditor;
 

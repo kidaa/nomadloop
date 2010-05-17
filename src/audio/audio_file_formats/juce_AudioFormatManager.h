@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -28,7 +28,7 @@
 
 #include "juce_AudioFormat.h"
 #include "../../core/juce_Singleton.h"
-#include "../../containers/juce_VoidArray.h"
+#include "../../containers/juce_OwnedArray.h"
 
 
 //==============================================================================
@@ -68,7 +68,7 @@ public:
         return this one when called.
     */
     void registerFormat (AudioFormat* newFormat,
-                         const bool makeThisTheDefaultFormat);
+                         bool makeThisTheDefaultFormat);
 
     /** Handy method to make it easy to register the formats that come with Juce.
 
@@ -83,7 +83,7 @@ public:
     int getNumKnownFormats() const;
 
     /** Returns one of the registered file formats. */
-    AudioFormat* getKnownFormat (const int index) const;
+    AudioFormat* getKnownFormat (int index) const;
 
     /** Looks for which of the known formats is listed as being for a given file
         extension.
@@ -137,7 +137,7 @@ public:
     juce_UseDebuggingNewOperator
 
 private:
-    VoidArray knownFormats;
+    OwnedArray<AudioFormat> knownFormats;
     int defaultFormatIndex;
 };
 

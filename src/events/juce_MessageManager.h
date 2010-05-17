@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -28,7 +28,6 @@
 
 #include "../utilities/juce_DeletedAtShutdown.h"
 #include "../containers/juce_SortedSet.h"
-#include "../containers/juce_VoidArray.h"
 #include "../containers/juce_ScopedPointer.h"
 #include "../threads/juce_Thread.h"
 #include "../threads/juce_ThreadPool.h"
@@ -182,11 +181,10 @@ private:
     bool quitMessagePosted, quitMessageReceived;
     Thread::ThreadID messageThreadId;
 
-    VoidArray modalComponents;
     static void* exitModalLoopCallback (void*);
 
-    void postMessageToQueue (Message* const message);
-    void postCallbackMessage (Message* const message);
+    void postMessageToQueue (Message* message);
+    void postCallbackMessage (Message* message);
 
     static void doPlatformSpecificInitialisation();
     static void doPlatformSpecificShutdown();
@@ -277,7 +275,7 @@ public:
         @endcode
 
     */
-    MessageManagerLock (Thread* const threadToCheckForExitSignal = 0) throw();
+    MessageManagerLock (Thread* threadToCheckForExitSignal = 0) throw();
 
     //==============================================================================
     /** This has the same behaviour as the other constructor, but takes a ThreadPoolJob
@@ -285,7 +283,7 @@ public:
 
         See the MessageManagerLock (Thread*) constructor for details on how this works.
     */
-    MessageManagerLock (ThreadPoolJob* const jobToCheckForExitSignal) throw();
+    MessageManagerLock (ThreadPoolJob* jobToCheckForExitSignal) throw();
 
 
     //==============================================================================
@@ -312,7 +310,7 @@ private:
     SharedEvents* sharedEvents;
     bool locked;
 
-    void init (Thread* const thread, ThreadPoolJob* const job) throw();
+    void init (Thread* thread, ThreadPoolJob* job) throw();
 
     MessageManagerLock (const MessageManagerLock&);
     MessageManagerLock& operator= (const MessageManagerLock&);

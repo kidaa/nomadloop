@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -56,7 +56,7 @@ public:
                             the browser using resources in the background when it's not
                             actually being used.
     */
-    WebBrowserComponent (const bool unloadPageWhenBrowserIsHidden = true);
+    explicit WebBrowserComponent (bool unloadPageWhenBrowserIsHidden = true);
 
     /** Destructor. */
     ~WebBrowserComponent();

@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -60,7 +60,7 @@ public:
     /** Returns a suggested syntax highlighting colour for a specified
         token type.
     */
-    virtual const Colour getDefaultColour (const int tokenType) = 0;
+    virtual const Colour getDefaultColour (int tokenType) = 0;
 
 
     //==============================================================================

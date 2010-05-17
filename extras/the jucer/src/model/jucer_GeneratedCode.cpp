@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -176,7 +176,7 @@ const String GeneratedCode::getCallbackDefinitions() const
 const String GeneratedCode::getClassDeclaration() const
 {
     StringArray parentClassLines;
-    parentClassLines.addTokens (parentClasses, T(","), 0);
+    parentClassLines.addTokens (parentClasses, T(","), String::empty);
     parentClassLines.addArray (getExtraParentClasses());
 
     parentClassLines.trim();

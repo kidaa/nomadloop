@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -357,7 +357,7 @@ void TableHeaderComponent::resizeColumnsToFit (int firstColumnIndex, int targetT
         if (ci->isVisible())
         {
             const int newWidth = jlimit (ci->minimumWidth, ci->maximumWidth,
-                                         (int) floor (sor.getItemSize (visIndex++)));
+                                         (int) std::floor (sor.getItemSize (visIndex++)));
 
             if (newWidth != ci->width)
             {

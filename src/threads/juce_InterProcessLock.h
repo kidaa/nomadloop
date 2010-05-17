@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -27,7 +27,7 @@
 #define __JUCE_INTERPROCESSLOCK_JUCEHEADER__
 
 #include "../text/juce_String.h"
-
+#include "../containers/juce_ScopedPointer.h"
 
 //==============================================================================
 /**
@@ -43,7 +43,7 @@ public:
 
         @param name     a name that processes will use to identify this lock object
     */
-    InterProcessLock (const String& name);
+    explicit InterProcessLock (const String& name);
 
     /** Destructor.
 
@@ -67,22 +67,67 @@ public:
     */
     void exit();
 
+    //==============================================================================
+    /**
+        Automatically locks and unlocks an InterProcessLock object.
+
+        This works like a ScopedLock, but using an InterprocessLock rather than
+        a CriticalSection.
+
+        @see ScopedLock
+    */
+    class ScopedLockType
+    {
+    public:
+        //==============================================================================
+        /** Creates a scoped lock.
+
+            As soon as it is created, this will lock the InterProcessLock, and
+            when the ScopedLockType object is deleted, the InterProcessLock will
+            be unlocked.
+
+            Note that since an InterprocessLock can fail due to errors, you should check
+            isLocked() to make sure that the lock was successful before using it.
+
+            Make sure this object is created and deleted by the same thread,
+            otherwise there are no guarantees what will happen! Best just to use it
+            as a local stack object, rather than creating one with the new() operator.
+        */
+        explicit ScopedLockType (InterProcessLock& lock)                    : lock_ (lock) { lockWasSuccessful = lock.enter(); }
+
+        /** Destructor.
+
+            The InterProcessLock will be unlocked when the destructor is called.
+
+            Make sure this object is created and deleted by the same thread,
+            otherwise there are no guarantees what will happen!
+        */
+        inline ~ScopedLockType()                                            { lock_.exit(); }
+
+        /** Returns true if the InterProcessLock was successfully locked. */
+        bool isLocked() const throw()                                       { return lockWasSuccessful; }
+
+    private:
+        //==============================================================================
+        InterProcessLock& lock_;
+        bool lockWasSuccessful;
+
+        ScopedLockType (const ScopedLockType&);
+        ScopedLockType& operator= (const ScopedLockType&);
+    };
+
 
     //==============================================================================
     juce_UseDebuggingNewOperator
 
 private:
     //==============================================================================
-  #if JUCE_WINDOWS
-    void* internal;
-//  #elif JUCE_64BIT
-  //  long long internal;
-  #else
-    int internal;
-  #endif
+    class Pimpl;
+    friend class ScopedPointer <Pimpl>;
+    ScopedPointer <Pimpl> pimpl;
 
+    CriticalSection lock;
     String name;
-    int reentrancyLevel;
 
     InterProcessLock (const InterProcessLock&);
     InterProcessLock& operator= (const InterProcessLock&);

@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -104,6 +104,8 @@ private:
     // this isn't a class you should ever instantiate - it's just here for the
     // static values in it.
     Colours();
+    Colours (const Colours&);
+    Colours& operator= (const Colours&);
 };
 
 #endif   // __JUCE_COLOURS_JUCEHEADER__

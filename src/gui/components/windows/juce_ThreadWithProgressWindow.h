@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -44,7 +44,7 @@
     class MyTask  : public ThreadWithProgressWindow
     {
     public:
-        MyTask()    : ThreadWithProgressWindow (T("busy..."), true, true)
+        MyTask()    : ThreadWithProgressWindow ("busy...", true, true)
         {
         }
 
@@ -109,10 +109,10 @@ public:
                                         (if it has one)
     */
     ThreadWithProgressWindow (const String& windowTitle,
-                              const bool hasProgressBar,
-                              const bool hasCancelButton,
-                              const int timeOutMsWhenCancelling = 10000,
-                              const String& cancelButtonText = JUCE_T("Cancel"));
+                              bool hasProgressBar,
+                              bool hasCancelButton,
+                              int timeOutMsWhenCancelling = 10000,
+                              const String& cancelButtonText = "Cancel");
 
     /** Destructor. */
     ~ThreadWithProgressWindow();
@@ -129,14 +129,14 @@ public:
                                 Thread::startThread() for values
         @returns true if the thread finished normally; false if the user pressed cancel
     */
-    bool runThread (const int threadPriority = 5);
+    bool runThread (int threadPriority = 5);
 
     /** The thread should call this periodically to update the position of the progress bar.
 
         @param newProgress  the progress, from 0.0 to 1.0
         @see setStatusMessage
     */
-    void setProgress (const double newProgress);
+    void setProgress (double newProgress);
 
     /** The thread can call this to change the message that's displayed in the dialog box.
     */

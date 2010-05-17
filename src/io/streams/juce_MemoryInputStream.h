@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -50,9 +50,21 @@ public:
                                         true, the stream will make its own copy of the
                                         data and use that.
     */
-    MemoryInputStream (const void* const sourceData,
-                       const size_t sourceDataSize,
-                       const bool keepInternalCopyOfData);
+    MemoryInputStream (const void* sourceData,
+                       size_t sourceDataSize,
+                       bool keepInternalCopyOfData);
+
+    /** Creates a MemoryInputStream.
+
+        @param data                     a block of data to use as the stream's source
+        @param keepInternalCopyOfData   if false, the stream will just keep a reference to
+                                        the source data, so this data shouldn't be changed
+                                        for the lifetime of the stream; if this parameter is
+                                        true, the stream will make its own copy of the
+                                        data and use that.
+    */
+    MemoryInputStream (const MemoryBlock& data,
+                       bool keepInternalCopyOfData);
 
     /** Destructor. */
     ~MemoryInputStream();
@@ -64,7 +76,6 @@ public:
     bool isExhausted();
     int read (void* destBuffer, int maxBytesToRead);
 
-
     //==============================================================================
     juce_UseDebuggingNewOperator
 
@@ -72,6 +83,9 @@ private:
     const char* data;
     size_t dataSize, position;
     MemoryBlock internalCopy;
+
+    MemoryInputStream (const MemoryInputStream&);
+    MemoryInputStream& operator= (const MemoryInputStream&);
 };
 
 #endif   // __JUCE_MEMORYINPUTSTREAM_JUCEHEADER__

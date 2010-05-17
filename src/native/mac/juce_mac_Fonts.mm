@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -65,13 +65,13 @@ public:
             for (NSString* i in familyFonts)
             {
                 const String fn (nsStringToJuce (i));
-                const String afterDash (fn.fromFirstOccurrenceOf (T("-"), false, false));
+                const String afterDash (fn.fromFirstOccurrenceOf ("-", false, false));
 
-                const bool probablyBold = afterDash.containsIgnoreCase (T("bold")) || fn.endsWithIgnoreCase (T("bold"));
-                const bool probablyItalic = afterDash.containsIgnoreCase (T("oblique"))
-                                             || afterDash.containsIgnoreCase (T("italic"))
-                                             || fn.endsWithIgnoreCase (T("oblique"))
-                                             || fn.endsWithIgnoreCase (T("italic"));
+                const bool probablyBold = afterDash.containsIgnoreCase ("bold") || fn.endsWithIgnoreCase ("bold");
+                const bool probablyItalic = afterDash.containsIgnoreCase ("oblique")
+                                             || afterDash.containsIgnoreCase ("italic")
+                                             || fn.endsWithIgnoreCase ("oblique")
+                                             || fn.endsWithIgnoreCase ("italic");
 
                 if (probablyBold == font.isBold()
                      && probablyItalic == font.isItalic())
@@ -117,8 +117,8 @@ public:
 
         [nsFont retain];
 
-        ascent = fabsf ((float) [nsFont ascender]);
-        float totalSize = ascent + fabsf ((float) [nsFont descender]);
+        ascent = std::abs ((float) [nsFont ascender]);
+        float totalSize = ascent + std::abs ((float) [nsFont descender]);
         ascent /= totalSize;
 
         pathTransform = AffineTransform::identity.scale (1.0f / totalSize, 1.0f / totalSize);
@@ -135,9 +135,9 @@ public:
         if (atsFont == 0)
             atsFont = ATSFontFindFromPostScriptName ((CFStringRef) [nsFont fontName], kATSOptionFlagsDefault);
 
-        fontRef = CGFontCreateWithPlatformFont ((void*) &atsFont);
+        fontRef = CGFontCreateWithPlatformFont (&atsFont);
 
-        const float totalHeight = fabsf ([nsFont ascender]) + fabsf([nsFont descender]);
+        const float totalHeight = std::abs ([nsFont ascender]) + std::abs ([nsFont descender]);
         unitsToHeightScaleFactor = 1.0f / totalHeight;
         fontHeightToCGSizeFactor = 1024.0f / totalHeight;
 #else
@@ -149,9 +149,9 @@ public:
             if (atsFont == 0)
                 atsFont = ATSFontFindFromPostScriptName ((CFStringRef) [nsFont fontName], kATSOptionFlagsDefault);
 
-            fontRef = CGFontCreateWithPlatformFont ((void*) &atsFont);
+            fontRef = CGFontCreateWithPlatformFont (&atsFont);
 
-            const float totalHeight = fabsf ([nsFont ascender]) + fabsf([nsFont descender]);
+            const float totalHeight = std::abs ([nsFont ascender]) + std::abs ([nsFont descender]);
             unitsToHeightScaleFactor = 1.0f / totalHeight;
             fontHeightToCGSizeFactor = 1024.0f / totalHeight;
         }
@@ -323,7 +323,7 @@ public:
                 path.closeSubPath();
                 break;
             default:
-                jassertfalse
+                jassertfalse;
                 break;
             }
         }
@@ -478,6 +478,9 @@ private:
 
     ScopedPointer <CharToGlyphMapper> charToGlyphMapper;
 #endif
+
+    MacTypeface (const MacTypeface&);
+    MacTypeface& operator= (const MacTypeface&);
 };
 
 const Typeface::Ptr Typeface::createSystemTypefaceFor (const Font& font)
@@ -486,7 +489,7 @@ const Typeface::Ptr Typeface::createSystemTypefaceFor (const Font& font)
 }
 
 //==============================================================================
-const StringArray Font::findAllTypefaceNames() throw()
+const StringArray Font::findAllTypefaceNames()
 {
     StringArray names;
 
@@ -505,7 +508,7 @@ const StringArray Font::findAllTypefaceNames() throw()
     return names;
 }
 
-void Font::getPlatformDefaultFontNames (String& defaultSans, String& defaultSerif, String& defaultFixed) throw()
+void Font::getPlatformDefaultFontNames (String& defaultSans, String& defaultSerif, String& defaultFixed)
 {
 #if JUCE_IPHONE
     defaultSans  = "Helvetica";

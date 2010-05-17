@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -26,14 +26,6 @@
 // (This file gets included by juce_mac_NativeCode.mm, rather than being
 // compiled on its own).
 #if JUCE_INCLUDED_FILE
-
-struct CallbackMessagePayload
-{
-    MessageCallbackFunction* function;
-    void* parameter;
-    void* volatile result;
-    bool volatile hasBeenExecuted;
-};
 
 /* When you use multiple DLLs which share similarly-named obj-c classes - like
    for example having more than one juce plugin loaded into a host, then when a
@@ -70,7 +62,7 @@ public:
         CFRelease (runLoopSource);
 
         while (messages.size() > 0)
-            delete ((Message*) messages.remove(0));
+            delete static_cast <Message*> (messages.remove(0));
     }
 
     virtual NSApplicationTerminateReply shouldTerminate()
@@ -101,7 +93,7 @@ public:
         for (unsigned int i = 0; i < [filenames count]; ++i)
         {
             String filename (nsStringToJuce ((NSString*) [filenames objectAtIndex: i]));
-            if (filename.containsChar (T(' ')))
+            if (filename.containsChar (' '))
                 filename = filename.quoted('"');
 
             files.add (filename);
@@ -109,7 +101,7 @@ public:
 
         if (files.size() > 0 && JUCEApplication::getInstance() != 0)
         {
-            JUCEApplication::getInstance()->anotherInstanceStarted (files.joinIntoString (T(" ")));
+            JUCEApplication::getInstance()->anotherInstanceStarted (files.joinIntoString (" "));
         }
     }
 
@@ -117,6 +109,14 @@ public:
     {
         juce_HandleProcessFocusChange();
     }
+
+    struct CallbackMessagePayload
+    {
+        MessageCallbackFunction* function;
+        void* parameter;
+        void* volatile result;
+        bool volatile hasBeenExecuted;
+    };
 
     virtual void performCallback (CallbackMessagePayload* pl)
     {
@@ -163,7 +163,7 @@ private:
 
     static void runLoopSourceCallback (void* info)
     {
-        ((AppDelegateRedirector*) info)->runLoopCallback();
+        static_cast <AppDelegateRedirector*> (info)->runLoopCallback();
     }
 };
 
@@ -236,31 +236,37 @@ using namespace JUCE_NAMESPACE;
 
 - (NSApplicationTerminateReply) applicationShouldTerminate: (NSApplication*) app
 {
+    (void) app;
     return redirector->shouldTerminate();
 }
 
 - (BOOL) application: (NSApplication*) app openFile: (NSString*) filename
 {
+    (void) app;
     return redirector->openFile (filename);
 }
 
 - (void) application: (NSApplication*) sender openFiles: (NSArray*) filenames
 {
+    (void) sender;
     return redirector->openFiles (filenames);
 }
 
-- (void) applicationDidBecomeActive: (NSNotification*) aNotification
+- (void) applicationDidBecomeActive: (NSNotification*) notification
 {
+    (void) notification;
     redirector->focusChanged();
 }
 
-- (void) applicationDidResignActive: (NSNotification*) aNotification
+- (void) applicationDidResignActive: (NSNotification*) notification
 {
+    (void) notification;
     redirector->focusChanged();
 }
 
-- (void) applicationWillUnhide: (NSNotification*) aNotification
+- (void) applicationWillUnhide: (NSNotification*) notification
 {
+    (void) notification;
     redirector->focusChanged();
 }
 
@@ -268,14 +274,15 @@ using namespace JUCE_NAMESPACE;
 {
     if ([info isKindOfClass: [NSData class]])
     {
-        CallbackMessagePayload* pl = (CallbackMessagePayload*) [((NSData*) info) bytes];
+        AppDelegateRedirector::CallbackMessagePayload* pl
+            = (AppDelegateRedirector::CallbackMessagePayload*) [((NSData*) info) bytes];
 
         if (pl != 0)
             redirector->performCallback (pl);
     }
     else
     {
-        jassertfalse // should never get here!
+        jassertfalse; // should never get here!
     }
 }
 
@@ -486,7 +493,7 @@ void* MessageManager::callFunctionOnMessageThread (MessageCallbackFunction* call
 
         const ScopedAutoReleasePool pool;
 
-        CallbackMessagePayload cmp;
+        AppDelegateRedirector::CallbackMessagePayload cmp;
         cmp.function = callback;
         cmp.parameter = data;
         cmp.result = 0;

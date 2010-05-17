@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -30,7 +30,7 @@
 #include "../dsp/juce_AudioSampleBuffer.h"
 #include "../midi/juce_MidiBuffer.h"
 #include "../../text/juce_XmlElement.h"
-#include "../../containers/juce_BitArray.h"
+#include "../../containers/juce_BigInteger.h"
 #include "juce_AudioProcessorListener.h"
 #include "juce_AudioPlayHead.h"
 
@@ -571,15 +571,15 @@ protected:
     void sendParamChangeMessageToListeners (const int parameterIndex, const float newValue);
 
 private:
-    VoidArray listeners;
+    Array <AudioProcessorListener*> listeners;
     AudioProcessorEditor* activeEditor;
     double sampleRate;
     int blockSize, numInputChannels, numOutputChannels, latencySamples;
     bool suspended, nonRealtime;
     CriticalSection callbackLock, listenerLock;
 
-#ifdef JUCE_DEBUG
-    BitArray changingParams;
+#if JUCE_DEBUG
+    BigInteger changingParams;
 #endif
 
     AudioProcessor (const AudioProcessor&);

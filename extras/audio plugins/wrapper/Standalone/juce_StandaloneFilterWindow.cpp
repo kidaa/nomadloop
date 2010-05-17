@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -56,6 +56,10 @@ StandaloneFilterWindow::StandaloneFilterWindow (const String& title,
 
         if (filter != 0)
         {
+            filter->setPlayConfigDetails (JucePlugin_MaxNumInputChannels,
+                                          JucePlugin_MaxNumOutputChannels,
+                                          44100, 512);
+
             PropertySet* const globalSettings = getGlobalSettings();
 
             deviceManager = new AudioFilterStreamingDeviceManager();

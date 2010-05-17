@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -60,6 +60,9 @@ public:
 private:
     //==============================================================================
     AudioProcessor* const owner;
+
+    AudioProcessorEditor (const AudioProcessorEditor&);
+    AudioProcessorEditor& operator= (const AudioProcessorEditor&);
 };
 
 
