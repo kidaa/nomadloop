@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -112,7 +112,7 @@ const String RelativeTime::getDescription (const String& returnValueForZeroTime)
     String result;
 
     if (seconds < 0)
-        result = T("-");
+        result = "-";
 
     int fieldsShown = 0;
     int n = abs ((int) inWeeks());

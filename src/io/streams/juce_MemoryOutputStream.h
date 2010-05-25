@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -71,15 +71,18 @@ public:
 
         @see getData
     */
-    size_t getDataSize() const throw();
+    size_t getDataSize() const throw()                  { return size; }
 
     /** Resets the stream, clearing any data that has been written to it so far. */
     void reset() throw();
 
+    /** Returns a String created from the (UTF8) data that has been written to the stream. */
+    const String toUTF8() const;
+
     //==============================================================================
     void flush();
     bool write (const void* buffer, int howMany);
-    int64 getPosition();
+    int64 getPosition()                                 { return position; }
     bool setPosition (int64 newPosition);
 
 

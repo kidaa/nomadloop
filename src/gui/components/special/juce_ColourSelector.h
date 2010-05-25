@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -66,9 +66,9 @@ public:
         gapAroundColourSpaceComponent indicates how much of a gap to put around the
         colourspace and hue selector components.
     */
-    ColourSelector (const int sectionsToShow = (showAlphaChannel | showColourAtTop | showSliders | showColourspace),
-                    const int edgeGap = 4,
-                    const int gapAroundColourSpaceComponent = 7);
+    ColourSelector (int sectionsToShow = (showAlphaChannel | showColourAtTop | showSliders | showColourspace),
+                    int edgeGap = 4,
+                    int gapAroundColourSpaceComponent = 7);
 
     /** Destructor. */
     ~ColourSelector();
@@ -104,7 +104,7 @@ public:
         setSwatchColour(), to return the number of colours you want, and to set and retrieve
         their values.
     */
-    virtual const Colour getSwatchColour (const int index) const;
+    virtual const Colour getSwatchColour (int index) const;
 
     /** Called by the selector when the user puts a new colour into one of the swatches.
 
@@ -114,7 +114,7 @@ public:
         setSwatchColour(), to return the number of colours you want, and to set and retrieve
         their values.
     */
-    virtual void setSwatchColour (const int index, const Colour& newColour) const;
+    virtual void setSwatchColour (int index, const Colour& newColour) const;
 
 
     //==============================================================================
@@ -136,14 +136,17 @@ public:
     juce_UseDebuggingNewOperator
 
 private:
+    class ColourSpaceView;
+    class HueSelectorComp;
+    class SwatchComponent;
     friend class ColourSpaceView;
     friend class HueSelectorComp;
+
     Colour colour;
     float h, s, v;
     Slider* sliders[4];
-    Component* colourSpace;
-    Component* hueSelector;
-    class SwatchComponent;
+    ColourSpaceView* colourSpace;
+    HueSelectorComp* hueSelector;
     OwnedArray <SwatchComponent> swatchComponents;
     const int flags;
     int topSpace, edgeGap;
@@ -162,7 +165,7 @@ private:
     // this constructor is here temporarily to prevent old code compiling, because the parameters
     // have changed - if you get an error here, update your code to use the new constructor instead..
     // (xxx - note to self: remember to remove this at some point in the future)
-    ColourSelector (const bool);
+    ColourSelector (bool);
 };
 
 

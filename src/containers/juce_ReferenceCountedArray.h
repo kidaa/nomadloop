@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -80,7 +80,7 @@ public:
         if (this != &other)
         {
             ReferenceCountedArray<ObjectClass, TypeOfCriticalSectionToUse> otherCopy (other);
-            swapWithArray (other);
+            swapWithArray (otherCopy);
         }
 
         return *this;
@@ -184,7 +184,7 @@ public:
         while (e != end)
         {
             if (objectToLookFor == *e)
-                return (int) (e - data.elements.getData());
+                return static_cast <int> (e - data.elements.getData());
 
             ++e;
         }
@@ -344,7 +344,7 @@ public:
 
         if (startIndex < 0)
         {
-            jassertfalse
+            jassertfalse;
             startIndex = 0;
         }
 

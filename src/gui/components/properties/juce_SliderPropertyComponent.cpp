@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -47,7 +47,7 @@ SliderPropertyComponent::SliderPropertyComponent (const String& name,
     slider->addListener (this);
 }
 
-SliderPropertyComponent::SliderPropertyComponent (Value& valueToControl,
+SliderPropertyComponent::SliderPropertyComponent (const Value& valueToControl,
                                                   const String& name,
                                                   const double rangeMin,
                                                   const double rangeMax,
@@ -73,7 +73,7 @@ void SliderPropertyComponent::setValue (const double /*newValue*/)
 {
 }
 
-const double SliderPropertyComponent::getValue() const
+double SliderPropertyComponent::getValue() const
 {
     return slider->getValue();
 }

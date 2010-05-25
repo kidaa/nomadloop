@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -37,14 +37,6 @@
 #endif
 
 //==============================================================================
-bool juce_isOnLine()
-{
-    DWORD connectionType;
-
-    return InternetGetConnectedState (&connectionType, 0) != 0
-            || (connectionType & (INTERNET_CONNECTION_LAN | INTERNET_CONNECTION_PROXY)) != 0;
-}
-
 struct ConnectionAndRequestStruct
 {
     HINTERNET connection, request;
@@ -133,7 +125,7 @@ void* juce_openInternetFile (const String& url,
 
             InternetSetOption (sessionHandle, INTERNET_OPTION_CONNECT_TIMEOUT, &timeOutMs, sizeof (timeOutMs));
 
-            const bool isFtp = url.startsWithIgnoreCase (T("ftp:"));
+            const bool isFtp = url.startsWithIgnoreCase ("ftp:");
 
 #if WORKAROUND_TIMEOUT_BUG
             HINTERNET connection = 0;
@@ -179,7 +171,7 @@ void* juce_openInternetFile (const String& url,
 
                     DWORD flags = INTERNET_FLAG_RELOAD | INTERNET_FLAG_NO_CACHE_WRITE;
 
-                    if (url.startsWithIgnoreCase (T("https:")))
+                    if (url.startsWithIgnoreCase ("https:"))
                         flags |= INTERNET_FLAG_SECURE;  // (this flag only seems necessary if the OS is running IE6 -
                                                         //  IE7 seems to automatically work out when it's https)
 
@@ -210,7 +202,7 @@ void* juce_openInternetFile (const String& url,
 
                                 if (bytesToDo > 0
                                      && ! InternetWriteFile (request,
-                                                             ((const char*) postData.getData()) + bytesSent,
+                                                             static_cast <const char*> (postData.getData()) + bytesSent,
                                                              bytesToDo, &bytesDone))
                                 {
                                     break;
@@ -248,8 +240,7 @@ void* juce_openInternetFile (const String& url,
 int juce_readFromInternetFile (void* handle, void* buffer, int bytesToRead)
 {
     DWORD bytesRead = 0;
-
-    const ConnectionAndRequestStruct* const crs = (const ConnectionAndRequestStruct*) handle;
+    const ConnectionAndRequestStruct* const crs = static_cast <ConnectionAndRequestStruct*> (handle);
 
     if (crs != 0)
         InternetReadFile (crs->request,
@@ -263,33 +254,23 @@ int juce_seekInInternetFile (void* handle, int newPosition)
 {
     if (handle != 0)
     {
-        const ConnectionAndRequestStruct* const crs = (const ConnectionAndRequestStruct*) handle;
+        const ConnectionAndRequestStruct* const crs = static_cast <ConnectionAndRequestStruct*> (handle);
+        return InternetSetFilePointer (crs->request, newPosition, 0, FILE_BEGIN, 0);
+    }
 
-        return InternetSetFilePointer (crs->request,
-                                       newPosition, 0,
-                                       FILE_BEGIN, 0);
-    }
-    else
-    {
-        return -1;
-    }
+    return -1;
 }
 
 int64 juce_getInternetFileContentLength (void* handle)
 {
-    const ConnectionAndRequestStruct* const crs = (const ConnectionAndRequestStruct*) handle;
+    const ConnectionAndRequestStruct* const crs = static_cast <ConnectionAndRequestStruct*> (handle);
 
     if (crs != 0)
     {
-        DWORD index = 0;
-        DWORD result = 0;
-        DWORD size = sizeof (result);
+        DWORD index = 0, result = 0, size = sizeof (result);
 
-        if (HttpQueryInfo (crs->request,
-                           HTTP_QUERY_CONTENT_LENGTH | HTTP_QUERY_FLAG_NUMBER,
-                           &result,
-                           &size,
-                           &index))
+        if (HttpQueryInfo (crs->request, HTTP_QUERY_CONTENT_LENGTH | HTTP_QUERY_FLAG_NUMBER,
+                           &result, &size, &index))
         {
             return (int64) result;
         }
@@ -302,10 +283,9 @@ void juce_closeInternetFile (void* handle)
 {
     if (handle != 0)
     {
-        ConnectionAndRequestStruct* const crs = (ConnectionAndRequestStruct*) handle;
+        ScopedPointer <ConnectionAndRequestStruct> crs (static_cast <ConnectionAndRequestStruct*> (handle));
         InternetCloseHandle (crs->request);
         InternetCloseHandle (crs->connection);
-        delete crs;
     }
 }
 
@@ -353,12 +333,6 @@ static int getMACAddressViaGetAdaptersInfo (int64* addresses, int maxNum, const 
     return numFound;
 }
 
-struct ASTAT
-{
-    ADAPTER_STATUS adapt;
-    NAME_BUFFER    NameBuff [30];
-};
-
 static int getMACAddressesViaNetBios (int64* addresses, int maxNum, const bool littleEndian) throw()
 {
     int numFound = 0;
@@ -371,8 +345,14 @@ static int getMACAddressesViaNetBios (int64* addresses, int maxNum, const bool l
         NCB ncb;
         zerostruct (ncb);
 
+        struct ASTAT
+        {
+            ADAPTER_STATUS adapt;
+            NAME_BUFFER    NameBuff [30];
+        };
+
         ASTAT astat;
-        zerostruct (astat);
+        zeromem (&astat, sizeof (astat));  // (can't use zerostruct here in VC6)
 
         LANA_ENUM enums;
         zerostruct (enums);
@@ -428,14 +408,14 @@ int SystemStats::getMACAddresses (int64* addresses, int maxNum, const bool littl
 }
 
 //==============================================================================
-typedef ULONG (WINAPI *MAPISendMailType) (LHANDLE, ULONG, lpMapiMessage, ::FLAGS, ULONG);
-
 bool PlatformUtilities::launchEmailWithAttachments (const String& targetEmailAddress,
                                                     const String& emailSubject,
                                                     const String& bodyText,
                                                     const StringArray& filesToAttach)
 {
     HMODULE h = LoadLibraryA ("MAPI32.dll");
+
+    typedef ULONG (WINAPI *MAPISendMailType) (LHANDLE, ULONG, lpMapiMessage, ::FLAGS, ULONG);
 
     MAPISendMailType mapiSendMail = (MAPISendMailType) GetProcAddress (h, "MAPISendMail");
     bool ok = false;
@@ -457,9 +437,8 @@ bool PlatformUtilities::launchEmailWithAttachments (const String& targetEmailAdd
         message.nRecipCount = 1;
         message.lpRecips = &recip;
 
-        MemoryBlock mb (sizeof (MapiFileDesc) * filesToAttach.size());
-        mb.fillWith (0);
-        MapiFileDesc* files = (MapiFileDesc*) mb.getData();
+        HeapBlock <MapiFileDesc> files;
+        files.calloc (filesToAttach.size());
 
         message.nFileCount = filesToAttach.size();
         message.lpFiles = files;

@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -40,9 +40,9 @@ class JUCE_API  DrawablePath  : public Drawable
 {
 public:
     //==============================================================================
-    /** Creates a DrawablePath.
-    */
+    /** Creates a DrawablePath. */
     DrawablePath();
+    DrawablePath (const DrawablePath& other);
 
     /** Destructor. */
     virtual ~DrawablePath();
@@ -52,10 +52,7 @@ public:
 
         @see setFillColour, setStrokeType
     */
-    void setPath (const Path& newPath) throw();
-
-    /** Returns the current path. */
-    const Path& getPath() const throw()                         { return path; }
+    void setPath (const Path& newPath);
 
     /** Sets a fill type for the path.
 
@@ -65,7 +62,7 @@ public:
 
         @see setPath, setStrokeFill
     */
-    void setFill (const FillType& newFill) throw();
+    void setFill (const FillType& newFill);
 
     /** Returns the current fill type.
         @see setFill
@@ -75,7 +72,7 @@ public:
     /** Sets the fill type with which the outline will be drawn.
         @see setFill
     */
-    void setStrokeFill (const FillType& newStrokeFill) throw();
+    void setStrokeFill (const FillType& newStrokeFill);
 
     /** Returns the current stroke fill.
         @see setStrokeFill
@@ -86,16 +83,23 @@ public:
         If the stroke has 0 thickness, no stroke will be drawn.
         @see setStrokeThickness, setStrokeColour
     */
-    void setStrokeType (const PathStrokeType& newStrokeType) throw();
+    void setStrokeType (const PathStrokeType& newStrokeType);
 
     /** Changes the stroke thickness.
         This is a shortcut for calling setStrokeType.
     */
-    void setStrokeThickness (const float newThickness) throw();
+    void setStrokeThickness (float newThickness);
 
     /** Returns the current outline style. */
     const PathStrokeType& getStrokeType() const throw()         { return strokeType; }
 
+
+    //==============================================================================
+    /** Returns the current path. */
+    const Path& getPath() const;
+
+    /** Returns the current path for the outline. */
+    const Path& getStrokePath() const;
 
     //==============================================================================
     /** @internal */
@@ -107,21 +111,53 @@ public:
     /** @internal */
     Drawable* createCopy() const;
     /** @internal */
-    ValueTree createValueTree() const throw();
+    void invalidatePoints();
     /** @internal */
-    static DrawablePath* createFromValueTree (const ValueTree& tree) throw();
+    const Rectangle<float> refreshFromValueTree (const ValueTree& tree, ImageProvider* imageProvider);
+    /** @internal */
+    const ValueTree createValueTree (ImageProvider* imageProvider) const;
+    /** @internal */
+    static const Identifier valueTreeType;
+    /** @internal */
+    const Identifier getValueTreeType() const    { return valueTreeType; }
+
+    //==============================================================================
+    /** Internally-used class for wrapping a DrawablePath's state into a ValueTree. */
+    class ValueTreeWrapper   : public ValueTreeWrapperBase
+    {
+    public:
+        ValueTreeWrapper (const ValueTree& state);
+
+        const FillType getMainFill() const;
+        void setMainFill (const FillType& newFill, UndoManager* undoManager);
+
+        const FillType getStrokeFill() const;
+        void setStrokeFill (const FillType& newFill, UndoManager* undoManager);
+
+        const PathStrokeType getStrokeType() const;
+        void setStrokeType (const PathStrokeType& newStrokeType, UndoManager* undoManager);
+
+        void getPath (RelativePointPath& path) const;
+        void setPath (const String& newPath, UndoManager* undoManager);
+
+    private:
+        static const Identifier fill, stroke, jointStyle, capStyle, strokeWidth, path;
+    };
 
     //==============================================================================
     juce_UseDebuggingNewOperator
 
 private:
-    Path path, stroke;
     FillType mainFill, strokeFill;
     PathStrokeType strokeType;
+    ScopedPointer<RelativePointPath> relativePath;
+    mutable Path path, stroke;
+    mutable bool pathNeedsUpdating, strokeNeedsUpdating;
 
-    void updateOutline();
+    void updatePath() const;
+    void updateStroke() const;
+    bool isStrokeVisible() const throw();
 
-    DrawablePath (const DrawablePath&);
     DrawablePath& operator= (const DrawablePath&);
 };
 

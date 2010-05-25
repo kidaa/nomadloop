@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -69,7 +69,7 @@ static void getWglExtensions (HDC dc, StringArray& result) throw()
     if (WGL_EXT_FUNCTION_INIT (PFNWGLGETEXTENSIONSSTRINGARBPROC, wglGetExtensionsStringARB))
         result.addTokens (String (wglGetExtensionsStringARB (dc)), false);
     else
-        jassertfalse // If this fails, it may be because you didn't activate the openGL context
+        jassertfalse; // If this fails, it may be because you didn't activate the openGL context
 }
 
 
@@ -288,8 +288,7 @@ public:
 
     void repaint()
     {
-        const Rectangle<int> bounds (nativeWindow->getBounds());
-        nativeWindow->repaint (0, 0, bounds.getWidth(), bounds.getHeight());
+        nativeWindow->repaint (nativeWindow->getBounds().withPosition (Point<int>()));
     }
 
     void swapBuffers()
@@ -297,7 +296,7 @@ public:
         SwapBuffers (dc);
     }
 
-    bool setSwapInterval (const int numFramesPerSwap)
+    bool setSwapInterval (int numFramesPerSwap)
     {
         makeActive();
 
@@ -343,7 +342,7 @@ public:
             int attributes = WGL_NUMBER_PIXEL_FORMATS_ARB;
 
             if (! wglGetPixelFormatAttribivARB (dc, 1, 0, 1, &attributes, &numTypes))
-                jassertfalse
+                jassertfalse;
         }
         else
         {
@@ -461,7 +460,7 @@ private:
             }
             else
             {
-                jassertfalse
+                jassertfalse;
             }
         }
         else
@@ -486,7 +485,7 @@ private:
             }
             else
             {
-                jassertfalse
+                jassertfalse;
             }
         }
 
@@ -498,23 +497,18 @@ private:
 };
 
 //==============================================================================
-OpenGLContext* OpenGLContext::createContextForWindow (Component* const component,
-                                                      const OpenGLPixelFormat& pixelFormat,
-                                                      const OpenGLContext* const contextToShareWith)
+OpenGLContext* OpenGLComponent::createContext()
 {
-    WindowedGLContext* c = new WindowedGLContext (component,
-                                                  contextToShareWith != 0 ? (HGLRC) contextToShareWith->getRawContext() : 0,
-                                                  pixelFormat);
+    ScopedPointer<WindowedGLContext> c (new WindowedGLContext (this,
+                                                               contextToShareListsWith != 0 ? (HGLRC) contextToShareListsWith->getRawContext() : 0,
+                                                               preferredPixelFormat));
 
-    if (c->renderContext == 0)
-        deleteAndZero (c);
-
-    return c;
+    return (c->renderContext != 0) ? c.release() : 0;
 }
 
 void* OpenGLComponent::getNativeWindowHandle() const
 {
-    return context != 0 ? ((WindowedGLContext*) context)->getNativeWindowHandle() : 0;
+    return context != 0 ? static_cast<WindowedGLContext*> (static_cast<OpenGLContext*> (context))->getNativeWindowHandle() : 0;
 }
 
 void juce_glViewport (const int w, const int h)

@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -69,6 +69,9 @@ public:
         @see getNumSelectedFiles
     */
     const File getSelectedFile (int index = 0) const;
+
+    /** Deselects any files that are currently selected. */
+    void deselectAllFiles();
 
     /** Scrolls to the top of the list. */
     void scrollToTop();

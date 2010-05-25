@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -67,13 +67,13 @@ public:
                             null if the keypress is a non-printing character
         @see getKeyCode, isKeyCode, getModifiers
     */
-    KeyPress (const int keyCode,
+    KeyPress (int keyCode,
               const ModifierKeys& modifiers,
-              const juce_wchar textCharacter) throw();
+              juce_wchar textCharacter) throw();
 
     /** Creates a keypress with a keyCode but no modifiers or text character.
     */
-    KeyPress (const int keyCode) throw();
+    KeyPress (int keyCode) throw();
 
     /** Creates a copy of another KeyPress. */
     KeyPress (const KeyPress& other) throw();
@@ -123,7 +123,7 @@ public:
 
         @see getKeyCode
     */
-    bool isKeyCode (const int keyCodeToCompare) const throw()   { return keyCode == keyCodeToCompare; }
+    bool isKeyCode (int keyCodeToCompare) const throw()         { return keyCode == keyCodeToCompare; }
 
     //==============================================================================
     /** Converts a textual key description to a KeyPress.
@@ -137,7 +137,7 @@ public:
 
         @see getTextDescription
     */
-    static const KeyPress createFromDescription (const String& textVersion) throw();
+    static const KeyPress createFromDescription (const String& textVersion);
 
     /** Creates a textual description of the key combination.
 
@@ -146,7 +146,7 @@ public:
         To store a keypress in a file, use this method, along with createFromDescription()
         to retrieve it later.
     */
-    const String getTextDescription() const throw();
+    const String getTextDescription() const;
 
     //==============================================================================
     /** Checks whether the user is currently holding down the keys that make up this
@@ -156,14 +156,14 @@ public:
         down - e.g. if the keypress is CTRL+X and the user is actually holding CTRL+ALT+x
         then it will be false.
     */
-    bool isCurrentlyDown() const throw();
+    bool isCurrentlyDown() const;
 
     /** Checks whether a particular key is held down, irrespective of modifiers.
 
         The values for key codes can either be one of the special constants defined in
         this class, or an 8-bit character code.
     */
-    static bool isKeyCurrentlyDown (int keyCode) throw();
+    static bool isKeyCurrentlyDown (int keyCode);
 
     //==============================================================================
     // Key codes

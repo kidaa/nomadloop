@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -96,8 +96,6 @@
 
   #if defined (__ppc__) || defined (__ppc64__)
     #define JUCE_PPC 1
-    #undef MAC_OS_X_VERSION_MAX_ALLOWED
-    #define MAC_OS_X_VERSION_MAX_ALLOWED    MAC_OS_X_VERSION_10_4
   #else
     #define JUCE_INTEL 1
   #endif

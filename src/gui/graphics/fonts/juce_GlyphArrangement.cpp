@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -94,9 +94,7 @@ void PositionedGlyph::createPath (Path& path) const
 
 bool PositionedGlyph::hitTest (float px, float py) const
 {
-    if (px >= getLeft() && px < getRight()
-        && py >= getTop() && py < getBottom()
-        && ! isWhitespace())
+    if (getBounds().contains (px, py) && ! isWhitespace())
     {
         Typeface* const t = font.getTypeface();
 
@@ -202,7 +200,7 @@ void GlyphArrangement::addCurtailedLineOfText (const Font& font,
         font.getGlyphPositions (text, newGlyphs, xOffsets);
         const int textLen = newGlyphs.size();
 
-        const juce_wchar* const unicodeText = (const juce_wchar*) text;
+        const juce_wchar* const unicodeText = text;
 
         for (int i = 0; i < textLen; ++i)
         {
@@ -235,7 +233,7 @@ int GlyphArrangement::insertEllipsis (const Font& font, const float maxXPos,
     {
         Array<int> dotGlyphs;
         Array<float> dotXs;
-        font.getGlyphPositions (T(".."), dotGlyphs, dotXs);
+        font.getGlyphPositions ("..", dotGlyphs, dotXs);
 
         const float dx = dotXs[1];
         float xOffset = 0.0f, yOffset = 0.0f;
@@ -283,8 +281,8 @@ void GlyphArrangement::addJustifiedText (const Font& font,
     {
         int i = lineStartIndex;
 
-        if (glyphs.getUnchecked(i)->getCharacter() != T('\n')
-              && glyphs.getUnchecked(i)->getCharacter() != T('\r'))
+        if (glyphs.getUnchecked(i)->getCharacter() != '\n'
+              && glyphs.getUnchecked(i)->getCharacter() != '\r')
             ++i;
 
         const float lineMaxX = glyphs.getUnchecked (lineStartIndex)->getLeft() + maxLineWidth;
@@ -295,12 +293,12 @@ void GlyphArrangement::addJustifiedText (const Font& font,
             const PositionedGlyph* pg = glyphs.getUnchecked (i);
             const juce_wchar c = pg->getCharacter();
 
-            if (c == T('\r') || c == T('\n'))
+            if (c == '\r' || c == '\n')
             {
                 ++i;
 
-                if (c == T('\r') && i < glyphs.size()
-                     && glyphs.getUnchecked(i)->getCharacter() == T('\n'))
+                if (c == '\r' && i < glyphs.size()
+                     && glyphs.getUnchecked(i)->getCharacter() == '\n')
                     ++i;
 
                 break;
@@ -361,20 +359,19 @@ void GlyphArrangement::addFittedText (const Font& f,
     // doesn't make much sense if this is outside a sensible range of 0.5 to 1.0
     jassert (minimumHorizontalScale > 0 && minimumHorizontalScale <= 1.0f);
 
-    if (text.containsAnyOf (T("\r\n")))
+    if (text.containsAnyOf ("\r\n"))
     {
         GlyphArrangement ga;
         ga.addJustifiedText (f, text, x, y, width, layout);
 
-        float l, t, r, b;
-        ga.getBoundingBox (0, -1, l, t, r, b, false);
+        const Rectangle<float> bb (ga.getBoundingBox (0, -1, false));
 
-        float dy = y - t;
+        float dy = y - bb.getY();
 
         if (layout.testFlags (Justification::verticallyCentred))
-            dy += (height - (b - t)) * 0.5f;
+            dy += (height - bb.getHeight()) * 0.5f;
         else if (layout.testFlags (Justification::bottom))
-            dy += height - (b - t);
+            dy += height - bb.getHeight();
 
         ga.moveRangeOfGlyphs (0, -1, 0.0f, dy);
 
@@ -420,7 +417,7 @@ void GlyphArrangement::addFittedText (const Font& f,
             const int originalStartIndex = startIndex;
             int numLines = 1;
 
-            if (length <= 12 && ! txt.containsAnyOf (T(" -\t\r\n")))
+            if (length <= 12 && ! txt.containsAnyOf (" -\t\r\n"))
                 maximumLines = 1;
 
             maximumLines = jmin (maximumLines, length);
@@ -481,7 +478,7 @@ void GlyphArrangement::addFittedText (const Font& f,
                                 if ((glyphs.getUnchecked (i)->getRight() - lineStartX) * minimumHorizontalScale < width)
                                 {
                                     if (glyphs.getUnchecked (i)->isWhitespace()
-                                         || glyphs.getUnchecked (i)->getCharacter() == T('-'))
+                                         || glyphs.getUnchecked (i)->getCharacter() == '-')
                                     {
                                         ++i;
                                         break;
@@ -495,7 +492,7 @@ void GlyphArrangement::addFittedText (const Font& f,
                                     for (int back = 1; back < jmin (5, i - startIndex - 1); ++back)
                                     {
                                         if (glyphs.getUnchecked (i - back)->isWhitespace()
-                                             || glyphs.getUnchecked (i - back)->getCharacter() == T('-'))
+                                             || glyphs.getUnchecked (i - back)->getCharacter() == '-')
                                         {
                                             i -= back - 1;
                                             break;
@@ -610,83 +607,55 @@ void GlyphArrangement::stretchRangeOfGlyphs (int startIndex, int num,
     }
 }
 
-void GlyphArrangement::getBoundingBox (int startIndex, int num,
-                                       float& left,
-                                       float& top,
-                                       float& right,
-                                       float& bottom,
-                                       const bool includeWhitespace) const
+const Rectangle<float> GlyphArrangement::getBoundingBox (int startIndex, int num, const bool includeWhitespace) const
 {
     jassert (startIndex >= 0);
 
     if (num < 0 || startIndex + num > glyphs.size())
         num = glyphs.size() - startIndex;
 
-    left = 0.0f;
-    top = 0.0f;
-    right = 0.0f;
-    bottom = 0.0f;
-    bool isFirst = true;
+    Rectangle<float> result;
 
     while (--num >= 0)
     {
         const PositionedGlyph* const pg = glyphs.getUnchecked (startIndex++);
 
         if (includeWhitespace || ! pg->isWhitespace())
-        {
-            if (isFirst)
-            {
-                isFirst = false;
-                left    = pg->getLeft();
-                top     = pg->getTop();
-                right   = pg->getRight();
-                bottom  = pg->getBottom();
-            }
-            else
-            {
-                left    = jmin (left, pg->getLeft());
-                top     = jmin (top, pg->getTop());
-                right   = jmax (right, pg->getRight());
-                bottom  = jmax (bottom, pg->getBottom());
-            }
-        }
+            result = result.getUnion (pg->getBounds());
     }
+
+    return result;
 }
 
-void GlyphArrangement::justifyGlyphs (const int startIndex,
-                                      const int num,
-                                      const float x, const float y,
-                                      const float width, const float height,
+void GlyphArrangement::justifyGlyphs (const int startIndex, const int num,
+                                      const float x, const float y, const float width, const float height,
                                       const Justification& justification)
 {
     jassert (num >= 0 && startIndex >= 0);
 
     if (glyphs.size() > 0 && num > 0)
     {
-        float left, top, right, bottom;
-        getBoundingBox (startIndex, num, left, top, right, bottom,
-                        ! justification.testFlags (Justification::horizontallyJustified
-                                                    | Justification::horizontallyCentred));
-
+        const Rectangle<float> bb (getBoundingBox (startIndex, num, ! justification.testFlags (Justification::horizontallyJustified
+                                                                                                | Justification::horizontallyCentred)));
         float deltaX = 0.0f;
 
         if (justification.testFlags (Justification::horizontallyJustified))
-            deltaX = x - left;
+            deltaX = x - bb.getX();
         else if (justification.testFlags (Justification::horizontallyCentred))
-            deltaX = x + (width - (right - left)) * 0.5f - left;
+            deltaX = x + (width - bb.getWidth()) * 0.5f - bb.getX();
         else if (justification.testFlags (Justification::right))
-            deltaX = (x + width) - right;
+            deltaX = (x + width) - bb.getRight();
         else
-            deltaX = x - left;
+            deltaX = x - bb.getX();
 
         float deltaY = 0.0f;
 
         if (justification.testFlags (Justification::top))
-            deltaY = y - top;
+            deltaY = y - bb.getY();
         else if (justification.testFlags (Justification::bottom))
-            deltaY = (y + height) - bottom;
+            deltaY = (y + height) - bb.getBottom();
         else
-            deltaY = y + (height - (bottom - top)) * 0.5f - top;
+            deltaY = y + (height - bb.getHeight()) * 0.5f - bb.getY();
 
         moveRangeOfGlyphs (startIndex, num, deltaX, deltaY);
 
@@ -718,8 +687,8 @@ void GlyphArrangement::justifyGlyphs (const int startIndex,
 void GlyphArrangement::spreadOutLine (const int start, const int num, const float targetWidth)
 {
     if (start + num < glyphs.size()
-         && glyphs.getUnchecked (start + num - 1)->getCharacter() != T('\r')
-         && glyphs.getUnchecked (start + num - 1)->getCharacter() != T('\n'))
+         && glyphs.getUnchecked (start + num - 1)->getCharacter() != '\r'
+         && glyphs.getUnchecked (start + num - 1)->getCharacter() != '\n')
     {
         int numSpaces = 0;
         int spacesAtEnd = 0;

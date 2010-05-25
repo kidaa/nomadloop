@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -150,6 +150,15 @@ public:
                            : static_cast <ObjectClass*> (0);
     }
 
+    /** Returns a pointer to the actual array data.
+        This pointer will only be valid until the next time a non-const method
+        is called on the array.
+    */
+    inline ObjectClass** getRawDataPointer() throw()
+    {
+        return data.elements;
+    }
+
     //==============================================================================
     /** Finds the index of an object which might be in the array.
 
@@ -165,7 +174,7 @@ public:
         while (e != end)
         {
             if (objectToLookFor == *e)
-                return (int) (e - data.elements.getData());
+                return static_cast <int> (e - data.elements.getData());
 
             ++e;
         }
@@ -334,7 +343,7 @@ public:
 
         if (startIndex < 0)
         {
-            jassertfalse
+            jassertfalse;
             startIndex = 0;
         }
 
@@ -466,7 +475,7 @@ public:
         {
             if (objectToRemove == *e)
             {
-                remove ((int) (e - data.elements.getData()), deleteObject);
+                remove (static_cast <int> (e - data.elements.getData()), deleteObject);
                 break;
             }
 

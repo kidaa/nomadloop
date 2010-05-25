@@ -7,6 +7,9 @@
 
 namespace BinaryData
 {
+    extern const char*   brushed_aluminium_png;
+    const int            brushed_aluminium_pngSize = 14724;
+
     extern const char*   AudioPluginXCodeScript_txt;
     const int            AudioPluginXCodeScript_txtSize = 1449;
 
@@ -17,10 +20,16 @@ namespace BinaryData
     const int            jucer_AudioPluginEditorTemplate_hSize = 794;
 
     extern const char*   jucer_AudioPluginFilterTemplate_cpp;
-    const int            jucer_AudioPluginFilterTemplate_cppSize = 4386;
+    const int            jucer_AudioPluginFilterTemplate_cppSize = 4349;
 
     extern const char*   jucer_AudioPluginFilterTemplate_h;
     const int            jucer_AudioPluginFilterTemplate_hSize = 2353;
+
+    extern const char*   jucer_ComponentTemplate_cpp;
+    const int            jucer_ComponentTemplate_cppSize = 2274;
+
+    extern const char*   jucer_ComponentTemplate_h;
+    const int            jucer_ComponentTemplate_hSize = 2239;
 
     extern const char*   jucer_MainConsoleAppTemplate_cpp;
     const int            jucer_MainConsoleAppTemplate_cppSize = 749;
@@ -45,5 +54,5 @@ namespace BinaryData
 
     // If you provide the name of one of the binary resource variables above, this function will
     // return the corresponding data and its size (or a null pointer if the name isn't found).
-    const char* getNamedResource (const wchar_t* resourceName, int& dataSizeInBytes) throw();
+    const char* getNamedResource (const char* resourceNameUTF8, int& dataSizeInBytes) throw();
 }

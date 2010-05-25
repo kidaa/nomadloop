@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -29,7 +29,7 @@
 
 
 //==============================================================================
-void SystemClipboard::copyTextToClipboard (const String& text) throw()
+void SystemClipboard::copyTextToClipboard (const String& text)
 {
     if (OpenClipboard (0) != 0)
     {
@@ -44,7 +44,7 @@ void SystemClipboard::copyTextToClipboard (const String& text) throw()
 
                 if (bufH != 0)
                 {
-                    WCHAR* const data = (WCHAR*) GlobalLock (bufH);
+                    WCHAR* const data = static_cast <WCHAR*> (GlobalLock (bufH));
                     text.copyToUnicode (data, len);
                     GlobalUnlock (bufH);
 
@@ -57,7 +57,7 @@ void SystemClipboard::copyTextToClipboard (const String& text) throw()
     }
 }
 
-const String SystemClipboard::getTextFromClipboard() throw()
+const String SystemClipboard::getTextFromClipboard()
 {
     String result;
 
@@ -71,7 +71,7 @@ const String SystemClipboard::getTextFromClipboard() throw()
 
             if (data != 0)
             {
-                result = String (data, (int) (GlobalSize (bufH) / sizeof (tchar)));
+                result = String (data, (int) (GlobalSize (bufH) / sizeof (wchar_t)));
 
                 GlobalUnlock (bufH);
             }

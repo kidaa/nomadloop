@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -30,6 +30,7 @@
 #include "../../../events/juce_ChangeBroadcaster.h"
 #include "../../../threads/juce_TimeSliceThread.h"
 #include "../../graphics/imaging/juce_Image.h"
+#include "../../../io/files/juce_DirectoryIterator.h"
 
 
 //==============================================================================
@@ -66,7 +67,7 @@ public:
                                 that the thread you give it has been started, or you
                                 won't get any files!
     */
-    DirectoryContentsList (const FileFilter* const fileFilter,
+    DirectoryContentsList (const FileFilter* fileFilter,
                            TimeSliceThread& threadToUse);
 
     /** Destructor. */
@@ -80,8 +81,8 @@ public:
         also start the background thread scanning it for files.
     */
     void setDirectory (const File& directory,
-                       const bool includeDirectories,
-                       const bool includeFiles);
+                       bool includeDirectories,
+                       bool includeFiles);
 
     /** Returns the directory that's currently being used. */
     const File& getDirectory() const;
@@ -99,12 +100,12 @@ public:
 
         By default these are ignored.
     */
-    void setIgnoresHiddenFiles (const bool shouldIgnoreHiddenFiles);
+    void setIgnoresHiddenFiles (bool shouldIgnoreHiddenFiles);
 
     /** Returns true if hidden files are ignored.
         @see setIgnoresHiddenFiles
     */
-    bool ignoresHiddenFiles() const             { return ignoreHiddenFiles; }
+    bool ignoresHiddenFiles() const;
 
     //==============================================================================
     /** Contains cached information about one of the files in a DirectoryContentsList.
@@ -166,8 +167,7 @@ public:
 
         @see getNumFiles, getFile
     */
-    bool getFileInfo (const int index,
-                      FileInfo& resultInfo) const;
+    bool getFileInfo (int index, FileInfo& resultInfo) const;
 
     /** Returns one of the files in the list.
 
@@ -175,7 +175,7 @@ public:
                         return value will be File::nonexistent
         @see getNumFiles, getFileInfo
     */
-    const File getFile (const int index) const;
+    const File getFile (int index) const;
 
     /** Returns the file filter being used.
 
@@ -189,8 +189,8 @@ public:
     /** @internal */
     TimeSliceThread& getTimeSliceThread()                   { return thread; }
     /** @internal */
-    static int compareElements (const DirectoryContentsList::FileInfo* const first,
-                                const DirectoryContentsList::FileInfo* const second);
+    static int compareElements (const DirectoryContentsList::FileInfo* first,
+                                const DirectoryContentsList::FileInfo* second);
 
     juce_UseDebuggingNewOperator
 
@@ -198,19 +198,20 @@ private:
     File root;
     const FileFilter* fileFilter;
     TimeSliceThread& thread;
-    bool includeDirectories, includeFiles, ignoreHiddenFiles;
+    int fileTypeFlags;
 
     CriticalSection fileListLock;
     OwnedArray <FileInfo> files;
 
-    void* volatile fileFindHandle;
+    ScopedPointer <DirectoryIterator> fileFindHandle;
     bool volatile shouldStop;
 
     void changed();
     bool checkNextFile (bool& hasChanged);
-    bool addFile (const String& filename, const bool isDir, const bool isHidden,
+    bool addFile (const File& file, bool isDir,
                   const int64 fileSize, const Time& modTime,
-                  const Time& creationTime, const bool isReadOnly);
+                  const Time& creationTime, bool isReadOnly);
+    void setTypeFlags (int newFlags);
 
     DirectoryContentsList (const DirectoryContentsList&);
     DirectoryContentsList& operator= (const DirectoryContentsList&);

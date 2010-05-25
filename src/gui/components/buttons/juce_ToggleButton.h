@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -48,7 +48,7 @@ public:
                             initially set to this string, but these can be changed later
                             using the setName() and setButtonText() methods)
     */
-    ToggleButton (const String& buttonText);
+    explicit ToggleButton (const String& buttonText = String::empty);
 
     /** Destructor. */
     ~ToggleButton();

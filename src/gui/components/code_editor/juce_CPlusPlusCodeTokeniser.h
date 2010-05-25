@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -61,7 +61,10 @@ public:
     //==============================================================================
     int readNextToken (CodeDocument::Iterator& source);
     const StringArray getTokenTypes();
-    const Colour getDefaultColour (const int tokenType);
+    const Colour getDefaultColour (int tokenType);
+
+    /** This is a handy method for checking whether a string is a c++ reserved keyword. */
+    static bool isReservedKeyword (const String& token) throw();
 
     //==============================================================================
     juce_UseDebuggingNewOperator

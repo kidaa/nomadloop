@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -72,8 +72,8 @@ public:
 private:
     StringArray fileWildcards, directoryWildcards;
 
-    static void parse (const String& pattern, StringArray& result) throw();
-    static bool match (const File& file, const StringArray& wildcards) throw();
+    static void parse (const String& pattern, StringArray& result);
+    static bool match (const File& file, const StringArray& wildcards);
 };
 
 

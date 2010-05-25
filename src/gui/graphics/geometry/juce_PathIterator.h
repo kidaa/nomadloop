@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -56,10 +56,10 @@ public:
     */
     PathFlatteningIterator (const Path& path,
                             const AffineTransform& transform = AffineTransform::identity,
-                            float tolerence = 6.0f) throw();
+                            float tolerence = 6.0f);
 
     /** Destructor. */
-    ~PathFlatteningIterator() throw();
+    ~PathFlatteningIterator();
 
     //==============================================================================
     /** Fetches the next line segment from the path.
@@ -69,16 +69,12 @@ public:
 
         @returns false when there are no more lines to fetch.
     */
-    bool next() throw();
+    bool next();
 
-    /** The x position of the start of the current line segment. */
-    float x1;
-    /** The y position of the start of the current line segment. */
-    float y1;
-    /** The x position of the end of the current line segment. */
-    float x2;
-    /** The y position of the end of the current line segment. */
-    float y2;
+    float x1;  /**< The x position of the start of the current line segment. */
+    float y1;  /**< The y position of the start of the current line segment. */
+    float x2;  /**< The x position of the end of the current line segment. */
+    float y2;  /**< The y position of the end of the current line segment. */
 
     /** Indicates whether the current line segment is closing a sub-path.
 
@@ -95,10 +91,8 @@ public:
     int subPathIndex;
 
     /** Returns true if the current segment is the last in the current sub-path. */
-    bool isLastInSubpath() const            { return stackPos == stackBase.getData()
-                                                      && (index >= path.numElements
-                                                           || points [index] == Path::moveMarker); }
-
+    bool isLastInSubpath() const throw()        { return stackPos == stackBase.getData()
+                                                           && (index >= path.numElements || points [index] == Path::moveMarker); }
 
     //==============================================================================
     juce_UseDebuggingNewOperator
@@ -108,11 +102,11 @@ private:
     const AffineTransform transform;
     float* points;
     float tolerence, subPathCloseX, subPathCloseY;
-    bool isIdentityTransform;
+    const bool isIdentityTransform;
 
     HeapBlock <float> stackBase;
     float* stackPos;
-    int index, stackSize;
+    size_t index, stackSize;
 
     PathFlatteningIterator (const PathFlatteningIterator&);
     PathFlatteningIterator& operator= (const PathFlatteningIterator&);

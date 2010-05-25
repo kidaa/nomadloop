@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -65,6 +65,9 @@ public:
 private:
     DeletedAtShutdown (const DeletedAtShutdown&);
     DeletedAtShutdown& operator= (const DeletedAtShutdown&);
+
+    static CriticalSection& getLock();
+    static Array <DeletedAtShutdown*>& getObjects();
 };
 
 #endif   // __JUCE_DELETEDATSHUTDOWN_JUCEHEADER__

@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -217,7 +217,7 @@ static const String getDSErrorMessage (HRESULT hr)
         if (hr != S_OK)
         {
             String error ("DS error at line ");
-            error << lineNum << T(" - ") << getDSErrorMessage (hr);
+            error << lineNum << " - " << getDSErrorMessage (hr);
             log (error);
         }
     }
@@ -309,7 +309,7 @@ public:
         {
             JUCE_TRY
             {
-                log (T("closing dsound out: ") + name);
+                log ("closing dsound out: " + name);
                 hr = pOutputBuffer->Stop();
                 logError (hr);
             }
@@ -340,10 +340,8 @@ public:
 
     const String open()
     {
-        log (T("opening dsound out device: ") + name
-             + T("  rate=") + String (sampleRate)
-             + T(" bits=") + String (bitDepth)
-             + T(" buf=") + String (bufferSizeSamples));
+        log ("opening dsound out device: " + name + "  rate=" + String (sampleRate)
+              + " bits=" + String (bitDepth) + " buf=" + String (bufferSizeSamples));
 
         pDirectSound = 0;
         pOutputBuffer = 0;
@@ -479,7 +477,7 @@ public:
                 break;
 
             logError (hr);
-            jassertfalse
+            jassertfalse;
             return true;
         }
 
@@ -642,7 +640,7 @@ public:
                 }
                 else
                 {
-                    jassertfalse
+                    jassertfalse;
                 }
 
                 writeOffset = (writeOffset + dwSize1 + dwSize2) % totalBytesPerBuffer;
@@ -651,7 +649,7 @@ public:
             }
             else
             {
-                jassertfalse
+                jassertfalse;
                 logError (hr);
             }
 
@@ -717,7 +715,7 @@ public:
         {
             JUCE_TRY
             {
-                log (T("closing dsound in: ") + name);
+                log ("closing dsound in: " + name);
                 hr = pInputBuffer->Stop();
                 logError (hr);
             }
@@ -760,8 +758,8 @@ public:
 
     const String open()
     {
-        log (T("opening dsound in device: ") + name
-             + T("  rate=") + String (sampleRate) + T(" bits=") + String (bitDepth) + T(" buf=") + String (bufferSizeSamples));
+        log ("opening dsound in device: " + name
+             + "  rate=" + String (sampleRate) + " bits=" + String (bitDepth) + " buf=" + String (bufferSizeSamples));
 
         pDirectSound = 0;
         pDirectSoundCapture = 0;
@@ -800,7 +798,7 @@ public:
             captureDesc.dwBufferBytes = totalBytesPerBuffer;
             captureDesc.lpwfxFormat = &wfFormat;
 
-            log (T("opening dsound in step 2"));
+            log ("opening dsound in step 2");
             hr = pDirectSoundCapture->CreateCaptureBuffer (&captureDesc, &pInputBuffer, 0);
 
             logError (hr);
@@ -922,7 +920,7 @@ public:
                 }
                 else
                 {
-                    jassertfalse
+                    jassertfalse;
                 }
 
                 readOffset = (readOffset + dwsize1 + dwsize2) % totalBytesPerBuffer;
@@ -932,7 +930,7 @@ public:
             else
             {
                 logError (hr);
-                jassertfalse
+                jassertfalse;
             }
 
             bytesFilled -= bytesPerBuffer;
@@ -960,12 +958,10 @@ public:
           isStarted (false),
           outputDeviceIndex (outputDeviceIndex_),
           inputDeviceIndex (inputDeviceIndex_),
-          numInputBuffers (0),
-          numOutputBuffers (0),
           totalSamplesOut (0),
           sampleRate (0.0),
-          inputBuffers (0),
-          outputBuffers (0),
+          inputBuffers (1, 1),
+          outputBuffers (1, 1),
           callback (0),
           bufferSizeSamples (0)
     {
@@ -1030,8 +1026,8 @@ public:
         return 2560;
     }
 
-    const String open (const BitArray& inputChannels,
-                       const BitArray& outputChannels,
+    const String open (const BigInteger& inputChannels,
+                       const BigInteger& outputChannels,
                        double sampleRate,
                        int bufferSizeSamples)
     {
@@ -1083,12 +1079,12 @@ public:
         return bits;
     }
 
-    const BitArray getActiveOutputChannels() const
+    const BigInteger getActiveOutputChannels() const
     {
         return enabledOutputs;
     }
 
-    const BitArray getActiveInputChannels() const
+    const BigInteger getActiveInputChannels() const
     {
         return enabledInputs;
     }
@@ -1163,12 +1159,13 @@ private:
     OwnedArray <DSoundInternalOutChannel> outChans;
     WaitableEvent startEvent;
 
-    int numInputBuffers, numOutputBuffers, bufferSizeSamples;
+    int bufferSizeSamples;
     int volatile totalSamplesOut;
     int64 volatile lastBlockTime;
     double sampleRate;
-    BitArray enabledInputs, enabledOutputs;
-    HeapBlock <float*> inputBuffers, outputBuffers;
+    BigInteger enabledInputs, enabledOutputs;
+
+    AudioSampleBuffer inputBuffers, outputBuffers;
 
     AudioIODeviceCallback* callback;
     CriticalSection startStopLock;
@@ -1176,8 +1173,8 @@ private:
     DSoundAudioIODevice (const DSoundAudioIODevice&);
     DSoundAudioIODevice& operator= (const DSoundAudioIODevice&);
 
-    const String openDevice (const BitArray& inputChannels,
-                             const BitArray& outputChannels,
+    const String openDevice (const BigInteger& inputChannels,
+                             const BigInteger& outputChannels,
                              double sampleRate_,
                              int bufferSizeSamples_);
 
@@ -1188,19 +1185,8 @@ private:
 
         inChans.clear();
         outChans.clear();
-
-        int i;
-        for (i = 0; i < numInputBuffers; ++i)
-            juce_free (inputBuffers[i]);
-
-        inputBuffers.free();
-        numInputBuffers = 0;
-
-        for (i = 0; i < numOutputBuffers; ++i)
-            juce_free (outputBuffers[i]);
-
-        outputBuffers.free();
-        numOutputBuffers = 0;
+        inputBuffers.setSize (1, 1);
+        outputBuffers.setSize (1, 1);
     }
 
     void resync()
@@ -1307,10 +1293,10 @@ public:
             {
                 JUCE_TRY
                 {
-                    callback->audioDeviceIOCallback (const_cast <const float**> (inputBuffers.getData()),
-                                                     numInputBuffers,
-                                                     outputBuffers,
-                                                     numOutputBuffers,
+                    callback->audioDeviceIOCallback (const_cast <const float**> (inputBuffers.getArrayOfChannels()),
+                                                     inputBuffers.getNumChannels(),
+                                                     outputBuffers.getArrayOfChannels(),
+                                                     outputBuffers.getNumChannels(),
                                                      bufferSizeSamples);
                 }
                 JUCE_CATCH_EXCEPTION
@@ -1319,10 +1305,7 @@ public:
             }
             else
             {
-                for (i = 0; i < numOutputBuffers; ++i)
-                    if (outputBuffers[i] != 0)
-                        zeromem (outputBuffers[i], bufferSizeSamples * sizeof (float));
-
+                outputBuffers.clear();
                 totalSamplesOut = 0;
                 sleep (1);
             }
@@ -1336,7 +1319,7 @@ class DSoundAudioIODeviceType  : public AudioIODeviceType
 {
 public:
     DSoundAudioIODeviceType()
-        : AudioIODeviceType (T("DirectSound")),
+        : AudioIODeviceType ("DirectSound"),
           hasScanned (false)
     {
         initialiseDSoundFunctions();
@@ -1363,7 +1346,7 @@ public:
         }
     }
 
-    const StringArray getDeviceNames (const bool wantInputNames) const
+    const StringArray getDeviceNames (bool wantInputNames) const
     {
         jassert (hasScanned); // need to call scanForDevices() before doing this
 
@@ -1371,13 +1354,13 @@ public:
                                : outputDeviceNames;
     }
 
-    int getDefaultDeviceIndex (const bool /*forInput*/) const
+    int getDefaultDeviceIndex (bool /*forInput*/) const
     {
         jassert (hasScanned); // need to call scanForDevices() before doing this
         return 0;
     }
 
-    int getIndexOfDevice (AudioIODevice* device, const bool asInput) const
+    int getIndexOfDevice (AudioIODevice* device, bool asInput) const
     {
         jassert (hasScanned); // need to call scanForDevices() before doing this
 
@@ -1430,7 +1413,7 @@ private:
 
             int n = 2;
             while (outputDeviceNames.contains (desc))
-                desc = origDesc + T(" (") + String (n++) + T(")");
+                desc = origDesc + " (" + String (n++) + ")";
 
             outputDeviceNames.add (desc);
 
@@ -1466,7 +1449,7 @@ private:
 
             int n = 2;
             while (inputDeviceNames.contains (desc))
-                desc = origDesc + T(" (") + String (n++) + T(")");
+                desc = origDesc + " (" + String (n++) + ")";
 
             inputDeviceNames.add (desc);
 
@@ -1497,8 +1480,8 @@ private:
 };
 
 //==============================================================================
-const String DSoundAudioIODevice::openDevice (const BitArray& inputChannels,
-                                              const BitArray& outputChannels,
+const String DSoundAudioIODevice::openDevice (const BigInteger& inputChannels,
+                                              const BigInteger& outputChannels,
                                               double sampleRate_,
                                               int bufferSizeSamples_)
 {
@@ -1520,20 +1503,18 @@ const String DSoundAudioIODevice::openDevice (const BitArray& inputChannels,
                             enabledInputs.getHighestBit() + 1 - inChannels.size(),
                             false);
 
-    numInputBuffers = enabledInputs.countNumberOfSetBits();
-    inputBuffers.calloc (numInputBuffers + 2);
+    inputBuffers.setSize (enabledInputs.countNumberOfSetBits(), bufferSizeSamples);
     int i, numIns = 0;
 
     for (i = 0; i <= enabledInputs.getHighestBit(); i += 2)
     {
         float* left = 0;
-        float* right = 0;
-
         if (enabledInputs[i])
-            left = inputBuffers[numIns++] = (float*) juce_calloc ((bufferSizeSamples + 16) * sizeof (float));
+            left = inputBuffers.getSampleData (numIns++);
 
+        float* right = 0;
         if (enabledInputs[i + 1])
-            right = inputBuffers[numIns++] = (float*) juce_calloc ((bufferSizeSamples + 16) * sizeof (float));
+            right = inputBuffers.getSampleData (numIns++);
 
         if (left != 0 || right != 0)
             inChans.add (new DSoundInternalInChannel (dlh.inputDeviceNames [inputDeviceIndex],
@@ -1547,20 +1528,18 @@ const String DSoundAudioIODevice::openDevice (const BitArray& inputChannels,
                              enabledOutputs.getHighestBit() + 1 - outChannels.size(),
                              false);
 
-    numOutputBuffers = enabledOutputs.countNumberOfSetBits();
-    outputBuffers.calloc (numOutputBuffers + 2);
+    outputBuffers.setSize (enabledOutputs.countNumberOfSetBits(), bufferSizeSamples);
     int numOuts = 0;
 
     for (i = 0; i <= enabledOutputs.getHighestBit(); i += 2)
     {
         float* left = 0;
-        float* right = 0;
-
         if (enabledOutputs[i])
-            left = outputBuffers[numOuts++] = (float*) juce_calloc ((bufferSizeSamples + 16) * sizeof (float));
+            left = outputBuffers.getSampleData (numOuts++);
 
+        float* right = 0;
         if (enabledOutputs[i + 1])
-            right = outputBuffers[numOuts++] = (float*) juce_calloc ((bufferSizeSamples + 16) * sizeof (float));
+            right = outputBuffers.getSampleData (numOuts++);
 
         if (left != 0 || right != 0)
             outChans.add (new DSoundInternalOutChannel (dlh.outputDeviceNames[outputDeviceIndex],
@@ -1583,8 +1562,7 @@ const String DSoundAudioIODevice::openDevice (const BitArray& inputChannels,
 
         if (error.isNotEmpty())
         {
-            error = T("Error opening ") + dlh.outputDeviceNames[i]
-                     + T(": \"") + error + T("\"");
+            error = "Error opening " + dlh.outputDeviceNames[i] + ": \"" + error + "\"";
             break;
         }
     }
@@ -1597,8 +1575,7 @@ const String DSoundAudioIODevice::openDevice (const BitArray& inputChannels,
 
             if (error.isNotEmpty())
             {
-                error = T("Error opening ") + dlh.inputDeviceNames[i]
-                            + T(": \"") + error + T("\"");
+                error = "Error opening " + dlh.inputDeviceNames[i] + ": \"" + error + "\"";
                 break;
             }
         }

@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -24,56 +24,58 @@
 */
 
 #include "../../jucer_Headers.h"
-#include "jucer_DrawableObjectComponent.h"
-#include "jucer_DrawableEditor.h"
+#include "../../model/Drawable/jucer_DrawableDocument.h"
 #include "../jucer_JucerTreeViewBase.h"
-#include "jucer_DrawableTreeViewItem.h"
+#include "../Editor Base/jucer_EditorPanel.h"
+#include "../Editor Base/jucer_EditorCanvas.h"
+#include "../Editor Base/jucer_EditorDragOperation.h"
+#include "jucer_DrawableEditor.h"
+#include "jucer_DrawableEditorCanvas.h"
+#include "jucer_DrawableEditorTreeView.h"
+#include "jucer_DrawableEditorToolbar.h"
 
 
 //==============================================================================
-class RightHandPanel  : public Component
+class DrawableEditor::Panel  : public EditorPanelBase
 {
 public:
-    RightHandPanel (DrawableEditor& editor_)
-      : editor (editor_)
+    Panel (DrawableEditor& editor_)
+        : toolbarFactory (editor_),
+          editor (editor_)
     {
-        setOpaque (true);
-
-        addAndMakeVisible (tree = new TreeView());
-        tree->setRootItemVisible (true);
-        tree->setMultiSelectEnabled (true);
-        tree->setDefaultOpenness (true);
-        tree->setColour (TreeView::backgroundColourId, Colours::white);
-        tree->setIndentSize (15);
-        tree->setRootItem (DrawableTreeViewItem::createItemForNode (editor, editor.getDocument().getRootDrawableNode()));
     }
 
-    ~RightHandPanel()
+    ~Panel()
     {
-        tree->deleteRootItem();
-        deleteAllChildren();
+        shutdown();
     }
 
-    void paint (Graphics& g)
+    void createCanvas()
     {
-        g.fillAll (Colour::greyLevel (0.92f));
+        initialise (new DrawableEditorCanvas (editor), toolbarFactory,
+                    new DrawableTreeViewItem (editor, editor.getDocument().getRootDrawableNode().getState()));
     }
 
-    void resized()
+    SelectedItemSet<String>& getSelection()
     {
-        tree->setSize (getWidth(), getHeight());
+        return editor.getSelection();
+    }
+
+    void getSelectedItemProperties (Array<PropertyComponent*>& props)
+    {
+        editor.getDocument().createItemProperties (props, editor.getSelectedIds());
     }
 
 private:
+    DrawableEditorToolbarFactory toolbarFactory;
     DrawableEditor& editor;
-    TreeView* tree;
 };
 
 //==============================================================================
-DrawableEditor::DrawableEditor (OpenDocumentManager::Document* document,
+DrawableEditor::DrawableEditor (OpenDocumentManager::Document* document_,
                                 Project* project_,
                                 DrawableDocument* drawableDocument_)
-    : DocumentEditorComponent (document),
+    : DocumentEditorComponent (document_),
       project (project_),
       drawableDocument (drawableDocument_)
 {
@@ -81,22 +83,13 @@ DrawableEditor::DrawableEditor (OpenDocumentManager::Document* document,
 
     setOpaque (true);
 
-    addAndMakeVisible (rightHandPanel = new RightHandPanel (*this));
-
-    Canvas* canvas = new Canvas (*this);
-    addAndMakeVisible (viewport = new Viewport());
-    viewport->setViewedComponent (canvas);
-    canvas->createRootObject();
+    addAndMakeVisible (panel = new Panel (*this));
+    panel->createCanvas();
 }
 
 DrawableEditor::~DrawableEditor()
 {
     deleteAllChildren();
-}
-
-int64 DrawableEditor::getHashForNode (const ValueTree& node)
-{
-    return node ["id"].toString().hashCode64();
 }
 
 void DrawableEditor::paint (Graphics& g)
@@ -106,117 +99,160 @@ void DrawableEditor::paint (Graphics& g)
 
 void DrawableEditor::resized()
 {
-    rightHandPanel->setBounds (getWidth() - 200, 0, 200, getHeight());
-    viewport->setBounds (0, 0, rightHandPanel->getX(), getHeight());
-    getCanvas()->updateSize();
+    panel->setBounds (getLocalBounds());
 }
 
 //==============================================================================
-DrawableEditor::Canvas::Canvas (DrawableEditor& editor_)
-   : editor (editor_), border (40)
+const StringArray DrawableEditor::getSelectedIds() const
 {
-    origin.setXY (50, 50);
+    StringArray ids;
+    const int num = selection.getNumSelected();
+    for (int i = 0; i < num; ++i)
+        ids.add (selection.getSelectedItem(i));
+
+    return ids;
 }
 
-DrawableEditor::Canvas::~Canvas()
+void DrawableEditor::deleteSelection()
 {
-    rootObject = 0;
 }
 
-void DrawableEditor::Canvas::createRootObject()
+void DrawableEditor::selectionToFront()
 {
-    addAndMakeVisible (rootObject = DrawableObjectComponent::create (editor.getDocument().getRootDrawableNode(),
-                                                                     editor, 0));
-    rootObject->drawableOriginRelativeToParentTopLeft = origin;
-    rootObject->reloadFromValueTree();
 }
 
-void DrawableEditor::Canvas::paint (Graphics& g)
+void DrawableEditor::selectionToBack()
 {
-/*    g.setColour (Colours::lightgrey);
-
-    g.fillRect (0, border.getTop() - 1, getWidth(), 1);
-    g.fillRect (0, getHeight() - border.getBottom(), getWidth(), 1);
-    g.fillRect (border.getLeft() - 1, 0, 1, getHeight());
-    g.fillRect (getWidth() - border.getRight(), 0, 1, getHeight());*/
-
-    g.setColour (Colours::grey);
-    g.fillRect (0, origin.getY(), getWidth(), 1);
-    g.fillRect (origin.getX(), 0, 1, getHeight());
 }
 
-void DrawableEditor::Canvas::mouseDown (const MouseEvent& e)
+void DrawableEditor::showNewShapeMenu (Component* componentToAttachTo)
 {
-    lasso = 0;
+    PopupMenu m;
+    getDocument().addNewItemMenuItems (m);
+    const int r = m.showAt (componentToAttachTo);
+    getDocument().performNewItemMenuItem (r);
+}
 
-    if (e.mods.isPopupMenu())
+//==============================================================================
+void DrawableEditor::getAllCommands (Array <CommandID>& commands)
+{
+    DocumentEditorComponent::getAllCommands (commands);
+
+    const CommandID ids[] = { CommandIDs::undo,
+                              CommandIDs::redo,
+                              CommandIDs::toFront,
+                              CommandIDs::toBack,
+                              CommandIDs::showOrHideProperties,
+                              CommandIDs::showOrHideTree,
+                              CommandIDs::showOrHideMarkers,
+                              CommandIDs::toggleSnapping,
+                              StandardApplicationCommandIDs::del };
+
+    commands.addArray (ids, numElementsInArray (ids));
+}
+
+void DrawableEditor::getCommandInfo (CommandID commandID, ApplicationCommandInfo& result)
+{
+    result.setActive (document != 0);
+
+    switch (commandID)
     {
-        PopupMenu m;
-        m.addItem (1, "New Rectangle");
-        m.addItem (2, "New Circle");
+    case CommandIDs::undo:
+        result.setInfo ("Undo", "Undoes the last change", CommandCategories::general, 0);
+        result.defaultKeypresses.add (KeyPress ('z', ModifierKeys::commandModifier, 0));
+        break;
 
-        switch (m.show())
-        {
-        case 1:
-            editor.getDocument().addRectangle();
-            break;
+    case CommandIDs::redo:
+        result.setInfo ("Redo", "Redoes the last change", CommandCategories::general, 0);
+        result.defaultKeypresses.add (KeyPress ('z', ModifierKeys::shiftModifier | ModifierKeys::commandModifier, 0));
+        result.defaultKeypresses.add (KeyPress ('y', ModifierKeys::commandModifier, 0));
+        break;
 
-        case 2:
-            editor.getDocument().addCircle();
-            break;
+    case CommandIDs::toFront:
+        result.setInfo ("Bring to Front", "Brings the selected items to the front", CommandCategories::editing, 0);
+        break;
 
-        default:
-            break;
-        }
+    case CommandIDs::toBack:
+        result.setInfo ("Send to Back", "Moves the selected items to the back", CommandCategories::editing, 0);
+        break;
+
+    case CommandIDs::showOrHideProperties:
+        result.setInfo ("Show/Hide Tree", "Shows or hides the component tree view", CommandCategories::editing, 0);
+        result.setTicked (panel != 0 && panel->arePropertiesVisible());
+        break;
+
+    case CommandIDs::showOrHideTree:
+        result.setInfo ("Show/Hide Properties", "Shows or hides the component properties panel", CommandCategories::editing, 0);
+        result.setTicked (panel != 0 && panel->isTreeVisible());
+        break;
+
+    case CommandIDs::showOrHideMarkers:
+        result.setInfo ("Show/Hide Markers", "Shows or hides the markers", CommandCategories::editing, 0);
+        result.setTicked (panel != 0 && panel->areMarkersVisible());
+        break;
+
+    case CommandIDs::toggleSnapping:
+        result.setInfo ("Toggle snapping", "Turns object snapping on or off", CommandCategories::editing, 0);
+        result.setTicked (panel != 0 && panel->isSnappingEnabled());
+        break;
+
+    case StandardApplicationCommandIDs::del:
+        result.setInfo ("Delete", String::empty, CommandCategories::general, 0);
+        result.defaultKeypresses.add (KeyPress (KeyPress::deleteKey, 0, 0));
+        result.defaultKeypresses.add (KeyPress (KeyPress::backspaceKey, 0, 0));
+        break;
+
+    default:
+        DocumentEditorComponent::getCommandInfo (commandID, result);
+        break;
     }
-    else
+}
+
+bool DrawableEditor::perform (const InvocationInfo& info)
+{
+    switch (info.commandID)
     {
-        addAndMakeVisible (lasso = new LassoComponent <int64>());
-        lasso->beginLasso (e, this);
+    case CommandIDs::undo:
+        getDocument().getUndoManager()->beginNewTransaction();
+        getDocument().getUndoManager()->undo();
+        return true;
+
+    case CommandIDs::redo:
+        getDocument().getUndoManager()->beginNewTransaction();
+        getDocument().getUndoManager()->redo();
+        return true;
+
+    case CommandIDs::toFront:
+        selectionToFront();
+        return true;
+
+    case CommandIDs::toBack:
+        selectionToBack();
+        return true;
+
+    case CommandIDs::showOrHideProperties:
+        panel->showOrHideProperties();
+        return true;
+
+    case CommandIDs::showOrHideTree:
+        panel->showOrHideTree();
+        return true;
+
+    case CommandIDs::showOrHideMarkers:
+        panel->showOrHideMarkers();
+        return true;
+
+    case CommandIDs::toggleSnapping:
+        panel->toggleSnapping();
+        return true;
+
+    case StandardApplicationCommandIDs::del:
+        deleteSelection();
+        return true;
+
+    default:
+        break;
     }
-}
 
-void DrawableEditor::Canvas::mouseDrag (const MouseEvent& e)
-{
-    if (lasso != 0)
-        lasso->dragLasso (e);
-}
-
-void DrawableEditor::Canvas::mouseUp (const MouseEvent& e)
-{
-    if (lasso != 0)
-    {
-        lasso->endLasso();
-        lasso = 0;
-    }
-}
-
-void DrawableEditor::Canvas::findLassoItemsInArea (Array <int64>& itemsFound, int x, int y, int width, int height)
-{
-    for (int i = getNumChildComponents(); --i >= 0;)
-    {
-        DrawableObjectComponent* d = dynamic_cast <DrawableObjectComponent*> (getChildComponent(i));
-
-        if (d != 0)
-            d->findLassoItemsInArea (itemsFound, Rectangle<int> (x, y, width, height));
-    }
-}
-
-SelectedItemSet <int64>& DrawableEditor::Canvas::getLassoSelection()
-{
-    return editor.selectedItems;
-}
-
-void DrawableEditor::Canvas::updateSize()
-{
-    Rectangle<int> r (rootObject->getBounds());
-
-    setSize (jmax (editor.viewport->getMaximumVisibleWidth(), r.getRight()),
-             jmax (editor.viewport->getMaximumVisibleHeight(), r.getBottom()));
-}
-
-void DrawableEditor::Canvas::childBoundsChanged (Component* child)
-{
-    if (child == rootObject)
-        updateSize();
+    return DocumentEditorComponent::perform (info);
 }

@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -33,88 +33,6 @@ BEGIN_JUCE_NAMESPACE
 #include "../../../io/streams/juce_BufferedInputStream.h"
 #include "image_file_formats/juce_GIFLoader.h"
 
-//==============================================================================
-Image* juce_loadPNGImageFromStream (InputStream& inputStream);
-bool juce_writePNGImageToStream (const Image& image, OutputStream& out);
-
-PNGImageFormat::PNGImageFormat()    {}
-PNGImageFormat::~PNGImageFormat()   {}
-
-const String PNGImageFormat::getFormatName()
-{
-    return T("PNG");
-}
-
-bool PNGImageFormat::canUnderstand (InputStream& in)
-{
-    const int bytesNeeded = 4;
-    char header [bytesNeeded];
-
-    return in.read (header, bytesNeeded) == bytesNeeded
-            && header[1] == 'P'
-            && header[2] == 'N'
-            && header[3] == 'G';
-}
-
-Image* PNGImageFormat::decodeImage (InputStream& in)
-{
-    return juce_loadPNGImageFromStream (in);
-}
-
-bool PNGImageFormat::writeImageToStream (const Image& sourceImage,
-                                         OutputStream& destStream)
-{
-    return juce_writePNGImageToStream (sourceImage, destStream);
-}
-
-//==============================================================================
-Image* juce_loadJPEGImageFromStream (InputStream& inputStream);
-bool juce_writeJPEGImageToStream (const Image& image, OutputStream& out, float quality);
-
-JPEGImageFormat::JPEGImageFormat()
-    : quality (-1.0f)
-{
-}
-
-JPEGImageFormat::~JPEGImageFormat()     {}
-
-void JPEGImageFormat::setQuality (const float newQuality)
-{
-    quality = newQuality;
-}
-
-const String JPEGImageFormat::getFormatName()
-{
-    return T("JPEG");
-}
-
-bool JPEGImageFormat::canUnderstand (InputStream& in)
-{
-    const int bytesNeeded = 10;
-    uint8 header [bytesNeeded];
-
-    if (in.read (header, bytesNeeded) == bytesNeeded)
-    {
-        return header[0] == 0xff
-            && header[1] == 0xd8
-            && header[2] == 0xff
-            && (header[3] == 0xe0 || header[3] == 0xe1);
-    }
-
-    return false;
-}
-
-Image* JPEGImageFormat::decodeImage (InputStream& in)
-{
-    return juce_loadJPEGImageFromStream (in);
-}
-
-bool JPEGImageFormat::writeImageToStream (const Image& sourceImage,
-                                          OutputStream& destStream)
-{
-    return juce_writeJPEGImageToStream (sourceImage, destStream, quality);
-}
-
 
 //==============================================================================
 class GIFImageFormat  : public ImageFileFormat
@@ -125,7 +43,7 @@ public:
 
     const String getFormatName()
     {
-        return T("GIF");
+        return "GIF";
     }
 
     bool canUnderstand (InputStream& in)

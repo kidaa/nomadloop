@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -73,7 +73,7 @@ bool PlatformUtilities::launchEmailWithAttachments (const String& targetEmailAdd
                                                     const String& bodyText,
                                                     const StringArray& filesToAttach)
 {
-    jassertfalse    // xxx todo
+    jassertfalse;    // xxx todo
 
     return false;
 }
@@ -131,17 +131,17 @@ public:
         int proxyPort = 0;
 
         String proxyURL (getenv ("http_proxy"));
-        if (proxyURL.startsWithIgnoreCase (T("http://")))
+        if (proxyURL.startsWithIgnoreCase ("http://"))
         {
             if (! decomposeURL (proxyURL, proxyName, proxyPath, proxyPort))
                 return false;
 
-            host = gethostbyname ((const char*) proxyName.toUTF8());
+            host = gethostbyname (proxyName.toUTF8());
             port = proxyPort;
         }
         else
         {
-            host = gethostbyname ((const char*) hostName.toUTF8());
+            host = gethostbyname (hostName.toUTF8());
             port = hostPort;
         }
 
@@ -150,7 +150,7 @@ public:
 
         struct sockaddr_in address;
         zerostruct (address);
-        memcpy ((void*) &address.sin_addr, (const void*) host->h_addr, host->h_length);
+        memcpy (&address.sin_addr, host->h_addr, host->h_length);
         address.sin_family = host->h_addrtype;
         address.sin_port = htons (port);
 
@@ -217,21 +217,19 @@ public:
             StringArray lines;
             lines.addLines (responseHeader);
 
-            // NB - using charToString() here instead of just T(" "), because that was
-            // causing a mysterious gcc internal compiler error...
-            const int statusCode = responseHeader.fromFirstOccurrenceOf (String::charToString (T(' ')), false, false)
+            const int statusCode = responseHeader.fromFirstOccurrenceOf (" ", false, false)
                                                  .substring (0, 3).getIntValue();
 
-            //int contentLength = findHeaderItem (lines, T("Content-Length:")).getIntValue();
-            //bool isChunked = findHeaderItem (lines, T("Transfer-Encoding:")).equalsIgnoreCase ("chunked");
+            //int contentLength = findHeaderItem (lines, "Content-Length:").getIntValue();
+            //bool isChunked = findHeaderItem (lines, "Transfer-Encoding:").equalsIgnoreCase ("chunked");
 
-            String location (findHeaderItem (lines, T("Location:")));
+            String location (findHeaderItem (lines, "Location:"));
 
             if (statusCode >= 300 && statusCode < 400
                 && location.isNotEmpty())
             {
-                if (! location.startsWithIgnoreCase (T("http://")))
-                    location = T("http://") + location;
+                if (! location.startsWithIgnoreCase ("http://"))
+                    location = "http://" + location;
 
                 if (levelsOfRedirection++ < 3)
                     return open (location, headers, postData, isPost, callback, callbackContext, timeOutMs);
@@ -357,7 +355,7 @@ private:
 
         const String header (String::fromUTF8 ((const char*) buffer.getData()));
 
-        if (header.startsWithIgnoreCase (T("HTTP/")))
+        if (header.startsWithIgnoreCase ("HTTP/"))
             return header.trimEnd();
 
         return String::empty;
@@ -367,7 +365,7 @@ private:
     static bool decomposeURL (const String& url,
                               String& host, String& path, int& port)
     {
-        if (! url.startsWithIgnoreCase (T("http://")))
+        if (! url.startsWithIgnoreCase ("http://"))
             return false;
 
         const int nextSlash = url.indexOfChar (7, '/');
@@ -397,7 +395,7 @@ private:
         if (nextSlash >= 0)
             path = url.substring (nextSlash);
         else
-            path = T("/");
+            path = "/";
 
         return true;
     }
@@ -414,11 +412,6 @@ private:
 };
 
 //==============================================================================
-bool juce_isOnLine()
-{
-    return true;
-}
-
 void* juce_openInternetFile (const String& url,
                              const String& headers,
                              const MemoryBlock& postData,
@@ -439,10 +432,7 @@ void* juce_openInternetFile (const String& url,
 
 void juce_closeInternetFile (void* handle)
 {
-    JUCE_HTTPSocketStream* const s = (JUCE_HTTPSocketStream*) handle;
-
-    if (s != 0)
-        delete s;
+    delete static_cast <JUCE_HTTPSocketStream*> (handle);
 }
 
 int juce_readFromInternetFile (void* handle, void* buffer, int bytesToRead)
@@ -462,7 +452,7 @@ int64 juce_getInternetFileContentLength (void* handle)
     if (s != 0)
     {
         //xxx todo
-        jassertfalse
+        jassertfalse;
     }
 
     return -1;

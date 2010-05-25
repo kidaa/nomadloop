@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -66,9 +66,9 @@ public:
         @param hasDropShadow            if true, the button will be given a drop-shadow effect
     */
     void setShape (const Path& newShape,
-                   const bool resizeNowToFitThisShape,
-                   const bool maintainShapeProportions,
-                   const bool hasDropShadow);
+                   bool resizeNowToFitThisShape,
+                   bool maintainShapeProportions,
+                   bool hasDropShadow);
 
     /** Set the colours to use for drawing the shape.
 
@@ -86,7 +86,7 @@ public:
         @param outlineStrokeWidth   the thickness of line to draw
     */
     void setOutline (const Colour& outlineColour,
-                     const float outlineStrokeWidth);
+                     float outlineStrokeWidth);
 
 
     //==============================================================================

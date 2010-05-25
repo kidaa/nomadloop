@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -59,8 +59,8 @@ public:
 
     RootFolder getRoot() const                              { return root; }
 
-    const String toUnixStyle() const                        { return unixStylePath (path); }
-    const String toWindowsStyle() const                     { return windowsStylePath (path); }
+    const String toUnixStyle() const                        { return FileHelpers::unixStylePath (path); }
+    const String toWindowsStyle() const                     { return FileHelpers::windowsStylePath (path); }
 
     const String getFileName() const                        { return getFakeFile().getFileName(); }
     const String getFileNameWithoutExtension() const        { return getFakeFile().getFileNameWithoutExtension(); }
@@ -71,16 +71,16 @@ public:
 
     const RelativePath withFileExtension (const String& extension) const
     {
-        return RelativePath (path.upToLastOccurrenceOf (T("."), ! extension.startsWithChar (T('.')), false) + extension, root);
+        return RelativePath (path.upToLastOccurrenceOf (".", ! extension.startsWithChar ('.'), false) + extension, root);
     }
 
     const RelativePath getParentDirectory() const
     {
         String p (path);
-        if (path.endsWithChar (T('/')))
+        if (path.endsWithChar ('/'))
             p = p.dropLastCharacters (1);
 
-        return RelativePath (p.upToLastOccurrenceOf (T("/"), false, false), root);
+        return RelativePath (p.upToLastOccurrenceOf ("/", false, false), root);
     }
 
     const RelativePath getChildFile (const String& subpath) const
@@ -89,7 +89,7 @@ public:
             return RelativePath (subpath, root);
 
         String p (toUnixStyle());
-        if (! p.endsWithChar (T('/')))
+        if (! p.endsWithChar ('/'))
             p << '/';
 
         return RelativePath (p + subpath, root);
@@ -116,9 +116,9 @@ private:
     static bool isAbsolute (const String& path)
     {
         return File::isAbsolutePath (path)
-                || path.startsWithChar (T('$'))
-                || path.startsWithChar (T('~'))
-                || (CharacterFunctions::isLetter (path[0]) && path[1] == T(':'));
+                || path.startsWithChar ('$')
+                || path.startsWithChar ('~')
+                || (CharacterFunctions::isLetter (path[0]) && path[1] == ':');
     }
 };
 

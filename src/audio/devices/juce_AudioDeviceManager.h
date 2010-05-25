@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -124,7 +124,7 @@ public:
             The bits that are set in this array indicate the channels of the
             input device that are active.
         */
-        BitArray inputChannels;
+        BigInteger inputChannels;
 
         /** If this is true, it indicates that the inputChannels array
             should be ignored, and instead, the device's default channels
@@ -136,7 +136,7 @@ public:
             The bits that are set in this array indicate the channels of the
             input device that are active.
         */
-        BitArray outputChannels;
+        BigInteger outputChannels;
 
         /** If this is true, it indicates that the outputChannels array
             should be ignored, and instead, the device's default channels
@@ -174,10 +174,10 @@ public:
 
         @returns an error message if anything went wrong, or an empty string if it worked ok.
     */
-    const String initialise (const int numInputChannelsNeeded,
-                             const int numOutputChannelsNeeded,
-                             const XmlElement* const savedState,
-                             const bool selectDefaultDeviceOnFailure,
+    const String initialise (int numInputChannelsNeeded,
+                             int numOutputChannelsNeeded,
+                             const XmlElement* savedState,
+                             bool selectDefaultDeviceOnFailure,
                              const String& preferredDefaultDeviceName = String::empty,
                              const AudioDeviceSetup* preferredSetupOptions = 0);
 
@@ -215,7 +215,7 @@ public:
         @see getAudioDeviceSetup
     */
     const String setAudioDeviceSetup (const AudioDeviceSetup& newSetup,
-                                      const bool treatAsChosenDevice);
+                                      bool treatAsChosenDevice);
 
 
     /** Returns the currently-active audio device. */
@@ -224,7 +224,7 @@ public:
     /** Returns the type of audio device currently in use.
         @see setCurrentAudioDeviceType
     */
-    const String getCurrentAudioDeviceType() const throw()              { return currentDeviceType; }
+    const String getCurrentAudioDeviceType() const                      { return currentDeviceType; }
 
     /** Returns the currently active audio device type object.
         Don't keep a copy of this pointer - it's owned by the device manager and could
@@ -240,7 +240,7 @@ public:
         For a list of types, see getAvailableDeviceTypes().
     */
     void setCurrentAudioDeviceType (const String& type,
-                                    const bool treatAsChosenDevice);
+                                    bool treatAsChosenDevice);
 
 
     /** Closes the currently-open device.
@@ -312,7 +312,7 @@ public:
         @see addMidiInputCallback, isMidiInputEnabled
     */
     void setMidiInputEnabled (const String& midiInputDeviceName,
-                              const bool enabled);
+                              bool enabled);
 
     /** Returns true if a given midi input device is being used.
 
@@ -356,7 +356,7 @@ public:
 
         @see setDefaultMidiOutput, getDefaultMidiOutput
     */
-    const String getDefaultMidiOutputName() const throw()           { return defaultMidiOutputName; }
+    const String getDefaultMidiOutputName() const                   { return defaultMidiOutputName; }
 
     /** Returns the current default midi output device.
 
@@ -403,7 +403,7 @@ public:
         only intended for giving rough feedback, and not for any kind of accurate
         measurement.
     */
-    void enableInputLevelMeasurement (const bool enableMeasurement);
+    void enableInputLevelMeasurement (bool enableMeasurement);
 
     /** Returns the current input level.
 
@@ -426,7 +426,7 @@ private:
     SortedSet <AudioIODeviceCallback*> callbacks;
     int numInputChansNeeded, numOutputChansNeeded;
     String currentDeviceType;
-    BitArray inputChannels, outputChannels;
+    BigInteger inputChannels, outputChannels;
     ScopedPointer <XmlElement> lastExplicitSettings;
     mutable bool listNeedsScanning;
     bool useInputNames;
@@ -474,13 +474,13 @@ private:
                                    float** outputChannelData,
                                    int totalNumOutputChannels,
                                    int numSamples);
-    void audioDeviceAboutToStartInt (AudioIODevice* const device);
+    void audioDeviceAboutToStartInt (AudioIODevice* device);
     void audioDeviceStoppedInt();
 
     void handleIncomingMidiMessageInt (MidiInput* source, const MidiMessage& message);
 
     const String restartDevice (int blockSizeToUse, double sampleRateToUse,
-                                const BitArray& ins, const BitArray& outs);
+                                const BigInteger& ins, const BigInteger& outs);
     void stopDevice();
 
     void updateXml();

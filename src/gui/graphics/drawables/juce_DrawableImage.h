@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -40,6 +40,7 @@ class JUCE_API  DrawableImage  : public Drawable
 public:
     //==============================================================================
     DrawableImage();
+    DrawableImage (const DrawableImage& other);
 
     /** Destructor. */
     virtual ~DrawableImage();
@@ -55,30 +56,23 @@ public:
 
     /** Sets the image that this drawable will render.
 
-        An internal copy of this will not be made, so the caller mustn't delete
-        the image while it's still being used by this object.
-
         A good way to use this is with the ImageCache - if you create an image
         with ImageCache and pass it in here with releaseWhenNotNeeded = true, then
         it'll be released neatly with its reference count being decreased.
 
-        @param imageToUse               the image to render
+        @param imageToUse               the image to render (may be a null pointer)
         @param releaseWhenNotNeeded     if false, a simple pointer is kept to the image; if true,
                                         then the image will be deleted when this object no longer
                                         needs it - unless the image was created by the ImageCache,
                                         in which case it will be released with ImageCache::release().
     */
-    void setImage (Image* imageToUse,
-                   const bool releaseWhenNotNeeded);
+    void setImage (Image* imageToUse, bool releaseWhenNotNeeded);
 
     /** Returns the current image. */
     Image* getImage() const throw()                             { return image; }
 
-    /** Clears (and possibly deletes) the currently set image. */
-    void clearImage();
-
     /** Sets the opacity to use when drawing the image. */
-    void setOpacity (const float newOpacity);
+    void setOpacity (float newOpacity);
 
     /** Returns the image's opacity. */
     float getOpacity() const throw()                            { return opacity; }
@@ -97,6 +91,37 @@ public:
     /** Returns the overlay colour. */
     const Colour& getOverlayColour() const throw()              { return overlayColour; }
 
+    /** Sets the transform to be applied to this image, by defining the positions
+        where three anchor points should end up in the target rendering space.
+
+        @param imageTopLeftPosition     the position that the image's top-left corner should be mapped to
+                                        in the target coordinate space.
+        @param imageTopRightPosition    the position that the image's top-right corner should be mapped to
+                                        in the target coordinate space.
+        @param imageBottomLeftPosition  the position that the image's bottom-left corner should be mapped to
+                                        in the target coordinate space.
+    */
+    void setTransform (const RelativePoint& imageTopLeftPosition,
+                       const RelativePoint& imageTopRightPosition,
+                       const RelativePoint& imageBottomLeftPosition);
+
+    /** Returns the position to which the image's top-left corner should be remapped in the target
+        coordinate space when rendering this object.
+        @see setTransform
+    */
+    const RelativePoint& getTargetPositionForTopLeft() const throw()         { return controlPoints[0]; }
+
+    /** Returns the position to which the image's top-right corner should be remapped in the target
+        coordinate space when rendering this object.
+        @see setTransform
+    */
+    const RelativePoint& getTargetPositionForTopRight() const throw()        { return controlPoints[1]; }
+
+    /** Returns the position to which the image's bottom-left corner should be remapped in the target
+        coordinate space when rendering this object.
+        @see setTransform
+    */
+    const RelativePoint& getTargetPositionForBottomLeft() const throw()      { return controlPoints[2]; }
 
     //==============================================================================
     /** @internal */
@@ -108,9 +133,44 @@ public:
     /** @internal */
     Drawable* createCopy() const;
     /** @internal */
-    ValueTree createValueTree() const throw();
+    void invalidatePoints();
     /** @internal */
-    static DrawableImage* createFromValueTree (const ValueTree& tree) throw();
+    const Rectangle<float> refreshFromValueTree (const ValueTree& tree, ImageProvider* imageProvider);
+    /** @internal */
+    const ValueTree createValueTree (ImageProvider* imageProvider) const;
+    /** @internal */
+    static const Identifier valueTreeType;
+    /** @internal */
+    const Identifier getValueTreeType() const    { return valueTreeType; }
+
+    //==============================================================================
+    /** Internally-used class for wrapping a DrawableImage's state into a ValueTree. */
+    class ValueTreeWrapper   : public ValueTreeWrapperBase
+    {
+    public:
+        ValueTreeWrapper (const ValueTree& state);
+
+        const var getImageIdentifier() const;
+        void setImageIdentifier (const var& newIdentifier, UndoManager* undoManager);
+
+        float getOpacity() const;
+        void setOpacity (float newOpacity, UndoManager* undoManager);
+
+        const Colour getOverlayColour() const;
+        void setOverlayColour (const Colour& newColour, UndoManager* undoManager);
+
+        const RelativePoint getTargetPositionForTopLeft() const;
+        void setTargetPositionForTopLeft (const RelativePoint& newPoint, UndoManager* undoManager);
+
+        const RelativePoint getTargetPositionForTopRight() const;
+        void setTargetPositionForTopRight (const RelativePoint& newPoint, UndoManager* undoManager);
+
+        const RelativePoint getTargetPositionForBottomLeft() const;
+        void setTargetPositionForBottomLeft (const RelativePoint& newPoint, UndoManager* undoManager);
+
+    private:
+        static const Identifier opacity, overlay, image, topLeft, topRight, bottomLeft;
+    };
 
     //==============================================================================
     juce_UseDebuggingNewOperator
@@ -120,8 +180,10 @@ private:
     bool canDeleteImage;
     float opacity;
     Colour overlayColour;
+    RelativePoint controlPoints[3];
 
-    DrawableImage (const DrawableImage&);
+    const AffineTransform calculateTransform() const;
+
     DrawableImage& operator= (const DrawableImage&);
 };
 

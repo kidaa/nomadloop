@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -516,8 +516,8 @@ public:
     int numFrames;
     int dataStartOffset;
     int dataLength;
-    BYTE* buffer;
     int bufferSize;
+    HeapBlock<BYTE> buffer;
     int index;
     bool wantsIndex;
 
@@ -527,19 +527,14 @@ public:
           numFrames (0),
           dataStartOffset (0),
           dataLength (0),
+          bufferSize (2352 * numberOfFrames),
+          buffer (bufferSize),
           index (0),
           wantsIndex (false)
     {
-        bufferSize = 2352 * numberOfFrames;
-        buffer = (BYTE*) juce_malloc (bufferSize);
     }
 
-    ~CDReadBuffer()
-    {
-        juce_free (buffer);
-    }
-
-    bool isZero() const
+    bool isZero() const throw()
     {
         BYTE* p = buffer + dataStartOffset;
 
@@ -1066,7 +1061,7 @@ void CDController::prepare (SRB_ExecSCSICmd& s)
 void CDController::perform (SRB_ExecSCSICmd& s)
 {
     HANDLE event = CreateEvent (0, TRUE, FALSE, 0);
-    s.SRB_PostProc = (void*)event;
+    s.SRB_PostProc = event;
 
     ResetEvent (event);
 
@@ -1142,7 +1137,7 @@ bool CDController::readAudio (CDReadBuffer* rb, CDReadBuffer* overlapBuffer)
 
             for (int i = 0; i < maxToCheck; ++i)
             {
-                if (!memcmp (p, rb->buffer + i, checkLen))
+                if (memcmp (p, rb->buffer + i, checkLen) == 0)
                 {
                     i += checkLen;
                     rb->dataStartOffset = i;
@@ -1227,7 +1222,7 @@ bool CDDeviceHandle::readTOC (TOC* lpToc, bool useMSF)
     s.SRB_BufPointer = (BYTE*)lpToc;
     s.SRB_SenseLen = 0x0E;
     s.SRB_CDBLen = 0x0A;
-    s.SRB_PostProc = (void*)event;
+    s.SRB_PostProc = event;
     s.CDBByte[0] = 0x43;
     s.CDBByte[1] = (BYTE)(useMSF ? 0x02 : 0x00);
     s.CDBByte[7] = 0x03;
@@ -1306,7 +1301,7 @@ void CDDeviceHandle::openDrawer (bool shouldBeOpen)
     s.CDBByte[4] = (BYTE)((shouldBeOpen) ? 2 : 3);
 
     HANDLE event = CreateEvent (0, TRUE, FALSE, 0);
-    s.SRB_PostProc = (void*)event;
+    s.SRB_PostProc = event;
 
     ResetEvent (event);
 
@@ -1388,7 +1383,7 @@ static void GetAspiDeviceInfo (CDDeviceInfo* dev, BYTE ha, BYTE tgt, BYTE lun)
     s.SRB_BufPointer = buffer;
     s.SRB_SenseLen   = SENSE_LEN;
     s.SRB_CDBLen     = 6;
-    s.SRB_PostProc   = (void*)event;
+    s.SRB_PostProc   = event;
     s.CDBByte[0]     = SCSI_INQUIRY;
     s.CDBByte[4]     = 100;
 
@@ -1663,11 +1658,11 @@ const StringArray AudioCDReader::getAvailableCDNames()
             String s;
 
             if (list[i].scsiDriveLetter > 0)
-                s << String::charToString (list[i].scsiDriveLetter).toUpperCase() << T(": ");
+                s << String::charToString (list[i].scsiDriveLetter).toUpperCase() << ": ";
 
             s << String (list[i].vendor).trim()
-              << T(" ") << String (list[i].productId).trim()
-              << T(" ") << String (list[i].rev).trim();
+              << ' ' << String (list[i].productId).trim()
+              << ' ' << String (list[i].rev).trim();
 
             results.add (s);
         }
@@ -1706,7 +1701,7 @@ AudioCDReader* AudioCDReader::createReaderForCD (const int deviceIndex)
 }
 
 AudioCDReader::AudioCDReader (void* handle_)
-    : AudioFormatReader (0, T("CD Audio")),
+    : AudioFormatReader (0, "CD Audio"),
       handle (handle_),
       indexingEnabled (false),
       lastIndex (0),
@@ -2137,13 +2132,13 @@ static IDiscRecorder* enumCDBurners (StringArray* list, int indexToOpen, IDiscMa
 }
 
 //==============================================================================
-class AudioCDBurner::Pimpl  : public IDiscMasterProgressEvents,
+class AudioCDBurner::Pimpl  : public ComBaseClassHelper <IDiscMasterProgressEvents>,
                               public Timer
 {
 public:
     Pimpl (AudioCDBurner& owner_, IDiscMaster* discMaster_, IDiscRecorder* discRecorder_)
       : owner (owner_), discMaster (discMaster_), discRecorder (discRecorder_), redbook (0),
-        listener (0), progress (0), shouldCancel (false), refCount (1)
+        listener (0), progress (0), shouldCancel (false)
     {
         HRESULT hr = discMaster->SetActiveDiscMasterFormat (IID_IRedbookDiscMaster, (void**) &redbook);
         jassert (SUCCEEDED (hr));
@@ -2165,25 +2160,6 @@ public:
         discMaster->Release();
         Release();
     }
-
-    HRESULT __stdcall QueryInterface (REFIID id, void __RPC_FAR* __RPC_FAR* result)
-    {
-        if (result == 0)
-            return E_POINTER;
-
-        if (id == IID_IUnknown || id == IID_IDiscMasterProgressEvents)
-        {
-            AddRef();
-            *result = this;
-            return S_OK;
-        }
-
-        *result = 0;
-        return E_NOINTERFACE;
-    }
-
-    ULONG __stdcall AddRef()    { return ++refCount; }
-    ULONG __stdcall Release()   { jassert (refCount > 0); const int r = --refCount; if (r == 0) delete this; return r; }
 
     HRESULT __stdcall QueryCancel (boolean* pbCancel)
     {
@@ -2296,9 +2272,6 @@ public:
     AudioCDBurner::BurnProgressListener* listener;
     float progress;
     bool shouldCancel;
-
-private:
-    int refCount;
 };
 
 //==============================================================================

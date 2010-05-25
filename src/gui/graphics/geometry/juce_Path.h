@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -27,10 +27,9 @@
 #define __JUCE_PATH_JUCEHEADER__
 
 #include "juce_AffineTransform.h"
-#include "juce_Point.h"
+#include "juce_Line.h"
 #include "juce_Rectangle.h"
 #include "../contexts/juce_Justification.h"
-#include "../contexts/juce_EdgeTable.h"
 #include "../../../containers/juce_Array.h"
 #include "../../../io/streams/juce_InputStream.h"
 #include "../../../io/streams/juce_OutputStream.h"
@@ -74,16 +73,19 @@ class JUCE_API  Path
 public:
     //==============================================================================
     /** Creates an empty path. */
-    Path() throw();
+    Path();
 
     /** Creates a copy of another path. */
-    Path (const Path& other) throw();
+    Path (const Path& other);
 
     /** Destructor. */
-    ~Path() throw();
+    ~Path();
 
     /** Copies this path from another one. */
-    Path& operator= (const Path& other) throw();
+    Path& operator= (const Path& other);
+
+    bool operator== (const Path& other) const throw();
+    bool operator!= (const Path& other) const throw();
 
     //==============================================================================
     /** Returns true if the path doesn't contain any lines or curves. */
@@ -111,9 +113,24 @@ public:
 
         @see closeSubPath, setUsingNonZeroWinding
     */
-    bool contains (const float x,
-                   const float y,
-                   const float tolerence = 10.0f) const throw();
+    bool contains (float x, float y,
+                   float tolerence = 10.0f) const;
+
+    /** Checks whether a point lies within the path.
+
+        This is only relevent for closed paths (see closeSubPath()), and
+        may produce false results if used on a path which has open sub-paths.
+
+        The path's winding rule is taken into account by this method.
+
+        The tolerence parameter is passed to the PathFlatteningIterator that
+        is used to trace the path - for more info about it, see the notes for
+        the PathFlatteningIterator constructor.
+
+        @see closeSubPath, setUsingNonZeroWinding
+    */
+    bool contains (const Point<float>& point,
+                   float tolerence = 10.0f) const;
 
     /** Checks whether a line crosses the path.
 
@@ -125,9 +142,22 @@ public:
         is used to trace the path - for more info about it, see the notes for
         the PathFlatteningIterator constructor.
     */
-    bool intersectsLine (const float x1, const float y1,
-                         const float x2, const float y2,
-                         const float tolerence = 10.0f) throw();
+    bool intersectsLine (const Line<float>& line,
+                         float tolerence = 10.0f);
+
+    /** Cuts off parts of a line to keep the parts that are either inside or
+        outside this path.
+
+        Note that this isn't smart enough to cope with situations where the
+        line would need to be cut into multiple pieces to correctly clip against
+        a re-entrant shape.
+
+        @param line                     the line to clip
+        @param keepSectionOutsidePath   if true, it's the section outside the path
+                                        that will be kept; if false its the section inside
+                                        the path
+    */
+    const Line<float> getClippedLine (const Line<float>& line, bool keepSectionOutsidePath) const;
 
     //==============================================================================
     /** Removes all lines and curves, resetting the path completely. */
@@ -144,8 +174,7 @@ public:
 
         @see lineTo, quadraticTo, cubicTo, closeSubPath
     */
-    void startNewSubPath (const float startX,
-                          const float startY) throw();
+    void startNewSubPath (float startX, float startY);
 
     /** Closes a the current sub-path with a line back to its start-point.
 
@@ -159,7 +188,7 @@ public:
 
         @see startNewSubPath, lineTo, quadraticTo, cubicTo, closeSubPath
     */
-    void closeSubPath() throw();
+    void closeSubPath();
 
     /** Adds a line from the shape's last position to a new end-point.
 
@@ -170,8 +199,7 @@ public:
 
         @see startNewSubPath, quadraticTo, cubicTo, closeSubPath
     */
-    void lineTo (const float endX,
-                 const float endY) throw();
+    void lineTo (float endX, float endY);
 
     /** Adds a quadratic bezier curve from the shape's last position to a new position.
 
@@ -182,10 +210,10 @@ public:
 
         @see startNewSubPath, lineTo, cubicTo, closeSubPath
     */
-    void quadraticTo (const float controlPointX,
-                      const float controlPointY,
-                      const float endPointX,
-                      const float endPointY) throw();
+    void quadraticTo (float controlPointX,
+                      float controlPointY,
+                      float endPointX,
+                      float endPointY);
 
     /** Adds a cubic bezier curve from the shape's last position to a new position.
 
@@ -196,12 +224,12 @@ public:
 
         @see startNewSubPath, lineTo, quadraticTo, closeSubPath
     */
-    void cubicTo (const float controlPoint1X,
-                  const float controlPoint1Y,
-                  const float controlPoint2X,
-                  const float controlPoint2Y,
-                  const float endPointX,
-                  const float endPointY) throw();
+    void cubicTo (float controlPoint1X,
+                  float controlPoint1Y,
+                  float controlPoint2X,
+                  float controlPoint2Y,
+                  float endPointX,
+                  float endPointY);
 
     /** Returns the last point that was added to the path by one of the drawing methods.
     */
@@ -215,8 +243,7 @@ public:
 
         @see addRoundedRectangle, addTriangle
     */
-    void addRectangle (const float x, const float y,
-                       const float w, const float h) throw();
+    void addRectangle (float x, float y, float width, float height);
 
     /** Adds a rectangle to the path.
 
@@ -225,7 +252,7 @@ public:
 
         @see addRoundedRectangle, addTriangle
     */
-    void addRectangle (const Rectangle<int>& rectangle) throw();
+    void addRectangle (const Rectangle<int>& rectangle);
 
     /** Adds a rectangle with rounded corners to the path.
 
@@ -234,9 +261,8 @@ public:
 
         @see addRectangle, addTriangle
     */
-    void addRoundedRectangle (const float x, const float y,
-                              const float w, const float h,
-                              float cornerSize) throw();
+    void addRoundedRectangle (float x, float y, float width, float height,
+                              float cornerSize);
 
     /** Adds a rectangle with rounded corners to the path.
 
@@ -245,10 +271,9 @@ public:
 
         @see addRectangle, addTriangle
     */
-    void addRoundedRectangle (const float x, const float y,
-                              const float w, const float h,
+    void addRoundedRectangle (float x, float y, float width, float height,
                               float cornerSizeX,
-                              float cornerSizeY) throw();
+                              float cornerSizeY);
 
     /** Adds a triangle to the path.
 
@@ -259,9 +284,9 @@ public:
         order will affect how the triangle is filled when it overlaps other
         shapes (the winding order setting will affect this of course).
     */
-    void addTriangle (const float x1, const float y1,
-                      const float x2, const float y2,
-                      const float x3, const float y3) throw();
+    void addTriangle (float x1, float y1,
+                      float x2, float y2,
+                      float x3, float y3);
 
     /** Adds a quadrilateral to the path.
 
@@ -272,10 +297,10 @@ public:
         order will affect how the quad is filled when it overlaps other
         shapes (the winding order setting will affect this of course).
     */
-    void addQuadrilateral (const float x1, const float y1,
-                           const float x2, const float y2,
-                           const float x3, const float y3,
-                           const float x4, const float y4) throw();
+    void addQuadrilateral (float x1, float y1,
+                           float x2, float y2,
+                           float x3, float y3,
+                           float x4, float y4);
 
     /** Adds an ellipse to the path.
 
@@ -284,8 +309,7 @@ public:
 
         @see addArc
     */
-    void addEllipse (const float x, const float y,
-                     const float width, const float height) throw();
+    void addEllipse (float x, float y, float width, float height);
 
     /** Adds an elliptical arc to the current path.
 
@@ -308,11 +332,10 @@ public:
 
         @see addCentredArc, arcTo, addPieSegment, addEllipse
     */
-    void addArc (const float x, const float y,
-                 const float width, const float height,
-                 const float fromRadians,
-                 const float toRadians,
-                 const bool startAsNewSubPath = false) throw();
+    void addArc (float x, float y, float width, float height,
+                 float fromRadians,
+                 float toRadians,
+                 bool startAsNewSubPath = false);
 
     /** Adds an arc which is centred at a given point, and can have a rotation specified.
 
@@ -336,12 +359,12 @@ public:
 
         @see addArc, arcTo
     */
-    void addCentredArc (const float centreX, const float centreY,
-                        const float radiusX, const float radiusY,
-                        const float rotationOfEllipse,
-                        const float fromRadians,
-                        const float toRadians,
-                        const bool startAsNewSubPath = false) throw();
+    void addCentredArc (float centreX, float centreY,
+                        float radiusX, float radiusY,
+                        float rotationOfEllipse,
+                        float fromRadians,
+                        float toRadians,
+                        bool startAsNewSubPath = false);
 
     /** Adds a "pie-chart" shape to the path.
 
@@ -366,11 +389,11 @@ public:
 
         @see addArc
     */
-    void addPieSegment (const float x, const float y,
-                        const float width, const float height,
-                        const float fromRadians,
-                        const float toRadians,
-                        const float innerCircleProportionalSize);
+    void addPieSegment (float x, float y,
+                        float width, float height,
+                        float fromRadians,
+                        float toRadians,
+                        float innerCircleProportionalSize);
 
     /** Adds a line with a specified thickness.
 
@@ -379,30 +402,30 @@ public:
 
         @see addArrow
     */
-    void addLineSegment (const float startX, const float startY,
-                         const float endX, const float endY,
-                         float lineThickness) throw();
+    void addLineSegment (float startX, float startY,
+                         float endX, float endY,
+                         float lineThickness);
 
     /** Adds a line with an arrowhead on the end.
 
         The arrow is added as a new closed sub-path. (Any currently open paths will be
         left open).
     */
-    void addArrow (const float startX, const float startY,
-                   const float endX, const float endY,
+    void addArrow (float startX, float startY,
+                   float endX, float endY,
                    float lineThickness,
                    float arrowheadWidth,
-                   float arrowheadLength) throw();
+                   float arrowheadLength);
 
     /** Adds a star shape to the path.
 
     */
-    void addStar (const float centreX,
-                  const float centreY,
-                  const int numberOfPoints,
-                  const float innerRadius,
-                  const float outerRadius,
-                  const float startAngle = 0.0f);
+    void addStar (float centreX,
+                  float centreY,
+                  int numberOfPoints,
+                  float innerRadius,
+                  float outerRadius,
+                  float startAngle = 0.0f);
 
     /** Adds a speech-bubble shape to the path.
 
@@ -434,7 +457,7 @@ public:
 
         @param pathToAppend     the path to add
     */
-    void addPath (const Path& pathToAppend) throw();
+    void addPath (const Path& pathToAppend);
 
     /** Adds another path to this one, transforming it on the way in.
 
@@ -445,14 +468,14 @@ public:
         @param transformToApply an optional transform to apply to the incoming vertices
     */
     void addPath (const Path& pathToAppend,
-                  const AffineTransform& transformToApply) throw();
+                  const AffineTransform& transformToApply);
 
     /** Swaps the contents of this path with another one.
 
         The internal data of the two paths is swapped over, so this is much faster than
         copying it to a temp variable and back.
     */
-    void swapWithPath (Path& other);
+    void swapWithPath (Path& other) throw();
 
     //==============================================================================
     /** Applies a 2D transform to all the vertices in the path.
@@ -476,9 +499,8 @@ public:
 
         @see applyTransform, getTransformToScaleToFit
     */
-    void scaleToFit (const float x, const float y,
-                     const float width, const float height,
-                     const bool preserveProportions) throw();
+    void scaleToFit (float x, float y, float width, float height,
+                     bool preserveProportions) throw();
 
     /** Returns a transform that can be used to rescale the path to fit into a given space.
 
@@ -497,17 +519,16 @@ public:
         @see applyTransform, scaleToFit
 
     */
-    const AffineTransform getTransformToScaleToFit (const float x, const float y,
-                                                    const float width, const float height,
-                                                    const bool preserveProportions,
-                                                    const Justification& justificationType = Justification::centred) const throw();
+    const AffineTransform getTransformToScaleToFit (float x, float y, float width, float height,
+                                                    bool preserveProportions,
+                                                    const Justification& justificationType = Justification::centred) const;
 
     /** Creates a version of this path where all sharp corners have been replaced by curves.
 
         Wherever two lines meet at an angle, this will replace the corner with a curve
         of the given radius.
     */
-    const Path createPathWithRoundedCorners (const float cornerRadius) const throw();
+    const Path createPathWithRoundedCorners (float cornerRadius) const;
 
     //==============================================================================
     /** Changes the winding-rule to be used when filling the path.
@@ -525,7 +546,7 @@ public:
 
         @see isUsingNonZeroWinding
     */
-    void setUsingNonZeroWinding (const bool isNonZeroWinding) throw();
+    void setUsingNonZeroWinding (bool isNonZeroWinding) throw();
 
     /** Returns the flag that indicates whether the path should use a non-zero winding rule.
 
@@ -574,7 +595,7 @@ public:
         //==============================================================================
     private:
         const Path& path;
-        int index;
+        size_t index;
 
         Iterator (const Iterator&);
         Iterator& operator= (const Iterator&);
@@ -600,8 +621,7 @@ public:
 
         @see loadPathFromStream, writePathToStream
     */
-    void loadPathFromData (const unsigned char* const data,
-                           const int numberOfBytes) throw();
+    void loadPathFromData (const void* data, int numberOfBytes);
 
     /** Stores the path by writing it out to a stream.
 
@@ -630,7 +650,7 @@ private:
     friend class PathFlatteningIterator;
     friend class Path::Iterator;
     ArrayAllocationBase <float, DummyCriticalSection> data;
-    int numElements;
+    size_t numElements;
     float pathXMin, pathXMax, pathYMin, pathYMax;
     bool useNonZeroWinding;
 

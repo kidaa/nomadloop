@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -28,15 +28,21 @@
 #if JUCE_INCLUDED_FILE
 
 //==============================================================================
+// These are defined in juce_linux_Messaging.cpp
+extern Display* display;
+extern XContext windowHandleXContext;
+
+//==============================================================================
 namespace Atoms
 {
     enum ProtocolItems
     {
         TAKE_FOCUS = 0,
-        DELETE_WINDOW = 1
+        DELETE_WINDOW = 1,
+        PING = 2
     };
 
-    static Atom Protocols, ProtocolList[2], ChangeState, State,
+    static Atom Protocols, ProtocolList[3], ChangeState, State,
                 ActiveWin, Pid, WindowType, WindowState,
                 XdndAware, XdndEnter, XdndLeave, XdndPosition, XdndStatus,
                 XdndDrop, XdndFinished, XdndSelection, XdndTypeList, XdndActionList,
@@ -55,88 +61,42 @@ namespace Atoms
         {
             atomsInitialised = true;
 
-            Protocols                      = XInternAtom (display, "WM_PROTOCOLS", True);
-            ProtocolList [TAKE_FOCUS]      = XInternAtom (display, "WM_TAKE_FOCUS", True);
-            ProtocolList [DELETE_WINDOW]   = XInternAtom (display, "WM_DELETE_WINDOW", True);
-            ChangeState                    = XInternAtom (display, "WM_CHANGE_STATE", True);
-            State                          = XInternAtom (display, "WM_STATE", True);
-            ActiveWin                      = XInternAtom (display, "_NET_ACTIVE_WINDOW", False);
-            Pid                            = XInternAtom (display, "_NET_WM_PID", False);
-            WindowType                     = XInternAtom (display, "_NET_WM_WINDOW_TYPE", True);
-            WindowState                    = XInternAtom (display, "_NET_WM_WINDOW_STATE", True);
+            Protocols                       = XInternAtom (display, "WM_PROTOCOLS", True);
+            ProtocolList [TAKE_FOCUS]       = XInternAtom (display, "WM_TAKE_FOCUS", True);
+            ProtocolList [DELETE_WINDOW]    = XInternAtom (display, "WM_DELETE_WINDOW", True);
+            ProtocolList [PING]             = XInternAtom (display, "_NET_WM_PING", True);
+            ChangeState                     = XInternAtom (display, "WM_CHANGE_STATE", True);
+            State                           = XInternAtom (display, "WM_STATE", True);
+            ActiveWin                       = XInternAtom (display, "_NET_ACTIVE_WINDOW", False);
+            Pid                             = XInternAtom (display, "_NET_WM_PID", False);
+            WindowType                      = XInternAtom (display, "_NET_WM_WINDOW_TYPE", True);
+            WindowState                     = XInternAtom (display, "_NET_WM_STATE", True);
 
-            XdndAware               = XInternAtom (display, "XdndAware", False);
-            XdndEnter               = XInternAtom (display, "XdndEnter", False);
-            XdndLeave               = XInternAtom (display, "XdndLeave", False);
-            XdndPosition            = XInternAtom (display, "XdndPosition", False);
-            XdndStatus              = XInternAtom (display, "XdndStatus", False);
-            XdndDrop                = XInternAtom (display, "XdndDrop", False);
-            XdndFinished            = XInternAtom (display, "XdndFinished", False);
-            XdndSelection           = XInternAtom (display, "XdndSelection", False);
+            XdndAware                       = XInternAtom (display, "XdndAware", False);
+            XdndEnter                       = XInternAtom (display, "XdndEnter", False);
+            XdndLeave                       = XInternAtom (display, "XdndLeave", False);
+            XdndPosition                    = XInternAtom (display, "XdndPosition", False);
+            XdndStatus                      = XInternAtom (display, "XdndStatus", False);
+            XdndDrop                        = XInternAtom (display, "XdndDrop", False);
+            XdndFinished                    = XInternAtom (display, "XdndFinished", False);
+            XdndSelection                   = XInternAtom (display, "XdndSelection", False);
 
-            XdndTypeList            = XInternAtom (display, "XdndTypeList", False);
-            XdndActionList          = XInternAtom (display, "XdndActionList", False);
-            XdndActionCopy          = XInternAtom (display, "XdndActionCopy", False);
-            XdndActionDescription   = XInternAtom (display, "XdndActionDescription", False);
+            XdndTypeList                    = XInternAtom (display, "XdndTypeList", False);
+            XdndActionList                  = XInternAtom (display, "XdndActionList", False);
+            XdndActionCopy                  = XInternAtom (display, "XdndActionCopy", False);
+            XdndActionDescription           = XInternAtom (display, "XdndActionDescription", False);
 
-            allowedMimeTypes [0] = XInternAtom (display, "text/plain", False);
-            allowedMimeTypes [1] = XInternAtom (display, "text/uri-list", False);
+            allowedMimeTypes[0]             = XInternAtom (display, "text/plain", False);
+            allowedMimeTypes[1]             = XInternAtom (display, "text/uri-list", False);
 
-            allowedActions [0] = XInternAtom (display, "XdndActionMove", False);
-            allowedActions [1] = XdndActionCopy;
-            allowedActions [2] = XInternAtom (display, "XdndActionLink", False);
-            allowedActions [3] = XInternAtom (display, "XdndActionAsk", False);
-            allowedActions [4] = XInternAtom (display, "XdndActionPrivate", False);
+            allowedActions[0]               = XInternAtom (display, "XdndActionMove", False);
+            allowedActions[1]               = XdndActionCopy;
+            allowedActions[2]               = XInternAtom (display, "XdndActionLink", False);
+            allowedActions[3]               = XInternAtom (display, "XdndActionAsk", False);
+            allowedActions[4]               = XInternAtom (display, "XdndActionPrivate", False);
         }
     }
 }
-
-//==============================================================================
-enum SystemTrayValues
-{
-    SYSTEM_TRAY_REQUEST_DOCK = 0,
-    SYSTEM_TRAY_BEGIN_MESSAGE = 1,
-    SYSTEM_TRAY_CANCEL_MESSAGE = 2
-};
-
-static XErrorHandler oldHandler = 0;
-static int trappedErrorCode = 0;
-
-extern "C" int errorTrapHandler (Display* dpy, XErrorEvent* err)
-{
-    trappedErrorCode = err->error_code;
-    return 0;
-}
-
-static void trapErrors()
-{
-    trappedErrorCode = 0;
-    oldHandler = XSetErrorHandler (errorTrapHandler);
-}
-
-static bool untrapErrors()
-{
-    XSetErrorHandler (oldHandler);
-    return (trappedErrorCode == 0);
-}
-
-
-//==============================================================================
-static bool isActiveApplication = false;
-
-bool Process::isForegroundProcess()
-{
-    return isActiveApplication;
-}
-
-//==============================================================================
-// These are defined in juce_linux_Messaging.cpp
-extern Display* display;
-extern XContext improbableNumber;
-
-static const int eventMask = NoEventMask | KeyPressMask | KeyReleaseMask | ButtonPressMask | ButtonReleaseMask
-                              | EnterWindowMask | LeaveWindowMask | PointerMotionMask | KeymapStateMask
-                              | ExposureMask | StructureNotifyMask | FocusChangeMask;
 
 //==============================================================================
 namespace Keys
@@ -159,7 +119,7 @@ namespace Keys
     static const int extendedKeyModifier = 0x10000000;
 }
 
-bool KeyPress::isKeyCurrentlyDown (const int keyCode) throw()
+bool KeyPress::isKeyCurrentlyDown (const int keyCode)
 {
     int keysym;
 
@@ -191,69 +151,80 @@ bool KeyPress::isKeyCurrentlyDown (const int keyCode) throw()
 
 //==============================================================================
 #if JUCE_USE_XSHM
-static bool isShmAvailable() throw()
+namespace XSHMHelpers
 {
-    static bool isChecked = false;
-    static bool isAvailable = false;
-
-    if (! isChecked)
+    static int trappedErrorCode = 0;
+    extern "C" int errorTrapHandler (Display*, XErrorEvent* err)
     {
-        isChecked = true;
-
-        int major, minor;
-        Bool pixmaps;
-
-        ScopedXLock xlock;
-
-        if (XShmQueryVersion (display, &major, &minor, &pixmaps))
-        {
-            trapErrors();
-
-            XShmSegmentInfo segmentInfo;
-            zerostruct (segmentInfo);
-            XImage* xImage = XShmCreateImage (display, DefaultVisual (display, DefaultScreen (display)),
-                                              24, ZPixmap, 0, &segmentInfo, 50, 50);
-
-            if ((segmentInfo.shmid = shmget (IPC_PRIVATE,
-                                             xImage->bytes_per_line * xImage->height,
-                                             IPC_CREAT | 0777)) >= 0)
-            {
-                segmentInfo.shmaddr = (char*) shmat (segmentInfo.shmid, 0, 0);
-
-                if (segmentInfo.shmaddr != (void*) -1)
-                {
-                    segmentInfo.readOnly = False;
-                    xImage->data = segmentInfo.shmaddr;
-                    XSync (display, False);
-
-                    if (XShmAttach (display, &segmentInfo) != 0)
-                    {
-                        XSync (display, False);
-                        XShmDetach (display, &segmentInfo);
-
-                        isAvailable = true;
-                    }
-                }
-
-                XFlush (display);
-                XDestroyImage (xImage);
-
-                shmdt (segmentInfo.shmaddr);
-            }
-
-            shmctl (segmentInfo.shmid, IPC_RMID, 0);
-
-            isAvailable &= untrapErrors();
-        }
+        trappedErrorCode = err->error_code;
+        return 0;
     }
 
-    return isAvailable;
+    static bool isShmAvailable() throw()
+    {
+        static bool isChecked = false;
+        static bool isAvailable = false;
+
+        if (! isChecked)
+        {
+            isChecked = true;
+            int major, minor;
+            Bool pixmaps;
+
+            ScopedXLock xlock;
+
+            if (XShmQueryVersion (display, &major, &minor, &pixmaps))
+            {
+                trappedErrorCode = 0;
+                XErrorHandler oldHandler = XSetErrorHandler (errorTrapHandler);
+
+                XShmSegmentInfo segmentInfo;
+                zerostruct (segmentInfo);
+                XImage* xImage = XShmCreateImage (display, DefaultVisual (display, DefaultScreen (display)),
+                                                  24, ZPixmap, 0, &segmentInfo, 50, 50);
+
+                if ((segmentInfo.shmid = shmget (IPC_PRIVATE,
+                                                 xImage->bytes_per_line * xImage->height,
+                                                 IPC_CREAT | 0777)) >= 0)
+                {
+                    segmentInfo.shmaddr = (char*) shmat (segmentInfo.shmid, 0, 0);
+
+                    if (segmentInfo.shmaddr != (void*) -1)
+                    {
+                        segmentInfo.readOnly = False;
+                        xImage->data = segmentInfo.shmaddr;
+                        XSync (display, False);
+
+                        if (XShmAttach (display, &segmentInfo) != 0)
+                        {
+                            XSync (display, False);
+                            XShmDetach (display, &segmentInfo);
+
+                            isAvailable = true;
+                        }
+                    }
+
+                    XFlush (display);
+                    XDestroyImage (xImage);
+
+                    shmdt (segmentInfo.shmaddr);
+                }
+
+                shmctl (segmentInfo.shmid, IPC_RMID, 0);
+
+                XSetErrorHandler (oldHandler);
+                if (trappedErrorCode != 0)
+                    isAvailable = false;
+            }
+        }
+
+        return isAvailable;
+    }
 }
 #endif
 
 //==============================================================================
 #if JUCE_USE_XRENDER
-
 namespace XRender
 {
     typedef Status (*tXRenderQueryVersion) (Display*, int*, int*);
@@ -268,26 +239,21 @@ namespace XRender
 
     static bool isAvailable()
     {
-        static bool isChecked = false;
-        static bool isAvailable = false;
+        static bool hasLoaded = false;
 
-        if (! isChecked)
+        if (! hasLoaded)
         {
             ScopedXLock xlock;
+            hasLoaded = true;
 
-            isChecked = true;
+            void* h = dlopen ("libXrender.so", RTLD_GLOBAL | RTLD_NOW);
 
-            if (xRenderQueryVersion == 0)
+            if (h != 0)
             {
-                void* h = dlopen ("libXrender.so", RTLD_GLOBAL | RTLD_NOW);
-
-                if (h != 0)
-                {
-                    xRenderQueryVersion         = (tXRenderQueryVersion)        dlsym (h, "XRenderQueryVersion");
-                    xRenderFindStandardFormat   = (tXrenderFindStandardFormat)  dlsym (h, "XrenderFindStandardFormat");
-                    xRenderFindFormat           = (tXRenderFindFormat)          dlsym (h, "XRenderFindFormat");
-                    xRenderFindVisualFormat     = (tXRenderFindVisualFormat)    dlsym (h, "XRenderFindVisualFormat");
-                }
+                xRenderQueryVersion         = (tXRenderQueryVersion)        dlsym (h, "XRenderQueryVersion");
+                xRenderFindStandardFormat   = (tXrenderFindStandardFormat)  dlsym (h, "XrenderFindStandardFormat");
+                xRenderFindFormat           = (tXRenderFindFormat)          dlsym (h, "XRenderFindFormat");
+                xRenderFindVisualFormat     = (tXRenderFindVisualFormat)    dlsym (h, "XRenderFindVisualFormat");
             }
 
             if (xRenderQueryVersion != 0
@@ -297,11 +263,13 @@ namespace XRender
             {
                 int major, minor;
                 if (xRenderQueryVersion (display, &major, &minor))
-                    isAvailable = true;
+                    return true;
             }
+
+            xRenderQueryVersion = 0;
         }
 
-        return isAvailable;
+        return xRenderQueryVersion != 0;
     }
 
     static XRenderPictFormat* findPictureFormat()
@@ -344,9 +312,7 @@ namespace XRender
         return pictFormat;
     }
 }
-
 #endif
-
 
 //==============================================================================
 namespace Visuals
@@ -409,7 +375,7 @@ namespace Visuals
         if (desiredDepth == 32)
         {
 #if JUCE_USE_XSHM
-            if (isShmAvailable())
+            if (XSHMHelpers::isShmAvailable())
             {
 #if JUCE_USE_XRENDER
                 if (XRender::isAvailable())
@@ -497,7 +463,7 @@ public:
 #if JUCE_USE_XSHM
         usingXShm = false;
 
-        if ((imageDepth > 16) && isShmAvailable())
+        if ((imageDepth > 16) && XSHMHelpers::isShmAvailable())
         {
             zerostruct (segmentInfo);
 
@@ -525,13 +491,9 @@ public:
                             imageData = (uint8*) segmentInfo.shmaddr;
 
                             if (XShmAttach (display, &segmentInfo) != 0)
-                            {
                                 usingXShm = true;
-                            }
                             else
-                            {
-                                jassertfalse
-                            }
+                                jassertfalse;
                         }
                         else
                         {
@@ -586,15 +548,16 @@ public:
             }
 
             if (! XInitImage (xImage))
-            {
-                jassertfalse
-            }
+                jassertfalse;
         }
     }
 
     ~XBitmapImage()
     {
         ScopedXLock xlock;
+
+        if (gc != None)
+            XFreeGC (display, gc);
 
 #if JUCE_USE_XSHM
         if (usingXShm)
@@ -619,19 +582,19 @@ public:
     {
         ScopedXLock xlock;
 
-        if (gc == 0)
+        if (gc == None)
         {
-          XGCValues gcvalues;
-          gcvalues.foreground = None;
-          gcvalues.background = None;
-          gcvalues.function = GXcopy;
-          gcvalues.plane_mask = AllPlanes;
-          gcvalues.clip_mask = None;
-          gcvalues.graphics_exposures = False;
+            XGCValues gcvalues;
+            gcvalues.foreground = None;
+            gcvalues.background = None;
+            gcvalues.function = GXcopy;
+            gcvalues.plane_mask = AllPlanes;
+            gcvalues.clip_mask = None;
+            gcvalues.graphics_exposures = False;
 
-          gc = XCreateGC (display, window,
-                          GCBackground | GCForeground | GCFunction | GCPlaneMask | GCClipMask | GCGraphicsExposures,
-                          &gcvalues);
+            gc = XCreateGC (display, window,
+                            GCBackground | GCForeground | GCFunction | GCPlaneMask | GCClipMask | GCGraphicsExposures,
+                            &gcvalues);
         }
 
         if (imageDepth == 16)
@@ -695,7 +658,7 @@ private:
             if (((mask >> i) & 1) != 0)
                 return i - 7;
 
-        jassertfalse
+        jassertfalse;
         return 0;
     }
 };
@@ -714,7 +677,6 @@ public:
           wy (0),
           ww (0),
           wh (0),
-          taskbarImage (0),
           fullScreen (false),
           mapped (false),
           visual (0),
@@ -735,7 +697,6 @@ public:
         // it's dangerous to delete a window on a thread other than the message thread..
         jassert (MessageManager::getInstance()->currentThreadHasLockedMessageManager());
 
-        deleteTaskBarIcon();
         deleteIconPixmaps();
 
         destroyWindow();
@@ -754,7 +715,7 @@ public:
         XPointer peer = 0;
 
         ScopedXLock xlock;
-        if (! XFindContext (display, (XID) windowHandle, improbableNumber, &peer))
+        if (! XFindContext (display, (XID) windowHandle, windowHandleXContext, &peer))
         {
             if (peer != 0 && ! ComponentPeer::isValidPeer ((LinuxComponentPeer*) peer))
                 peer = 0;
@@ -787,7 +748,7 @@ public:
         setBounds (wx, wy, w, h, false);
     }
 
-    void setBounds (int x, int y, int w, int h, const bool isNowFullScreen)
+    void setBounds (int x, int y, int w, int h, bool isNowFullScreen)
     {
         fullScreen = isNowFullScreen;
 
@@ -860,9 +821,7 @@ public:
             clientMsg.data.l[0] = IconicState;
 
             ScopedXLock xlock;
-            XSendEvent (display, root, false,
-                        SubstructureRedirectMask | SubstructureNotifyMask,
-                        (XEvent*) &clientMsg);
+            XSendEvent (display, root, false, SubstructureRedirectMask | SubstructureNotifyMask, (XEvent*) &clientMsg);
         }
         else
         {
@@ -1023,26 +982,7 @@ public:
 
     bool setAlwaysOnTop (bool alwaysOnTop)
     {
-        if (windowH != 0)
-        {
-            const bool wasVisible = component->isVisible();
-
-            if (wasVisible)
-                setVisible (false);  // doesn't always seem to work if the window is visible when this is done..
-
-            {
-                ScopedXLock xlock;
-                XSetWindowAttributes swa;
-                swa.override_redirect = alwaysOnTop ? True : False;
-
-                XChangeWindowAttributes (display, windowH, CWOverrideRedirect, &swa);
-            }
-
-            if (wasVisible)
-                setVisible (true);
-        }
-
-        return true;
+        return false;
     }
 
     void toFront (bool makeActive)
@@ -1069,14 +1009,12 @@ public:
         {
             ScopedXLock xlock;
             XSendEvent (display, RootWindow (display, DefaultScreen (display)),
-                        False,
-                        SubstructureRedirectMask | SubstructureNotifyMask,
-                        &ev);
+                        False, SubstructureRedirectMask | SubstructureNotifyMask, &ev);
 
             XWindowAttributes attr;
             XGetWindowAttributes (display, windowH, &attr);
 
-            if (attr.override_redirect)
+            if (component->isAlwaysOnTop())
                 XRaiseWindow (display, windowH);
 
             XSync (display, False);
@@ -1103,7 +1041,7 @@ public:
 
     bool isFocused() const
     {
-        int revert;
+        int revert = 0;
         Window focusedWindow = 0;
         ScopedXLock xlock;
         XGetInputFocus (display, &focusedWindow, &revert);
@@ -1130,15 +1068,9 @@ public:
     {
     }
 
-    void repaint (int x, int y, int w, int h)
+    void repaint (const Rectangle<int>& area)
     {
-        if (Rectangle<int>::intersectRectangles (x, y, w, h,
-                                                 0, 0,
-                                                 getComponent()->getWidth(),
-                                                 getComponent()->getHeight()))
-        {
-            repainter->repaint (x, y, w, h);
-        }
+        repainter->repaint (area.getIntersection (getComponent()->getLocalBounds()));
     }
 
     void performAnyPendingRepaintsNow()
@@ -1152,15 +1084,15 @@ public:
 
         const int width = image.getWidth();
         const int height = image.getHeight();
-        HeapBlock <uint32> colour (width * height);
+        HeapBlock <char> colour (width * height);
         int index = 0;
 
         for (int y = 0; y < height; ++y)
             for (int x = 0; x < width; ++x)
-                colour[index++] = image.getPixelAt (x, y).getARGB();
+                colour[index++] = static_cast<char> (image.getPixelAt (x, y).getARGB());
 
         XImage* ximage = XCreateImage (display, CopyFromParent, 24, ZPixmap,
-                                       0, reinterpret_cast<char*> (colour.getData()),
+                                       0, colour.getData(),
                                        width, height, 32, 0);
 
         Pixmap pixmap = XCreatePixmap (display, DefaultRootWindow (display),
@@ -1180,7 +1112,7 @@ public:
         const int width = image.getWidth();
         const int height = image.getHeight();
         const int stride = (width + 7) >> 3;
-        HeapBlock <uint8> mask;
+        HeapBlock <char> mask;
         mask.calloc (stride * height);
         const bool msbfirst = (BitmapBitOrder (display) == MSBFirst);
 
@@ -1188,7 +1120,7 @@ public:
         {
             for (int x = 0; x < width; ++x)
             {
-                const uint8 bit = (uint8) (1 << (msbfirst ? (7 - (x & 7)) : (x & 7)));
+                const char bit = (char) (1 << (msbfirst ? (7 - (x & 7)) : (x & 7)));
                 const int offset = y * stride + (x >> 3);
 
                 if (image.getPixelAt (x, y).getAlpha() >= 128)
@@ -1197,7 +1129,7 @@ public:
         }
 
         return XCreatePixmapFromBitmapData (display, DefaultRootWindow (display),
-                                            reinterpret_cast<char*> (mask.getData()), width, height, 1, 0, 1);
+                                            mask.getData(), width, height, 1, 0, 1);
     }
 
     void setIcon (const Image& newIcon)
@@ -1282,7 +1214,7 @@ public:
                     ::setlocale (LC_ALL, oldLocale);
                 }
 
-                const juce_wchar unicodeChar = *(const juce_wchar*) String::fromUTF8 (utf8, sizeof (utf8) - 1);
+                const juce_wchar unicodeChar = String::fromUTF8 (utf8, sizeof (utf8) - 1) [0];
                 int keyCode = (int) unicodeChar;
 
                 if (keyCode < 0x20)
@@ -1565,8 +1497,8 @@ public:
                                            &child);
                 }
 
-                repaint (exposeEvent->x, exposeEvent->y,
-                         exposeEvent->width, exposeEvent->height);
+                repaint (Rectangle<int> (exposeEvent->x, exposeEvent->y,
+                                         exposeEvent->width, exposeEvent->height));
 
                 while (XEventsQueued (display, QueuedAfterFlush) > 0)
                 {
@@ -1576,8 +1508,8 @@ public:
 
                     XNextEvent (display, (XEvent*) &nextEvent);
                     XExposeEvent* nextExposeEvent = (XExposeEvent*) &nextEvent.xexpose;
-                    repaint (nextExposeEvent->x, nextExposeEvent->y,
-                             nextExposeEvent->width, nextExposeEvent->height);
+                    repaint (Rectangle<int> (nextExposeEvent->x, nextExposeEvent->y,
+                                             nextExposeEvent->width, nextExposeEvent->height));
                 }
 
                 break;
@@ -1618,7 +1550,6 @@ public:
             }
 
             case ReparentNotify:
-            case GravityNotify:
             {
                 parentWindow = 0;
                 Window wRoot = 0;
@@ -1633,6 +1564,14 @@ public:
                 if (parentWindow == windowH || parentWindow == wRoot)
                     parentWindow = 0;
 
+                updateBounds();
+                updateBorderSize();
+                handleMovedOrResized();
+                break;
+            }
+
+            case GravityNotify:
+            {
                 updateBounds();
                 updateBorderSize();
                 handleMovedOrResized();
@@ -1671,7 +1610,16 @@ public:
                 {
                     const Atom atom = (Atom) clientMsg->data.l[0];
 
-                    if (atom == Atoms::ProtocolList [Atoms::TAKE_FOCUS])
+                    if (atom == Atoms::ProtocolList [Atoms::PING])
+                    {
+                        Window root = RootWindow (display, DefaultScreen (display));
+
+                        event->xclient.window = root;
+
+                        XSendEvent (display, root, False, NoEventMask, event);
+                        XFlush (display);
+                    }
+                    else if (atom == Atoms::ProtocolList [Atoms::TAKE_FOCUS])
                     {
                         XWindowAttributes atts;
 
@@ -1746,7 +1694,6 @@ public:
     void setTaskBarIcon (const Image& image)
     {
         ScopedXLock xlock;
-        deleteTaskBarIcon();
         taskbarImage = image.createCopy();
 
         Screen* const screen = XDefaultScreenOfDisplay (display);
@@ -1774,7 +1721,7 @@ public:
             ev.xclient.message_type = XInternAtom (display, "_NET_SYSTEM_TRAY_OPCODE", False);
             ev.xclient.format = 32;
             ev.xclient.data.l[0] = CurrentTime;
-            ev.xclient.data.l[1] = SYSTEM_TRAY_REQUEST_DOCK;
+            ev.xclient.data.l[1] = 0 /*SYSTEM_TRAY_REQUEST_DOCK*/;
             ev.xclient.data.l[2] = windowH;
             ev.xclient.data.l[3] = 0;
             ev.xclient.data.l[4] = 0;
@@ -1801,11 +1748,6 @@ public:
         XFree (hints);
     }
 
-    void deleteTaskBarIcon()
-    {
-        deleteAndZero (taskbarImage);
-    }
-
     const Image* getTaskbarIcon() const throw()           { return taskbarImage; }
 
     //==============================================================================
@@ -1814,6 +1756,7 @@ public:
     bool dontRepaint;
 
     static ModifierKeys currentModifiers;
+    static bool isActiveApplication;
 
 private:
     //==============================================================================
@@ -1827,7 +1770,7 @@ private:
 #if JUCE_USE_XSHM
             shmCompletedDrawing = true;
 
-            useARGBImagesForRendering = isShmAvailable();
+            useARGBImagesForRendering = XSHMHelpers::isShmAvailable();
 
             if (useARGBImagesForRendering)
             {
@@ -1866,12 +1809,12 @@ private:
             }
         }
 
-        void repaint (int x, int y, int w, int h)
+        void repaint (const Rectangle<int>& area)
         {
             if (! isTimerRunning())
                 startTimer (repaintTimerPeriod);
 
-            regionsNeedingRepaint.add (x, y, w, h);
+            regionsNeedingRepaint.add (area);
         }
 
         void performAnyPendingRepaintsNow()
@@ -1910,25 +1853,19 @@ private:
 
                 startTimer (repaintTimerPeriod);
 
-                LowLevelGraphicsSoftwareRenderer context (*image);
+                RectangleList adjustedList (originalRepaintRegion);
+                adjustedList.offsetAll (-totalArea.getX(), -totalArea.getY());
+                LowLevelGraphicsSoftwareRenderer context (*image, -totalArea.getX(), -totalArea.getY(), adjustedList);
 
-                context.setOrigin (-totalArea.getX(), -totalArea.getY());
-
-                if (context.clipToRectangleList (originalRepaintRegion))
+                if (peer->depth == 32)
                 {
-                    if (peer->depth == 32)
-                    {
-                        RectangleList::Iterator i (originalRepaintRegion);
+                    RectangleList::Iterator i (originalRepaintRegion);
 
-                        while (i.next())
-                        {
-                            const Rectangle<int>& r = *i.getRectangle();
-                            image->clear (r.getX() - totalArea.getX(), r.getY() - totalArea.getY(), r.getWidth(), r.getHeight());
-                        }
-                    }
-
-                    peer->handlePaint (context);
+                    while (i.next())
+                        image->clear (*i.getRectangle() - totalArea.getPosition());
                 }
+
+                peer->handlePaint (context);
 
                 if (! peer->maskedRegion.isEmpty())
                     originalRepaintRegion.subtract (peer->maskedRegion);
@@ -1974,7 +1911,7 @@ private:
     friend class LinuxRepaintManager;
     Window windowH, parentWindow;
     int wx, wy, ww, wh;
-    Image* taskbarImage;
+    ScopedPointer<Image> taskbarImage;
     bool fullScreen, mapped;
     Visual* visual;
     int depth;
@@ -2180,50 +2117,49 @@ private:
             int netHints [6];
             int num = 0;
 
-            netHints [num++] = XInternAtom (display, "_NET_WM_ACTION_RESIZE", (styleFlags & windowIsResizable) ? True : False);
-            netHints [num++] = XInternAtom (display, "_NET_WM_ACTION_FULLSCREEN", (styleFlags & windowHasMaximiseButton) ? True : False);
-            netHints [num++] = XInternAtom (display, "_NET_WM_ACTION_MINIMIZE", (styleFlags & windowHasMinimiseButton) ? True : False);
-            netHints [num++] = XInternAtom (display, "_NET_WM_ACTION_CLOSE", (styleFlags & windowHasCloseButton) ? True : False);
+            if ((styleFlags & windowIsResizable) != 0)
+                netHints [num++] = XInternAtom (display, "_NET_WM_ACTION_RESIZE", True);
 
-            XChangeProperty (display, wndH, hints, XA_ATOM, 32, PropModeReplace,
-                             (unsigned char*) &netHints, num);
+            if ((styleFlags & windowHasMaximiseButton) != 0)
+                netHints [num++] = XInternAtom (display, "_NET_WM_ACTION_FULLSCREEN", True);
+
+            if ((styleFlags & windowHasMinimiseButton) != 0)
+                netHints [num++] = XInternAtom (display, "_NET_WM_ACTION_MINIMIZE", True);
+
+            if ((styleFlags & windowHasCloseButton) != 0)
+                netHints [num++] = XInternAtom (display, "_NET_WM_ACTION_CLOSE", True);
+
+            XChangeProperty (display, wndH, hints, XA_ATOM, 32, PropModeReplace, (unsigned char*) &netHints, num);
         }
     }
 
-    void setWindowType (Window wndH)
+    void setWindowType()
     {
         int netHints [2];
         int numHints = 0;
 
         if ((styleFlags & windowIsTemporary) != 0
              || ((styleFlags & windowHasDropShadow) == 0 && Desktop::canUseSemiTransparentWindows()))
-        {
-            netHints [numHints] = XInternAtom (display, "_NET_WM_WINDOW_TYPE_COMBO", True);
-        }
+            netHints [numHints++] = XInternAtom (display, "_NET_WM_WINDOW_TYPE_COMBO", True);
         else
-        {
-            netHints [numHints] = XInternAtom (display, "_NET_WM_WINDOW_TYPE_NORMAL", True);
-        }
+            netHints [numHints++] = XInternAtom (display, "_NET_WM_WINDOW_TYPE_NORMAL", True);
 
-        if (netHints [numHints] != 0)
-            ++numHints;
+        netHints[numHints++] = XInternAtom (display, "_KDE_NET_WM_WINDOW_TYPE_OVERRIDE", True);
 
-        netHints[numHints] = XInternAtom (display, "_KDE_NET_WM_WINDOW_TYPE_OVERRIDE", True);
-
-        if (netHints [numHints] != 0)
-            ++numHints;
-
-        XChangeProperty (display, wndH, Atoms::WindowType, XA_ATOM, 32, PropModeReplace,
+        XChangeProperty (display, windowH, Atoms::WindowType, XA_ATOM, 32, PropModeReplace,
                          (unsigned char*) &netHints, numHints);
 
-        if ((styleFlags & windowAppearsOnTaskbar) == 0)
-        {
-/*          Atom skipTaskbar = XInternAtom (display, "_NET_WM_STATE_SKIP_TASKBAR", False);
+        numHints = 0;
 
-            XChangeProperty (display, wndH, wm_WindowState, XA_ATOM, 32, PropModeReplace,
-                             (unsigned char*) &skipTaskbar, 1);
-*/
-        }
+        if ((styleFlags & windowAppearsOnTaskbar) == 0)
+            netHints [numHints++] = XInternAtom (display, "_NET_WM_STATE_SKIP_TASKBAR", True);
+
+        if (component->isAlwaysOnTop())
+            netHints [numHints++] = XInternAtom (display, "_NET_WM_STATE_ABOVE", True);
+
+        if (numHints > 0)
+            XChangeProperty (display, windowH, Atoms::WindowState, XA_ATOM, 32, PropModeReplace,
+                             (unsigned char*) &netHints, numHints);
     }
 
     void createWindow()
@@ -2254,27 +2190,27 @@ private:
         swa.border_pixel = 0;
         swa.background_pixmap = None;
         swa.colormap = colormap;
-        swa.override_redirect = getComponent()->isAlwaysOnTop() ? True : False;
-        swa.event_mask = eventMask;
+        swa.event_mask = getAllEventsMask();
 
-        Window wndH = XCreateWindow (display, root,
-                                     0, 0, 1, 1,
-                                     0, depth, InputOutput, visual,
-                                     CWBorderPixel | CWColormap | CWBackPixmap | CWEventMask | CWOverrideRedirect,
-                                     &swa);
+        windowH = XCreateWindow (display, root,
+                                 0, 0, 1, 1,
+                                 0, depth, InputOutput, visual,
+                                 CWBorderPixel | CWColormap | CWBackPixmap | CWEventMask,
+                                 &swa);
 
-        XGrabButton (display, AnyButton, AnyModifier, wndH, False,
+        XGrabButton (display, AnyButton, AnyModifier, windowH, False,
                      ButtonPressMask | ButtonReleaseMask | EnterWindowMask | LeaveWindowMask | PointerMotionMask,
                      GrabModeAsync, GrabModeAsync, None, None);
 
         // Set the window context to identify the window handle object
-        if (XSaveContext (display, (XID) wndH, improbableNumber, (XPointer) this))
+        if (XSaveContext (display, (XID) windowH, windowHandleXContext, (XPointer) this))
         {
             // Failed
-            jassertfalse
+            jassertfalse;
             Logger::outputDebugString ("Failed to create context information for window.\n");
-            XDestroyWindow (display, wndH);
-            wndH = 0;
+            XDestroyWindow (display, windowH);
+            windowH = 0;
+            return;
         }
 
         // Set window manager hints
@@ -2282,42 +2218,42 @@ private:
         wmHints->flags = InputHint | StateHint;
         wmHints->input = True;      // Locally active input model
         wmHints->initial_state = NormalState;
-        XSetWMHints (display, wndH, wmHints);
+        XSetWMHints (display, windowH, wmHints);
         XFree (wmHints);
 
         // Set the window type
-        setWindowType (wndH);
+        setWindowType();
 
         // Define decoration
         if ((styleFlags & windowHasTitleBar) == 0)
-            removeWindowDecorations (wndH);
+            removeWindowDecorations (windowH);
         else
-            addWindowButtons (wndH);
+            addWindowButtons (windowH);
 
         // Set window name
-        setWindowTitle (wndH, getComponent()->getName());
+        setWindowTitle (windowH, getComponent()->getName());
 
         // Associate the PID, allowing to be shut down when something goes wrong
         unsigned long pid = getpid();
-        XChangeProperty (display, wndH, Atoms::Pid, XA_CARDINAL, 32, PropModeReplace,
+        XChangeProperty (display, windowH, Atoms::Pid, XA_CARDINAL, 32, PropModeReplace,
                          (unsigned char*) &pid, 1);
 
         // Set window manager protocols
-        XChangeProperty (display, wndH, Atoms::Protocols, XA_ATOM, 32, PropModeReplace,
+        XChangeProperty (display, windowH, Atoms::Protocols, XA_ATOM, 32, PropModeReplace,
                          (unsigned char*) Atoms::ProtocolList, 2);
 
         // Set drag and drop flags
-        XChangeProperty (display, wndH, Atoms::XdndTypeList, XA_ATOM, 32, PropModeReplace,
+        XChangeProperty (display, windowH, Atoms::XdndTypeList, XA_ATOM, 32, PropModeReplace,
                          (const unsigned char*) Atoms::allowedMimeTypes, numElementsInArray (Atoms::allowedMimeTypes));
 
-        XChangeProperty (display, wndH, Atoms::XdndActionList, XA_ATOM, 32, PropModeReplace,
+        XChangeProperty (display, windowH, Atoms::XdndActionList, XA_ATOM, 32, PropModeReplace,
                          (const unsigned char*) Atoms::allowedActions, numElementsInArray (Atoms::allowedActions));
 
-        XChangeProperty (display, wndH, Atoms::XdndActionDescription, XA_STRING, 8, PropModeReplace,
+        XChangeProperty (display, windowH, Atoms::XdndActionDescription, XA_STRING, 8, PropModeReplace,
                          (const unsigned char*) "", 0);
 
         unsigned long dndVersion = Atoms::DndVersion;
-        XChangeProperty (display, wndH, Atoms::XdndAware, XA_ATOM, 32, PropModeReplace,
+        XChangeProperty (display, windowH, Atoms::XdndAware, XA_ATOM, 32, PropModeReplace,
                          (const unsigned char*) &dndVersion, 1);
 
         // Initialise the pointer and keyboard mapping
@@ -2352,8 +2288,6 @@ private:
 
             updateModifierMappings();
         }
-
-        windowH = wndH;
     }
 
     void destroyWindow()
@@ -2361,8 +2295,8 @@ private:
         ScopedXLock xlock;
 
         XPointer handlePointer;
-        if (! XFindContext (display, (XID) windowH, improbableNumber, &handlePointer))
-            XDeleteContext (display, (XID) windowH, improbableNumber);
+        if (! XFindContext (display, (XID) windowH, windowHandleXContext, &handlePointer))
+            XDeleteContext (display, (XID) windowH, windowHandleXContext);
 
         XDestroyWindow (display, windowH);
 
@@ -2371,8 +2305,15 @@ private:
         XSync (display, false);
 
         XEvent event;
-        while (XCheckWindowEvent (display, windowH, eventMask, &event) == True)
+        while (XCheckWindowEvent (display, windowH, getAllEventsMask(), &event) == True)
         {}
+    }
+
+    static int getAllEventsMask() throw()
+    {
+        return NoEventMask | KeyPressMask | KeyReleaseMask | ButtonPressMask | ButtonReleaseMask
+                 | EnterWindowMask | LeaveWindowMask | PointerMotionMask | KeymapStateMask
+                 | ExposureMask | StructureNotifyMask | FocusChangeMask;
     }
 
     static int64 getEventTime (::Time t)
@@ -2675,7 +2616,7 @@ private:
             }
 
             for (int i = 0; i < lines.size(); ++i)
-                dragAndDropFiles.add (URL::removeEscapeChars (lines[i].fromFirstOccurrenceOf (T("file://"), false, true)));
+                dragAndDropFiles.add (URL::removeEscapeChars (lines[i].fromFirstOccurrenceOf ("file://", false, true)));
 
             dragAndDropFiles.trim();
             dragAndDropFiles.removeEmptyStrings();
@@ -2720,8 +2661,15 @@ private:
 };
 
 ModifierKeys LinuxComponentPeer::currentModifiers;
+bool LinuxComponentPeer::isActiveApplication = false;
 int LinuxComponentPeer::pointerMap[5];
 Point<int> LinuxComponentPeer::lastMousePos;
+
+//==============================================================================
+bool Process::isForegroundProcess()
+{
+    return LinuxComponentPeer::isActiveApplication;
+}
 
 //==============================================================================
 void ModifierKeys::updateCurrentModifiers() throw()
@@ -2940,7 +2888,7 @@ void Desktop::setMousePosition (const Point<int>& newPosition)
 //==============================================================================
 static bool screenSaverAllowed = true;
 
-void Desktop::setScreenSaverEnabled (const bool isEnabled) throw()
+void Desktop::setScreenSaverEnabled (const bool isEnabled)
 {
     if (screenSaverAllowed != isEnabled)
     {
@@ -2963,42 +2911,100 @@ void Desktop::setScreenSaverEnabled (const bool isEnabled) throw()
     }
 }
 
-bool Desktop::isScreenSaverEnabled() throw()
+bool Desktop::isScreenSaverEnabled()
 {
     return screenSaverAllowed;
 }
 
 //==============================================================================
-void* juce_createMouseCursorFromImage (const Image& image, int hotspotX, int hotspotY) throw()
+void* MouseCursor::createMouseCursorFromImage (const Image& image, int hotspotX, int hotspotY)
 {
     ScopedXLock xlock;
-    Window root = RootWindow (display, DefaultScreen (display));
     const unsigned int imageW = image.getWidth();
     const unsigned int imageH = image.getHeight();
-    unsigned int cursorW, cursorH;
 
+#if JUCE_USE_XCURSOR
+    {
+        typedef XcursorBool (*tXcursorSupportsARGB) (Display*);
+        typedef XcursorImage* (*tXcursorImageCreate) (int, int);
+        typedef void (*tXcursorImageDestroy) (XcursorImage*);
+        typedef Cursor (*tXcursorImageLoadCursor) (Display*, const XcursorImage*);
+
+        static tXcursorSupportsARGB xXcursorSupportsARGB = 0;
+        static tXcursorImageCreate xXcursorImageCreate = 0;
+        static tXcursorImageDestroy xXcursorImageDestroy = 0;
+        static tXcursorImageLoadCursor xXcursorImageLoadCursor = 0;
+        static bool hasBeenLoaded = false;
+
+        if (! hasBeenLoaded)
+        {
+            hasBeenLoaded = true;
+            void* h = dlopen ("libXcursor.so", RTLD_GLOBAL | RTLD_NOW);
+
+            if (h != 0)
+            {
+                xXcursorSupportsARGB    = (tXcursorSupportsARGB)    dlsym (h, "XcursorSupportsARGB");
+                xXcursorImageCreate     = (tXcursorImageCreate)     dlsym (h, "XcursorImageCreate");
+                xXcursorImageLoadCursor = (tXcursorImageLoadCursor) dlsym (h, "XcursorImageLoadCursor");
+                xXcursorImageDestroy    = (tXcursorImageDestroy)    dlsym (h, "XcursorImageDestroy");
+
+                if (xXcursorSupportsARGB == 0 || xXcursorImageCreate == 0
+                      || xXcursorImageLoadCursor == 0 || xXcursorImageDestroy == 0
+                      || ! xXcursorSupportsARGB (display))
+                    xXcursorSupportsARGB = 0;
+            }
+        }
+
+        if (xXcursorSupportsARGB != 0)
+        {
+            XcursorImage* xcImage = xXcursorImageCreate (imageW, imageH);
+
+            if (xcImage != 0)
+            {
+                xcImage->xhot = hotspotX;
+                xcImage->yhot = hotspotY;
+                XcursorPixel* dest = xcImage->pixels;
+
+                for (int y = 0; y < (int) imageH; ++y)
+                    for (int x = 0; x < (int) imageW; ++x)
+                        *dest++ = image.getPixelAt (x, y).getARGB();
+
+                void* result = (void*) xXcursorImageLoadCursor (display, xcImage);
+                xXcursorImageDestroy (xcImage);
+
+                if (result != 0)
+                    return result;
+            }
+        }
+    }
+#endif
+
+    Window root = RootWindow (display, DefaultScreen (display));
+    unsigned int cursorW, cursorH;
     if (! XQueryBestCursor (display, root, imageW, imageH, &cursorW, &cursorH))
         return 0;
 
     Image im (Image::ARGB, cursorW, cursorH, true);
-    Graphics g (im);
-
-    if (imageW > cursorW || imageH > cursorH)
     {
-        hotspotX = (hotspotX * cursorW) / imageW;
-        hotspotY = (hotspotY * cursorH) / imageH;
+        Graphics g (im);
 
-        g.drawImageWithin (&image, 0, 0, imageW, imageH,
-                           RectanglePlacement::xLeft | RectanglePlacement::yTop | RectanglePlacement::onlyReduceInSize,
-                           false);
-    }
-    else
-    {
-        g.drawImageAt (&image, 0, 0);
+        if (imageW > cursorW || imageH > cursorH)
+        {
+            hotspotX = (hotspotX * cursorW) / imageW;
+            hotspotY = (hotspotY * cursorH) / imageH;
+
+            g.drawImageWithin (&image, 0, 0, imageW, imageH,
+                               RectanglePlacement::xLeft | RectanglePlacement::yTop | RectanglePlacement::onlyReduceInSize,
+                               false);
+        }
+        else
+        {
+            g.drawImageAt (&image, 0, 0);
+        }
     }
 
     const int stride = (cursorW + 7) >> 3;
-    HeapBlock <uint8> maskPlane, sourcePlane;
+    HeapBlock <char> maskPlane, sourcePlane;
     maskPlane.calloc (stride * cursorH);
     sourcePlane.calloc (stride * cursorH);
 
@@ -3008,7 +3014,7 @@ void* juce_createMouseCursorFromImage (const Image& image, int hotspotX, int hot
     {
         for (int x = cursorW; --x >= 0;)
         {
-            const uint8 mask = (uint8) (1 << (msbfirst ? (7 - (x & 7)) : (x & 7)));
+            const char mask = (char) (1 << (msbfirst ? (7 - (x & 7)) : (x & 7)));
             const int offset = y * stride + (x >> 3);
 
             const Colour c (im.getPixelAt (x, y));
@@ -3021,8 +3027,8 @@ void* juce_createMouseCursorFromImage (const Image& image, int hotspotX, int hot
         }
     }
 
-    Pixmap sourcePixmap = XCreatePixmapFromBitmapData (display, root, reinterpret_cast <char*> (sourcePlane.getData()), cursorW, cursorH, 0xffff, 0, 1);
-    Pixmap maskPixmap = XCreatePixmapFromBitmapData (display, root, reinterpret_cast <char*> (maskPlane.getData()), cursorW, cursorH, 0xffff, 0, 1);
+    Pixmap sourcePixmap = XCreatePixmapFromBitmapData (display, root, sourcePlane.getData(), cursorW, cursorH, 0xffff, 0, 1);
+    Pixmap maskPixmap = XCreatePixmapFromBitmapData (display, root, maskPlane.getData(), cursorW, cursorH, 0xffff, 0, 1);
 
     XColor white, black;
     black.red = black.green = black.blue = 0;
@@ -3036,124 +3042,71 @@ void* juce_createMouseCursorFromImage (const Image& image, int hotspotX, int hot
     return result;
 }
 
-void juce_deleteMouseCursor (void* const cursorHandle, const bool) throw()
+void MouseCursor::deleteMouseCursor (void* const cursorHandle, const bool)
 {
     ScopedXLock xlock;
-    if (cursorHandle != None)
+    if (cursorHandle != 0)
         XFreeCursor (display, (Cursor) cursorHandle);
 }
 
-void* juce_createStandardMouseCursor (MouseCursor::StandardCursorType type) throw()
+void* MouseCursor::createStandardMouseCursor (MouseCursor::StandardCursorType type)
 {
     unsigned int shape;
 
     switch (type)
     {
-        case MouseCursor::NoCursor:
-        {
-            const Image im (Image::ARGB, 16, 16, true);
-            return juce_createMouseCursorFromImage (im, 0, 0);
-        }
+        case NormalCursor:                  return None; // Use parent cursor
+        case NoCursor:                      return createMouseCursorFromImage (Image (Image::ARGB, 16, 16, true), 0, 0);
 
-        case MouseCursor::NormalCursor:
-            return (void*) None; // Use parent cursor
+        case WaitCursor:                    shape = XC_watch; break;
+        case IBeamCursor:                   shape = XC_xterm; break;
+        case PointingHandCursor:            shape = XC_hand2; break;
+        case LeftRightResizeCursor:         shape = XC_sb_h_double_arrow; break;
+        case UpDownResizeCursor:            shape = XC_sb_v_double_arrow; break;
+        case UpDownLeftRightResizeCursor:   shape = XC_fleur; break;
+        case TopEdgeResizeCursor:           shape = XC_top_side; break;
+        case BottomEdgeResizeCursor:        shape = XC_bottom_side; break;
+        case LeftEdgeResizeCursor:          shape = XC_left_side; break;
+        case RightEdgeResizeCursor:         shape = XC_right_side; break;
+        case TopLeftCornerResizeCursor:     shape = XC_top_left_corner; break;
+        case TopRightCornerResizeCursor:    shape = XC_top_right_corner; break;
+        case BottomLeftCornerResizeCursor:  shape = XC_bottom_left_corner; break;
+        case BottomRightCornerResizeCursor: shape = XC_bottom_right_corner; break;
+        case CrosshairCursor:               shape = XC_crosshair; break;
 
-        case MouseCursor::DraggingHandCursor:
+        case DraggingHandCursor:
         {
-            static unsigned char dragHandData[] = {71,73,70,56,57,97,16,0,16,0,145,2,0,0,0,0,255,255,255,0,
-              0,0,0,0,0,33,249,4,1,0,0,2,0,44,0,0,0,0,16,0,
-              16,0,0,2,52,148,47,0,200,185,16,130,90,12,74,139,107,84,123,39,
-              132,117,151,116,132,146,248,60,209,138,98,22,203,114,34,236,37,52,77,217,
-              247,154,191,119,110,240,193,128,193,95,163,56,60,234,98,135,2,0,59 };
+            static unsigned char dragHandData[] = { 71,73,70,56,57,97,16,0,16,0,145,2,0,0,0,0,255,255,255,0,
+              0,0,0,0,0,33,249,4,1,0,0,2,0,44,0,0,0,0,16,0, 16,0,0,2,52,148,47,0,200,185,16,130,90,12,74,139,107,84,123,39,
+              132,117,151,116,132,146,248,60,209,138,98,22,203,114,34,236,37,52,77,217, 247,154,191,119,110,240,193,128,193,95,163,56,60,234,98,135,2,0,59 };
             const int dragHandDataSize = 99;
 
-            const ScopedPointer <Image> im (ImageFileFormat::loadFrom ((const char*) dragHandData, dragHandDataSize));
-            return juce_createMouseCursorFromImage (*im, 8, 7);
+            const ScopedPointer <Image> im (ImageFileFormat::loadFrom (dragHandData, dragHandDataSize));
+            return createMouseCursorFromImage (*im, 8, 7);
         }
 
-        case MouseCursor::CopyingCursor:
+        case CopyingCursor:
         {
-            static unsigned char copyCursorData[] = {71,73,70,56,57,97,21,0,21,0,145,0,0,0,0,0,255,255,255,0,
-              128,128,255,255,255,33,249,4,1,0,0,3,0,44,0,0,0,0,21,0,
-              21,0,0,2,72,4,134,169,171,16,199,98,11,79,90,71,161,93,56,111,
-              78,133,218,215,137,31,82,154,100,200,86,91,202,142,12,108,212,87,235,174,
-              15,54,214,126,237,226,37,96,59,141,16,37,18,201,142,157,230,204,51,112,
+            static unsigned char copyCursorData[] = { 71,73,70,56,57,97,21,0,21,0,145,0,0,0,0,0,255,255,255,0,
+              128,128,255,255,255,33,249,4,1,0,0,3,0,44,0,0,0,0,21,0, 21,0,0,2,72,4,134,169,171,16,199,98,11,79,90,71,161,93,56,111,
+              78,133,218,215,137,31,82,154,100,200,86,91,202,142,12,108,212,87,235,174, 15,54,214,126,237,226,37,96,59,141,16,37,18,201,142,157,230,204,51,112,
               252,114,147,74,83,5,50,68,147,208,217,16,71,149,252,124,5,0,59,0,0 };
             const int copyCursorSize = 119;
 
-            const ScopedPointer <Image> im (ImageFileFormat::loadFrom ((const char*) copyCursorData, copyCursorSize));
-            return juce_createMouseCursorFromImage (*im, 1, 3);
+            const ScopedPointer <Image> im (ImageFileFormat::loadFrom (copyCursorData, copyCursorSize));
+            return createMouseCursorFromImage (*im, 1, 3);
         }
 
-        case MouseCursor::WaitCursor:
-            shape = XC_watch;
-            break;
-
-        case MouseCursor::IBeamCursor:
-            shape = XC_xterm;
-            break;
-
-        case MouseCursor::PointingHandCursor:
-            shape = XC_hand2;
-            break;
-
-        case MouseCursor::LeftRightResizeCursor:
-            shape = XC_sb_h_double_arrow;
-            break;
-
-        case MouseCursor::UpDownResizeCursor:
-            shape = XC_sb_v_double_arrow;
-            break;
-
-        case MouseCursor::UpDownLeftRightResizeCursor:
-            shape = XC_fleur;
-            break;
-
-        case MouseCursor::TopEdgeResizeCursor:
-            shape = XC_top_side;
-            break;
-
-        case MouseCursor::BottomEdgeResizeCursor:
-            shape = XC_bottom_side;
-            break;
-
-        case MouseCursor::LeftEdgeResizeCursor:
-            shape = XC_left_side;
-            break;
-
-        case MouseCursor::RightEdgeResizeCursor:
-            shape = XC_right_side;
-            break;
-
-        case MouseCursor::TopLeftCornerResizeCursor:
-            shape = XC_top_left_corner;
-            break;
-
-        case MouseCursor::TopRightCornerResizeCursor:
-            shape = XC_top_right_corner;
-            break;
-
-        case MouseCursor::BottomLeftCornerResizeCursor:
-            shape = XC_bottom_left_corner;
-            break;
-
-        case MouseCursor::BottomRightCornerResizeCursor:
-            shape = XC_bottom_right_corner;
-            break;
-
-        case MouseCursor::CrosshairCursor:
-            shape = XC_crosshair;
-            break;
-
         default:
-            return (void*) None; // Use parent cursor
+            jassertfalse;
+            return None;
     }
 
     ScopedXLock xlock;
     return (void*) XCreateFontCursor (display, shape);
 }
 
-void MouseCursor::showInWindow (ComponentPeer* peer) const throw()
+void MouseCursor::showInWindow (ComponentPeer* peer) const
 {
     LinuxComponentPeer* const lp = dynamic_cast <LinuxComponentPeer*> (peer);
 
@@ -3161,7 +3114,7 @@ void MouseCursor::showInWindow (ComponentPeer* peer) const throw()
         lp->showMouseCursor ((Cursor) getHandle());
 }
 
-void MouseCursor::showInAllWindows() const throw()
+void MouseCursor::showInAllWindows() const
 {
     for (int i = ComponentPeer::getNumPeers(); --i >= 0;)
         showInWindow (ComponentPeer::getPeer (i));
@@ -3254,7 +3207,7 @@ public:
                                         CWBorderPixel | CWColormap | CWEventMask,
                                         &swa);
 
-        XSaveContext (display, (XID) embeddedWindow, improbableNumber, (XPointer) peer);
+        XSaveContext (display, (XID) embeddedWindow, windowHandleXContext, (XPointer) peer);
 
         XMapWindow (display, embeddedWindow);
         XFreeColormap (display, colourMap);
@@ -3349,17 +3302,12 @@ private:
 };
 
 //==============================================================================
-OpenGLContext* OpenGLContext::createContextForWindow (Component* const component,
-                                                      const OpenGLPixelFormat& pixelFormat,
-                                                      const OpenGLContext* const contextToShareWith)
+OpenGLContext* OpenGLComponent::createContext()
 {
-    WindowedGLContext* c = new WindowedGLContext (component, pixelFormat,
-                                                  contextToShareWith != 0 ? (GLXContext) contextToShareWith->getRawContext() : 0);
+    ScopedPointer<WindowedGLContext> c (new WindowedGLContext (this, preferredPixelFormat,
+                                                               contextToShareListsWith != 0 ? (GLXContext) contextToShareListsWith->getRawContext() : 0));
 
-    if (c->renderContext == 0)
-        deleteAndZero (c);
-
-    return c;
+    return (c->renderContext != 0) ? c.release() : 0;
 }
 
 void juce_glViewport (const int w, const int h)
@@ -3379,13 +3327,13 @@ void OpenGLPixelFormat::getAvailablePixelFormats (Component* component,
 //==============================================================================
 bool DragAndDropContainer::performExternalDragDropOfFiles (const StringArray& files, const bool canMoveFiles)
 {
-    jassertfalse    // not implemented!
+    jassertfalse;    // not implemented!
     return false;
 }
 
 bool DragAndDropContainer::performExternalDragDropOfText (const String& text)
 {
-    jassertfalse    // not implemented!
+    jassertfalse;    // not implemented!
     return false;
 }
 

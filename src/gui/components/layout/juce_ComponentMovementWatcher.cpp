@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -116,7 +116,7 @@ void ComponentMovementWatcher::registerWithParentComps() throw()
 void ComponentMovementWatcher::unregister() throw()
 {
     for (int i = registeredParentComps.size(); --i >= 0;)
-        ((Component*) registeredParentComps.getUnchecked(i))->removeComponentListener (this);
+        registeredParentComps.getUnchecked(i)->removeComponentListener (this);
 
     registeredParentComps.clear();
 }

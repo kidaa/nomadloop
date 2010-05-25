@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -44,7 +44,12 @@
  #import <AVFoundation/AVFoundation.h>
  #import <CoreData/CoreData.h>
  #import <MobileCoreServices/MobileCoreServices.h>
+ #import <QuartzCore/QuartzCore.h>
  #include <sys/fcntl.h>
+ #if JUCE_OPENGL
+  #include <OpenGLES/ES1/gl.h>
+  #include <OpenGLES/ES1/glext.h>
+ #endif
 #else
  #import <Cocoa/Cocoa.h>
  #import <CoreAudio/HostTime.h>
@@ -60,9 +65,9 @@
  #import <IOKit/pwr_mgt/IOPMLib.h>
  #include <Carbon/Carbon.h>
  #include <sys/dir.h>
- #include <sys/socket.h>
 #endif
 
+#include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/stat.h>
 #include <sys/param.h>

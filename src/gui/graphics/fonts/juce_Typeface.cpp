@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -238,6 +238,8 @@ bool CustomTypeface::loadGlyphIfPossible (const juce_wchar /*characterNeeded*/)
 
 void CustomTypeface::addGlyphsFromOtherTypeface (Typeface& typefaceToCopy, juce_wchar characterStartIndex, int numCharacters) throw()
 {
+    setCharacteristics (name, typefaceToCopy.getAscent(), isBold, isItalic, defaultCharacter);
+
     for (int i = 0; i < numCharacters; ++i)
     {
         const juce_wchar c = (juce_wchar) (characterStartIndex + i);
@@ -326,7 +328,7 @@ float CustomTypeface::getDescent() const
 float CustomTypeface::getStringWidth (const String& text)
 {
     float x = 0;
-    const juce_wchar* t = (const juce_wchar*) text;
+    const juce_wchar* t = text;
 
     while (*t != 0)
     {
@@ -343,7 +345,7 @@ void CustomTypeface::getGlyphPositions (const String& text, Array <int>& resultG
 {
     xOffsets.add (0);
     float x = 0;
-    const juce_wchar* t = (const juce_wchar*) text;
+    const juce_wchar* t = text;
 
     while (*t != 0)
     {

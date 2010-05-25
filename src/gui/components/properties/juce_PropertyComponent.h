@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -63,7 +63,7 @@ public:
                                 preferredHeight member variable.
     */
     PropertyComponent (const String& propertyName,
-                       const int preferredHeight = 25);
+                       int preferredHeight = 25);
 
     /** Destructor. */
     ~PropertyComponent();

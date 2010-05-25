@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -545,6 +545,10 @@ public:
     forcedinline void desaturate() throw()
     {
     }
+
+    //==============================================================================
+    /** The indexes of the different components in the byte layout of this type of colour. */
+    enum { indexA = 0 };
 
 private:
     //==============================================================================

@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -50,7 +50,7 @@ public:
         @param triggerOnMouseDown   this is passed to the Button::setTriggeredOnMouseDown() method
     */
     ButtonPropertyComponent (const String& propertyName,
-                             const bool triggerOnMouseDown);
+                             bool triggerOnMouseDown);
 
     /** Destructor. */
     ~ButtonPropertyComponent();

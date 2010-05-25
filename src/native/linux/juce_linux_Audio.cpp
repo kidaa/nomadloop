@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -73,13 +73,13 @@ static void getDeviceProperties (const String& deviceID,
 
     snd_ctl_t* handle;
 
-    if (snd_ctl_open (&handle, deviceID.upToLastOccurrenceOf (T(","), false, false).toUTF8(), SND_CTL_NONBLOCK) >= 0)
+    if (snd_ctl_open (&handle, deviceID.upToLastOccurrenceOf (",", false, false).toUTF8(), SND_CTL_NONBLOCK) >= 0)
     {
         snd_pcm_info_t* info;
         snd_pcm_info_alloca (&info);
 
         snd_pcm_info_set_stream (info, SND_PCM_STREAM_PLAYBACK);
-        snd_pcm_info_set_device (info, deviceID.fromLastOccurrenceOf (T(","), false, false).getIntValue());
+        snd_pcm_info_set_device (info, deviceID.fromLastOccurrenceOf (",", false, false).getIntValue());
         snd_pcm_info_set_subdevice (info, 0);
 
         if (snd_ctl_pcm_info (handle, info) >= 0)
@@ -154,7 +154,7 @@ public:
             isInterleaved = true;
         else
         {
-            jassertfalse
+            jassertfalse;
             return false;
         }
 
@@ -181,7 +181,7 @@ public:
         if (bitDepth == 0)
         {
             error = "device doesn't support a compatible PCM format";
-            DBG (T("ALSA error: ") + error + T("\n"));
+            DBG ("ALSA error: " + error + "\n");
             return false;
         }
 
@@ -214,7 +214,7 @@ public:
         }
 
         /*
-#ifdef JUCE_DEBUG
+#if JUCE_DEBUG
         // enable this to dump the config of the devices that get opened
         snd_output_t* out;
         snd_output_stdio_attach (&out, stderr, 0);
@@ -229,17 +229,20 @@ public:
     }
 
     //==============================================================================
-    bool write (float** const data, const int numSamples)
+    bool write (AudioSampleBuffer& outputChannelBuffer, const int numSamples)
     {
+        jassert (numChannelsRunning <= outputChannelBuffer.getNumChannels());
+        float** const data = outputChannelBuffer.getArrayOfChannels();
+
         if (isInterleaved)
         {
             scratch.ensureSize (sizeof (float) * numSamples * numChannelsRunning, false);
-            float* interleaved = reinterpret_cast <float*> (scratch.getData());
+            float* interleaved = static_cast <float*> (scratch.getData());
 
             AudioDataConverters::interleaveSamples ((const float**) data, interleaved, numSamples, numChannelsRunning);
             AudioDataConverters::convertFloatToFormat (sampleFormat, interleaved, interleaved, numSamples * numChannelsRunning);
 
-            snd_pcm_sframes_t num = snd_pcm_writei (handle, (void*) interleaved, numSamples);
+            snd_pcm_sframes_t num = snd_pcm_writei (handle, interleaved, numSamples);
 
             if (failed (num) && num != -EPIPE && num != -ESTRPIPE)
                 return false;
@@ -267,14 +270,17 @@ public:
         return true;
     }
 
-    bool read (float** const data, const int numSamples)
+    bool read (AudioSampleBuffer& inputChannelBuffer, const int numSamples)
     {
+        jassert (numChannelsRunning <= inputChannelBuffer.getNumChannels());
+        float** const data = inputChannelBuffer.getArrayOfChannels();
+
         if (isInterleaved)
         {
             scratch.ensureSize (sizeof (float) * numSamples * numChannelsRunning, false);
-            float* interleaved = reinterpret_cast <float*> (scratch.getData());
+            float* interleaved = static_cast <float*> (scratch.getData());
 
-            snd_pcm_sframes_t num = snd_pcm_readi (handle, (void*) interleaved, numSamples);
+            snd_pcm_sframes_t num = snd_pcm_readi (handle, interleaved, numSamples);
 
             if (failed (num))
             {
@@ -326,7 +332,7 @@ private:
             return false;
 
         error = snd_strerror (errorNum);
-        DBG (T("ALSA error: ") + error + T("\n"));
+        DBG ("ALSA error: " + error + "\n");
         return true;
     }
 };
@@ -346,14 +352,9 @@ public:
           outputDevice (0),
           inputDevice (0),
           numCallbacks (0),
-          totalNumInputChannels (0),
-          totalNumOutputChannels (0)
+          inputChannelBuffer (1, 1),
+          outputChannelBuffer (1, 1)
     {
-        zeromem (outputChannelData, sizeof (outputChannelData));
-        zeromem (outputChannelDataForCallback, sizeof (outputChannelDataForCallback));
-        zeromem (inputChannelData, sizeof (inputChannelData));
-        zeromem (inputChannelDataForCallback, sizeof (inputChannelDataForCallback));
-
         initialiseRatesAndChannels();
     }
 
@@ -362,8 +363,8 @@ public:
         close();
     }
 
-    void open (BitArray inputChannels,
-               BitArray outputChannels,
+    void open (BigInteger inputChannels,
+               BigInteger outputChannels,
                const double sampleRate_,
                const int bufferSize_)
     {
@@ -372,38 +373,42 @@ public:
         error = String::empty;
         sampleRate = sampleRate_;
         bufferSize = bufferSize_;
+
+        inputChannelBuffer.setSize (jmax ((int) minChansIn, inputChannels.getHighestBit()) + 1, bufferSize);
+        inputChannelBuffer.clear();
+        inputChannelDataForCallback.clear();
         currentInputChans.clear();
-        currentOutputChans.clear();
 
         if (inputChannels.getHighestBit() >= 0)
         {
             for (int i = 0; i <= jmax (inputChannels.getHighestBit(), (int) minChansIn); ++i)
             {
-                inputChannelData [i] = (float*) juce_calloc (sizeof (float) * bufferSize);
-
                 if (inputChannels[i])
                 {
-                    inputChannelDataForCallback [totalNumInputChannels++] = inputChannelData [i];
+                    inputChannelDataForCallback.add (inputChannelBuffer.getSampleData (i));
                     currentInputChans.setBit (i);
                 }
             }
         }
 
+        outputChannelBuffer.setSize (jmax ((int) minChansOut, outputChannels.getHighestBit()) + 1, bufferSize);
+        outputChannelBuffer.clear();
+        outputChannelDataForCallback.clear();
+        currentOutputChans.clear();
+
         if (outputChannels.getHighestBit() >= 0)
         {
             for (int i = 0; i <= jmax (outputChannels.getHighestBit(), (int) minChansOut); ++i)
             {
-                outputChannelData [i] = (float*) juce_calloc (sizeof (float) * bufferSize);
-
                 if (outputChannels[i])
                 {
-                    outputChannelDataForCallback [totalNumOutputChannels++] = outputChannelData [i];
+                    outputChannelDataForCallback.add (outputChannelBuffer.getSampleData (i));
                     currentOutputChans.setBit (i);
                 }
             }
         }
 
-        if (totalNumOutputChannels > 0 && outputId.isNotEmpty())
+        if (outputChannelDataForCallback.size() > 0 && outputId.isNotEmpty())
         {
             outputDevice = new ALSADevice (outputId, false);
 
@@ -426,7 +431,7 @@ public:
             }
         }
 
-        if (totalNumInputChannels > 0 && inputId.isNotEmpty())
+        if (inputChannelDataForCallback.size() > 0 && inputId.isNotEmpty())
         {
             inputDevice = new ALSADevice (inputId, true);
 
@@ -489,18 +494,8 @@ public:
         deleteAndZero (inputDevice);
         deleteAndZero (outputDevice);
 
-        for (int i = 0; i < maxNumChans; ++i)
-        {
-            juce_free (inputChannelData [i]);
-            juce_free (outputChannelData [i]);
-        }
-
-        zeromem (outputChannelData, sizeof (outputChannelData));
-        zeromem (outputChannelDataForCallback, sizeof (outputChannelDataForCallback));
-        zeromem (inputChannelData, sizeof (inputChannelData));
-        zeromem (inputChannelDataForCallback, sizeof (inputChannelDataForCallback));
-        totalNumOutputChannels = 0;
-        totalNumInputChannels = 0;
+        inputChannelBuffer.setSize (1, 1);
+        outputChannelBuffer.setSize (1, 1);
 
         numCallbacks = 0;
     }
@@ -517,7 +512,7 @@ public:
         {
             if (inputDevice != 0)
             {
-                if (! inputDevice->read (inputChannelData, bufferSize))
+                if (! inputDevice->read (inputChannelBuffer, bufferSize))
                 {
                     DBG ("ALSA: read failure");
                     break;
@@ -533,15 +528,15 @@ public:
 
                 if (callback != 0)
                 {
-                    callback->audioDeviceIOCallback ((const float**) inputChannelDataForCallback,
-                                                     totalNumInputChannels,
-                                                     outputChannelDataForCallback,
-                                                     totalNumOutputChannels,
+                    callback->audioDeviceIOCallback ((const float**) inputChannelDataForCallback.getRawDataPointer(),
+                                                     inputChannelDataForCallback.size(),
+                                                     outputChannelDataForCallback.getRawDataPointer(),
+                                                     outputChannelDataForCallback.size(),
                                                      bufferSize);
                 }
                 else
                 {
-                    for (int i = 0; i < totalNumOutputChannels; ++i)
+                    for (int i = 0; i < outputChannelDataForCallback.size(); ++i)
                         zeromem (outputChannelDataForCallback[i], sizeof (float) * bufferSize);
                 }
             }
@@ -555,7 +550,7 @@ public:
 
                 failed (snd_pcm_avail_update (outputDevice->handle));
 
-                if (! outputDevice->write (outputChannelData, bufferSize))
+                if (! outputDevice->write (outputChannelBuffer, bufferSize))
                 {
                     DBG ("ALSA: write failure");
                     break;
@@ -581,7 +576,7 @@ public:
     String error;
     double sampleRate;
     int bufferSize;
-    BitArray currentInputChans, currentOutputChans;
+    BigInteger currentInputChans, currentOutputChans;
 
     Array <int> sampleRates;
     StringArray channelNamesOut, channelNamesIn;
@@ -596,27 +591,23 @@ private:
 
     CriticalSection callbackLock;
 
-    float* outputChannelData [maxNumChans];
-    float* outputChannelDataForCallback [maxNumChans];
-    int totalNumInputChannels;
-    float* inputChannelData [maxNumChans];
-    float* inputChannelDataForCallback [maxNumChans];
-    int totalNumOutputChannels;
+    AudioSampleBuffer inputChannelBuffer, outputChannelBuffer;
+    Array<float*> inputChannelDataForCallback, outputChannelDataForCallback;
 
     unsigned int minChansOut, maxChansOut;
     unsigned int minChansIn, maxChansIn;
 
-    bool failed (const int errorNum) throw()
+    bool failed (const int errorNum)
     {
         if (errorNum >= 0)
             return false;
 
         error = snd_strerror (errorNum);
-        DBG (T("ALSA error: ") + error + T("\n"));
+        DBG ("ALSA error: " + error + "\n");
         return true;
     }
 
-    void initialiseRatesAndChannels() throw()
+    void initialiseRatesAndChannels()
     {
         sampleRates.clear();
         channelNamesOut.clear();
@@ -632,10 +623,10 @@ private:
 
         unsigned int i;
         for (i = 0; i < maxChansOut; ++i)
-            channelNamesOut.add (T("channel ") + String ((int) i + 1));
+            channelNamesOut.add ("channel " + String ((int) i + 1));
 
         for (i = 0; i < maxChansIn; ++i)
-            channelNamesIn.add (T("channel ") + String ((int) i + 1));
+            channelNamesIn.add ("channel " + String ((int) i + 1));
     }
 };
 
@@ -647,19 +638,17 @@ public:
     ALSAAudioIODevice (const String& deviceName,
                        const String& inputId_,
                        const String& outputId_)
-        : AudioIODevice (deviceName, T("ALSA")),
+        : AudioIODevice (deviceName, "ALSA"),
           inputId (inputId_),
           outputId (outputId_),
           isOpen_ (false),
           isStarted (false),
-          internal (0)
+          internal (new ALSAThread (inputId_, outputId_))
     {
-        internal = new ALSAThread (inputId, outputId);
     }
 
     ~ALSAAudioIODevice()
     {
-        delete internal;
     }
 
     const StringArray getOutputChannelNames()
@@ -704,8 +693,8 @@ public:
         return 512;
     }
 
-    const String open (const BitArray& inputChannels,
-                       const BitArray& outputChannels,
+    const String open (const BigInteger& inputChannels,
+                       const BigInteger& outputChannels,
                        double sampleRate,
                        int bufferSizeSamples)
     {
@@ -760,12 +749,12 @@ public:
         return internal->getBitDepth();
     }
 
-    const BitArray getActiveOutputChannels() const
+    const BigInteger getActiveOutputChannels() const
     {
         return internal->currentOutputChans;
     }
 
-    const BitArray getActiveInputChannels() const
+    const BigInteger getActiveInputChannels() const
     {
         return internal->currentInputChans;
     }
@@ -817,7 +806,7 @@ public:
 
 private:
     bool isOpen_, isStarted;
-    ALSAThread* internal;
+    ScopedPointer<ALSAThread> internal;
 };
 
 
@@ -827,7 +816,7 @@ class ALSAAudioIODeviceType  : public AudioIODeviceType
 public:
     //==============================================================================
     ALSAAudioIODeviceType()
-        : AudioIODeviceType (T("ALSA")),
+        : AudioIODeviceType ("ALSA"),
           hasScanned (false)
     {
     }
@@ -867,7 +856,7 @@ public:
                 {
                     String cardId (snd_ctl_card_info_get_id (info));
 
-                    if (cardId.removeCharacters (T("0123456789")).isEmpty())
+                    if (cardId.removeCharacters ("0123456789").isEmpty())
                         cardId = String (cardNum);
 
                     int device = -1;
@@ -912,14 +901,14 @@ public:
         outputNames.appendNumbersToDuplicates (false, true);
     }
 
-    const StringArray getDeviceNames (const bool wantInputNames) const
+    const StringArray getDeviceNames (bool wantInputNames) const
     {
         jassert (hasScanned); // need to call scanForDevices() before doing this
 
         return wantInputNames ? inputNames : outputNames;
     }
 
-    int getDefaultDeviceIndex (const bool forInput) const
+    int getDefaultDeviceIndex (bool forInput) const
     {
         jassert (hasScanned); // need to call scanForDevices() before doing this
         return 0;
@@ -927,11 +916,11 @@ public:
 
     bool hasSeparateInputsAndOutputs() const    { return true; }
 
-    int getIndexOfDevice (AudioIODevice* device, const bool asInput) const
+    int getIndexOfDevice (AudioIODevice* device, bool asInput) const
     {
         jassert (hasScanned); // need to call scanForDevices() before doing this
 
-        ALSAAudioIODevice* const d = dynamic_cast <ALSAAudioIODevice*> (device);
+        ALSAAudioIODevice* d = dynamic_cast <ALSAAudioIODevice*> (device);
         if (d == 0)
             return -1;
 
@@ -973,10 +962,10 @@ private:
 
         getDeviceProperties (id, minChansOut, maxChansOut, minChansIn, maxChansIn, rates);
 
-        DBG (T("ALSA device: ") + id
-              + T(" outs=") + String ((int) minChansOut) + T("-") + String ((int) maxChansOut)
-              + T(" ins=") + String ((int) minChansIn) + T("-") + String ((int) maxChansIn)
-              + T(" rates=") + String (rates.size()));
+        DBG ("ALSA device: " + id
+              + " outs=" + String ((int) minChansOut) + "-" + String ((int) maxChansOut)
+              + " ins=" + String ((int) minChansIn) + "-" + String ((int) maxChansIn)
+              + " rates=" + String (rates.size()));
 
         isInput = maxChansIn > 0;
         isOutput = maxChansOut > 0;

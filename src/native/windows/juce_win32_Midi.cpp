@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -77,7 +77,7 @@ public:
     }
 
     //==============================================================================
-    void handle (const uint32 message, const uint32 timeStamp) throw()
+    void handle (const uint32 message, const uint32 timeStamp)
     {
         const int byte = message & 0xff;
         if (byte < 0x80)
@@ -99,14 +99,14 @@ public:
             }
             else
             {
-                jassertfalse // midi buffer overflow! You might need to increase the size..
+                jassertfalse; // midi buffer overflow! You might need to increase the size..
             }
         }
 
         notify();
     }
 
-    void handleSysEx (MIDIHDR* const hdr, const uint32 timeStamp) throw()
+    void handleSysEx (MIDIHDR* const hdr, const uint32 timeStamp)
     {
         const int num = hdr->dwBytesRecorded;
 
@@ -127,7 +127,7 @@ public:
                 }
                 else
                 {
-                    jassertfalse // midi buffer overflow! You might need to increase the size..
+                    jassertfalse; // midi buffer overflow! You might need to increase the size..
                 }
             }
 
@@ -135,7 +135,7 @@ public:
         }
     }
 
-    void writeBlock (const int i) throw()
+    void writeBlock (const int i)
     {
         hdr[i].dwBytesRecorded = 0;
         MMRESULT res = midiInPrepareHeader (hIn, &hdr[i], sizeof (MIDIHDR));
@@ -202,7 +202,7 @@ public:
         }
     }
 
-    void start() throw()
+    void start()
     {
         jassert (hIn != 0);
         if (hIn != 0 && ! isStarted)
@@ -229,7 +229,7 @@ public:
         }
     }
 
-    void stop() throw()
+    void stop()
     {
         if (isStarted)
         {
@@ -291,7 +291,7 @@ private:
     int pendingLength;
     char pending [MidiConstants::midiBufferSize];
 
-    double timeStampToTime (uint32 timeStamp) throw()
+    double timeStampToTime (uint32 timeStamp)
     {
         timeStamp += startTime;
 
@@ -378,7 +378,7 @@ MidiInput* MidiInput::openDevice (const int index, MidiInputCallback* const call
     if (err == MMSYSERR_NOERROR)
     {
         thread->hIn = h;
-        in->internal = (void*) thread.release();
+        in->internal = thread.release();
         return in.release();
     }
 
@@ -476,7 +476,7 @@ MidiOutput* MidiOutput::openDevice (int index)
         {
             // use the microsoft sw synth as a default - best not to allow deviceId
             // to be MIDI_MAPPER, or else device sharing breaks
-            if (String (mc.szPname, sizeof (mc.szPname)).containsIgnoreCase (T("microsoft")))
+            if (String (mc.szPname, sizeof (mc.szPname)).containsIgnoreCase ("microsoft"))
                 deviceId = i;
 
             if (index == n)
@@ -498,7 +498,7 @@ MidiOutput* MidiOutput::openDevice (int index)
             han->refCount++;
 
             MidiOutput* const out = new MidiOutput();
-            out->internal = (void*) han;
+            out->internal = han;
             return out;
         }
     }
@@ -517,7 +517,7 @@ MidiOutput* MidiOutput::openDevice (int index)
             MidiOutHandle::activeHandles.add (han);
 
             MidiOutput* const out = new MidiOutput();
-            out->internal = (void*) han;
+            out->internal = han;
             return out;
         }
         else if (res == MMSYSERR_ALLOCATED)

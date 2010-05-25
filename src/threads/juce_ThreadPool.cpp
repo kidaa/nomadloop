@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -70,7 +70,7 @@ class ThreadPool::ThreadPoolThread  : public Thread
 {
 public:
     ThreadPoolThread (ThreadPool& pool_)
-        : Thread (T("Pool")),
+        : Thread ("Pool"),
           pool (pool_),
           busy (false)
     {
@@ -183,7 +183,7 @@ int ThreadPool::getNumJobs() const
 ThreadPoolJob* ThreadPool::getJob (const int index) const
 {
     const ScopedLock sl (lock);
-    return (ThreadPoolJob*) jobs [index];
+    return jobs [index];
 }
 
 bool ThreadPool::contains (const ThreadPoolJob* const job) const

@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -237,7 +237,7 @@ void JucerFillType::restoreFromString (const String& s)
     if (s.isNotEmpty())
     {
         StringArray toks;
-        toks.addTokens (s, T(",:"), 0);
+        toks.addTokens (s, T(",:"), String::empty);
         toks.trim();
 
         if (toks[0] == T("solid"))

@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -42,7 +42,7 @@ FillType::FillType (const Colour& colour_) throw()
 {
 }
 
-FillType::FillType (const ColourGradient& gradient_) throw()
+FillType::FillType (const ColourGradient& gradient_)
     : colour (0xff000000), gradient (new ColourGradient (gradient_)), image (0)
 {
 }
@@ -52,14 +52,14 @@ FillType::FillType (const Image& image_, const AffineTransform& transform_) thro
 {
 }
 
-FillType::FillType (const FillType& other) throw()
+FillType::FillType (const FillType& other)
     : colour (other.colour),
       gradient (other.gradient != 0 ? new ColourGradient (*other.gradient) : 0),
       image (other.image), transform (other.transform)
 {
 }
 
-FillType& FillType::operator= (const FillType& other) throw()
+FillType& FillType::operator= (const FillType& other)
 {
     if (this != &other)
     {
@@ -76,6 +76,16 @@ FillType::~FillType() throw()
 {
 }
 
+bool FillType::operator== (const FillType& other) const
+{
+    return colour == other.colour && gradient == other.gradient && image == other.image;
+}
+
+bool FillType::operator!= (const FillType& other) const
+{
+    return ! operator== (other);
+}
+
 void FillType::setColour (const Colour& newColour) throw()
 {
     gradient = 0;
@@ -83,7 +93,7 @@ void FillType::setColour (const Colour& newColour) throw()
     colour = newColour;
 }
 
-void FillType::setGradient (const ColourGradient& newGradient) throw()
+void FillType::setGradient (const ColourGradient& newGradient)
 {
     if (gradient != 0)
     {
@@ -109,5 +119,11 @@ void FillType::setOpacity (const float newOpacity) throw()
 {
     colour = colour.withAlpha (newOpacity);
 }
+
+bool FillType::isInvisible() const throw()
+{
+    return colour.isTransparent() || (gradient != 0 && gradient->isInvisible());
+}
+
 
 END_JUCE_NAMESPACE

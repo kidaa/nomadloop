@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -53,10 +53,10 @@ public:
         The corresponding public member variables will be set from the parameters
         passed in.
     */
-    Message (const int intParameter1,
-             const int intParameter2,
-             const int intParameter3,
-             void* const pointerParameter) throw();
+    Message (int intParameter1,
+             int intParameter2,
+             int intParameter3,
+             void* pointerParameter) throw();
 
     /** Destructor. */
     virtual ~Message() throw();

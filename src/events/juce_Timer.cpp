@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -35,7 +35,6 @@ BEGIN_JUCE_NAMESPACE
 #include "../core/juce_Time.h"
 #include "../threads/juce_Thread.h"
 #include "../threads/juce_ScopedLock.h"
-#include "../containers/juce_VoidArray.h"
 
 
 //==============================================================================
@@ -48,7 +47,7 @@ public:
     InternalTimerThread()
         : Thread ("Juce Timer"),
           firstTimer (0),
-          callbackNeeded (false)
+          callbackNeeded (0)
     {
         triggerAsyncUpdate();
     }
@@ -96,7 +95,7 @@ public:
                    but if it fails it means the message-thread changed the value from under us so at least
                    some processing is happenening and we can just loop around and try again
                 */
-                if (callbackNeeded.set (true))
+                if (callbackNeeded.compareAndSetBool (1, 0))
                 {
                     postMessage (new Message());
 
@@ -106,7 +105,7 @@ public:
                     */
                     const uint32 messageDeliveryTimeout = now + 2000;
 
-                    while (callbackNeeded.get())
+                    while (callbackNeeded.get() != 0)
                     {
                         wait (4);
 
@@ -154,7 +153,7 @@ public:
            get a message then the value is true and the other thread can only  set  it to true again and
            we will get another callback to set it to false.
         */
-        callbackNeeded.set (false);
+        callbackNeeded.set (0);
     }
 
     void handleMessage (const Message&)
@@ -222,30 +221,12 @@ private:
     static InternalTimerThread* instance;
     static CriticalSection lock;
     Timer* volatile firstTimer;
-
-    //==============================================================================
-    class AtomicBool
-    {
-    public:
-        AtomicBool (const bool value) throw() : value (static_cast<int32> (value)) {}
-        ~AtomicBool() throw() {}
-
-        bool get() const throw()        { return value != 0; }
-        bool set (const bool newValue)  { return Atomic::compareAndExchange (value, newValue ? 1 : 0, value) != 0; }
-
-    private:
-        int32 value;
-
-        AtomicBool (const AtomicBool&);
-        AtomicBool& operator= (const AtomicBool&);
-    };
-
-    AtomicBool callbackNeeded;
+    Atomic <int> callbackNeeded;
 
     //==============================================================================
     void addTimer (Timer* const t) throw()
     {
-#ifdef JUCE_DEBUG
+#if JUCE_DEBUG
         Timer* tt = firstTimer;
 
         while (tt != 0)
@@ -290,7 +271,7 @@ private:
 
     void removeTimer (Timer* const t) throw()
     {
-#ifdef JUCE_DEBUG
+#if JUCE_DEBUG
         Timer* tt = firstTimer;
         bool found = false;
 
@@ -357,7 +338,7 @@ void juce_callAnyTimersSynchronously()
 }
 
 //==============================================================================
-#ifdef JUCE_DEBUG
+#if JUCE_DEBUG
 static SortedSet <Timer*> activeTimers;
 #endif
 
@@ -367,7 +348,7 @@ Timer::Timer() throw()
      previous (0),
      next (0)
 {
-#ifdef JUCE_DEBUG
+#if JUCE_DEBUG
     activeTimers.add (this);
 #endif
 }
@@ -378,7 +359,7 @@ Timer::Timer (const Timer&) throw()
      previous (0),
      next (0)
 {
-#ifdef JUCE_DEBUG
+#if JUCE_DEBUG
     activeTimers.add (this);
 #endif
 }
@@ -387,7 +368,7 @@ Timer::~Timer()
 {
     stopTimer();
 
-#ifdef JUCE_DEBUG
+#if JUCE_DEBUG
     activeTimers.removeValue (this);
 #endif
 }
@@ -396,7 +377,7 @@ void Timer::startTimer (const int interval) throw()
 {
     const ScopedLock sl (InternalTimerThread::lock);
 
-#ifdef JUCE_DEBUG
+#if JUCE_DEBUG
     // this isn't a valid object! Your timer might be a dangling pointer or something..
     jassert (activeTimers.contains (this));
 #endif
@@ -417,7 +398,7 @@ void Timer::stopTimer() throw()
 {
     const ScopedLock sl (InternalTimerThread::lock);
 
-#ifdef JUCE_DEBUG
+#if JUCE_DEBUG
     // this isn't a valid object! Your timer might be a dangling pointer or something..
     jassert (activeTimers.contains (this));
 #endif

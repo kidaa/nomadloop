@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -63,6 +63,10 @@ END_JUCE_NAMESPACE
                                                               frame: (WebFrame*) frame
                                                    decisionListener: (id <WebPolicyDecisionListener>) listener
 {
+    (void) sender;
+    (void) request;
+    (void) frame;
+
     NSURL* url = [actionInformation valueForKey: @"WebActionOriginalURLKey"];
 
     if (ownerComponent->pageAboutToLoad (nsStringToJuce ([url absoluteString])))
@@ -117,8 +121,8 @@ public:
         {
             for (int i = 0; i < headers->size(); ++i)
             {
-                const String headerName ((*headers)[i].upToFirstOccurrenceOf (T(":"), false, false).trim());
-                const String headerValue ((*headers)[i].fromFirstOccurrenceOf (T(":"), false, false).trim());
+                const String headerName ((*headers)[i].upToFirstOccurrenceOf (":", false, false).trim());
+                const String headerValue ((*headers)[i].fromFirstOccurrenceOf (":", false, false).trim());
 
                 [r setValue: juceStringToNS (headerValue)
                    forHTTPHeaderField: juceStringToNS (headerName)];
@@ -214,7 +218,7 @@ void WebBrowserComponent::refresh()
 }
 
 //==============================================================================
-void WebBrowserComponent::paint (Graphics& g)
+void WebBrowserComponent::paint (Graphics&)
 {
 }
 
@@ -263,7 +267,7 @@ void WebBrowserComponent::visibilityChanged()
     checkWindowAssociation();
 }
 
-bool WebBrowserComponent::pageAboutToLoad (const String& url)
+bool WebBrowserComponent::pageAboutToLoad (const String&)
 {
     return true;
 }

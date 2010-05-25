@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -57,17 +57,17 @@ public:
         @param deleteSourceWhenDestroyed    whether the sourceStream that is passed in should be
                                             deleted by this object when it is itself deleted.
     */
-    SubregionStream (InputStream* const sourceStream,
-                     const int64 startPositionInSourceStream,
-                     const int64 lengthOfSourceStream,
-                     const bool deleteSourceWhenDestroyed) throw();
+    SubregionStream (InputStream* sourceStream,
+                     int64 startPositionInSourceStream,
+                     int64 lengthOfSourceStream,
+                     bool deleteSourceWhenDestroyed);
 
     /** Destructor.
 
         This may also delete the source stream, if that option was chosen when the
         buffered stream was created.
     */
-    ~SubregionStream() throw();
+    ~SubregionStream();
 
 
     //==============================================================================

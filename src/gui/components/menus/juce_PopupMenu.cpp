@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -191,7 +191,7 @@ public:
         {
             String mainText (itemInfo.text);
             String endText;
-            const int endIndex = mainText.indexOf (T("<end>"));
+            const int endIndex = mainText.indexOf ("<end>");
 
             if (endIndex >= 0)
             {
@@ -264,7 +264,7 @@ class PopupMenu::Window  : public Component,
 public:
     //==============================================================================
     Window()
-       : Component (T("menu")),
+       : Component ("menu"),
          owner (0),
          currentChild (0),
          activeSubMenu (0),
@@ -968,7 +968,7 @@ private:
 
         for (int i = getNumChildComponents(); --i >= 0;)
         {
-            PopupMenu::ItemComponent* const m = (PopupMenu::ItemComponent*) getChildComponent (i);
+            PopupMenu::ItemComponent* const m = static_cast <PopupMenu::ItemComponent*> (getChildComponent (i));
 
             if (m != 0
                 && m->itemInfo.itemId == itemId
@@ -1150,7 +1150,7 @@ private:
                 disableMouseMoves = false;
         }
 
-        if (disableMouseMoves)
+        if (disableMouseMoves || (activeSubMenu != 0 && activeSubMenu->isOverChildren()))
             return;
 
         bool isMovingTowardsMenu = false;
@@ -1734,14 +1734,14 @@ void PopupMenuCustomComponent::triggerMenuItem()
         else
         {
             // something must have gone wrong with the component hierarchy if this happens..
-            jassertfalse
+            jassertfalse;
         }
     }
     else
     {
         // why isn't this component inside a menu? Not much point triggering the item if
         // there's no menu.
-        jassertfalse
+        jassertfalse;
     }
 }
 

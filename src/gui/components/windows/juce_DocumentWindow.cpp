@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -95,9 +95,7 @@ DocumentWindow::~DocumentWindow()
 //==============================================================================
 void DocumentWindow::repaintTitleBar()
 {
-    const Rectangle<int> titleBarArea (getTitleBarArea());
-    repaint (titleBarArea.getX(), titleBarArea.getY(),
-             titleBarArea.getWidth(), titleBarArea.getHeight());
+    repaint (getTitleBarArea());
 }
 
 void DocumentWindow::setName (const String& newName)
@@ -176,7 +174,7 @@ void DocumentWindow::closeButtonPressed()
         still get cleaned-up if the app is quit by some other means (e.g. a cmd-Q on the mac
         or closing it via the taskbar icon on Windows).
     */
-    jassertfalse
+    jassertfalse;
 }
 
 void DocumentWindow::minimiseButtonPressed()
@@ -304,18 +302,18 @@ Button* DocumentWindow::getMaximiseButton() const throw()
 
 int DocumentWindow::getDesktopWindowStyleFlags() const
 {
-    int flags = ResizableWindow::getDesktopWindowStyleFlags();
+    int styleFlags = ResizableWindow::getDesktopWindowStyleFlags();
 
     if ((requiredButtons & minimiseButton) != 0)
-        flags |= ComponentPeer::windowHasMinimiseButton;
+        styleFlags |= ComponentPeer::windowHasMinimiseButton;
 
     if ((requiredButtons & maximiseButton) != 0)
-        flags |= ComponentPeer::windowHasMaximiseButton;
+        styleFlags |= ComponentPeer::windowHasMaximiseButton;
 
     if ((requiredButtons & closeButton) != 0)
-        flags |= ComponentPeer::windowHasCloseButton;
+        styleFlags |= ComponentPeer::windowHasCloseButton;
 
-    return flags;
+    return styleFlags;
 }
 
 void DocumentWindow::lookAndFeelChanged()
@@ -353,7 +351,7 @@ void DocumentWindow::lookAndFeelChanged()
         if (getCloseButton() != 0)
         {
 #if JUCE_MAC
-            getCloseButton()->addShortcut (KeyPress (T('w'), ModifierKeys::commandModifier, 0));
+            getCloseButton()->addShortcut (KeyPress ('w', ModifierKeys::commandModifier, 0));
 #else
             getCloseButton()->addShortcut (KeyPress (KeyPress::F4Key, ModifierKeys::altModifier, 0));
 #endif

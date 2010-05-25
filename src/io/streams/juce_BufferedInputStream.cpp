@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -140,7 +140,7 @@ int BufferedInputStream::read (void* destBuffer, int maxBytesToRead)
                 maxBytesToRead -= bytesAvailable;
                 bytesRead += bytesAvailable;
                 position += bytesAvailable;
-                destBuffer = (void*) (((char*) destBuffer) + bytesAvailable);
+                destBuffer = static_cast <char*> (destBuffer) + bytesAvailable;
             }
 
             const int64 oldLastReadPos = lastReadPos;

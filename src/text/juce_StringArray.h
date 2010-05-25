@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -29,12 +29,6 @@
 #include "juce_String.h"
 #include "../containers/juce_Array.h"
 
-#ifndef DOXYGEN
- // (used in StringArray::appendNumbersToDuplicates)
- static const tchar* const defaultPreNumberString  = JUCE_T(" (");
- static const tchar* const defaultPostNumberString = JUCE_T(")");
-#endif
-
 
 //==============================================================================
 /**
@@ -52,37 +46,35 @@ public:
     /** Creates a copy of another string array */
     StringArray (const StringArray& other);
 
-    /** Creates a copy of an array of string literals.
+    /** Creates an array containing a single string. */
+    explicit StringArray (const String& firstValue);
 
+    /** Creates a copy of an array of string literals.
         @param strings          an array of strings to add. Null pointers in the array will be
                                 treated as empty strings
         @param numberOfStrings  how many items there are in the array
     */
-    StringArray (const juce_wchar** const strings,
-                 const int numberOfStrings);
+    StringArray (const juce_wchar* const* strings, int numberOfStrings);
 
     /** Creates a copy of an array of string literals.
-
         @param strings          an array of strings to add. Null pointers in the array will be
                                 treated as empty strings
         @param numberOfStrings  how many items there are in the array
     */
-    StringArray (const char** const strings,
-                 const int numberOfStrings);
+    StringArray (const char* const* strings, int numberOfStrings);
+
+    /** Creates a copy of a null-terminated array of string literals.
+        Each item from the array passed-in is added, until it encounters a null pointer,
+        at which point it stops.
+    */
+    explicit StringArray (const juce_wchar* const* strings);
 
     /** Creates a copy of a null-terminated array of string literals.
 
         Each item from the array passed-in is added, until it encounters a null pointer,
         at which point it stops.
     */
-    explicit StringArray (const juce_wchar** const strings);
-
-    /** Creates a copy of a null-terminated array of string literals.
-
-        Each item from the array passed-in is added, until it encounters a null pointer,
-        at which point it stops.
-    */
-    explicit StringArray (const char** const strings);
+    explicit StringArray (const char* const* strings);
 
     /** Destructor. */
     ~StringArray();
@@ -92,20 +84,16 @@ public:
 
     //==============================================================================
     /** Compares two arrays.
-
         Comparisons are case-sensitive.
-
         @returns    true only if the other array contains exactly the same strings in the same order
     */
-    bool operator== (const StringArray& other) const;
+    bool operator== (const StringArray& other) const throw();
 
     /** Compares two arrays.
-
         Comparisons are case-sensitive.
-
         @returns    false if the other array contains exactly the same strings in the same order
     */
-    bool operator!= (const StringArray& other) const;
+    bool operator!= (const StringArray& other) const throw();
 
     //==============================================================================
     /** Returns the number of strings in the array */
@@ -118,7 +106,13 @@ public:
         Obviously the reference returned shouldn't be stored for later use, as the
         string it refers to may disappear when the array changes.
     */
-    const String& operator[] (const int index) const throw();
+    const String& operator[] (int index) const throw();
+
+    /** Returns a reference to one of the strings in the array.
+        This lets you modify a string in-place in the array, but you must be sure that
+        the index is in-range.
+    */
+    String& getReference (int index) throw();
 
     /** Searches for a string in the array.
 
@@ -127,7 +121,7 @@ public:
         @returns    true if the string is found inside the array
     */
     bool contains (const String& stringToLookFor,
-                   const bool ignoreCase = false) const;
+                   bool ignoreCase = false) const;
 
     /** Searches for a string in the array.
 
@@ -140,7 +134,7 @@ public:
                                 or -1 if it isn't found.
     */
     int indexOf (const String& stringToLookFor,
-                 const bool ignoreCase = false,
+                 bool ignoreCase = false,
                  int startIndex = 0) const;
 
     //==============================================================================
@@ -154,20 +148,20 @@ public:
         If the index is less than zero or greater than the size of the array,
         the new string will be added to the end of the array.
     */
-    void insert (const int index, const String& stringToAdd);
+    void insert (int index, const String& stringToAdd);
 
     /** Adds a string to the array as long as it's not already in there.
 
         The search can optionally be case-insensitive.
     */
-    void addIfNotAlreadyThere (const String& stringToAdd, const bool ignoreCase = false);
+    void addIfNotAlreadyThere (const String& stringToAdd, bool ignoreCase = false);
 
     /** Replaces one of the strings in the array with another one.
 
         If the index is higher than the array's size, the new string will be
         added to the end of the array; if it's less than zero nothing happens.
     */
-    void set (const int index, const String& newString);
+    void set (int index, const String& newString);
 
     /** Appends some strings from another array to the end of this one.
 
@@ -188,7 +182,7 @@ public:
         @returns    the number of tokens added
     */
     int addTokens (const String& stringToTokenise,
-                   const bool preserveQuotedStrings);
+                   bool preserveQuotedStrings);
 
     /** Breaks up a string into tokens and adds them to this array.
 
@@ -223,7 +217,7 @@ public:
 
         If the index is out-of-range, no action will be taken.
     */
-    void remove (const int index);
+    void remove (int index);
 
     /** Finds a string in the array and removes it.
 
@@ -231,7 +225,20 @@ public:
         comparison may be case-insensitive depending on the ignoreCase parameter.
     */
     void removeString (const String& stringToRemove,
-                       const bool ignoreCase = false);
+                       bool ignoreCase = false);
+
+    /** Removes a range of elements from the array.
+
+        This will remove a set of elements, starting from the given index,
+        and move subsequent elements down to close the gap.
+
+        If the range extends beyond the bounds of the array, it will
+        be safely clipped to the size of the array.
+
+        @param startIndex       the index of the first element to remove
+        @param numberToRemove   how many elements should be removed
+    */
+    void removeRange (int startIndex, int numberToRemove);
 
     /** Removes any duplicated elements from the array.
 
@@ -240,14 +247,14 @@ public:
 
         @param ignoreCase   whether to use a case-insensitive comparison
     */
-    void removeDuplicates (const bool ignoreCase);
+    void removeDuplicates (bool ignoreCase);
 
     /** Removes empty strings from the array.
 
         @param removeWhitespaceStrings  if true, strings that only contain whitespace
                                         characters will also be removed
     */
-    void removeEmptyStrings (const bool removeWhitespaceStrings = true);
+    void removeEmptyStrings (bool removeWhitespaceStrings = true);
 
     /** Moves one of the strings to a different position.
 
@@ -263,7 +270,7 @@ public:
                                 is less than zero, the value will be moved to the end
                                 of the array
     */
-    void move (const int currentIndex, int newIndex) throw();
+    void move (int currentIndex, int newIndex) throw();
 
     /** Deletes any whitespace characters from the starts and ends of all the strings. */
     void trim();
@@ -276,13 +283,17 @@ public:
         @param ignoreCaseWhenComparing      whether the comparison used is case-insensitive
         @param appendNumberToFirstInstance  whether the first of a group of similar strings
                                             also has a number appended to it.
-        @param preNumberString              when adding a number, this string is added before the number
-        @param postNumberString             this string is appended after any numbers that are added
+        @param preNumberString              when adding a number, this string is added before the number.
+                                            If you pass 0, a default string will be used, which adds
+                                            brackets around the number.
+        @param postNumberString             this string is appended after any numbers that are added.
+                                            If you pass 0, a default string will be used, which adds
+                                            brackets around the number.
     */
-    void appendNumbersToDuplicates (const bool ignoreCaseWhenComparing,
-                                    const bool appendNumberToFirstInstance,
-                                    const tchar* const preNumberString = defaultPreNumberString,
-                                    const tchar* const postNumberString = defaultPostNumberString);
+    void appendNumbersToDuplicates (bool ignoreCaseWhenComparing,
+                                    bool appendNumberToFirstInstance,
+                                    const juce_wchar* preNumberString = 0,
+                                    const juce_wchar* postNumberString = 0);
 
     //==============================================================================
     /** Joins the strings in the array together into one string.
@@ -306,7 +317,7 @@ public:
 
         @param ignoreCase       if true, the comparisons used will be case-sensitive.
     */
-    void sort (const bool ignoreCase);
+    void sort (bool ignoreCase);
 
     //==============================================================================
     /** Reduces the amount of storage being used by the array.

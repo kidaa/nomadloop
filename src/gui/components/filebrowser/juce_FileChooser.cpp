@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -49,7 +49,7 @@ FileChooser::FileChooser (const String& chooserBoxTitle,
 #endif
 
     if (! fileFilters.containsNonWhitespaceChars())
-        filters = T("*");
+        filters = "*";
 }
 
 FileChooser::~FileChooser()
@@ -137,7 +137,12 @@ bool FileChooser::showDialog (const bool selectsDirectories,
             flags |= FileBrowserComponent::canSelectFiles;
 
         if (selectsDirectories)
+        {
             flags |= FileBrowserComponent::canSelectDirectories;
+
+            if (! isSave)
+                flags |= FileBrowserComponent::filenameBoxIsReadOnly;
+        }
 
         if (selectMultipleFiles)
             flags |= FileBrowserComponent::canSelectMultipleItems;

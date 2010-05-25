@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -96,7 +96,7 @@ public:
     */
     void addSettingsPage (const String& pageTitle,
                           const char* imageData,
-                          const int imageDataSize);
+                          int imageDataSize);
 
     /** Utility method to display this panel in a DialogWindow.
 

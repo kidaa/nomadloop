@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -96,8 +96,9 @@ LowLevelGraphicsContext* Image::createLowLevelContext()
 }
 
 //==============================================================================
-Image::BitmapData::BitmapData (Image& image, int x, int y, int w, int h, const bool /*makeWritable*/)
+Image::BitmapData::BitmapData (Image& image, const int x, const int y, const int w, const int h, const bool /*makeWritable*/)
     : data (image.imageData + image.lineStride * y + image.pixelStride * x),
+      pixelFormat (image.getFormat()),
       lineStride (image.lineStride),
       pixelStride (image.pixelStride),
       width (w),
@@ -106,8 +107,9 @@ Image::BitmapData::BitmapData (Image& image, int x, int y, int w, int h, const b
     jassert (x >= 0 && y >= 0 && w > 0 && h > 0 && x + w <= image.getWidth() && y + h <= image.getHeight());
 }
 
-Image::BitmapData::BitmapData (const Image& image, int x, int y, int w, int h)
+Image::BitmapData::BitmapData (const Image& image, const int x, const int y, const int w, const int h)
     : data (image.imageData + image.lineStride * y + image.pixelStride * x),
+      pixelFormat (image.getFormat()),
       lineStride (image.lineStride),
       pixelStride (image.pixelStride),
       width (w),
@@ -121,7 +123,7 @@ Image::BitmapData::~BitmapData()
 }
 
 void Image::setPixelData (int x, int y, int w, int h,
-                          const uint8* sourcePixelData, int sourceLineStride)
+                          const uint8* const sourcePixelData, const int sourceLineStride)
 {
     jassert (x >= 0 && y >= 0 && w > 0 && h > 0 && x + w <= imageWidth && y + h <= imageHeight);
 
@@ -139,41 +141,46 @@ void Image::setPixelData (int x, int y, int w, int h,
 }
 
 //==============================================================================
-void Image::clear (int dx, int dy, int dw, int dh,
-                   const Colour& colourToClearTo)
+void Image::clear (const Rectangle<int>& area, const Colour& colourToClearTo)
 {
-    const PixelARGB col (colourToClearTo.getPixelARGB());
+    const Rectangle<int> clipped (area.getIntersection (getBounds()));
 
-    const BitmapData destData (*this, dx, dy, dw, dh, true);
-    uint8* dest = destData.data;
-
-    while (--dh >= 0)
+    if (! clipped.isEmpty())
     {
-        uint8* line = dest;
-        dest += destData.lineStride;
+        const PixelARGB col (colourToClearTo.getPixelARGB());
 
-        if (isARGB())
+        const BitmapData destData (*this, clipped.getX(), clipped.getY(), clipped.getWidth(), clipped.getHeight(), true);
+        uint8* dest = destData.data;
+        int dh = clipped.getHeight();
+
+        while (--dh >= 0)
         {
-            for (int x = dw; --x >= 0;)
+            uint8* line = dest;
+            dest += destData.lineStride;
+
+            if (isARGB())
             {
-                ((PixelARGB*) line)->set (col);
-                line += destData.pixelStride;
+                for (int x = clipped.getWidth(); --x >= 0;)
+                {
+                    ((PixelARGB*) line)->set (col);
+                    line += destData.pixelStride;
+                }
             }
-        }
-        else if (isRGB())
-        {
-            for (int x = dw; --x >= 0;)
+            else if (isRGB())
             {
-                ((PixelRGB*) line)->set (col);
-                line += destData.pixelStride;
+                for (int x = clipped.getWidth(); --x >= 0;)
+                {
+                    ((PixelRGB*) line)->set (col);
+                    line += destData.pixelStride;
+                }
             }
-        }
-        else
-        {
-            for (int x = dw; --x >= 0;)
+            else
             {
-                *line = col.getAlpha();
-                line += destData.pixelStride;
+                for (int x = clipped.getWidth(); --x >= 0;)
+                {
+                    *line = col.getAlpha();
+                    line += destData.pixelStride;
+                }
             }
         }
     }
@@ -209,7 +216,7 @@ Image* Image::createCopyOfAlphaChannel() const
 
     if (! hasAlphaChannel())
     {
-        newImage->clear (0, 0, imageWidth, imageHeight, Colours::black);
+        newImage->clear (getBounds(), Colours::black);
     }
     else
     {
@@ -326,7 +333,7 @@ void Image::multiplyAllAlphas (const float amountToMultiplyBy)
     }
     else
     {
-        jassertfalse // can't do this without an alpha-channel!
+        jassertfalse; // can't do this without an alpha-channel!
     }
 }
 
@@ -370,7 +377,7 @@ void Image::createSolidAreaMask (RectangleList& result, const float alphaThresho
     if (hasAlphaChannel())
     {
         const uint8 threshold = (uint8) jlimit (0, 255, roundToInt (alphaThreshold * 255.0f));
-        SparseSet <int> pixelsOnRow;
+        SparseSet<int> pixelsOnRow;
 
         const BitmapData srcData (*this, 0, 0, getWidth(), getHeight());
 
@@ -384,7 +391,7 @@ void Image::createSolidAreaMask (RectangleList& result, const float alphaThresho
                 for (int x = 0; x < imageWidth; ++x)
                 {
                     if (((const PixelARGB*) lineData)->getAlpha() >= threshold)
-                        pixelsOnRow.addRange (x, 1);
+                        pixelsOnRow.addRange (Range<int> (x, x + 1));
 
                     lineData += srcData.pixelStride;
                 }
@@ -394,7 +401,7 @@ void Image::createSolidAreaMask (RectangleList& result, const float alphaThresho
                 for (int x = 0; x < imageWidth; ++x)
                 {
                     if (*lineData >= threshold)
-                        pixelsOnRow.addRange (x, 1);
+                        pixelsOnRow.addRange (Range<int> (x, x + 1));
 
                     lineData += srcData.pixelStride;
                 }
@@ -402,10 +409,8 @@ void Image::createSolidAreaMask (RectangleList& result, const float alphaThresho
 
             for (int i = 0; i < pixelsOnRow.getNumRanges(); ++i)
             {
-                int x, w;
-
-                if (pixelsOnRow.getRange (i, x, w))
-                    result.add (Rectangle<int> (x, y, w, 1));
+                const Range<int> range (pixelsOnRow.getRange (i));
+                result.add (Rectangle<int> (range.getStart(), y, range.getLength(), 1));
             }
 
             result.consolidate();

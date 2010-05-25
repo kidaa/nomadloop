@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -47,7 +47,9 @@ BEGIN_JUCE_NAMESPACE
 #include "../threads/juce_Thread.h"
 #include "../threads/juce_InterProcessLock.h"
 #include "../io/files/juce_FileInputStream.h"
+#include "../io/files/juce_FileOutputStream.h"
 #include "../io/files/juce_NamedPipe.h"
+#include "../io/files/juce_DirectoryIterator.h"
 #include "../io/network/juce_URL.h"
 #include "../core/juce_PlatformUtilities.h"
 #include "../text/juce_LocalisedStrings.h"
@@ -81,7 +83,6 @@ BEGIN_JUCE_NAMESPACE
 #include "../audio/devices/juce_AudioIODeviceType.h"
 #include "../audio/devices/juce_MidiOutput.h"
 #include "../audio/devices/juce_MidiInput.h"
-
 
 //==============================================================================
 #define JUCE_INCLUDED_FILE 1

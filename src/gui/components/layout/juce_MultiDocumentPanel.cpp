@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -101,7 +101,7 @@ public:
     {
     }
 
-    void currentTabChanged (const int, const String&)
+    void currentTabChanged (int, const String&)
     {
         // (unable to use the syntax findParentComponentOfClass <MultiDocumentPanel> () because of a VC6 compiler bug)
         MultiDocumentPanel* const owner = findParentComponentOfClass ((MultiDocumentPanel*) 0);
@@ -322,7 +322,7 @@ bool MultiDocumentPanel::closeDocument (Component* component,
     }
     else
     {
-        jassertfalse
+        jassertfalse;
     }
 
     return true;

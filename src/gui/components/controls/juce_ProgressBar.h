@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -59,7 +59,7 @@ public:
                             you'd better be careful not to delete this variable while the
                             ProgressBar still exists!
     */
-    ProgressBar (double& progress);
+    explicit ProgressBar (double& progress);
 
     /** Destructor. */
     ~ProgressBar();

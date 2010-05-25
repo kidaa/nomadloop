@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -27,13 +27,18 @@
 
 BEGIN_JUCE_NAMESPACE
 
-
 #include "juce_DrawableText.h"
 
 
 //==============================================================================
 DrawableText::DrawableText()
     : colour (Colours::white)
+{
+}
+
+DrawableText::DrawableText (const DrawableText& other)
+    : text (other.text),
+      colour (other.colour)
 {
 }
 
@@ -67,11 +72,7 @@ void DrawableText::render (const Drawable::RenderingContext& context) const
 
 const Rectangle<float> DrawableText::getBounds() const
 {
-    float x, y, w, h;
-    text.getBoundingBox (0, -1, x, y, w, h, false); // (really returns top, left, bottom, right)
-    w -= x;
-    h -= y;
-    return Rectangle<float> (x, y, w, h);
+    return text.getBoundingBox (0, -1, false);
 }
 
 bool DrawableText::hitTest (float x, float y) const
@@ -81,38 +82,44 @@ bool DrawableText::hitTest (float x, float y) const
 
 Drawable* DrawableText::createCopy() const
 {
-    DrawableText* const dt = new DrawableText();
+    return new DrawableText (*this);
+}
 
-    dt->text = text;
-    dt->colour = colour;
-
-    return dt;
+void DrawableText::invalidatePoints()
+{
 }
 
 //==============================================================================
-ValueTree DrawableText::createValueTree() const throw()
+const Identifier DrawableText::valueTreeType ("Text");
+
+const Identifier DrawableText::ValueTreeWrapper::text ("text");
+
+DrawableText::ValueTreeWrapper::ValueTreeWrapper (const ValueTree& state_)
+    : ValueTreeWrapperBase (state_)
 {
-    ValueTree v (T("Text"));
-
-    if (getName().isNotEmpty())
-        v.setProperty ("id", getName(), 0);
-
-    jassertfalse // xxx not finished!
-    return v;
+    jassert (state.hasType (valueTreeType));
 }
 
-DrawableText* DrawableText::createFromValueTree (const ValueTree& tree) throw()
+const Rectangle<float> DrawableText::refreshFromValueTree (const ValueTree& tree, ImageProvider* imageProvider)
 {
-    if (! tree.hasType ("Text"))
-        return 0;
+    ValueTreeWrapper v (tree);
+    setName (v.getID());
 
-    DrawableText* dt = new DrawableText();
+    jassertfalse; // xxx not finished!
 
-    dt->setName (tree ["id"]);
+    return Rectangle<float>();
+}
 
-    jassertfalse // xxx not finished!
+const ValueTree DrawableText::createValueTree (ImageProvider* imageProvider) const
+{
+    ValueTree tree (valueTreeType);
+    ValueTreeWrapper v (tree);
 
-    return dt;
+    v.setID (getName(), 0);
+
+    jassertfalse; // xxx not finished!
+
+    return tree;
 }
 
 

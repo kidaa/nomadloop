@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -89,7 +89,7 @@ static void jack_Log (const String& s)
     std::cerr << s << std::endl;
 }
 
-static void dumpJackErrorMessage (const jack_status_t status) throw()
+static void dumpJackErrorMessage (const jack_status_t status)
 {
     if (status & JackServerFailed || status & JackServerError)
         jack_Log ("Unable to connect to JACK server");
@@ -122,7 +122,7 @@ public:
     JackAudioIODevice (const String& deviceName,
                        const String& inputId_,
                        const String& outputId_)
-        : AudioIODevice (deviceName, T("JACK")),
+        : AudioIODevice (deviceName, "JACK"),
           inputId (inputId_),
           outputId (outputId_),
           isOpen_ (false),
@@ -193,8 +193,8 @@ public:
             {
                 const String portName (ports [j++]);
 
-                if (portName.upToFirstOccurrenceOf (T(":"), false, false) == getName())
-                    names.add (portName.fromFirstOccurrenceOf (T(":"), false, false));
+                if (portName.upToFirstOccurrenceOf (":", false, false) == getName())
+                    names.add (portName.fromFirstOccurrenceOf (":", false, false));
             }
 
             free (ports);
@@ -211,12 +211,12 @@ public:
     int getBufferSizeSamples (int index)        { return getDefaultBufferSize(); }
     int getDefaultBufferSize()                  { return client != 0 ? JUCE_NAMESPACE::jack_get_buffer_size (client) : 0; }
 
-    const String open (const BitArray& inputChannels, const BitArray& outputChannels,
+    const String open (const BigInteger& inputChannels, const BigInteger& outputChannels,
                        double sampleRate, int bufferSizeSamples)
     {
         if (client == 0)
         {
-            lastError = T("No JACK client running");
+            lastError = "No JACK client running";
             return lastError;
         }
 
@@ -228,19 +228,19 @@ public:
         JUCE_NAMESPACE::jack_activate (client);
         isOpen_ = true;
 
-        if (! inputChannels.isEmpty())
+        if (! inputChannels.isZero())
         {
             const char** const ports = JUCE_NAMESPACE::jack_get_ports (client, 0, 0, /* JackPortIsPhysical | */ JackPortIsOutput);
 
             if (ports != 0)
             {
-                const int numInputChannels = inputChannels.getHighestBit () + 1;
+                const int numInputChannels = inputChannels.getHighestBit() + 1;
 
                 for (int i = 0; i < numInputChannels; ++i)
                 {
                     const String portName (ports[i]);
 
-                    if (inputChannels[i] && portName.upToFirstOccurrenceOf (T(":"), false, false) == getName())
+                    if (inputChannels[i] && portName.upToFirstOccurrenceOf (":", false, false) == getName())
                     {
                         int error = JUCE_NAMESPACE::jack_connect (client, ports[i], JUCE_NAMESPACE::jack_port_name ((jack_port_t*) inputPorts[i]));
                         if (error != 0)
@@ -252,19 +252,19 @@ public:
             }
         }
 
-        if (! outputChannels.isEmpty())
+        if (! outputChannels.isZero())
         {
             const char** const ports = JUCE_NAMESPACE::jack_get_ports (client, 0, 0, /* JackPortIsPhysical | */ JackPortIsInput);
 
             if (ports != 0)
             {
-                const int numOutputChannels = outputChannels.getHighestBit () + 1;
+                const int numOutputChannels = outputChannels.getHighestBit() + 1;
 
                 for (int i = 0; i < numOutputChannels; ++i)
                 {
                     const String portName (ports[i]);
 
-                    if (outputChannels[i] && portName.upToFirstOccurrenceOf (T(":"), false, false) == getName())
+                    if (outputChannels[i] && portName.upToFirstOccurrenceOf (":", false, false) == getName())
                     {
                         int error = JUCE_NAMESPACE::jack_connect (client, JUCE_NAMESPACE::jack_port_name ((jack_port_t*) outputPorts[i]), ports[i]);
                         if (error != 0)
@@ -324,9 +324,9 @@ public:
     int getCurrentBitDepth()                { return 32; }
     const String getLastError()             { return lastError; }
 
-    const BitArray getActiveOutputChannels() const
+    const BigInteger getActiveOutputChannels() const
     {
-        BitArray outputBits;
+        BigInteger outputBits;
 
         for (int i = 0; i < outputPorts.size(); i++)
             if (JUCE_NAMESPACE::jack_port_connected ((jack_port_t*) outputPorts [i]))
@@ -335,9 +335,9 @@ public:
         return outputBits;
     }
 
-    const BitArray getActiveInputChannels() const
+    const BigInteger getActiveInputChannels() const
     {
-        BitArray inputBits;
+        BigInteger inputBits;
 
         for (int i = 0; i < inputPorts.size(); i++)
             if (JUCE_NAMESPACE::jack_port_connected ((jack_port_t*) inputPorts [i]))
@@ -445,7 +445,7 @@ private:
     HeapBlock <float*> inChans, outChans;
     int totalNumberOfInputChannels;
     int totalNumberOfOutputChannels;
-    VoidArray inputPorts, outputPorts;
+    Array<void*> inputPorts, outputPorts;
 };
 
 
@@ -455,7 +455,7 @@ class JackAudioIODeviceType  : public AudioIODeviceType
 public:
     //==============================================================================
     JackAudioIODeviceType()
-        : AudioIODeviceType (T("JACK")),
+        : AudioIODeviceType ("JACK"),
           hasScanned (false)
     {
     }
@@ -500,7 +500,7 @@ public:
                 while (ports[j] != 0)
                 {
                     String clientName (ports[j]);
-                    clientName = clientName.upToFirstOccurrenceOf (T(":"), false, false);
+                    clientName = clientName.upToFirstOccurrenceOf (":", false, false);
 
                     if (clientName != String (JUCE_JACK_CLIENT_NAME)
                          && ! inputNames.contains (clientName))
@@ -524,7 +524,7 @@ public:
                 while (ports[j] != 0)
                 {
                     String clientName (ports[j]);
-                    clientName = clientName.upToFirstOccurrenceOf (T(":"), false, false);
+                    clientName = clientName.upToFirstOccurrenceOf (":", false, false);
 
                     if (clientName != String (JUCE_JACK_CLIENT_NAME)
                          && ! outputNames.contains (clientName))
@@ -543,13 +543,13 @@ public:
         }
     }
 
-    const StringArray getDeviceNames (const bool wantInputNames) const
+    const StringArray getDeviceNames (bool wantInputNames) const
     {
         jassert (hasScanned); // need to call scanForDevices() before doing this
         return wantInputNames ? inputNames : outputNames;
     }
 
-    int getDefaultDeviceIndex (const bool forInput) const
+    int getDefaultDeviceIndex (bool forInput) const
     {
         jassert (hasScanned); // need to call scanForDevices() before doing this
         return 0;
@@ -557,11 +557,11 @@ public:
 
     bool hasSeparateInputsAndOutputs() const    { return true; }
 
-    int getIndexOfDevice (AudioIODevice* device, const bool asInput) const
+    int getIndexOfDevice (AudioIODevice* device, bool asInput) const
     {
         jassert (hasScanned); // need to call scanForDevices() before doing this
 
-        JackAudioIODevice* const d = dynamic_cast <JackAudioIODevice*> (device);
+        JackAudioIODevice* d = dynamic_cast <JackAudioIODevice*> (device);
         if (d == 0)
             return -1;
 

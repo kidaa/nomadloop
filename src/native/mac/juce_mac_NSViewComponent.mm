@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -145,7 +145,7 @@ void* NSViewComponent::getView() const
     return info == 0 ? 0 : info->view;
 }
 
-void NSViewComponent::paint (Graphics& g)
+void NSViewComponent::paint (Graphics&)
 {
 }
 

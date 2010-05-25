@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -52,13 +52,13 @@
 // (For info about JUCE_LOG_ASSERTIONS, have a look in juce_Config.h)
 #if JUCE_LOG_ASSERTIONS
   #define juce_LogCurrentAssertion    juce_LogAssertion (__FILE__, __LINE__);
-#elif defined (JUCE_DEBUG)
+#elif JUCE_DEBUG
   #define juce_LogCurrentAssertion    std::cerr << "JUCE Assertion failure in " << __FILE__ << ", line " << __LINE__ << std::endl;
 #else
   #define juce_LogCurrentAssertion
 #endif
 
-#ifdef JUCE_DEBUG
+#if JUCE_DEBUG
   //==============================================================================
   // If debugging is enabled..
 
@@ -123,7 +123,7 @@
 
       @see jassertfalse
   */
-  #define jassert(expression)           { if (! (expression)) jassertfalse }
+  #define jassert(expression)           { if (! (expression)) jassertfalse; }
 
 #else
   //==============================================================================
@@ -134,7 +134,7 @@
   #define jassertfalse                  { juce_LogCurrentAssertion }
 
   #if JUCE_LOG_ASSERTIONS
-    #define jassert(expression)         { if (! (expression)) jassertfalse }
+    #define jassert(expression)         { if (! (expression)) jassertfalse; }
   #else
     #define jassert(a)                  { }
   #endif
@@ -173,7 +173,7 @@
     }
 
   #define JUCE_CATCH_ALL            catch (...) {}
-  #define JUCE_CATCH_ALL_ASSERT     catch (...) { jassertfalse }
+  #define JUCE_CATCH_ALL_ASSERT     catch (...) { jassertfalse; }
 
 #else
 
@@ -200,6 +200,8 @@
     #define forcedinline  inline
   #endif
 
+  #define JUCE_ALIGN(bytes) __declspec (align (bytes))
+
 #else
   /** A platform-independent way of forcing an inline function.
 
@@ -212,6 +214,8 @@
   #else
     #define forcedinline  inline
   #endif
+
+  #define JUCE_ALIGN(bytes) __attribute__ ((aligned (bytes)))
 
 #endif
 

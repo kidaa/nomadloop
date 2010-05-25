@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -53,11 +53,16 @@ public:
     const File getLastKnownJuceFolder() const;
     void setLastKnownJuceFolder (const File& file);
 
+    Array <Colour> swatchColours;
+
+    const StringArray& getFontNames();
+
     //==============================================================================
     juce_UseDebuggingNewOperator
 
 private:
-    PropertiesFile* props;
+    ScopedPointer<PropertiesFile> props;
+    StringArray fontNames;
 };
 
 

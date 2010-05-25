@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -27,7 +27,8 @@
 #define __JUCER_DRAWABLEEDITOR_JUCEHEADER__
 
 #include "../jucer_DocumentEditorComponent.h"
-class DrawableObjectComponent;
+#include "../Editor Base/jucer_EditorCanvas.h"
+class DrawableEditorCanvas;
 
 
 //==============================================================================
@@ -38,49 +39,30 @@ class DrawableEditor  : public DocumentEditorComponent
 public:
     //==============================================================================
     DrawableEditor (OpenDocumentManager::Document* document,
-                    Project* project,
-                    DrawableDocument* drawableDocument);
+                    Project* project, DrawableDocument* drawableDocument);
     ~DrawableEditor();
+
+    //==============================================================================
+    void getAllCommands (Array <CommandID>& commands);
+    void getCommandInfo (CommandID commandID, ApplicationCommandInfo& result);
+    bool perform (const InvocationInfo& info);
 
     void paint (Graphics& g);
     void resized();
 
-    DrawableDocument& getDocument() const   { return *drawableDocument; }
-
-    static int64 getHashForNode (const ValueTree& node);
+    //==============================================================================
+    const StringArray getSelectedIds() const;
+    void deleteSelection();
+    void selectionToFront();
+    void selectionToBack();
+    void showNewShapeMenu (Component* componentToAttachTo);
 
     //==============================================================================
-    class Canvas  : public Component,
-                    public LassoSource <int64>
-    {
-    public:
-        Canvas (DrawableEditor& editor_);
-        ~Canvas();
+    DrawableDocument& getDocument() const   { return *drawableDocument; }
 
-        void createRootObject();
-        const Point<int> getOrigin() const throw()   { return origin; }
+    EditorCanvasBase::SelectedItems& getSelection()         { return selection; }
 
-        void paint (Graphics& g);
-        void mouseDown (const MouseEvent& e);
-        void mouseDrag (const MouseEvent& e);
-        void mouseUp (const MouseEvent& e);
-        void childBoundsChanged (Component* child);
-        void updateSize();
-
-        void findLassoItemsInArea (Array <int64>& itemsFound, int x, int y, int width, int height);
-        SelectedItemSet <int64>& getLassoSelection();
-
-    private:
-        DrawableEditor& editor;
-        ScopedPointer <DrawableObjectComponent> rootObject;
-        ScopedPointer <LassoComponent <int64> > lasso;
-        BorderSize border;
-        Point<int> origin;
-    };
-
-    Canvas* getCanvas() const       { return (Canvas*) viewport->getViewedComponent(); }
-
-    SelectedItemSet <int64> selectedItems;
+    class Panel;
 
     //==============================================================================
     juce_UseDebuggingNewOperator
@@ -88,9 +70,9 @@ public:
 private:
     Project* project;
     DrawableDocument* drawableDocument;
+    EditorCanvasBase::SelectedItems selection;
 
-    Viewport* viewport;
-    Component* rightHandPanel;
+    Panel* panel;
 };
 
 

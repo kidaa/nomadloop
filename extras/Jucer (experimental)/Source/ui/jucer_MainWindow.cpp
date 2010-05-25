@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -26,8 +26,8 @@
 #include "../jucer_Headers.h"
 #include "jucer_MainWindow.h"
 #include "jucer_OpenDocumentManager.h"
-#include "jucer_SourceCodeEditor.h"
-#include "../model/jucer_ProjectWizard.h"
+#include "Code Editor/jucer_SourceCodeEditor.h"
+#include "../model/Project/jucer_ProjectWizard.h"
 
 
 //==============================================================================
@@ -66,6 +66,9 @@ MainWindow::MainWindow()
 
         DocumentEditorComponent dec (0);
         commandManager->registerAllCommandsForTarget (&dec);
+
+        ComponentEditor compEd (0, 0, 0);
+        commandManager->registerAllCommandsForTarget (&compEd);
     }
 
     commandManager->getKeyMappings()->resetToDefaultMappings();
@@ -273,7 +276,7 @@ const PopupMenu MainWindow::getMenuForIndex (int topLevelMenuIndex,
 
         PopupMenu recentFiles;
         StoredSettings::getInstance()->recentFiles.createPopupMenuItems (recentFiles, 100, true, true);
-        menu.addSubMenu (T("Open recent file"), recentFiles);
+        menu.addSubMenu ("Open recent file", recentFiles);
 
         menu.addSeparator();
         menu.addCommandItem (commandManager, CommandIDs::closeDocument);
@@ -298,7 +301,6 @@ const PopupMenu MainWindow::getMenuForIndex (int topLevelMenuIndex,
         menu.addCommandItem (commandManager, CommandIDs::undo);
         menu.addCommandItem (commandManager, CommandIDs::redo);
         menu.addSeparator();
-
         menu.addCommandItem (commandManager, StandardApplicationCommandIDs::cut);
         menu.addCommandItem (commandManager, StandardApplicationCommandIDs::copy);
         menu.addCommandItem (commandManager, StandardApplicationCommandIDs::paste);
@@ -319,19 +321,13 @@ const PopupMenu MainWindow::getMenuForIndex (int topLevelMenuIndex,
         // "View" menu
 
         menu.addCommandItem (commandManager, CommandIDs::showProjectSettings);
-
-        //menu.addCommandItem (commandManager, CommandIDs::test);
         menu.addSeparator();
+
+        menu.addCommandItem (commandManager, CommandIDs::test);
+        menu.addSeparator();
+
         menu.addCommandItem (commandManager, CommandIDs::showGrid);
         menu.addCommandItem (commandManager, CommandIDs::enableSnapToGrid);
-
-   /*     const int currentSnapSize = getActiveDocument() != 0 ? getActiveDocument()->getSnappingGridSize() : 0;
-
-        PopupMenu m;
-        for (int i = 0; i < numElementsInArray (snapSizes); ++i)
-            m.addItem (300 + i, String (snapSizes[i]) + T(" pixels"), true, snapSizes[i] == currentSnapSize);
-
-        menu.addSubMenu (T("Grid size"), m, getActiveDocument() != 0);*/
 
         menu.addSeparator();
         menu.addCommandItem (commandManager, CommandIDs::zoomIn);
@@ -344,7 +340,7 @@ const PopupMenu MainWindow::getMenuForIndex (int topLevelMenuIndex,
         overlays.addCommandItem (commandManager, CommandIDs::compOverlay33);
         overlays.addCommandItem (commandManager, CommandIDs::compOverlay66);
         overlays.addCommandItem (commandManager, CommandIDs::compOverlay100);
-        menu.addSubMenu (T("Component Overlay"), overlays,
+        menu.addSubMenu ("Component Overlay", overlays,
                          getActiveDocument() != 0 && getActiveDocument()->getComponentLayout() != 0);*/
 
         menu.addSeparator();
@@ -415,36 +411,36 @@ void MainWindow::getCommandInfo (const CommandID commandID, ApplicationCommandIn
     switch (commandID)
     {
     case CommandIDs::newProject:
-        result.setInfo (T("New Project..."),
-                        T("Creates a new Jucer project"),
+        result.setInfo ("New Project...",
+                        "Creates a new Jucer project",
                         CommandCategories::general, 0);
-        result.defaultKeypresses.add (KeyPress (T('o'), ModifierKeys::commandModifier, 0));
+        result.defaultKeypresses.add (KeyPress ('o', ModifierKeys::commandModifier, 0));
         break;
 
     case CommandIDs::open:
-        result.setInfo (T("Open..."),
-                        T("Opens a Jucer project"),
+        result.setInfo ("Open...",
+                        "Opens a Jucer project",
                         CommandCategories::general, 0);
-        result.defaultKeypresses.add (KeyPress (T('o'), ModifierKeys::commandModifier, 0));
+        result.defaultKeypresses.add (KeyPress ('o', ModifierKeys::commandModifier, 0));
         break;
 
     case CommandIDs::showPrefs:
-        result.setInfo (T("Preferences..."),
-                        T("Shows the preferences panel."),
+        result.setInfo ("Preferences...",
+                        "Shows the preferences panel.",
                         CommandCategories::general, 0);
-        result.defaultKeypresses.add (KeyPress (T(','), ModifierKeys::commandModifier, 0));
+        result.defaultKeypresses.add (KeyPress (',', ModifierKeys::commandModifier, 0));
         break;
 
     case CommandIDs::closeAllDocuments:
-        result.setInfo (T("Close All Documents"),
-                        T("Closes all open documents"),
+        result.setInfo ("Close All Documents",
+                        "Closes all open documents",
                         CommandCategories::general, 0);
         result.setActive (OpenDocumentManager::getInstance()->getNumOpenDocuments() > 0);
         break;
 
     case CommandIDs::saveAll:
-        result.setInfo (T("Save All"),
-                        T("Saves all open documents"),
+        result.setInfo ("Save All",
+                        "Saves all open documents",
                         CommandCategories::general, 0);
         result.setActive (OpenDocumentManager::getInstance()->anyFilesNeedSaving());
         break;

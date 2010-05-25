@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -128,7 +128,7 @@ public:
         real time.
     */
     virtual void sendBlockOfMessages (const MidiBuffer& buffer,
-                                      const double millisecondCounterToStartAt,
+                                      double millisecondCounterToStartAt,
                                       double samplesPerSecondForBuffer);
 
     /** Gets rid of any midi messages that had been added by sendBlockOfMessages().

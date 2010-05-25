@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -32,8 +32,8 @@
 #ifndef __JUCE_ARRAYALLOCATIONBASE_JUCEHEADER__
  #include "containers/juce_ArrayAllocationBase.h"
 #endif
-#ifndef __JUCE_BITARRAY_JUCEHEADER__
- #include "containers/juce_BitArray.h"
+#ifndef __JUCE_BIGINTEGER_JUCEHEADER__
+ #include "containers/juce_BigInteger.h"
 #endif
 #ifndef __JUCE_DYNAMICOBJECT_JUCEHEADER__
  #include "containers/juce_DynamicObject.h"
@@ -43,6 +43,9 @@
 #endif
 #ifndef __JUCE_HEAPBLOCK_JUCEHEADER__
  #include "containers/juce_HeapBlock.h"
+#endif
+#ifndef __JUCE_IDENTIFIER_JUCEHEADER__
+ #include "containers/juce_Identifier.h"
 #endif
 #ifndef __JUCE_MEMORYBLOCK_JUCEHEADER__
  #include "containers/juce_MemoryBlock.h"
@@ -82,9 +85,6 @@
 #endif
 #ifndef __JUCE_VARIANT_JUCEHEADER__
  #include "containers/juce_Variant.h"
-#endif
-#ifndef __JUCE_VOIDARRAY_JUCEHEADER__
- #include "containers/juce_VoidArray.h"
 #endif
 #ifndef __JUCE_ATOMIC_JUCEHEADER__
  #include "core/juce_Atomic.h"
@@ -226,6 +226,9 @@
 #endif
 #ifndef __JUCE_STRINGPAIRARRAY_JUCEHEADER__
  #include "text/juce_StringPairArray.h"
+#endif
+#ifndef __JUCE_STRINGPOOL_JUCEHEADER__
+ #include "text/juce_StringPool.h"
 #endif
 #ifndef __JUCE_XMLDOCUMENT_JUCEHEADER__
  #include "text/juce_XmlDocument.h"

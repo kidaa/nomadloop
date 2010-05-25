@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -712,6 +712,9 @@
 #endif
 #ifndef __JUCE_RECTANGLELIST_JUCEHEADER__
  #include "gui/graphics/geometry/juce_RectangleList.h"
+#endif
+#ifndef __JUCE_RELATIVECOORDINATE_JUCEHEADER__
+ #include "gui/graphics/geometry/juce_RelativeCoordinate.h"
 #endif
 #ifndef __JUCE_CAMERADEVICE_JUCEHEADER__
  #include "gui/graphics/imaging/juce_CameraDevice.h"

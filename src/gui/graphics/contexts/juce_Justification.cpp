@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -59,30 +59,18 @@ void Justification::applyToRectangle (int& x, int& y,
                                       const int spaceW, const int spaceH) const throw()
 {
     if ((flags & horizontallyCentred) != 0)
-    {
         x = spaceX + ((spaceW - w) >> 1);
-    }
     else if ((flags & right) != 0)
-    {
         x = spaceX + spaceW - w;
-    }
     else
-    {
         x = spaceX;
-    }
 
     if ((flags & verticallyCentred) != 0)
-    {
         y = spaceY + ((spaceH - h) >> 1);
-    }
     else if ((flags & bottom) != 0)
-    {
         y = spaceY + spaceH - h;
-    }
     else
-    {
         y = spaceY;
-    }
 }
 
 END_JUCE_NAMESPACE

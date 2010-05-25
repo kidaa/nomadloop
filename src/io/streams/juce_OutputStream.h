@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -28,7 +28,7 @@
 
 #include "../../text/juce_String.h"
 #include "juce_InputStream.h"
-
+class File;
 
 //==============================================================================
 /**
@@ -189,8 +189,8 @@ public:
         The method also replaces '\\n' characters in the text with '\\r\\n'.
     */
     virtual void writeText (const String& text,
-                            const bool asUnicode,
-                            const bool writeUnicodeHeaderBytes);
+                            bool asUnicode,
+                            bool writeUnicodeHeaderBytes);
 
     /** Reads data from an input stream and writes it to this stream.
 
@@ -199,7 +199,7 @@ public:
                                     less than zero, it will keep reading until the input
                                     is exhausted)
     */
-    virtual int writeFromInputStream (InputStream& source, int maxNumBytesToWrite);
+    virtual int writeFromInputStream (InputStream& source, int64 maxNumBytesToWrite);
 
     //==============================================================================
     juce_UseDebuggingNewOperator
@@ -207,17 +207,22 @@ public:
 
 //==============================================================================
 /** Writes a number to a stream as 8-bit characters in the default system encoding. */
-OutputStream& JUCE_CALLTYPE operator<< (OutputStream& stream, const int number);
+OutputStream& JUCE_CALLTYPE operator<< (OutputStream& stream, int number);
 
 /** Writes a number to a stream as 8-bit characters in the default system encoding. */
-OutputStream& JUCE_CALLTYPE operator<< (OutputStream& stream, const double number);
+OutputStream& JUCE_CALLTYPE operator<< (OutputStream& stream, double number);
 
 /** Writes a character to a stream. */
-OutputStream& JUCE_CALLTYPE operator<< (OutputStream& stream, const char character);
+OutputStream& JUCE_CALLTYPE operator<< (OutputStream& stream, char character);
 
 /** Writes a null-terminated text string to a stream. */
-OutputStream& JUCE_CALLTYPE operator<< (OutputStream& stream, const char* const text);
+OutputStream& JUCE_CALLTYPE operator<< (OutputStream& stream, const char* text);
 
+/** Writes a block of data from a MemoryBlock to a stream. */
+OutputStream& JUCE_CALLTYPE operator<< (OutputStream& stream, const MemoryBlock& data);
+
+/** Writes the contents of a file to a stream. */
+OutputStream& JUCE_CALLTYPE operator<< (OutputStream& stream, const File& fileToRead);
 
 
 #endif   // __JUCE_OUTPUTSTREAM_JUCEHEADER__

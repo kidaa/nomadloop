@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -64,10 +64,12 @@ ComboBox::~ComboBox()
 //==============================================================================
 void ComboBox::setEditableText (const bool isEditable)
 {
-    label->setEditable (isEditable, isEditable, false);
-
-    setWantsKeyboardFocus (! isEditable);
-    resized();
+    if (label->isEditableOnSingleClick() != isEditable || label->isEditableOnDoubleClick() != isEditable)
+    {
+        label->setEditable (isEditable, isEditable, false);
+        setWantsKeyboardFocus (! isEditable);
+        resized();
+    }
 }
 
 bool ComboBox::isTextEditable() const throw()
@@ -371,8 +373,11 @@ void ComboBox::showEditor()
 //==============================================================================
 void ComboBox::setTextWhenNothingSelected (const String& newMessage) throw()
 {
-    textWhenNothingSelected = newMessage;
-    repaint();
+    if (textWhenNothingSelected != newMessage)
+    {
+        textWhenNothingSelected = newMessage;
+        repaint();
+    }
 }
 
 const String ComboBox::getTextWhenNothingSelected() const throw()

@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -39,7 +39,7 @@ void FileChooser::showPlatformDialog (Array<File>& results,
                                       bool selectMultipleFiles,
                                       FilePreviewComponent* previewComponent)
 {
-    const tchar* const separator = T(":");
+    const String separator (":");
     String command ("zenity --file-selection");
 
     if (title.isNotEmpty())
@@ -61,7 +61,7 @@ void FileChooser::showPlatformDialog (Array<File>& results,
 
     MemoryOutputStream result;
     int status = -1;
-    FILE* stream = popen ((const char*) command.toUTF8(), "r");
+    FILE* stream = popen (command.toUTF8(), "r");
 
     if (stream != 0)
     {
@@ -81,13 +81,12 @@ void FileChooser::showPlatformDialog (Array<File>& results,
 
     if (status == 0)
     {
-        String resultString (String::fromUTF8 (result.getData(), result.getDataSize()));
         StringArray tokens;
 
         if (selectMultipleFiles)
-            tokens.addTokens (resultString, separator, String::empty);
+            tokens.addTokens (result.toUTF8(), separator, String::empty);
         else
-            tokens.add (resultString);
+            tokens.add (result.toUTF8());
 
         for (int i = 0; i < tokens.size(); i++)
             results.add (File (tokens[i]));
@@ -96,7 +95,7 @@ void FileChooser::showPlatformDialog (Array<File>& results,
     }
 
     //xxx ain't got one!
-    jassertfalse
+    jassertfalse;
 }
 
 #endif

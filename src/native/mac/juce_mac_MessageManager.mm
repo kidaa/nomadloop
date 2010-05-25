@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -62,7 +62,7 @@ public:
         CFRelease (runLoopSource);
 
         while (messages.size() > 0)
-            delete ((Message*) messages.remove(0));
+            delete static_cast <Message*> (messages.remove(0));
     }
 
     virtual NSApplicationTerminateReply shouldTerminate()
@@ -93,7 +93,7 @@ public:
         for (unsigned int i = 0; i < [filenames count]; ++i)
         {
             String filename (nsStringToJuce ((NSString*) [filenames objectAtIndex: i]));
-            if (filename.containsChar (T(' ')))
+            if (filename.containsChar (' '))
                 filename = filename.quoted('"');
 
             files.add (filename);
@@ -101,7 +101,7 @@ public:
 
         if (files.size() > 0 && JUCEApplication::getInstance() != 0)
         {
-            JUCEApplication::getInstance()->anotherInstanceStarted (files.joinIntoString (T(" ")));
+            JUCEApplication::getInstance()->anotherInstanceStarted (files.joinIntoString (" "));
         }
     }
 
@@ -163,7 +163,7 @@ private:
 
     static void runLoopSourceCallback (void* info)
     {
-        ((AppDelegateRedirector*) info)->runLoopCallback();
+        static_cast <AppDelegateRedirector*> (info)->runLoopCallback();
     }
 };
 
@@ -236,31 +236,37 @@ using namespace JUCE_NAMESPACE;
 
 - (NSApplicationTerminateReply) applicationShouldTerminate: (NSApplication*) app
 {
+    (void) app;
     return redirector->shouldTerminate();
 }
 
 - (BOOL) application: (NSApplication*) app openFile: (NSString*) filename
 {
+    (void) app;
     return redirector->openFile (filename);
 }
 
 - (void) application: (NSApplication*) sender openFiles: (NSArray*) filenames
 {
+    (void) sender;
     return redirector->openFiles (filenames);
 }
 
-- (void) applicationDidBecomeActive: (NSNotification*) aNotification
+- (void) applicationDidBecomeActive: (NSNotification*) notification
 {
+    (void) notification;
     redirector->focusChanged();
 }
 
-- (void) applicationDidResignActive: (NSNotification*) aNotification
+- (void) applicationDidResignActive: (NSNotification*) notification
 {
+    (void) notification;
     redirector->focusChanged();
 }
 
-- (void) applicationWillUnhide: (NSNotification*) aNotification
+- (void) applicationWillUnhide: (NSNotification*) notification
 {
+    (void) notification;
     redirector->focusChanged();
 }
 
@@ -276,7 +282,7 @@ using namespace JUCE_NAMESPACE;
     }
     else
     {
-        jassertfalse // should never get here!
+        jassertfalse; // should never get here!
     }
 }
 

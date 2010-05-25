@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -27,7 +27,8 @@
 #define __JUCE_FILESEARCHPATHLISTCOMPONENT_JUCEHEADER__
 
 #include "../controls/juce_ListBox.h"
-#include "../buttons/juce_Button.h"
+#include "../buttons/juce_DrawableButton.h"
+#include "../buttons/juce_TextButton.h"
 #include "../mouse/juce_FileDragAndDropTarget.h"
 #include "../../../io/files/juce_FileSearchPath.h"
 
@@ -66,7 +67,7 @@ public:
 
         This is only used if the current file hasn't been set.
     */
-    void setDefaultBrowseTarget (const File& newDefaultDirectory) throw();
+    void setDefaultBrowseTarget (const File& newDefaultDirectory);
 
     /** A set of colour IDs to use to change the colour of various aspects of the label.
 
@@ -116,12 +117,12 @@ private:
     ListBox* listBox;
     Button* addButton;
     Button* removeButton;
-    Button* changeButton;
-    Button* upButton;
-    Button* downButton;
+    TextButton* changeButton;
+    DrawableButton* upButton;
+    DrawableButton* downButton;
 
-    void changed() throw();
-    void updateButtons() throw();
+    void changed();
+    void updateButtons();
 
     FileSearchPathListComponent (const FileSearchPathListComponent&);
     FileSearchPathListComponent& operator= (const FileSearchPathListComponent&);

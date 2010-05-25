@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -134,13 +134,6 @@ public:
         @param value        the new value to set it to
     */
     void setValue (const String& keyName, const String& value) throw();
-
-    /** Sets a named property as a string.
-
-        @param keyName      the name of the property to set. (This mustn't be an empty string)
-        @param value        the new value to set it to
-    */
-    void setValue (const String& keyName, const tchar* const value) throw();
 
     /** Sets a named property to an integer.
 

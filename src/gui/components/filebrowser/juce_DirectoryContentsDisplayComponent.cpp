@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -45,12 +45,12 @@ FileBrowserListener::~FileBrowserListener()
 {
 }
 
-void DirectoryContentsDisplayComponent::addListener (FileBrowserListener* const listener) throw()
+void DirectoryContentsDisplayComponent::addListener (FileBrowserListener* const listener)
 {
     listeners.add (listener);
 }
 
-void DirectoryContentsDisplayComponent::removeListener (FileBrowserListener* const listener) throw()
+void DirectoryContentsDisplayComponent::removeListener (FileBrowserListener* const listener)
 {
     listeners.remove (listener);
 }

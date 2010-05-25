@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -70,6 +70,17 @@ public:
     Rectangle (const ValueType width, const ValueType height) throw()
       : x (0), y (0), w (width), h (height)
     {
+    }
+
+    /** Creates a Rectangle from the positions of two opposite corners. */
+    Rectangle (const Point<ValueType>& corner1, const Point<ValueType>& corner2) throw()
+      : x (jmin (corner1.getX(), corner2.getX())),
+        y (jmin (corner1.getY(), corner2.getY())),
+        w (corner1.getX() - corner2.getX()),
+        h (corner1.getY() - corner2.getY())
+    {
+        if (w < 0) w = -w;
+        if (h < 0) h = -h;
     }
 
     Rectangle& operator= (const Rectangle& other) throw()
@@ -150,6 +161,18 @@ public:
     /** Changes the rectangle's height */
     void setHeight (const ValueType newHeight) throw()              { h = newHeight; }
 
+    /** Returns a rectangle which has the same size and y-position as this one, but with a different x-position. */
+    const Rectangle withX (const ValueType newX) const throw()                                      { return Rectangle (newX, y, w, h); }
+
+    /** Returns a rectangle which has the same size and x-position as this one, but with a different y-position. */
+    const Rectangle withY (const ValueType newY) const throw()                                      { return Rectangle (x, newY, w, h); }
+
+    /** Returns a rectangle which has the same position and height as this one, but with a different width. */
+    const Rectangle withWidth (const ValueType newWidth) const throw()                              { return Rectangle (x, y, newWidth, h); }
+
+    /** Returns a rectangle which has the same position and width as this one, but with a different height. */
+    const Rectangle withHeight (const ValueType newHeight) const throw()                            { return Rectangle (x, y, w, newHeight); }
+
     /** Moves the x position, adjusting the width so that the right-hand edge remains in the same place.
         If the x is moved to be on the right of the current right-hand edge, the width will be set to zero.
     */
@@ -202,6 +225,32 @@ public:
                                 const ValueType deltaY) const throw()
     {
         return Rectangle (x + deltaX, y + deltaY, w, h);
+    }
+
+    /** Returns a rectangle which is the same as this one moved by a given amount. */
+    const Rectangle operator+ (const Point<ValueType>& deltaPosition) const throw()
+    {
+        return Rectangle (x + deltaPosition.getX(), y + deltaPosition.getY(), w, h);
+    }
+
+    /** Moves this rectangle by a given amount. */
+    Rectangle& operator+= (const Point<ValueType>& deltaPosition) throw()
+    {
+        x += deltaPosition.getX(); y += deltaPosition.getY();
+        return *this;
+    }
+
+    /** Returns a rectangle which is the same as this one moved by a given amount. */
+    const Rectangle operator- (const Point<ValueType>& deltaPosition) const throw()
+    {
+        return Rectangle (x - deltaPosition.getX(), y - deltaPosition.getY(), w, h);
+    }
+
+    /** Moves this rectangle by a given amount. */
+    Rectangle& operator-= (const Point<ValueType>& deltaPosition) throw()
+    {
+        x -= deltaPosition.getX(); y -= deltaPosition.getY();
+        return *this;
     }
 
     /** Expands the rectangle by a given amount.
@@ -274,7 +323,7 @@ public:
     }
 
     /** Returns true if this co-ordinate is inside the rectangle. */
-    bool contains (const Point<ValueType> point) const throw()
+    bool contains (const Point<ValueType>& point) const throw()
     {
         return point.getX() >= x && point.getY() >= y && point.getX() < x + w && point.getY() < y + h;
     }
@@ -346,11 +395,16 @@ public:
         return false;
     }
 
-    /** Returns the smallest rectangle that contains both this one and the one
-        passed-in.
+    /** Returns the smallest rectangle that contains both this one and the one passed-in.
+
+        If either this or the other rectangle are empty, they will not be counted as
+        part of the resulting region.
     */
     const Rectangle getUnion (const Rectangle& other) const throw()
     {
+        if (other.isEmpty())  return *this;
+        if (isEmpty())        return other;
+
         const ValueType newX = jmin (x, other.x);
         const ValueType newY = jmin (y, other.y);
 
@@ -433,25 +487,36 @@ public:
         transform.transformPoint (x3, y3);
         transform.transformPoint (x4, y4);
 
-        const float x = jmin (x1, x2, x3, x4);
-        const float y = jmin (y1, y2, y3, y4);
+        const float rx = jmin (x1, x2, x3, x4);
+        const float ry = jmin (y1, y2, y3, y4);
 
-        return Rectangle (x, y,
-                          jmax (x1, x2, x3, x4) - x,
-                          jmax (y1, y2, y3, y4) - y);
+        return Rectangle (rx, ry,
+                          jmax (x1, x2, x3, x4) - rx,
+                          jmax (y1, y2, y3, y4) - ry);
     }
 
     /** Returns the smallest integer-aligned rectangle that completely contains this one.
         This is only relevent for floating-point rectangles, of course.
+        @see toFloat()
     */
     const Rectangle<int> getSmallestIntegerContainer() const throw()
     {
-        const int x1 = (int) floorf ((float) x);
-        const int y1 = (int) floorf ((float) y);
-        const int x2 = (int) floorf ((float) (x + w + 0.9999f));
-        const int y2 = (int) floorf ((float) (y + h + 0.9999f));
+        const int x1 = (int) std::floor (static_cast<float> (x));
+        const int y1 = (int) std::floor (static_cast<float> (y));
+        const int x2 = (int) std::floor (static_cast<float> (x + w + 0.9999f));
+        const int y2 = (int) std::floor (static_cast<float> (y + h + 0.9999f));
 
         return Rectangle<int> (x1, y1, x2 - x1, y2 - y1);
+    }
+
+    /** Casts this rectangle to a Rectangle<float>.
+        Obviously this is mainly useful for rectangles that use integer types.
+        @see getSmallestIntegerContainer
+    */
+    const Rectangle<float> toFloat() const throw()
+    {
+        return Rectangle<float> (static_cast<float> (x), static_cast<float> (y),
+                                 static_cast<float> (w), static_cast<float> (h));
     }
 
     //==============================================================================
@@ -496,7 +561,7 @@ public:
     {
         String s;
         s.preallocateStorage (16);
-        s << x << T(' ') << y << T(' ') << w << T(' ') << h;
+        s << x << ' ' << y << ' ' << w << ' ' << h;
         return s;
     }
 
@@ -513,7 +578,7 @@ public:
     static const Rectangle fromString (const String& stringVersion)
     {
         StringArray toks;
-        toks.addTokens (stringVersion.trim(), T(",; \t\r\n"), 0);
+        toks.addTokens (stringVersion.trim(), ",; \t\r\n", String::empty);
 
         return Rectangle (toks[0].trim().getIntValue(),
                           toks[1].trim().getIntValue(),

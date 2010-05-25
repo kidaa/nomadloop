@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -101,7 +101,7 @@ FileBrowserComponent::FileBrowserComponent (int flags_,
     currentPathBox->setEditableText (true);
 
     StringArray rootNames, rootPaths;
-    const BitArray separators (getRoots (rootNames, rootPaths));
+    const BigInteger separators (getRoots (rootNames, rootPaths));
 
     for (int i = 0; i < rootNames.size(); ++i)
     {
@@ -150,12 +150,12 @@ FileBrowserComponent::~FileBrowserComponent()
 }
 
 //==============================================================================
-void FileBrowserComponent::addListener (FileBrowserListener* const newListener) throw()
+void FileBrowserComponent::addListener (FileBrowserListener* const newListener)
 {
     listeners.add (newListener);
 }
 
-void FileBrowserComponent::removeListener (FileBrowserListener* const listener) throw()
+void FileBrowserComponent::removeListener (FileBrowserListener* const listener)
 {
     listeners.remove (listener);
 }
@@ -176,10 +176,13 @@ int FileBrowserComponent::getNumSelectedFiles() const throw()
 
 const File FileBrowserComponent::getSelectedFile (int index) const throw()
 {
+    if ((flags & canSelectDirectories) != 0 && filenameBox->getText().isEmpty())
+        return currentRoot;
+
     if (! filenameBox->isReadOnly())
         return currentRoot.getChildFile (filenameBox->getText());
-    else
-        return chosenFiles[index];
+
+    return chosenFiles[index];
 }
 
 bool FileBrowserComponent::currentFileIsValid() const
@@ -193,6 +196,11 @@ bool FileBrowserComponent::currentFileIsValid() const
 const File FileBrowserComponent::getHighlightedFile() const throw()
 {
     return fileListComponent->getSelectedFile (0);
+}
+
+void FileBrowserComponent::deselectAllFiles()
+{
+    fileListComponent->deselectAllFiles();
 }
 
 //==============================================================================
@@ -231,7 +239,7 @@ void FileBrowserComponent::setRoot (const File& newRootDirectory)
         String path (newRootDirectory.getFullPathName());
 
         if (path.isEmpty())
-            path += File::separator;
+            path = File::separatorString;
 
         StringArray rootNames, rootPaths;
         getRoots (rootNames, rootPaths);
@@ -259,7 +267,7 @@ void FileBrowserComponent::setRoot (const File& newRootDirectory)
 
     String currentRootName (currentRoot.getFullPathName());
     if (currentRootName.isEmpty())
-        currentRootName += File::separator;
+        currentRootName = File::separatorString;
 
     currentPathBox->setText (currentRootName, true);
 
@@ -333,7 +341,7 @@ void FileBrowserComponent::selectionChanged()
     }
 
     if (newFilenames.size() > 0)
-        filenameBox->setText (newFilenames.joinIntoString (T(", ")), false);
+        filenameBox->setText (newFilenames.joinIntoString (", "), false);
 
     sendListenerChangeMessage();
 }
@@ -349,6 +357,9 @@ void FileBrowserComponent::fileDoubleClicked (const File& f)
     if (f.isDirectory())
     {
         setRoot (f);
+
+        if ((flags & canSelectDirectories) != 0)
+            filenameBox->setText (String::empty);
     }
     else
     {
@@ -359,6 +370,8 @@ void FileBrowserComponent::fileDoubleClicked (const File& f)
 
 bool FileBrowserComponent::keyPressed (const KeyPress& key)
 {
+    (void) key;
+
 #if JUCE_LINUX || JUCE_WINDOWS
     if (key.getModifiers().isCommandDown()
          && (key.getKeyCode() == 'H' || key.getKeyCode() == 'h'))
@@ -457,9 +470,9 @@ void FileBrowserComponent::comboBoxChanged (ComboBox*)
     }
 }
 
-const BitArray FileBrowserComponent::getRoots (StringArray& rootNames, StringArray& rootPaths)
+const BigInteger FileBrowserComponent::getRoots (StringArray& rootNames, StringArray& rootPaths)
 {
-    BitArray separators;
+    BigInteger separators;
 
 #if JUCE_WINDOWS
     Array<File> roots;
@@ -516,7 +529,7 @@ const BitArray FileBrowserComponent::getRoots (StringArray& rootNames, StringArr
     {
         const File& volume = volumes.getReference(i);
 
-        if (volume.isDirectory() && ! volume.getFileName().startsWithChar (T('.')))
+        if (volume.isDirectory() && ! volume.getFileName().startsWithChar ('.'))
         {
             rootPaths.add (volume.getFullPathName());
             rootNames.add (volume.getFileName());

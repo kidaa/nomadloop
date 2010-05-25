@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -67,7 +67,7 @@ public:
     //==============================================================================
     ApplicationCommandTarget* getNextCommandTarget();
     void getAllCommands (Array <CommandID>& commands);
-    void getCommandInfo (const CommandID commandID, ApplicationCommandInfo& result);
+    void getCommandInfo (CommandID commandID, ApplicationCommandInfo& result);
     bool perform (const InvocationInfo& info);
 
     static JucerDocumentHolder* getActiveDocumentHolder();

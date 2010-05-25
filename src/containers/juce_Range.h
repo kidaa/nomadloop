@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -104,7 +104,7 @@ public:
     void setStart (const ValueType newStart) throw()
     {
         start = newStart;
-        if (newStart > end)
+        if (end < newStart)
             end = newStart;
     }
 
@@ -115,6 +115,12 @@ public:
     const Range withStart (const ValueType newStart) const throw()
     {
         return Range (newStart, jmax (newStart, end));
+    }
+
+    /** Returns a range with the same length as this one, but moved to have the given start position. */
+    const Range movedToStartAt (const ValueType newStart) const throw()
+    {
+        return Range (newStart, newStart + getLength());
     }
 
     /** Changes the end position of the range, leaving the start unchanged.
@@ -135,6 +141,12 @@ public:
     const Range withEnd (const ValueType newEnd) const throw()
     {
         return Range (jmin (start, newEnd), newEnd);
+    }
+
+    /** Returns a range with the same length as this one, but moved to have the given start position. */
+    const Range movedToEndAt (const ValueType newEnd) const throw()
+    {
+        return Range (newEnd - getLength(), newEnd);
     }
 
     /** Changes the length of the range.
@@ -185,11 +197,14 @@ public:
         return Range (start - amountToSubtract, end - amountToSubtract);
     }
 
+    bool operator== (const Range& other) const throw()      { return start == other.start && end == other.end; }
+    bool operator!= (const Range& other) const throw()      { return start != other.start || end != other.end; }
+
     //==============================================================================
     /** Returns true if the given position lies inside this range. */
     bool contains (const ValueType position) const throw()
     {
-        return position >= start && position < end;
+        return start <= position && position < end;
     }
 
     /** Returns the nearest value to the one supplied, which lies within the range. */
@@ -198,10 +213,16 @@ public:
         return jlimit (start, end, value);
     }
 
+    /** Returns true if the given range lies entirely inside this range. */
+    bool contains (const Range& other) const throw()
+    {
+        return start <= other.start && end >= other.end;
+    }
+
     /** Returns true if the given range intersects this one. */
     bool intersects (const Range& other) const throw()
     {
-        return other.start < end && other.end > start;
+        return other.start < end && start < other.end;
     }
 
     /** Returns the range that is the intersection of the two ranges, or an empty range
@@ -217,6 +238,24 @@ public:
     {
         return Range (jmin (start, other.start),
                       jmax (end, other.end));
+    }
+
+    /** Returns a given range, after moving it forwards or backwards to fit it
+        within this range.
+
+        If the supplied range has a greater length than this one, the return value
+        will be this range.
+
+        Otherwise, if the supplied range is smaller than this one, the return value
+        will be the new range, shifted forwards or backwards so that it doesn't extend
+        beyond this one, but keeping its original length.
+    */
+    const Range constrainRange (const Range& rangeToConstrain) const throw()
+    {
+        const ValueType otherLen = rangeToConstrain.getLength();
+        return getLength() <= otherLen
+                ? *this
+                : rangeToConstrain.movedToStartAt (jlimit (start, end - otherLen, rangeToConstrain.getStart()));
     }
 
     //==============================================================================

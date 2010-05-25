@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -54,7 +54,7 @@ public:
     void setTitle (const String&)                   {}
     void setPosition (int, int)                     {}
     void setSize (int, int)                         {}
-    void setBounds (int, int, int, int, const bool) {}
+    void setBounds (int, int, int, int, bool)       {}
     void setMinimised (bool)                        {}
     bool isMinimised() const                        { return false; }
     void setFullScreen (bool)                       {}
@@ -117,14 +117,14 @@ public:
                 && ((unsigned int) position.getY()) < (unsigned int) magnifierComp->getHeight();
     }
 
-    void repaint (int x, int y, int w, int h)
+    void repaint (const Rectangle<int>& area)
     {
         const double zoom = magnifierComp->getScaleFactor();
 
-        magnifierComp->repaint ((int) (x * zoom),
-                                (int) (y * zoom),
-                                roundToInt (w * zoom) + 1,
-                                roundToInt (h * zoom) + 1);
+        magnifierComp->repaint ((int) (area.getX() * zoom),
+                                (int) (area.getY() * zoom),
+                                roundToInt (area.getWidth() * zoom) + 1,
+                                roundToInt (area.getHeight() * zoom) + 1);
     }
 
     void performAnyPendingRepaintsNow()
@@ -266,7 +266,7 @@ void MagnifierComponent::paint (Graphics& g)
     }
 
     Image temp (Image::ARGB, jmax (w, srcX + srcW), jmax (h, srcY + srcH), false);
-    temp.clear (srcX, srcY, srcW, srcH);
+    temp.clear (Rectangle<int> (srcX, srcY, srcW, srcH));
 
     {
         Graphics g2 (temp);

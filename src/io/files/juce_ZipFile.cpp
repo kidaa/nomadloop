@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -66,7 +66,7 @@ public:
         }
         else
         {
-#ifdef JUCE_DEBUG
+#if JUCE_DEBUG
             file_.numOpenStreams++;
 #endif
         }
@@ -85,7 +85,7 @@ public:
 
     ~ZipInputStream() throw()
     {
-#ifdef JUCE_DEBUG
+#if JUCE_DEBUG
         if (inputStream != 0 && inputStream == file.inputStream)
             file.numOpenStreams--;
 #endif
@@ -161,7 +161,7 @@ private:
 ZipFile::ZipFile (InputStream* const source_,
                   const bool deleteStreamWhenDestroyed) throw()
    : inputStream (source_)
-#ifdef JUCE_DEBUG
+#if JUCE_DEBUG
      , numOpenStreams (0)
 #endif
 {
@@ -173,7 +173,7 @@ ZipFile::ZipFile (InputStream* const source_,
 
 ZipFile::ZipFile (const File& file)
     : inputStream (0)
-#ifdef JUCE_DEBUG
+#if JUCE_DEBUG
       , numOpenStreams (0)
 #endif
 {
@@ -184,7 +184,7 @@ ZipFile::ZipFile (const File& file)
 ZipFile::ZipFile (InputSource* const inputSource_)
     : inputStream (0),
       inputSource (inputSource_)
-#ifdef JUCE_DEBUG
+#if JUCE_DEBUG
       , numOpenStreams (0)
 #endif
 {
@@ -193,7 +193,7 @@ ZipFile::ZipFile (InputSource* const inputSource_)
 
 ZipFile::~ZipFile() throw()
 {
-#ifdef JUCE_DEBUG
+#if JUCE_DEBUG
     entries.clear();
 
     // If you hit this assertion, it means you've created a stream to read
@@ -213,10 +213,9 @@ int ZipFile::getNumEntries() const throw()
 
 const ZipFile::ZipEntry* ZipFile::getEntry (const int index) const throw()
 {
-    ZipEntryInfo* const zei = (ZipEntryInfo*) entries [index];
+    ZipEntryInfo* const zei = entries [index];
 
-    return (zei != 0) ? &(zei->entry)
-                      : 0;
+    return zei != 0 ? &(zei->entry) : 0;
 }
 
 int ZipFile::getIndexOfFileName (const String& fileName) const throw()
@@ -303,7 +302,7 @@ void ZipFile::init()
                     if (pos + 46 > size)
                         break;
 
-                    const char* const buffer = ((const char*) headerData.getData()) + pos;
+                    const char* const buffer = static_cast <const char*> (headerData.getData()) + pos;
 
                     const int fileNameLen = ByteOrder::littleEndianShort (buffer + 28);
 
@@ -386,7 +385,7 @@ void ZipFile::uncompressTo (const File& targetDirectory,
 
         const File targetFile (targetDirectory.getChildFile (zei.filename));
 
-        if (zei.filename.endsWithChar (T('/')))
+        if (zei.filename.endsWithChar ('/'))
         {
             targetFile.createDirectory(); // (entry is a directory, not a file)
         }

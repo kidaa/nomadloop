@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -246,8 +246,8 @@ void ComponentBoundsConstrainer::checkBounds (Rectangle<int>& bounds,
         }
         else
         {
-            const double oldRatio = (old.getHeight() > 0) ? fabs (old.getWidth() / (double) old.getHeight()) : 0.0;
-            const double newRatio = fabs (w / (double) h);
+            const double oldRatio = (old.getHeight() > 0) ? std::abs (old.getWidth() / (double) old.getHeight()) : 0.0;
+            const double newRatio = std::abs (w / (double) h);
 
             adjustWidth = (oldRatio > newRatio);
         }

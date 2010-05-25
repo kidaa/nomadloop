@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -104,7 +104,7 @@ public:
         automatically by the toolbar, and remember that multiple instances of the same
         item type are likely to exist at the same time.
     */
-    virtual ToolbarItemComponent* createItem (const int itemId) = 0;
+    virtual ToolbarItemComponent* createItem (int itemId) = 0;
 };
 
 

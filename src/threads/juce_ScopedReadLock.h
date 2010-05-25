@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -66,7 +66,7 @@ public:
         otherwise there are no guarantees what will happen! Best just to use it
         as a local stack object, rather than creating one with the new() operator.
     */
-    inline ScopedReadLock (const ReadWriteLock& lock) throw()       : lock_ (lock) { lock.enterRead(); }
+    inline explicit ScopedReadLock (const ReadWriteLock& lock) throw()    : lock_ (lock) { lock.enterRead(); }
 
     /** Destructor.
 
@@ -75,7 +75,7 @@ public:
         Make sure this object is created and deleted by the same thread,
         otherwise there are no guarantees what will happen!
     */
-    inline ~ScopedReadLock() throw()                                { lock_.exitRead(); }
+    inline ~ScopedReadLock() throw()                                      { lock_.exitRead(); }
 
 
 private:

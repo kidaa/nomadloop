@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -55,7 +55,7 @@ public:
     */
     PluginListComponent (KnownPluginList& listToRepresent,
                          const File& deadMansPedalFile,
-                         PropertiesFile* const propertiesToUse);
+                         PropertiesFile* propertiesToUse);
 
     /** Destructor. */
     ~PluginListComponent();

@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -84,7 +84,7 @@ public:
     virtual const String getResource() const = 0;
 
     //==============================================================================
-    void setIndex (const int newIndex)
+    void setIndex (int newIndex)
     {
         if (newIndex == 0)
         {

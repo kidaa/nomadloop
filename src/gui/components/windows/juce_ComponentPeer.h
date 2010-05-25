@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -87,8 +87,7 @@ public:
         The component is the one that we intend to represent, and the style flags are
         a combination of the values in the StyleFlags enum
     */
-    ComponentPeer (Component* const component,
-                   const int styleFlags) throw();
+    ComponentPeer (Component* component, int styleFlags);
 
     /** Destructor. */
     virtual ~ComponentPeer();
@@ -140,7 +139,7 @@ public:
 
         This should result in a callback to handleMovedOrResized().
     */
-    virtual void setBounds (int x, int y, int w, int h, const bool isNowFullScreen) = 0;
+    virtual void setBounds (int x, int y, int w, int h, bool isNowFullScreen) = 0;
 
     /** Returns the current position and size of the window.
 
@@ -184,7 +183,7 @@ public:
 
         The constrainer won't be deleted by this object, so the caller must manage its lifetime.
     */
-    void setConstrainer (ComponentBoundsConstrainer* const newConstrainer) throw();
+    void setConstrainer (ComponentBoundsConstrainer* newConstrainer) throw();
 
     /** Returns the current constrainer, if one has been set. */
     ComponentBoundsConstrainer* getConstrainer() const throw()              { return constrainer; }
@@ -266,13 +265,13 @@ public:
         For keycode info, see the KeyPress class.
         Returns true if the keystroke was used.
     */
-    bool handleKeyPress (const int keyCode,
-                         const juce_wchar textCharacter);
+    bool handleKeyPress (int keyCode,
+                         juce_wchar textCharacter);
 
     /** Called whenever a key is pressed or released.
         Returns true if the keystroke was used.
     */
-    bool handleKeyUpOrDown (const bool isKeyDown);
+    bool handleKeyUpOrDown (bool isKeyDown);
 
     /** Called whenever a modifier key is pressed or released. */
     void handleModifierKeysChange();
@@ -282,7 +281,7 @@ public:
 
     //==============================================================================
     /** Invalidates a region of the window to be repainted asynchronously. */
-    virtual void repaint (int x, int y, int w, int h) = 0;
+    virtual void repaint (const Rectangle<int>& area) = 0;
 
     /** This can be called (from the message thread) to cause the immediate redrawing
         of any areas of this window that need repainting.
@@ -293,8 +292,8 @@ public:
     virtual void performAnyPendingRepaintsNow() = 0;
 
     //==============================================================================
-    void handleMouseEvent (int touchIndex, const Point<int>& positionWithinPeer, const ModifierKeys& newMods, const int64 time);
-    void handleMouseWheel (int touchIndex, const Point<int>& positionWithinPeer, const int64 time, float x, float y);
+    void handleMouseEvent (int touchIndex, const Point<int>& positionWithinPeer, const ModifierKeys& newMods, int64 time);
+    void handleMouseWheel (int touchIndex, const Point<int>& positionWithinPeer, int64 time, float x, float y);
 
     void handleUserClosingWindow();
 
@@ -310,7 +309,7 @@ public:
 
         @see addMaskedRegion
     */
-    void clearMaskedRegion() throw();
+    void clearMaskedRegion();
 
     /** Adds a rectangle to the set of areas not to paint over.
 
@@ -321,7 +320,7 @@ public:
         The masked region is cleared each time before a paint happens, so a component
         will have to make sure it calls this every time it's painted.
     */
-    void addMaskedRegion (int x, int y, int w, int h) throw();
+    void addMaskedRegion (int x, int y, int w, int h);
 
     //==============================================================================
     /** Returns the number of currently-active peers.
@@ -334,13 +333,13 @@ public:
 
         @see getNumPeers
     */
-    static ComponentPeer* getPeer (const int index) throw();
+    static ComponentPeer* getPeer (int index) throw();
 
     /** Checks if this peer object is valid.
 
         @see getNumPeers
     */
-    static bool isValidPeer (const ComponentPeer* const peer) throw();
+    static bool isValidPeer (const ComponentPeer* peer) throw();
 
     //==============================================================================
     static void bringModalComponentToFront();
@@ -370,7 +369,7 @@ private:
     bool fakeMouseMessageSent : 1, isWindowMinimised : 1;
 
     friend class Component;
-    static ComponentPeer* getPeerFor (const Component* const component) throw();
+    static ComponentPeer* getPeerFor (const Component* component) throw();
 
     void setLastDragDropTarget (Component* comp);
 

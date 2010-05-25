@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -74,7 +74,7 @@ void ProgressBar::paint (Graphics& g)
     if (displayPercentage)
     {
         if (currentValue >= 0 && currentValue <= 1.0)
-            text << roundToInt (currentValue * 100.0) << T("%");
+            text << roundToInt (currentValue * 100.0) << '%';
     }
     else
     {

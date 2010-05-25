@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -177,7 +177,7 @@ protected:
     String name;
     void* internal;
 
-    MidiInput (const String& name);
+    explicit MidiInput (const String& name);
 
 private:
     MidiInput (const MidiInput&);

@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -67,7 +67,7 @@ const String getAudioErrorDesc (HRESULT hr)
     return e;
 }
 
-#define logFailure(hr) { if (FAILED (hr)) { DBG ("WASAPI FAIL! " + getAudioErrorDesc (hr)); jassertfalse } }
+#define logFailure(hr) { if (FAILED (hr)) { DBG ("WASAPI FAIL! " + getAudioErrorDesc (hr)); jassertfalse; } }
 #define OK(a) wasapi_checkResult(a)
 
 static bool wasapi_checkResult (HRESULT hr)
@@ -155,8 +155,7 @@ public:
         minBufferSize = wasapi_refTimeToSamples (minPeriod, defaultSampleRate);
         defaultBufferSize = wasapi_refTimeToSamples (defaultPeriod, defaultSampleRate);
 
-        FloatElementComparator<double> comparator;
-        rates.addSorted (comparator, defaultSampleRate);
+        rates.addUsingDefaultSort (defaultSampleRate);
 
         static const double ratesToTest[] = { 44100.0, 48000.0, 88200.0, 96000.0 };
 
@@ -170,7 +169,7 @@ public:
             if (SUCCEEDED (tempClient->IsFormatSupported (useExclusiveMode ? AUDCLNT_SHAREMODE_EXCLUSIVE : AUDCLNT_SHAREMODE_SHARED,
                                                           (WAVEFORMATEX*) &format, 0)))
                 if (! rates.contains (ratesToTest[i]))
-                    rates.addSorted (comparator, ratesToTest[i]);
+                    rates.addUsingDefaultSort (ratesToTest[i]);
         }
     }
 
@@ -182,7 +181,7 @@ public:
 
     bool isOk() const throw()     { return defaultBufferSize > 0 && defaultSampleRate > 0; }
 
-    bool openClient (const double newSampleRate, const BitArray& newChannels)
+    bool openClient (const double newSampleRate, const BigInteger& newChannels)
     {
         sampleRate = newSampleRate;
         channels = newChannels;
@@ -232,7 +231,7 @@ public:
     const bool useExclusiveMode;
     Array <double> rates;
     HANDLE clientEvent;
-    BitArray channels;
+    BigInteger channels;
     AudioDataConverters::DataFormat dataFormat;
     Array <int> channelMaps;
     UINT32 actualBufferSize;
@@ -321,6 +320,9 @@ private:
 
         return false;
     }
+
+    WASAPIDeviceBase (const WASAPIDeviceBase&);
+    WASAPIDeviceBase& operator= (const WASAPIDeviceBase&);
 };
 
 //==============================================================================
@@ -338,7 +340,7 @@ public:
         close();
     }
 
-    bool open (const double newSampleRate, const BitArray& newChannels)
+    bool open (const double newSampleRate, const BigInteger& newChannels)
     {
         reservoirSize = 0;
         reservoirCapacity = 16384;
@@ -467,6 +469,10 @@ public:
     ComSmartPtr <IAudioCaptureClient> captureClient;
     MemoryBlock reservoir;
     int reservoirSize, reservoirCapacity;
+
+private:
+    WASAPIInputDevice (const WASAPIInputDevice&);
+    WASAPIInputDevice& operator= (const WASAPIInputDevice&);
 };
 
 //==============================================================================
@@ -483,7 +489,7 @@ public:
         close();
     }
 
-    bool open (const double newSampleRate, const BitArray& newChannels)
+    bool open (const double newSampleRate, const BigInteger& newChannels)
     {
         return openClient (newSampleRate, newChannels)
                 && (numChannels == 0 || OK (client->GetService (__uuidof (IAudioRenderClient), (void**) &renderClient)));
@@ -559,6 +565,10 @@ public:
     }
 
     ComSmartPtr <IAudioRenderClient> renderClient;
+
+private:
+    WASAPIOutputDevice (const WASAPIOutputDevice&);
+    WASAPIOutputDevice& operator= (const WASAPIOutputDevice&);
 };
 
 //==============================================================================
@@ -621,16 +631,15 @@ public:
                 sampleRates = d->rates;
             }
 
-            IntegerElementComparator<int> comparator;
-            bufferSizes.addSorted (comparator, defaultBufferSize);
+            bufferSizes.addUsingDefaultSort (defaultBufferSize);
             if (minBufferSize != defaultBufferSize)
-                bufferSizes.addSorted (comparator, minBufferSize);
+                bufferSizes.addUsingDefaultSort (minBufferSize);
 
             int n = 64;
             for (int i = 0; i < 40; ++i)
             {
                 if (n >= minBufferSize && n <= 2048 && ! bufferSizes.contains (n))
-                    bufferSizes.addSorted (comparator, n);
+                    bufferSizes.addUsingDefaultSort (n);
 
                 n += (n < 512) ? 32 : (n < 1024 ? 64 : 128);
             }
@@ -674,12 +683,12 @@ public:
     int getCurrentBitDepth()                            { return 32; }
     int getOutputLatencyInSamples()                     { return latencyOut; }
     int getInputLatencyInSamples()                      { return latencyIn; }
-    const BitArray getActiveOutputChannels() const      { return outputDevice != 0 ? outputDevice->channels : BitArray(); }
-    const BitArray getActiveInputChannels() const       { return inputDevice != 0 ? inputDevice->channels : BitArray(); }
-    const String getLastError() { return lastError; }
+    const BigInteger getActiveOutputChannels() const    { return outputDevice != 0 ? outputDevice->channels : BigInteger(); }
+    const BigInteger getActiveInputChannels() const     { return inputDevice != 0 ? inputDevice->channels : BigInteger(); }
+    const String getLastError()                         { return lastError; }
 
 
-    const String open (const BitArray& inputChannels, const BitArray& outputChannels,
+    const String open (const BigInteger& inputChannels, const BigInteger& outputChannels,
                        double sampleRate, int bufferSizeSamples)
     {
         close();
@@ -903,7 +912,7 @@ private:
     bool createDevices()
     {
         ComSmartPtr <IMMDeviceEnumerator> enumerator;
-        if (! OK (enumerator.CoCreateInstance (__uuidof (MMDeviceEnumerator), CLSCTX_INPROC_SERVER)))
+        if (! OK (enumerator.CoCreateInstance (__uuidof (MMDeviceEnumerator))))
             return false;
 
         ComSmartPtr <IMMDeviceCollection> deviceCollection;
@@ -947,7 +956,7 @@ class WASAPIAudioIODeviceType  : public AudioIODeviceType
 {
 public:
     WASAPIAudioIODeviceType()
-        : AudioIODeviceType (T("Windows Audio")),
+        : AudioIODeviceType ("Windows Audio"),
           hasScanned (false)
     {
     }
@@ -967,7 +976,7 @@ public:
         inputDeviceIds.clear();
 
         ComSmartPtr <IMMDeviceEnumerator> enumerator;
-        if (! OK (enumerator.CoCreateInstance (__uuidof (MMDeviceEnumerator), CLSCTX_INPROC_SERVER)))
+        if (! OK (enumerator.CoCreateInstance (__uuidof (MMDeviceEnumerator))))
             return;
 
         const String defaultRenderer = getDefaultEndpoint (enumerator, false);
@@ -1030,7 +1039,7 @@ public:
         outputDeviceNames.appendNumbersToDuplicates (false, false);
     }
 
-    const StringArray getDeviceNames (const bool wantInputNames) const
+    const StringArray getDeviceNames (bool wantInputNames) const
     {
         jassert (hasScanned); // need to call scanForDevices() before doing this
 
@@ -1038,13 +1047,13 @@ public:
                               : outputDeviceNames;
     }
 
-    int getDefaultDeviceIndex (const bool /*forInput*/) const
+    int getDefaultDeviceIndex (bool /*forInput*/) const
     {
         jassert (hasScanned); // need to call scanForDevices() before doing this
         return 0;
     }
 
-    int getIndexOfDevice (AudioIODevice* device, const bool asInput) const
+    int getIndexOfDevice (AudioIODevice* device, bool asInput) const
     {
         jassert (hasScanned); // need to call scanForDevices() before doing this
         WASAPIAudioIODevice* const d = dynamic_cast <WASAPIAudioIODevice*> (device);
@@ -1060,24 +1069,24 @@ public:
         jassert (hasScanned); // need to call scanForDevices() before doing this
 
         const bool useExclusiveMode = false;
-        WASAPIAudioIODevice* d = 0;
+        ScopedPointer<WASAPIAudioIODevice> device;
 
         const int outputIndex = outputDeviceNames.indexOf (outputDeviceName);
         const int inputIndex = inputDeviceNames.indexOf (inputDeviceName);
 
         if (outputIndex >= 0 || inputIndex >= 0)
         {
-            d = new WASAPIAudioIODevice (outputDeviceName.isNotEmpty() ? outputDeviceName
-                                                                       : inputDeviceName,
-                                         outputDeviceIds [outputIndex],
-                                         inputDeviceIds [inputIndex],
-                                         useExclusiveMode);
+            device = new WASAPIAudioIODevice (outputDeviceName.isNotEmpty() ? outputDeviceName
+                                                                            : inputDeviceName,
+                                              outputDeviceIds [outputIndex],
+                                              inputDeviceIds [inputIndex],
+                                              useExclusiveMode);
 
-            if (! d->initialise())
-                deleteAndZero (d);
+            if (! device->initialise())
+                device = 0;
         }
 
-        return d;
+        return device.release();
     }
 
     //==============================================================================

@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -41,8 +41,7 @@ class JUCE_API  DirectoryContentsDisplayComponent
 {
 public:
     //==============================================================================
-    /**
-    */
+    /** Creates a DirectoryContentsDisplayComponent for a given list of files. */
     DirectoryContentsDisplayComponent (DirectoryContentsList& listToShow);
 
     /** Destructor. */
@@ -60,21 +59,22 @@ public:
     */
     virtual const File getSelectedFile (int index) const = 0;
 
+    /** Deselects any selected files. */
+    virtual void deselectAllFiles() = 0;
+
     /** Scrolls this view to the top. */
     virtual void scrollToTop() = 0;
 
     //==============================================================================
     /** Adds a listener to be told when files are selected or clicked.
-
         @see removeListener
     */
-    void addListener (FileBrowserListener* const listener) throw();
+    void addListener (FileBrowserListener* listener);
 
     /** Removes a listener.
-
         @see addListener
     */
-    void removeListener (FileBrowserListener* const listener) throw();
+    void removeListener (FileBrowserListener* listener);
 
 
     //==============================================================================

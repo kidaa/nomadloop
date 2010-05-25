@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -39,18 +39,13 @@ BEGIN_JUCE_NAMESPACE
 #include "../../../application/juce_Application.h"
 #include "../../../containers/juce_ScopedPointer.h"
 
-static const int titleH = 24;
-static const int iconWidth = 80;
-
 
 //==============================================================================
 class AlertWindowTextEditor  : public TextEditor
 {
 public:
-    static const tchar passwordChar;
-
     AlertWindowTextEditor (const String& name, const bool isPasswordBox)
-        : TextEditor (name, isPasswordBox ? passwordChar :  0)
+        : TextEditor (name, isPasswordBox ? getDefaultPasswordChar() :  0)
     {
         setSelectAllWhenFocused (true);
     }
@@ -62,7 +57,7 @@ public:
     void returnPressed()
     {
         // pass these up the component hierarchy to be trigger the buttons
-        getParentComponent()->keyPressed (KeyPress (KeyPress::returnKey, 0, T('\n')));
+        getParentComponent()->keyPressed (KeyPress (KeyPress::returnKey, 0, '\n'));
     }
 
     void escapePressed()
@@ -74,13 +69,17 @@ public:
 private:
     AlertWindowTextEditor (const AlertWindowTextEditor&);
     AlertWindowTextEditor& operator= (const AlertWindowTextEditor&);
+
+    static juce_wchar getDefaultPasswordChar() throw()
+    {
+      #if JUCE_LINUX
+        return 0x2022;
+      #else
+        return 0x25cf;
+      #endif
+    }
 };
 
-#if JUCE_LINUX
-const tchar AlertWindowTextEditor::passwordChar = 0x2022;
-#else
-const tchar AlertWindowTextEditor::passwordChar = 0x25cf;
-#endif
 
 //==============================================================================
 AlertWindow::AlertWindow (const String& title,
@@ -92,7 +91,7 @@ AlertWindow::AlertWindow (const String& title,
      associatedComponent (associatedComponent_)
 {
     if (message.isEmpty())
-        text = T(" "); // to force an update if the message is empty
+        text = " "; // to force an update if the message is empty
 
     setMessage (message);
 
@@ -140,7 +139,7 @@ void AlertWindow::setMessage (const String& message)
         font.setHeight (15.0f);
 
         Font titleFont (font.getHeight() * 1.1f, Font::bold);
-        textLayout.setText (getName() + T("\n\n"), titleFont);
+        textLayout.setText (getName() + "\n\n", titleFont);
 
         textLayout.appendText (text, font);
 
@@ -191,6 +190,20 @@ void AlertWindow::addButton (const String& name,
 int AlertWindow::getNumButtons() const
 {
     return buttons.size();
+}
+
+void AlertWindow::triggerButtonClick (const String& buttonName)
+{
+    for (int i = buttons.size(); --i >= 0;)
+    {
+        TextButton* const b = (TextButton*) buttons[i];
+
+        if (buttonName == b->getName())
+        {
+            b->triggerClick();
+            break;
+        }
+    }
 }
 
 //==============================================================================
@@ -270,7 +283,7 @@ public:
         setFont (font);
         setText (message, false);
 
-        bestWidth = 2 * (int) sqrt (font.getHeight() * font.getStringWidth (message));
+        bestWidth = 2 * (int) std::sqrt (font.getHeight() * font.getStringWidth (message));
 
         setColour (TextEditor::backgroundColourId, Colours::transparentBlack);
         setColour (TextEditor::outlineColourId, Colours::transparentBlack);
@@ -298,9 +311,9 @@ private:
     AlertTextComp& operator= (const AlertTextComp&);
 };
 
-void AlertWindow::addTextBlock (const String& text)
+void AlertWindow::addTextBlock (const String& textBlock)
 {
-    AlertTextComp* const c = new AlertTextComp (text, font);
+    AlertTextComp* const c = new AlertTextComp (textBlock, font);
 
     textBlocks.add (c);
     allComps.add (c);
@@ -402,10 +415,13 @@ void AlertWindow::paint (Graphics& g)
 
 void AlertWindow::updateLayout (const bool onlyIncreaseSize)
 {
+    const int titleH = 24;
+    const int iconWidth = 80;
+
     const int wid = jmax (font.getStringWidth (text),
                           font.getStringWidth (getName()));
 
-    const int sw = (int) sqrt (font.getHeight() * wid);
+    const int sw = (int) std::sqrt (font.getHeight() * wid);
     int w = jmin (300 + sw * 2, (int) (getParentWidth() * 0.7f));
     const int edgeGap = 10;
     const int labelHeight = 18;
@@ -517,7 +533,7 @@ void AlertWindow::updateLayout (const bool onlyIncreaseSize)
     for (i = 0; i < allComps.size(); ++i)
     {
         Component* const c = (Component*) allComps[i];
-        int h = 22;
+        h = 22;
 
         const int comboIndex = comboBoxes.indexOf (c);
         if (comboIndex >= 0 && comboBoxNames [comboIndex].isNotEmpty())
@@ -599,10 +615,10 @@ bool AlertWindow::keyPressed (const KeyPress& key)
 
 void AlertWindow::lookAndFeelChanged()
 {
-    const int flags = getLookAndFeel().getAlertBoxWindowFlags();
+    const int newFlags = getLookAndFeel().getAlertBoxWindowFlags();
 
-    setUsingNativeTitleBar ((flags & ComponentPeer::windowHasTitleBar) != 0);
-    setDropShadowEnabled (isOpaque() && (flags & ComponentPeer::windowHasDropShadow) != 0);
+    setUsingNativeTitleBar ((newFlags & ComponentPeer::windowHasTitleBar) != 0);
+    setDropShadowEnabled (isOpaque() && (newFlags & ComponentPeer::windowHasDropShadow) != 0);
 }
 
 int AlertWindow::getDesktopWindowStyleFlags() const

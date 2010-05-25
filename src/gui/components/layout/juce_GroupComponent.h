@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -44,18 +44,18 @@ public:
         @param componentName    the name to give the component
         @param labelText        the text to show at the top of the outline
     */
-    GroupComponent (const String& componentName,
-                    const String& labelText);
+    GroupComponent (const String& componentName = String::empty,
+                    const String& labelText = String::empty);
 
     /** Destructor. */
     ~GroupComponent();
 
     //==============================================================================
     /** Changes the text that's shown at the top of the component. */
-    void setText (const String& newText) throw();
+    void setText (const String& newText);
 
     /** Returns the currently displayed text label. */
-    const String getText() const throw();
+    const String getText() const;
 
     /** Sets the positioning of the text label.
 

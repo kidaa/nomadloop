@@ -166,8 +166,8 @@ private:
         return AffineTransform::rotation ((float) owner.angleSlider->getValue() / (180.0f / float_Pi))
                                 .scaled ((float) owner.sizeSlider->getValue(),
                                          (float) owner.sizeSlider->getValue())
-                                .translated (getWidth() * 0.5f + (float) owner.xSlider->getValue(),
-                                             getHeight() * 0.5f + (float) owner.ySlider->getValue());
+                                .translated (getWidth() / 2 + (float) owner.xSlider->getValue(),
+                                             getHeight() / 2 + (float) owner.ySlider->getValue());
     }
 
     void clipToRectangle (Graphics& g)
@@ -296,7 +296,7 @@ private:
 
     void drawSVG (Graphics& g)
     {
-        if (Time::getCurrentTime().toMilliseconds() > lastSVGLoadTime.toMilliseconds() + 3000)
+        if (Time::getCurrentTime().toMilliseconds() > lastSVGLoadTime.toMilliseconds() + 2000)
         {
             lastSVGLoadTime = Time::getCurrentTime();
             createSVGDrawable();
@@ -344,22 +344,23 @@ private:
 
         if (svgFileStream != 0)
         {
-            Drawable* loadedSVG = Drawable::createFromImageDataStream (*svgFileStream);
+            svgDrawable = dynamic_cast <DrawableComposite*> (Drawable::createFromImageDataStream (*svgFileStream));
             delete svgFileStream;
 
-            if (loadedSVG != 0)
+            if (svgDrawable != 0)
             {
                 // to make our icon the right size, we'll put it inside a DrawableComposite, and apply
                 // a transform to get it to the size we want.
 
-                Rectangle<float> bounds = loadedSVG->getBounds();
-                const float scaleFactor = 300.0f / jmax (bounds.getWidth(), bounds.getHeight());
+                Rectangle<float> bounds = svgDrawable->getBounds();
+                const float scaleFactor = 200.0f / jmax (bounds.getWidth(), bounds.getHeight());
 
-                svgDrawable = new DrawableComposite();
-                svgDrawable->insertDrawable (loadedSVG,
-                                             AffineTransform::translation (-bounds.getCentreX(),
-                                                                           -bounds.getCentreY())
-                                                             .scaled (scaleFactor, scaleFactor));
+                Point<float> topLeft (-bounds.getCentreX() * scaleFactor,
+                                      -bounds.getCentreY() * scaleFactor);
+
+                svgDrawable->setTransform (topLeft,
+                                           topLeft + Point<float> (scaleFactor, 0),
+                                           topLeft + Point<float> (0, scaleFactor));
             }
         }
     }

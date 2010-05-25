@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -32,8 +32,8 @@
     See also SystemStats::getJUCEVersion() for a string version.
 */
 #define JUCE_MAJOR_VERSION      1
-#define JUCE_MINOR_VERSION      51
-#define JUCE_BUILDNUMBER        10
+#define JUCE_MINOR_VERSION      52
+#define JUCE_BUILDNUMBER        6
 
 /** Current Juce version number.
 
@@ -95,6 +95,14 @@
 
 #if JUCE_LINUX
   #include <signal.h>
+
+  #if __INTEL_COMPILER
+    #if __ia64__
+      #include <ia64intrin.h>
+    #else
+      #include <ia32intrin.h>
+    #endif
+  #endif
 #endif
 
 #if JUCE_MSVC && JUCE_DEBUG

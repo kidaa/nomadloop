@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -44,7 +44,7 @@ struct ThumbnailCacheEntry
 
 //==============================================================================
 AudioThumbnailCache::AudioThumbnailCache (const int maxNumThumbsToStore_)
-    : TimeSliceThread (T("thumb cache")),
+    : TimeSliceThread ("thumb cache"),
       maxNumThumbsToStore (maxNumThumbsToStore_)
 {
     startThread (2);
@@ -60,10 +60,7 @@ bool AudioThumbnailCache::loadThumb (AudioThumbnail& thumb, const int64 hashCode
     {
         if (thumbs[i]->hash == hashCode)
         {
-            MemoryInputStream in ((const char*) thumbs[i]->data.getData(),
-                                  thumbs[i]->data.getSize(),
-                                  false);
-
+            MemoryInputStream in (thumbs[i]->data, false);
             thumb.loadFrom (in);
 
             thumbs[i]->lastUsed = Time::getMillisecondCounter();

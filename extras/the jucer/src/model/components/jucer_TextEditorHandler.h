@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -148,7 +148,7 @@ private:
         }
 
         //==============================================================================
-        void setIndex (const int newIndex)
+        void setIndex (int newIndex)
         {
             document.perform (new TextEditorMultilineChangeAction (component, *document.getComponentLayout(), newIndex),
                               T("Change TextEditor multiline mode"));
@@ -202,7 +202,7 @@ private:
         }
 
         //==============================================================================
-        void setState (const bool newState)
+        void setState (bool newState)
         {
             document.perform (new TextEditorReadonlyChangeAction (component, *document.getComponentLayout(), ! newState),
                               T("Change TextEditor read-only mode"));
@@ -251,7 +251,7 @@ private:
         }
 
         //==============================================================================
-        void setState (const bool newState)
+        void setState (bool newState)
         {
             document.perform (new TextEditorScrollbarChangeAction (component, *document.getComponentLayout(), newState),
                               T("Change TextEditor scrollbars"));
@@ -300,7 +300,7 @@ private:
         }
 
         //==============================================================================
-        void setState (const bool newState)
+        void setState (bool newState)
         {
             document.perform (new TextEditorCaretChangeAction (component, *document.getComponentLayout(), newState),
                               T("Change TextEditor caret"));
@@ -349,7 +349,7 @@ private:
         }
 
         //==============================================================================
-        void setState (const bool newState)
+        void setState (bool newState)
         {
             document.perform (new TextEditorPopupMenuChangeAction (component, *document.getComponentLayout(), newState),
                               T("Change TextEditor popup menu"));

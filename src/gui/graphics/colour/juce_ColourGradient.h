@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -27,7 +27,7 @@
 #define __JUCE_COLOURGRADIENT_JUCEHEADER__
 
 #include "juce_Colour.h"
-#include "../geometry/juce_AffineTransform.h"
+#include "../geometry/juce_Point.h"
 #include "../../../containers/juce_Array.h"
 #include "../../../containers/juce_HeapBlock.h"
 
@@ -59,13 +59,9 @@ public:
 
         @see ColourGradient
     */
-    ColourGradient (const Colour& colour1,
-                    const float x1,
-                    const float y1,
-                    const Colour& colour2,
-                    const float x2,
-                    const float y2,
-                    const bool isRadial) throw();
+    ColourGradient (const Colour& colour1, float x1, float y1,
+                    const Colour& colour2, float x2, float y2,
+                    bool isRadial);
 
     /** Creates an uninitialised gradient.
 
@@ -75,7 +71,7 @@ public:
     ColourGradient() throw();
 
     /** Destructor */
-    ~ColourGradient() throw();
+    ~ColourGradient();
 
     //==============================================================================
     /** Removes any colours that have been added.
@@ -83,7 +79,7 @@ public:
         This will also remove any start and end colours, so the gradient won't work. You'll
         need to add more colours with addColour().
     */
-    void clearColours() throw();
+    void clearColours();
 
     /** Adds a colour at a point along the length of the gradient.
 
@@ -95,11 +91,11 @@ public:
                                             at which the colour should occur.
         @param colour                       the colour that should be used at this point
     */
-    void addColour (const double proportionAlongGradient,
-                    const Colour& colour) throw();
+    void addColour (double proportionAlongGradient,
+                    const Colour& colour);
 
     /** Multiplies the alpha value of all the colours by the given scale factor */
-    void multiplyOpacity (const float multiplier) throw();
+    void multiplyOpacity (float multiplier) throw();
 
     //==============================================================================
     /** Returns the number of colour-stops that have been added. */
@@ -109,25 +105,25 @@ public:
 
         The index is from 0 to getNumColours() - 1. The return value will be between 0.0 and 1.0
     */
-    double getColourPosition (const int index) const throw();
+    double getColourPosition (int index) const throw();
 
     /** Returns the colour that was added with a given index.
 
         The index is from 0 to getNumColours() - 1. The return value will be between 0.0 and 1.0
     */
-    const Colour getColour (const int index) const throw();
+    const Colour getColour (int index) const throw();
 
     /** Returns the an interpolated colour at any position along the gradient.
         @param position     the position along the gradient, between 0 and 1
     */
-    const Colour getColourAtPosition (const float position) const throw();
+    const Colour getColourAtPosition (float position) const throw();
 
     //==============================================================================
     /** Creates a set of interpolated premultiplied ARGB values.
         This will resize the HeapBlock, fill it with the colours, and will return the number of
         colours that it added.
     */
-    int createLookupTable (const AffineTransform& transform, HeapBlock <PixelARGB>& resultLookupTable) const throw();
+    int createLookupTable (const AffineTransform& transform, HeapBlock <PixelARGB>& resultLookupTable) const;
 
     /** Returns true if all colours are opaque. */
     bool isOpaque() const throw();
@@ -136,24 +132,38 @@ public:
     bool isInvisible() const throw();
 
     //==============================================================================
-    float x1;
-    float y1;
-
-    float x2;
-    float y2;
+    Point<float> point1, point2;
 
     /** If true, the gradient should be filled circularly, centred around
-        (x1, y1), with (x2, y2) defining a point on the circumference.
+        point1, with point2 defining a point on the circumference.
 
         If false, the gradient is linear between the two points.
     */
     bool isRadial;
 
+    bool operator== (const ColourGradient& other) const throw();
+    bool operator!= (const ColourGradient& other) const throw();
+
     //==============================================================================
     juce_UseDebuggingNewOperator
 
 private:
-    Array <uint32> colours;
+    struct ColourPoint
+    {
+        ColourPoint() throw() {}
+
+        ColourPoint (uint32 position_, const Colour& colour_) throw()
+            : position (position_), colour (colour_)
+        {}
+
+        bool operator== (const ColourPoint& other) const throw()   { return position == other.position && colour == other.colour; }
+        bool operator!= (const ColourPoint& other) const throw()   { return position != other.position || colour != other.colour; }
+
+        uint32 position;
+        Colour colour;
+    };
+
+    Array <ColourPoint> colours;
 };
 
 

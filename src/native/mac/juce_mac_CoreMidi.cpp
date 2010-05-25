@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -38,8 +38,8 @@ static bool logAnyErrorsMidi (const OSStatus err, const int lineNum)
     if (err == noErr)
         return true;
 
-    log (T("CoreMidi error: ") + String (lineNum) + T(" - ") + String::toHexString ((int)err));
-    jassertfalse
+    log ("CoreMidi error: " + String (lineNum) + " - " + String::toHexString ((int) err));
+    jassertfalse;
     return false;
 }
 
@@ -103,7 +103,7 @@ static const String getEndpointName (MIDIEndpointRef endpoint, bool isExternal)
         else if (! result.startsWithIgnoreCase (s))
         {
             // prepend the device name to the entity name
-            result = (s + T(" ") + result).trimEnd();
+            result = (s + " " + result).trimEnd();
         }
     }
 
@@ -161,7 +161,7 @@ static const String getConnectedEndpointName (MIDIEndpointRef endpoint)
                     if (s.isNotEmpty())
                     {
                         if (result.isNotEmpty())
-                            result += (", ");
+                            result += ", ";
 
                         result += s;
                     }
@@ -219,7 +219,7 @@ static bool makeSureClientExists()
 {
     if (! hasGlobalClientBeenCreated)
     {
-        String name (T("JUCE"));
+        String name ("JUCE");
 
         if (JUCEApplication::getInstance() != 0)
             name = JUCEApplication::getInstance()->getApplicationName();
@@ -265,7 +265,7 @@ MidiOutput* MidiOutput::openDevice (int index)
         CFStringRef pname;
         if (OK (MIDIObjectGetStringProperty (endPoint, kMIDIPropertyName, &pname)))
         {
-            log (T("CoreMidi - opening out: ") + PlatformUtilities::cfStringToJuceString (pname));
+            log ("CoreMidi - opening out: " + PlatformUtilities::cfStringToJuceString (pname));
 
             if (makeSureClientExists())
             {
@@ -274,7 +274,7 @@ MidiOutput* MidiOutput::openDevice (int index)
                 if (OK (MIDIOutputPortCreate (globalMidiClient, pname, &port)))
                 {
                     mo = new MidiOutput();
-                    mo->internal = (void*) new MidiPortAndEndpoint (port, endPoint);
+                    mo->internal = new MidiPortAndEndpoint (port, endPoint);
                 }
             }
 
@@ -297,7 +297,7 @@ MidiOutput* MidiOutput::createNewDevice (const String& deviceName)
         if (OK (MIDISourceCreate (globalMidiClient, name, &endPoint)))
         {
             mo = new MidiOutput();
-            mo->internal = (void*) new MidiPortAndEndpoint (0, endPoint);
+            mo->internal = new MidiPortAndEndpoint (0, endPoint);
         }
 
         CFRelease (name);
@@ -315,12 +315,12 @@ void MidiOutput::reset()
 {
 }
 
-bool MidiOutput::getVolume (float& leftVol, float& rightVol)
+bool MidiOutput::getVolume (float& /*leftVol*/, float& /*rightVol*/)
 {
     return false;
 }
 
-void MidiOutput::setVolume (float leftVol, float rightVol)
+void MidiOutput::setVolume (float /*leftVol*/, float /*rightVol*/)
 {
 }
 
@@ -471,12 +471,12 @@ struct MidiPortAndCallback
 namespace CoreMidiCallbacks
 {
     static CriticalSection callbackLock;
-    static VoidArray activeCallbacks;
+    static Array<void*> activeCallbacks;
 }
 
 static void midiInputProc (const MIDIPacketList* pktlist,
                            void* readProcRefCon,
-                           void* srcConnRefCon)
+                           void* /*srcConnRefCon*/)
 {
     double time = Time::getMillisecondCounterHiRes() * 0.001;
     const double originalTime = time;
@@ -508,7 +508,7 @@ static void midiInputProc (const MIDIPacketList* pktlist,
 
                     if (used <= 0)
                     {
-                        jassertfalse // malformed midi message
+                        jassertfalse; // malformed midi message
                         break;
                     }
                     else
@@ -540,7 +540,7 @@ MidiInput* MidiInput::openDevice (int index, MidiInputCallback* callback)
 
             if (OK (MIDIObjectGetStringProperty (endPoint, kMIDIPropertyName, &pname)))
             {
-                log (T("CoreMidi - opening inp: ") + PlatformUtilities::cfStringToJuceString (pname));
+                log ("CoreMidi - opening inp: " + PlatformUtilities::cfStringToJuceString (pname));
 
                 if (makeSureClientExists())
                 {
@@ -560,7 +560,7 @@ MidiInput* MidiInput::openDevice (int index, MidiInputCallback* callback)
 
                             mi = new MidiInput (getDevices() [index]);
                             mpc->input = mi;
-                            mi->internal = (void*) mpc;
+                            mi->internal = mpc;
 
                             const ScopedLock sl (CoreMidiCallbacks::callbackLock);
                             CoreMidiCallbacks::activeCallbacks.add (mpc.release());
@@ -600,7 +600,7 @@ MidiInput* MidiInput::createNewDevice (const String& deviceName, MidiInputCallba
 
             mi = new MidiInput (deviceName);
             mpc->input = mi;
-            mi->internal = (void*) mpc;
+            mi->internal = mpc;
 
             const ScopedLock sl (CoreMidiCallbacks::callbackLock);
             CoreMidiCallbacks::activeCallbacks.add (mpc.release());
@@ -658,12 +658,12 @@ void MidiOutput::reset()
 {
 }
 
-bool MidiOutput::getVolume (float& leftVol, float& rightVol)
+bool MidiOutput::getVolume (float& /*leftVol*/, float& /*rightVol*/)
 {
     return false;
 }
 
-void MidiOutput::setVolume (float leftVol, float rightVol)
+void MidiOutput::setVolume (float /*leftVol*/, float /*rightVol*/)
 {
 }
 

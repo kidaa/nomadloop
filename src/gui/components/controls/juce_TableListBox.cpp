@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -28,7 +28,7 @@
 BEGIN_JUCE_NAMESPACE
 
 #include "juce_TableListBox.h"
-#include "../../../containers/juce_BitArray.h"
+#include "../../../containers/juce_BigInteger.h"
 #include "../../../core/juce_Random.h"
 #include "../mouse/juce_DragAndDropContainer.h"
 #include "../../graphics/imaging/juce_Image.h"
@@ -100,7 +100,7 @@ public:
         {
             jassert (row >= 0);
 
-            const var::identifier tagPropertyName ("_tableLastUseNum");
+            const Identifier tagPropertyName ("_tableLastUseNum");
             const int newTag = Random::getSystemRandom().nextInt();
 
             const TableHeaderComponent* const header = owner.getHeader();
@@ -191,7 +191,7 @@ public:
     {
         if (isEnabled() && owner.getModel() != 0 && ! (e.mouseWasClicked() || isDragging))
         {
-            const SparseSet <int> selectedRows (owner.getSelectedRows());
+            const SparseSet<int> selectedRows (owner.getSelectedRows());
 
             if (selectedRows.size() > 0)
             {
@@ -243,7 +243,7 @@ private:
     TableListBox& owner;
     int row;
     bool isSelected, isDragging, selectRowOnMouseUp;
-    BitArray columnsWithComponents;
+    BigInteger columnsWithComponents;
 
     Component* findChildComponentForColumn (const int columnId) const
     {
@@ -276,7 +276,7 @@ public:
     {
     }
 
-    void addMenuItems (PopupMenu& menu, const int columnIdClicked)
+    void addMenuItems (PopupMenu& menu, int columnIdClicked)
     {
         if (owner.isAutoSizeMenuOptionShown())
         {
@@ -288,7 +288,7 @@ public:
         TableHeaderComponent::addMenuItems (menu, columnIdClicked);
     }
 
-    void reactToMenuItem (const int menuReturnId, const int columnIdClicked)
+    void reactToMenuItem (int menuReturnId, int columnIdClicked)
     {
         if (menuReturnId == 0xf836743)
         {
@@ -426,7 +426,7 @@ Component* TableListBox::refreshComponentForRow (int rowNumber, bool isRowSelect
     if (existingComponentToUpdate == 0)
         existingComponentToUpdate = new TableListRowComp (*this);
 
-    ((TableListRowComp*) existingComponentToUpdate)->update (rowNumber, isRowSelected_);
+    static_cast <TableListRowComp*> (existingComponentToUpdate)->update (rowNumber, isRowSelected_);
 
     return existingComponentToUpdate;
 }

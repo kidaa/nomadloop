@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -62,7 +62,7 @@ public:
 
         @see createConnectionObject, stop
     */
-    bool beginWaitingForSocket (const int portNumber);
+    bool beginWaitingForSocket (int portNumber);
 
     /** Terminates the listener thread, if it's active.
 

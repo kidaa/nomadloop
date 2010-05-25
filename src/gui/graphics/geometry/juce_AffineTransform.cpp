@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -150,8 +150,8 @@ const AffineTransform AffineTransform::translation (const float dx,
 
 const AffineTransform AffineTransform::rotated (const float rad) const throw()
 {
-    const float cosRad = cosf (rad);
-    const float sinRad = sinf (rad);
+    const float cosRad = std::cos (rad);
+    const float sinRad = std::sin (rad);
 
     return followedBy (cosRad, -sinRad, 0,
                        sinRad, cosRad, 0);
@@ -159,8 +159,8 @@ const AffineTransform AffineTransform::rotated (const float rad) const throw()
 
 const AffineTransform AffineTransform::rotation (const float rad) throw()
 {
-    const float cosRad = cosf (rad);
-    const float sinRad = sinf (rad);
+    const float cosRad = std::cos (rad);
+    const float sinRad = std::sin (rad);
 
     return AffineTransform (cosRad, -sinRad, 0,
                             sinRad, cosRad, 0);
@@ -231,6 +231,14 @@ const AffineTransform AffineTransform::inverted() const throw()
 bool AffineTransform::isSingularity() const throw()
 {
     return (mat00 * mat11 - mat10 * mat01) == 0.0;
+}
+
+const AffineTransform AffineTransform::fromTargetPoints (const float x00, const float y00,
+                                                         const float x10, const float y10,
+                                                         const float x01, const float y01) throw()
+{
+    return AffineTransform (x10 - x00, x01 - x00, x00,
+                            y10 - y00, y01 - y00, y00);
 }
 
 bool AffineTransform::isOnlyTranslation() const throw()

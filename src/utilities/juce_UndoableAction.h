@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -85,6 +85,15 @@ public:
              UndoManager::setMaxNumberOfStoredUnits
     */
     virtual int getSizeInUnits()    { return 10; }
+
+    /** Allows multiple actions to be coalesced into a single action object, to reduce storage space.
+
+        If possible, this method should create and return a single action that does the same job as
+        this one followed by the supplied action.
+
+        If it's not possible to merge the two actions, the method should return zero.
+    */
+    virtual UndoableAction* createCoalescedAction (UndoableAction* nextAction)  { (void) nextAction; return 0; }
 };
 
 

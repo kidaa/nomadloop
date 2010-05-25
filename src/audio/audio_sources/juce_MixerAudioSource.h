@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -28,8 +28,8 @@
 
 #include "juce_AudioSource.h"
 #include "../../threads/juce_CriticalSection.h"
-#include "../../containers/juce_VoidArray.h"
-#include "../../containers/juce_BitArray.h"
+#include "../../containers/juce_Array.h"
+#include "../../containers/juce_BigInteger.h"
 
 
 //==============================================================================
@@ -111,8 +111,8 @@ public:
 
 private:
     //==============================================================================
-    VoidArray inputs;
-    BitArray inputsToDelete;
+    Array <AudioSource*> inputs;
+    BigInteger inputsToDelete;
     CriticalSection lock;
     AudioSampleBuffer tempBuffer;
     double currentSampleRate;

@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -87,15 +87,6 @@ static const Colour createBaseColour (const Colour& buttonColour,
     return baseColour;
 }
 
-//==============================================================================
-static String defaultSansName, defaultSerifName, defaultFixedName;
-
-void clearUpDefaultFontNames() throw()
-{
-    defaultSansName = String::empty;
-    defaultSerifName = String::empty;
-    defaultFixedName = String::empty;
-}
 
 //==============================================================================
 LookAndFeel::LookAndFeel()
@@ -234,6 +225,8 @@ LookAndFeel::LookAndFeel()
     for (int i = 0; i < numElementsInArray (standardColours); i += 2)
         setColour (standardColours [i], Colour (standardColours [i + 1]));
 
+    static String defaultSansName, defaultSerifName, defaultFixedName;
+
     if (defaultSansName.isEmpty())
         Font::getPlatformDefaultFontNames (defaultSansName, defaultSerifName, defaultFixedName);
 
@@ -254,7 +247,7 @@ const Colour LookAndFeel::findColour (const int colourId) const throw()
     if (index >= 0)
         return colours [index];
 
-    jassertfalse
+    jassertfalse;
     return Colours::black;
 }
 
@@ -263,10 +256,14 @@ void LookAndFeel::setColour (const int colourId, const Colour& colour) throw()
     const int index = colourIds.indexOf (colourId);
 
     if (index >= 0)
+    {
         colours.set (index, colour);
-
-    colourIds.add (colourId);
-    colours.add (colour);
+    }
+    else
+    {
+        colourIds.add (colourId);
+        colours.add (colour);
+    }
 }
 
 bool LookAndFeel::isColourSpecified (const int colourId) const throw()
@@ -1930,7 +1927,7 @@ Button* LookAndFeel::createDocumentWindowButton (int buttonType)
         return new GlassWindowButton ("maximise", Colour (0xff119911), shape, fullscreenShape);
     }
 
-    jassertfalse
+    jassertfalse;
     return 0;
 }
 
@@ -2381,7 +2378,7 @@ Button* LookAndFeel::createTabBarExtrasButton()
     overImage.insertDrawable (ellipse);
     overImage.insertDrawable (dp);
 
-    DrawableButton* db = new DrawableButton (T("tabs"), DrawableButton::ImageFitted);
+    DrawableButton* db = new DrawableButton ("tabs", DrawableButton::ImageFitted);
     db->setImages (&normalImage, &overImage, 0);
     return db;
 }
@@ -3057,8 +3054,8 @@ void LookAndFeel::drawGlassLozenge (Graphics& g,
 
     if (! (flatOnRight || flatOnTop || flatOnBottom))
     {
-        cg.x1 = x + width - edgeBlurRadius;
-        cg.x2 = x + width;
+        cg.point1.setX (x + width - edgeBlurRadius);
+        cg.point2.setX (x + width);
 
         g.saveState();
         g.setGradientFill (cg);

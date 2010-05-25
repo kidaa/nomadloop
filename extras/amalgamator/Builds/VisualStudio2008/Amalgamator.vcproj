@@ -3,7 +3,7 @@
 <VisualStudioProject ProjectType="Visual C++"
                      Version="9.00"
                      Name="Amalgamator"
-                     ProjectGUID="{8EBCACB6-792B-92FF-1C9B-34A5D310E725}"
+                     ProjectGUID="{4285DA55-C038-FF64-E3EC-DA7F0E5D4310}"
                      TargetFrameworkVersion="131072">
   <Platforms>
     <Platform Name="Win32"/>
@@ -33,7 +33,7 @@
             BufferSecurityCheck=""
             DebugInformationFormat="4"
             AdditionalIncludeDirectories=""
-            PreprocessorDefinitions="WIN32;_WINDOWS;_DEBUG;_CONSOLE"
+            PreprocessorDefinitions="JUCER_VS2008_78A5006;WIN32;_WINDOWS;_DEBUG;_CONSOLE"
             RuntimeLibrary="1"
             RuntimeTypeInfo="true"
             UsePrecompiledHeader="0"
@@ -54,8 +54,6 @@
             GenerateDebugInformation="true"
             ProgramDatabaseFile=".\Debug\amalgamator.pdb"
             SubSystem="1"
-            RandomizedBaseAddress="1"
-            DataExecutionPrevention="0"
             TargetMachine="1"/>
       <Tool Name="VCALinkTool"/>
       <Tool Name="VCManifestTool"/>
@@ -91,7 +89,7 @@
             InlineFunctionExpansion="1"
             StringPooling="true"
             AdditionalIncludeDirectories=""
-            PreprocessorDefinitions="WIN32;_WINDOWS;NDEBUG;_CONSOLE"
+            PreprocessorDefinitions="JUCER_VS2008_78A5006;WIN32;_WINDOWS;NDEBUG;_CONSOLE"
             RuntimeLibrary="0"
             RuntimeTypeInfo="true"
             UsePrecompiledHeader="0"
@@ -115,8 +113,6 @@
             GenerateManifest="false"
             OptimizeReferences="2"
             EnableCOMDATFolding="2"
-            RandomizedBaseAddress="1"
-            DataExecutionPrevention="0"
             TargetMachine="1"/>
       <Tool Name="VCALinkTool"/>
       <Tool Name="VCManifestTool"/>

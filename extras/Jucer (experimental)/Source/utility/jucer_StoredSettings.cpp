@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -37,7 +37,7 @@ StoredSettings::StoredSettings()
 StoredSettings::~StoredSettings()
 {
     flush();
-    deleteAndZero (props);
+    props = 0;
     clearSingletonInstance();
 }
 
@@ -47,6 +47,7 @@ juce_ImplementSingleton (StoredSettings);
 //==============================================================================
 PropertiesFile& StoredSettings::getProps()
 {
+    jassert (props != 0);
     return *props;
 }
 
@@ -54,27 +55,49 @@ void StoredSettings::flush()
 {
     if (props != 0)
     {
-        props->setValue (T("recentFiles"), recentFiles.toString());
+        props->setValue ("recentFiles", recentFiles.toString());
 
-        props->removeValue (T("keyMappings"));
+        props->removeValue ("keyMappings");
 
-        ScopedPointer <XmlElement> keys (commandManager->getKeyMappings()->createXml (true));
+        if (commandManager != 0)
+        {
+            ScopedPointer <XmlElement> keys (commandManager->getKeyMappings()->createXml (true));
 
-        if (keys != 0)
-            props->setValue (T("keyMappings"), (XmlElement*) keys);
+            if (keys != 0)
+                props->setValue ("keyMappings", (XmlElement*) keys);
+        }
     }
 
-    deleteAndZero (props);
-
-    props = PropertiesFile::createDefaultAppPropertiesFile (T("Jucer2"),
-                                                            T("settings"),
+    props = 0;
+    props = PropertiesFile::createDefaultAppPropertiesFile ("Jucer2",
+                                                            "settings",
                                                             String::empty,
                                                             false, 3000,
                                                             PropertiesFile::storeAsXML);
 
     // recent files...
-    recentFiles.restoreFromString (props->getValue (T("recentFiles")));
+    recentFiles.restoreFromString (props->getValue ("recentFiles"));
     recentFiles.removeNonExistentFiles();
+
+    // swatch colours...
+    swatchColours.clear();
+
+    #define COL(col)  Colours::col,
+
+    const Colour colours[] =
+    {
+        #include "jucer_Colours.h"
+        Colours::transparentBlack
+    };
+
+    #undef COL
+
+    for (int i = 0; i < numSwatchColours; ++i)
+    {
+        Colour defaultCol (colours [2 + i]);
+        swatchColours.add (Colour (props->getValue ("swatchColour" + String (i),
+                                                    hexString8Digits (defaultCol.getARGB())).getHexValue32()));
+    }
 }
 
 const File StoredSettings::getLastProject() const
@@ -89,10 +112,10 @@ void StoredSettings::setLastProject (const File& file)
 
 const File StoredSettings::getLastKnownJuceFolder() const
 {
-    File defaultJuceFolder (findDefaultJuceFolder());
+    File defaultJuceFolder (FileHelpers::findDefaultJuceFolder());
     File f (props->getValue ("lastJuceFolder", defaultJuceFolder.getFullPathName()));
 
-    if ((! isJuceFolder (f)) && isJuceFolder (defaultJuceFolder))
+    if ((! FileHelpers::isJuceFolder (f)) && FileHelpers::isJuceFolder (defaultJuceFolder))
         f = defaultJuceFolder;
 
     return f;
@@ -100,6 +123,14 @@ const File StoredSettings::getLastKnownJuceFolder() const
 
 void StoredSettings::setLastKnownJuceFolder (const File& file)
 {
-    jassert (isJuceFolder (file));
+    jassert (FileHelpers::isJuceFolder (file));
     props->setValue ("lastJuceFolder", file.getFullPathName());
+}
+
+const StringArray& StoredSettings::getFontNames()
+{
+    if (fontNames.size() == 0)
+        fontNames = Font::findAllTypefaceNames();
+
+    return fontNames;
 }

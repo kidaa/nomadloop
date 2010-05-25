@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -280,7 +280,7 @@ public:
     MidiInputThread (MidiInput* const midiInput_,
                      snd_seq_t* const seqHandle_,
                      MidiInputCallback* const callback_)
-        : Thread (T("Juce MIDI Input")),
+        : Thread ("Juce MIDI Input"),
           midiInput (midiInput_),
           seqHandle (seqHandle_),
           callback (callback_)

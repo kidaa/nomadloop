@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -30,7 +30,7 @@
 
 //==============================================================================
 AudioCDReader::AudioCDReader()
-    : AudioFormatReader (0, T("CD Audio"))
+    : AudioFormatReader (0, "CD Audio")
 {
 }
 

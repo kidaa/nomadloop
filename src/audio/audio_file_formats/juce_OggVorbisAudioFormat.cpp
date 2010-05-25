@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -72,6 +72,9 @@ namespace OggVorbisNamespace
 #endif
 }
 
+#undef max
+#undef min
+
 BEGIN_JUCE_NAMESPACE
 
 #include "juce_OggVorbisAudioFormat.h"
@@ -80,10 +83,9 @@ BEGIN_JUCE_NAMESPACE
 #include "../../io/files/juce_FileInputStream.h"
 #include "../../text/juce_LocalisedStrings.h"
 
-
 //==============================================================================
 static const char* const oggFormatName = "Ogg-Vorbis file";
-static const tchar* const oggExtensions[] =    { T(".ogg"), 0 };
+static const char* const oggExtensions[] = { ".ogg", 0 };
 
 //==============================================================================
 class OggReader : public AudioFormatReader
@@ -127,7 +129,7 @@ public:
 
     ~OggReader()
     {
-        ov_clear (&ovFile);
+        OggVorbisNamespace::ov_clear (&ovFile);
     }
 
     //==============================================================================
@@ -167,8 +169,8 @@ public:
                 reservoirStart = jmax (0, (int) startSampleInFile);
                 samplesInReservoir = reservoir.getNumSamples();
 
-                if (reservoirStart != (int) ov_pcm_tell (&ovFile))
-                    ov_pcm_seek (&ovFile, reservoirStart);
+                if (reservoirStart != (int) OggVorbisNamespace::ov_pcm_tell (&ovFile))
+                    OggVorbisNamespace::ov_pcm_seek (&ovFile, reservoirStart);
 
                 int offset = 0;
                 int numToRead = samplesInReservoir;
@@ -177,7 +179,7 @@ public:
                 {
                     float** dataIn = 0;
 
-                    const int samps = ov_read_float (&ovFile, &dataIn, numToRead, &bitStream);
+                    const int samps = OggVorbisNamespace::ov_read_float (&ovFile, &dataIn, numToRead, &bitStream);
                     if (samps <= 0)
                         break;
 
@@ -213,12 +215,12 @@ public:
     //==============================================================================
     static size_t oggReadCallback (void* ptr, size_t size, size_t nmemb, void* datasource)
     {
-        return (size_t) (((InputStream*) datasource)->read (ptr, (int) (size * nmemb)) / size);
+        return (size_t) (static_cast <InputStream*> (datasource)->read (ptr, (int) (size * nmemb)) / size);
     }
 
     static int oggSeekCallback (void* datasource, OggVorbisNamespace::ogg_int64_t offset, int whence)
     {
-        InputStream* const in = (InputStream*) datasource;
+        InputStream* const in = static_cast <InputStream*> (datasource);
 
         if (whence == SEEK_CUR)
             offset += in->getPosition();
@@ -236,7 +238,7 @@ public:
 
     static long oggTellCallback (void* datasource)
     {
-        return (long) ((InputStream*) datasource)->getPosition();
+        return (long) static_cast <InputStream*> (datasource)->getPosition();
     }
 
     juce_UseDebuggingNewOperator
@@ -312,6 +314,7 @@ public:
 
     ~OggWriter()
     {
+        using namespace OggVorbisNamespace;
         if (ok)
         {
             // write a zero-length packet to show ogg that we're finished..
@@ -336,6 +339,7 @@ public:
     //==============================================================================
     bool write (const int** samplesToWrite, int numSamples)
     {
+        using namespace OggVorbisNamespace;
         if (! ok)
             return false;
 
@@ -391,7 +395,7 @@ public:
 
 //==============================================================================
 OggVorbisAudioFormat::OggVorbisAudioFormat()
-    : AudioFormat (TRANS (oggFormatName), (const tchar**) oggExtensions)
+    : AudioFormat (TRANS (oggFormatName), StringArray (oggExtensions))
 {
 }
 

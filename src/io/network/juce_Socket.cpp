@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -28,7 +28,8 @@
 #if JUCE_WINDOWS
   #include <winsock2.h>
 
-  #ifdef _MSC_VER
+  #if JUCE_MSVC
+    #pragma warning (push)
     #pragma warning (disable : 4127 4389 4018)
   #endif
 
@@ -378,7 +379,7 @@ bool StreamingSocket::connect (const String& remoteHostName,
 {
     if (isListener)
     {
-        jassertfalse    // a listener socket can't connect to another one!
+        jassertfalse;    // a listener socket can't connect to another one!
         return false;
     }
 
@@ -404,7 +405,9 @@ bool StreamingSocket::connect (const String& remoteHostName,
 void StreamingSocket::close()
 {
 #if JUCE_WINDOWS
-    closesocket (handle);
+    if (handle != SOCKET_ERROR || connected)
+        closesocket (handle);
+
     connected = false;
 #else
     if (connected)
@@ -419,7 +422,8 @@ void StreamingSocket::close()
         }
     }
 
-    ::close (handle);
+    if (handle != -1)
+        ::close (handle);
 #endif
 
     hostName = String::empty;
@@ -488,7 +492,7 @@ StreamingSocket* StreamingSocket::waitForNextConnection() const
 
 bool StreamingSocket::isLocal() const throw()
 {
-    return hostName == T("127.0.0.1");
+    return hostName == "127.0.0.1";
 }
 
 
@@ -625,8 +629,11 @@ int DatagramSocket::write (const void* sourceBuffer, const int numBytesToWrite)
 
 bool DatagramSocket::isLocal() const throw()
 {
-    return hostName == T("127.0.0.1");
+    return hostName == "127.0.0.1";
 }
 
+#if JUCE_MSVC
+  #pragma warning (pop)
+#endif
 
 END_JUCE_NAMESPACE

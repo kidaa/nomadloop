@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -26,7 +26,7 @@
 #ifndef __JUCE_RANDOM_JUCEHEADER__
 #define __JUCE_RANDOM_JUCEHEADER__
 
-#include "../containers/juce_BitArray.h"
+#include "../containers/juce_BigInteger.h"
 
 
 //==============================================================================
@@ -45,7 +45,7 @@ public:
 
         new Random (Time::currentTimeMillis())
     */
-    Random (int64 seedValue) throw();
+    explicit Random (int64 seedValue) throw();
 
     /** Destructor. */
     ~Random() throw();
@@ -84,14 +84,14 @@ public:
     */
     bool nextBool() throw();
 
-    /** Returns a BitArray containing a random number.
+    /** Returns a BigInteger containing a random number.
 
         @returns a random value in the range 0 to (maximumValue - 1).
     */
-    const BitArray nextLargeNumber (const BitArray& maximumValue) throw();
+    const BigInteger nextLargeNumber (const BigInteger& maximumValue);
 
-    /** Sets a range of bits in a BitArray to random values. */
-    void fillBitsRandomly (BitArray& arrayToChange, int startBit, int numBits) throw();
+    /** Sets a range of bits in a BigInteger to random values. */
+    void fillBitsRandomly (BigInteger& arrayToChange, int startBit, int numBits);
 
     //==============================================================================
     /** To avoid the overhead of having to create a new Random object whenever

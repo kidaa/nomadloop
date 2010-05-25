@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -24,34 +24,36 @@
 */
 
 #include "jucer_DocumentEditorComponent.h"
-#include "jucer_ProjectContentComponent.h"
+#include "Project Editor/jucer_ProjectContentComponent.h"
 
 
 //==============================================================================
 DocumentEditorComponent::DocumentEditorComponent (OpenDocumentManager::Document* document_)
     : document (document_)
 {
-    OpenDocumentManager::getInstance()->registerEditor (this);
+    OpenDocumentManager::getInstance()->addListener (this);
 }
 
 DocumentEditorComponent::~DocumentEditorComponent()
 {
-    OpenDocumentManager::getInstance()->deregisterEditor (this);
+    OpenDocumentManager::getInstance()->removeListener (this);
 }
 
-void DocumentEditorComponent::deleteSelf()
+void DocumentEditorComponent::documentAboutToClose (OpenDocumentManager::Document* closingDoc)
 {
-    jassert (document != 0);
-
-    ProjectContentComponent* pcc = findParentComponentOfClass ((ProjectContentComponent*) 0);
-
-    if (pcc != 0)
+    if (document == closingDoc)
     {
-        pcc->hideDocument (document);
-        return;
-    }
+        jassert (document != 0);
+        ProjectContentComponent* pcc = findParentComponentOfClass ((ProjectContentComponent*) 0);
 
-    jassertfalse
+        if (pcc != 0)
+        {
+            pcc->hideDocument (document);
+            return;
+        }
+
+        jassertfalse
+    }
 }
 
 ApplicationCommandTarget* DocumentEditorComponent::getNextCommandTarget()
@@ -82,21 +84,21 @@ void DocumentEditorComponent::getCommandInfo (const CommandID commandID, Applica
         result.setInfo ("Save" + name,
                         "Saves the current document",
                         CommandCategories::general, 0);
-        result.defaultKeypresses.add (KeyPress (T('s'), ModifierKeys::commandModifier, 0));
+        result.defaultKeypresses.add (KeyPress ('s', ModifierKeys::commandModifier, 0));
         break;
 
     case CommandIDs::saveDocumentAs:
         result.setInfo ("Save" + name + " As...",
                         "Saves the current document to a different filename",
                         CommandCategories::general, 0);
-        result.defaultKeypresses.add (KeyPress (T('s'), ModifierKeys::commandModifier | ModifierKeys::shiftModifier, 0));
+        result.defaultKeypresses.add (KeyPress ('s', ModifierKeys::commandModifier | ModifierKeys::shiftModifier, 0));
         break;
 
     case CommandIDs::closeDocument:
         result.setInfo ("Close" + name,
                         "Closes the current document",
                         CommandCategories::general, 0);
-        result.defaultKeypresses.add (KeyPress (T('w'), ModifierKeys::commandModifier | ModifierKeys::shiftModifier, 0));
+        result.defaultKeypresses.add (KeyPress ('w', ModifierKeys::commandModifier | ModifierKeys::shiftModifier, 0));
         break;
 
     default:

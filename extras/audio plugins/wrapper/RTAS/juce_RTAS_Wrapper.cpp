@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -184,7 +184,15 @@ public:
         delete juceFilter;
 
         if (--numInstances == 0)
+        {
+#if JUCE_MAC
+            // Hack to allow any NSWindows to clear themselves up before returning to PT..
+            for (int i = 20; --i >= 0;)
+                MessageManager::getInstance()->runDispatchLoopUntil (1);
+#endif
+
             shutdownJuce_GUI();
+        }
     }
 
     //==============================================================================
@@ -498,6 +506,8 @@ protected:
 
         juceFilter->setPlayHead (this);
         juceFilter->addListener (this);
+
+        midiEvents.ensureSize (2048);
     }
 
     void handleAsyncUpdate()

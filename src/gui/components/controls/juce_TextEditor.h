@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -35,7 +35,6 @@
 #include "../../../containers/juce_Value.h"
 #include "../keyboard/juce_TextInputTarget.h"
 class TextEditor;
-class TextHolderComponent;
 
 
 //==============================================================================
@@ -89,8 +88,8 @@ public:
                                     for a black splodge (not all fonts include this, though), or 0x2022,
                                     which is a bullet (probably the best choice for linux).
     */
-    TextEditor (const String& componentName = String::empty,
-                const tchar passwordCharacter = 0);
+    explicit TextEditor (const String& componentName = String::empty,
+                         juce_wchar passwordCharacter = 0);
 
     /** Destructor. */
     virtual ~TextEditor();
@@ -107,8 +106,8 @@ public:
 
         @see isMultiLine, setReturnKeyStartsNewLine
     */
-    void setMultiLine (const bool shouldBeMultiLine,
-                       const bool shouldWordWrap = true);
+    void setMultiLine (bool shouldBeMultiLine,
+                       bool shouldWordWrap = true);
 
     /** Returns true if the editor is in multi-line mode.
     */
@@ -122,7 +121,7 @@ public:
         method. By default this is set to false, and when true it will only insert
         new-lines when in multi-line mode (see setMultiLine()).
     */
-    void setReturnKeyStartsNewLine (const bool shouldStartNewLine);
+    void setReturnKeyStartsNewLine (bool shouldStartNewLine);
 
     /** Returns the value set by setReturnKeyStartsNewLine().
 
@@ -136,7 +135,7 @@ public:
         By default the tab key is ignored, so that it can be used to switch keyboard focus
         between components.
     */
-    void setTabKeyUsedAsCharacter (const bool shouldTabKeyBeUsed);
+    void setTabKeyUsedAsCharacter (bool shouldTabKeyBeUsed);
 
     /** Returns true if the tab key is being used for input.
         @see setTabKeyUsedAsCharacter
@@ -153,7 +152,7 @@ public:
 
         @see isReadOnly, setCaretVisible
     */
-    void setReadOnly (const bool shouldBeReadOnly);
+    void setReadOnly (bool shouldBeReadOnly);
 
     /** Returns true if the editor is in read-only mode.
     */
@@ -166,7 +165,7 @@ public:
 
         @see setCaretColour, setCaretPosition
     */
-    void setCaretVisible (const bool shouldBeVisible);
+    void setCaretVisible (bool shouldBeVisible);
 
     /** Returns true if the caret is enabled.
         @see setCaretVisible
@@ -187,7 +186,7 @@ public:
     /** Returns true if scrollbars are enabled.
         @see setScrollbarsShown
     */
-    bool areScrollbarsShown() const                             { return scrollbarVisible; }
+    bool areScrollbarsShown() const                                 { return scrollbarVisible; }
 
 
     /** Changes the password character used to disguise the text.
@@ -199,12 +198,12 @@ public:
                                     for a black splodge (not all fonts include this, though), or 0x2022,
                                     which is a bullet (probably the best choice for linux).
     */
-    void setPasswordCharacter (const tchar passwordCharacter);
+    void setPasswordCharacter (juce_wchar passwordCharacter);
 
     /** Returns the current password character.
         @see setPasswordCharacter
-l    */
-    tchar getPasswordCharacter() const                          { return passwordCharacter; }
+    */
+    juce_wchar getPasswordCharacter() const                         { return passwordCharacter; }
 
 
     //==============================================================================
@@ -215,7 +214,7 @@ l    */
         If enabled, right-clicking (or command-clicking on the Mac) will pop up a menu
         of options such as cut/copy/paste, undo/redo, etc.
     */
-    void setPopupMenuEnabled (const bool menuEnabled);
+    void setPopupMenuEnabled (bool menuEnabled);
 
     /** Returns true if the right-click menu is enabled.
         @see setPopupMenuEnabled
@@ -295,7 +294,7 @@ l    */
         This is useful for boxes where you expect the user to re-enter all the
         text when they focus on the component, rather than editing what's already there.
     */
-    void setSelectAllWhenFocused (const bool b);
+    void setSelectAllWhenFocused (bool b);
 
     /** Sets limits on the characters that can be entered.
 
@@ -304,7 +303,7 @@ l    */
         @param allowedCharacters    if this is non-empty, then only characters that occur in
                                     this string are allowed to be entered into the editor.
     */
-    void setInputRestrictions (const int maxTextLength,
+    void setInputRestrictions (int maxTextLength,
                                const String& allowedCharacters = String::empty);
 
     /** When the text editor is empty, it can be set to display a message.
@@ -320,26 +319,26 @@ l    */
 
         Handy if you need smaller scrollbars for a small text box.
     */
-    void setScrollBarThickness (const int newThicknessPixels);
+    void setScrollBarThickness (int newThicknessPixels);
 
     /** Shows or hides the buttons on any scrollbars that are used.
 
         @see ScrollBar::setButtonVisibility
     */
-    void setScrollBarButtonVisibility (const bool buttonsVisible);
+    void setScrollBarButtonVisibility (bool buttonsVisible);
 
     //==============================================================================
     /** Registers a listener to be told when things happen to the text.
 
         @see removeListener
     */
-    void addListener (TextEditorListener* const newListener);
+    void addListener (TextEditorListener* newListener);
 
     /** Deregisters a listener.
 
         @see addListener
     */
-    void removeListener (TextEditorListener* const listenerToRemove);
+    void removeListener (TextEditorListener* listenerToRemove);
 
     //==============================================================================
     /** Returns the entire contents of the editor. */
@@ -367,7 +366,7 @@ l    */
         @see insertText
     */
     void setText (const String& newText,
-                  const bool sendTextChangeMessage = true);
+                  bool sendTextChangeMessage = true);
 
     /** Returns a Value object that can be used to get or set the text.
 
@@ -415,7 +414,7 @@ l    */
 
         @see getCaretPosition
     */
-    void setCaretPosition (const int newIndex);
+    void setCaretPosition (int newIndex);
 
     /** Returns the current index of the caret.
 
@@ -434,8 +433,7 @@ l    */
         scroll far enough for the caret to reach this exact position, but it
         will go as far as it can in that direction.
     */
-    void scrollEditorToPositionCaret (const int desiredCaretX,
-                                      const int desiredCaretY);
+    void scrollEditorToPositionCaret (int desiredCaretX, int desiredCaretY);
 
     /** Get the graphical position of the caret.
 
@@ -460,7 +458,7 @@ l    */
 
         The co-ordinates are relative to the component's top-left.
     */
-    int getTextIndexAt (const int x, const int y);
+    int getTextIndexAt (int x, int y);
 
     /** Counts the number of characters in the text.
 
@@ -487,7 +485,7 @@ l    */
 
         By default there's a gap of 4 pixels.
     */
-    void setIndents (const int newLeftIndent, const int newTopIndent);
+    void setIndents (int newLeftIndent, int newTopIndent);
 
     /** Changes the size of border left around the edge of the component.
 
@@ -506,7 +504,7 @@ l    */
         If true (the default), the editor will scroll when the cursor moves offscreen. If
         set to false, it won't.
     */
-    void setScrollToShowCursor (const bool shouldScrollToShowCursor);
+    void setScrollToShowCursor (bool shouldScrollToShowCursor);
 
     //==============================================================================
     /** @internal */
@@ -526,7 +524,7 @@ l    */
     /** @internal */
     bool keyPressed (const KeyPress& key);
     /** @internal */
-    bool keyStateChanged (const bool isKeyDown);
+    bool keyStateChanged (bool isKeyDown);
     /** @internal */
     void focusGained (FocusChangeType cause);
     /** @internal */
@@ -537,6 +535,8 @@ l    */
     void enablementChanged();
     /** @internal */
     void colourChanged();
+    /** @internal */
+    bool isTextInputActive() const;
 
     juce_UseDebuggingNewOperator
 
@@ -577,7 +577,7 @@ protected:
 
         @see addPopupMenuItems, setPopupMenuEnabled, isPopupMenuEnabled
     */
-    virtual void performPopupMenuAction (const int menuItemID);
+    virtual void performPopupMenuAction (int menuItemID);
 
     //==============================================================================
     /** Scrolls the minimum distance needed to get the caret into view. */
@@ -587,7 +587,7 @@ protected:
     void moveCaret (int newCaretPos);
 
     /** @internal */
-    void moveCursorTo (const int newPosition, const bool isSelecting);
+    void moveCursorTo (int newPosition, bool isSelecting);
 
     /** Used internally to dispatch a text-change message. */
     void textChanged();
@@ -597,7 +597,7 @@ protected:
     void newTransaction();
 
     /** Used internally to trigger an undo or redo. */
-    void doUndoRedo (const bool isRedo);
+    void doUndoRedo (bool isRedo);
 
     /** Can be overridden to intercept return key presses directly */
     virtual void returnPressed();
@@ -610,6 +610,14 @@ protected:
 
 private:
     //==============================================================================
+    class Iterator;
+    class UniformTextSection;
+    class TextHolderComponent;
+    class InsertAction;
+    class RemoveAction;
+    friend class InsertAction;
+    friend class RemoveAction;
+
     ScopedPointer <Viewport> viewport;
     TextHolderComponent* textHolder;
     BorderSize borderSize;
@@ -638,10 +646,10 @@ private:
     Font currentFont;
     mutable int totalNumChars;
     int caretPosition;
-    VoidArray sections;
+    Array <UniformTextSection*> sections;
     String textToShowWhenEmpty;
     Colour colourForTextWhenEmpty;
-    tchar passwordCharacter;
+    juce_wchar passwordCharacter;
     Value textValue;
 
     enum
@@ -654,41 +662,19 @@ private:
     String allowedCharacters;
     ListenerList <TextEditorListener> listeners;
 
-    friend class TextEditorInsertAction;
-    friend class TextEditorRemoveAction;
-
     void coalesceSimilarSections();
-    void splitSection (const int sectionIndex, const int charToSplitAt);
-
-    void clearInternal (UndoManager* const um);
-
-    void insert (const String& text,
-                 const int insertIndex,
-                 const Font& font,
-                 const Colour& colour,
-                 UndoManager* const um,
-                 const int caretPositionToMoveTo);
-
-    void reinsert (const int insertIndex,
-                   const VoidArray& sections);
-
-    void remove (const Range<int>& range,
-                 UndoManager* const um,
-                 const int caretPositionToMoveTo);
-
-    void getCharPosition (const int index,
-                          float& x, float& y,
-                          float& lineHeight) const;
-
+    void splitSection (int sectionIndex, int charToSplitAt);
+    void clearInternal (UndoManager* um);
+    void insert (const String& text, int insertIndex, const Font& font,
+                 const Colour& colour, UndoManager* um, int caretPositionToMoveTo);
+    void reinsert (int insertIndex, const Array <UniformTextSection*>& sections);
+    void remove (const Range<int>& range, UndoManager* um, int caretPositionToMoveTo);
+    void getCharPosition (int index, float& x, float& y, float& lineHeight) const;
     void updateCaretPosition();
-
     void textWasChangedByValue();
-
-    int indexAtPosition (const float x,
-                         const float y);
-
-    int findWordBreakAfter (const int position) const;
-    int findWordBreakBefore (const int position) const;
+    int indexAtPosition (float x, float y);
+    int findWordBreakAfter (int position) const;
+    int findWordBreakBefore (int position) const;
 
     friend class TextHolderComponent;
     friend class TextEditorViewport;

@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -28,7 +28,7 @@
 
 #include "juce_MidiBuffer.h"
 #include "../../threads/juce_ScopedLock.h"
-#include "../../containers/juce_VoidArray.h"
+#include "../../containers/juce_Array.h"
 class MidiKeyboardState;
 
 
@@ -201,7 +201,7 @@ private:
     CriticalSection lock;
     uint16 noteStates [128];
     MidiBuffer eventsToAdd;
-    VoidArray listeners;
+    Array <MidiKeyboardStateListener*> listeners;
 
     void noteOnInternal  (const int midiChannel, const int midiNoteNumber, const float velocity);
     void noteOffInternal  (const int midiChannel, const int midiNoteNumber);

@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -78,7 +78,7 @@ bool PlatformUtilities::launchEmailWithAttachments (const String& targetEmailAdd
 {
 #if JUCE_IPHONE
     //xxx probably need to use MFMailComposeViewController
-    jassertfalse
+    jassertfalse;
     return false;
 #else
     const ScopedAutoReleasePool pool;
@@ -86,9 +86,9 @@ bool PlatformUtilities::launchEmailWithAttachments (const String& targetEmailAdd
     String script;
     script << "tell application \"Mail\"\r\n"
               "set newMessage to make new outgoing message with properties {subject:\""
-           << emailSubject.replace (T("\""), T("\\\""))
+           << emailSubject.replace ("\"", "\\\"")
            << "\", content:\""
-           << bodyText.replace (T("\""), T("\\\""))
+           << bodyText.replace ("\"", "\\\"")
            << "\" & return & return}\r\n"
               "tell newMessage\r\n"
               "set visible to true\r\n"
@@ -101,7 +101,7 @@ bool PlatformUtilities::launchEmailWithAttachments (const String& targetEmailAdd
     {
         script << "tell content\r\n"
                   "make new attachment with properties {file name:\""
-               << filesToAttach[i].replace (T("\""), T("\\\""))
+               << filesToAttach[i].replace ("\"", "\\\"")
                << "\"} at after the last paragraph\r\n"
                   "end tell\r\n";
     }
@@ -161,7 +161,7 @@ class JuceURLConnectionMessageThread  : public Thread
 
 public:
     JuceURLConnectionMessageThread (JuceURLConnection* owner_)
-        : Thread (T("http connection")),
+        : Thread ("http connection"),
           owner (owner_)
     {
     }
@@ -219,7 +219,7 @@ public:
 {
     [self stop];
 
-    delete runLoopThread;
+    deleteAndZero (runLoopThread);
     [connection release];
     [data release];
     [dataLock release];
@@ -236,8 +236,9 @@ public:
         runLoopThread->signalThreadShouldExit();
 }
 
-- (void) connection: (NSURLConnection*) connection didReceiveResponse: (NSURLResponse*) response
+- (void) connection: (NSURLConnection*) conn didReceiveResponse: (NSURLResponse*) response
 {
+    (void) conn;
     [dataLock lock];
     [data setLength: 0];
     [dataLock unlock];
@@ -245,27 +246,34 @@ public:
     contentLength = [response expectedContentLength];
 }
 
-- (void) connection: (NSURLConnection*) connection didFailWithError: (NSError*) error
+- (void) connection: (NSURLConnection*) conn didFailWithError: (NSError*) error
 {
+    (void) conn;
     DBG (nsStringToJuce ([error description]));
     hasFailed = true;
     initialised = true;
-    runLoopThread->signalThreadShouldExit();
+
+    if (runLoopThread != 0)
+        runLoopThread->signalThreadShouldExit();
 }
 
-- (void) connection: (NSURLConnection*) connection didReceiveData: (NSData*) newData
+- (void) connection: (NSURLConnection*) conn didReceiveData: (NSData*) newData
 {
+    (void) conn;
     [dataLock lock];
     [data appendData: newData];
     [dataLock unlock];
     initialised = true;
 }
 
-- (void) connectionDidFinishLoading: (NSURLConnection*) connection
+- (void) connectionDidFinishLoading: (NSURLConnection*) conn
 {
+    (void) conn;
     hasFinished = true;
     initialised = true;
-    runLoopThread->signalThreadShouldExit();
+
+    if (runLoopThread != 0)
+        runLoopThread->signalThreadShouldExit();
 }
 
 - (BOOL) isOpen
@@ -313,17 +321,14 @@ public:
 - (void) stop
 {
     [connection cancel];
-    runLoopThread->stopThread (10000);
+
+    if (runLoopThread != 0)
+        runLoopThread->stopThread (10000);
 }
 
 @end
 BEGIN_JUCE_NAMESPACE
 
-
-bool juce_isOnLine()
-{
-    return true;
-}
 
 void* juce_openInternetFile (const String& url,
                              const String& headers,
@@ -352,8 +357,8 @@ void* juce_openInternetFile (const String& url,
 
     for (int i = 0; i < headerLines.size(); ++i)
     {
-        const String key (headerLines[i].upToFirstOccurrenceOf (T(":"), false, false).trim());
-        const String value (headerLines[i].fromFirstOccurrenceOf (T(":"), false, false).trim());
+        const String key (headerLines[i].upToFirstOccurrenceOf (":", false, false).trim());
+        const String value (headerLines[i].fromFirstOccurrenceOf (":", false, false).trim());
 
         if (key.isNotEmpty() && value.isNotEmpty())
             [req addValue: juceStringToNS (value) forHTTPHeaderField: juceStringToNS (key)];
@@ -411,7 +416,7 @@ int64 juce_getInternetFileContentLength (void* handle)
     return -1;
 }
 
-int juce_seekInInternetFile (void* handle, int newPosition)
+int juce_seekInInternetFile (void* handle, int /*newPosition*/)
 {
     JuceURLConnection* const s = (JuceURLConnection*) handle;
 

@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -49,13 +49,16 @@ class JUCE_API  SelectedItemSet   : public ChangeBroadcaster
 {
 public:
     //==============================================================================
+    typedef SelectableItemType ItemType;
+
+    //==============================================================================
     /** Creates an empty set. */
     SelectedItemSet()
     {
     }
 
     /** Creates a set based on an array of items. */
-    SelectedItemSet (const Array <SelectableItemType>& items)
+    explicit SelectedItemSet (const Array <SelectableItemType>& items)
         : selectedItems (items)
     {
     }
@@ -288,14 +291,14 @@ public:
         For example, if the item is an object, you might want to call it and tell
         it that it's being selected.
     */
-    virtual void itemSelected (SelectableItemType item)                     {}
+    virtual void itemSelected (SelectableItemType item)                     { (void) item; }
 
     /** Can be overridden to do special handling when an item is deselected.
 
         For example, if the item is an object, you might want to call it and tell
         it that it's being deselected.
     */
-    virtual void itemDeselected (SelectableItemType item)                   {}
+    virtual void itemDeselected (SelectableItemType item)                   { (void) item; }
 
     /** Used internally, but can be called to force a change message to be sent to the ChangeListeners.
     */

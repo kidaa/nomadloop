@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -36,7 +36,7 @@ BEGIN_JUCE_NAMESPACE
 TemporaryFile::TemporaryFile (const String& suffix, const int optionFlags)
 {
     createTempFile (File::getSpecialLocation (File::tempDirectory),
-                    T("temp_") + String (Random::getSystemRandom().nextInt()),
+                    "temp_" + String (Random::getSystemRandom().nextInt()),
                     suffix,
                     optionFlags);
 }
@@ -48,7 +48,7 @@ TemporaryFile::TemporaryFile (const File& targetFile_, const int optionFlags)
     jassert (targetFile != File::nonexistent);
 
     createTempFile (targetFile.getParentDirectory(),
-                    targetFile.getFileNameWithoutExtension() + T("_temp") + String (Random::getSystemRandom().nextInt()),
+                    targetFile.getFileNameWithoutExtension() + "_temp" + String (Random::getSystemRandom().nextInt()),
                     targetFile.getFileExtension(),
                     optionFlags);
 }
@@ -57,7 +57,7 @@ void TemporaryFile::createTempFile (const File& parentDirectory, String name,
                                     const String& suffix, const int optionFlags)
 {
     if ((optionFlags & useHiddenFile) != 0)
-        name = T(".") + name;
+        name = "." + name;
 
     temporaryFile = parentDirectory.getNonexistentChildFile (name, suffix, (optionFlags & putNumbersInBrackets) != 0);
 }
@@ -95,16 +95,12 @@ bool TemporaryFile::overwriteTargetFileWithTemporary() const
 
             Thread::sleep (100);
         }
-
-        // Failed to overwrite the new file! Make sure you've not left any
-        // file streams hanging around when you call this method!
-        jassertfalse
     }
     else
     {
         // There's no temporary file to use. If your write failed, you should
         // probably check, and not bother calling this method.
-        jassertfalse
+        jassertfalse;
     }
 
     return false;

@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -31,8 +31,6 @@ BEGIN_JUCE_NAMESPACE
 #include "../lookandfeel/juce_LookAndFeel.h"
 #include "../filebrowser/juce_FileChooser.h"
 #include "../../../text/juce_LocalisedStrings.h"
-#include "../buttons/juce_TextButton.h"
-#include "../buttons/juce_DrawableButton.h"
 #include "../../graphics/drawables/juce_DrawablePath.h"
 
 
@@ -65,7 +63,7 @@ FileSearchPathListComponent::FileSearchPathListComponent()
         arrowImage.setFill (Colours::black.withAlpha (0.4f));
         arrowImage.setPath (arrowPath);
 
-        ((DrawableButton*) upButton)->setImages (&arrowImage);
+        upButton->setImages (&arrowImage);
     }
 
     addAndMakeVisible (downButton = new DrawableButton (String::empty, DrawableButton::ImageOnButtonBackground));
@@ -78,7 +76,7 @@ FileSearchPathListComponent::FileSearchPathListComponent()
         arrowImage.setFill (Colours::black.withAlpha (0.4f));
         arrowImage.setPath (arrowPath);
 
-        ((DrawableButton*) downButton)->setImages (&arrowImage);
+        downButton->setImages (&arrowImage);
     }
 
     updateButtons();
@@ -89,7 +87,7 @@ FileSearchPathListComponent::~FileSearchPathListComponent()
     deleteAllChildren();
 }
 
-void FileSearchPathListComponent::updateButtons() throw()
+void FileSearchPathListComponent::updateButtons()
 {
     const bool anythingSelected = listBox->getNumSelectedRows() > 0;
 
@@ -99,7 +97,7 @@ void FileSearchPathListComponent::updateButtons() throw()
     downButton->setEnabled (anythingSelected);
 }
 
-void FileSearchPathListComponent::changed() throw()
+void FileSearchPathListComponent::changed()
 {
     listBox->updateContent();
     listBox->repaint();
@@ -116,7 +114,7 @@ void FileSearchPathListComponent::setPath (const FileSearchPath& newPath)
     }
 }
 
-void FileSearchPathListComponent::setDefaultBrowseTarget (const File& newDefaultDirectory) throw()
+void FileSearchPathListComponent::setDefaultBrowseTarget (const File& newDefaultDirectory)
 {
     defaultBrowseTarget = newDefaultDirectory;
 }
@@ -153,7 +151,7 @@ void FileSearchPathListComponent::deleteKeyPressed (int row)
 
 void FileSearchPathListComponent::returnKeyPressed (int row)
 {
-    FileChooser chooser (TRANS("Change folder..."), path [row], T("*"));
+    FileChooser chooser (TRANS("Change folder..."), path [row], "*");
 
     if (chooser.browseForDirectory())
     {
@@ -187,7 +185,7 @@ void FileSearchPathListComponent::resized()
     addButton->setBounds (2, buttonY, buttonH, buttonH);
     removeButton->setBounds (addButton->getRight(), buttonY, buttonH, buttonH);
 
-    ((TextButton*) changeButton)->changeWidthToFitText (buttonH);
+    changeButton->changeWidthToFitText (buttonH);
     downButton->setSize (buttonH * 2, buttonH);
     upButton->setSize (buttonH * 2, buttonH);
 
@@ -234,7 +232,7 @@ void FileSearchPathListComponent::buttonClicked (Button* button)
         if (start == File::nonexistent)
             start = File::getCurrentWorkingDirectory();
 
-        FileChooser chooser (TRANS("Add a folder..."), start, T("*"));
+        FileChooser chooser (TRANS("Add a folder..."), start, "*");
 
         if (chooser.browseForDirectory())
         {

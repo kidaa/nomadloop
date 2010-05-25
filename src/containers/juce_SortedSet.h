@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -383,7 +383,7 @@ public:
         {
             if (startIndex < 0)
             {
-                jassertfalse
+                jassertfalse;
                 startIndex = 0;
             }
 

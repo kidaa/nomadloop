@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -99,9 +99,9 @@ void MessageManager::postCallbackMessage (Message* const message)
 
 //==============================================================================
 // not for public use..
-void MessageManager::deliverMessage (void* message)
+void MessageManager::deliverMessage (void* const message)
 {
-    const ScopedPointer <Message> m ((Message*) message);
+    const ScopedPointer <Message> m (static_cast <Message*> (message));
     MessageListener* const recipient = m->messageRecipient;
 
     JUCE_TRY
@@ -118,7 +118,7 @@ void MessageManager::deliverMessage (void* message)
             }
             else
             {
-                CallbackMessage* const cm = dynamic_cast <CallbackMessage*> ((Message*) m);
+                CallbackMessage* const cm = dynamic_cast <CallbackMessage*> (static_cast <Message*> (m));
 
                 if (cm != 0)
                     cm->messageCallback();

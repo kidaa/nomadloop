@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -34,7 +34,7 @@ BEGIN_JUCE_NAMESPACE
 class CodeDocumentLine
 {
 public:
-    CodeDocumentLine (const tchar* const line_,
+    CodeDocumentLine (const juce_wchar* const line_,
                       const int lineLength_,
                       const int numNewLineChars,
                       const int lineStartInFile_)
@@ -51,7 +51,7 @@ public:
 
     static void createLines (Array <CodeDocumentLine*>& newLines, const String& text)
     {
-        const tchar* const t = (const tchar*) text;
+        const juce_wchar* const t = text;
         int pos = 0;
 
         while (t [pos] != 0)
@@ -61,12 +61,12 @@ public:
 
             while (t[pos] != 0)
             {
-                if (t[pos] == T('\r'))
+                if (t[pos] == '\r')
                 {
                     ++numNewLineChars;
                     ++pos;
 
-                    if (t[pos] == T('\n'))
+                    if (t[pos] == '\n')
                     {
                         ++numNewLineChars;
                         ++pos;
@@ -75,7 +75,7 @@ public:
                     break;
                 }
 
-                if (t[pos] == T('\n'))
+                if (t[pos] == '\n')
                 {
                     ++numNewLineChars;
                     ++pos;
@@ -404,7 +404,7 @@ const CodeDocument::Position CodeDocument::Position::movedByLines (const int del
     return p;
 }
 
-const tchar CodeDocument::Position::getCharacter() const throw()
+const juce_wchar CodeDocument::Position::getCharacter() const throw()
 {
     const CodeDocumentLine* const l = owner->lines [line];
     return l == 0 ? 0 : l->line [getIndexInLine()];
@@ -431,6 +431,7 @@ void CodeDocument::Position::setPositionMaintained (const bool isMaintained) thr
             }
             else
             {
+                // If this happens, you may have deleted the document while there are Position objects that are still using it...
                 jassert (owner->positionsToMaintain.contains (this));
                 owner->positionsToMaintain.removeValue (this);
             }
@@ -567,7 +568,7 @@ bool CodeDocument::writeToStream (OutputStream& stream)
 
 void CodeDocument::setNewLineCharacters (const String& newLine) throw()
 {
-    jassert (newLine == T("\r\n") || newLine == T("\n") || newLine == T("\r"));
+    jassert (newLine == "\r\n" || newLine == "\n" || newLine == "\r");
     newLineChars = newLine;
 }
 
@@ -603,7 +604,7 @@ bool CodeDocument::hasChangedSinceSavePoint() const throw()
 }
 
 //==============================================================================
-static int getCodeCharacterCategory (const tchar character) throw()
+static int getCodeCharacterCategory (const juce_wchar character) throw()
 {
     return (CharacterFunctions::isLetterOrDigit (character) || character == '_')
                 ? 2 : (CharacterFunctions::isWhitespace (character) ? 0 : 1);
@@ -617,8 +618,8 @@ const CodeDocument::Position CodeDocument::findWordBreakAfter (const Position& p
 
     while (i < maxDistance
             && CharacterFunctions::isWhitespace (p.getCharacter())
-            && (i == 0 || (p.getCharacter() != T('\n')
-                            && p.getCharacter() != T('\r'))))
+            && (i == 0 || (p.getCharacter() != '\n'
+                            && p.getCharacter() != '\r')))
     {
         ++i;
         p.moveBy (1);
@@ -636,8 +637,8 @@ const CodeDocument::Position CodeDocument::findWordBreakAfter (const Position& p
 
         while (i < maxDistance
                 && CharacterFunctions::isWhitespace (p.getCharacter())
-                && (i == 0 || (p.getCharacter() != T('\n')
-                                && p.getCharacter() != T('\r'))))
+                && (i == 0 || (p.getCharacter() != '\n'
+                                && p.getCharacter() != '\r')))
         {
             ++i;
             p.moveBy (1);
@@ -656,9 +657,9 @@ const CodeDocument::Position CodeDocument::findWordBreakBefore (const Position& 
 
     while (i < maxDistance)
     {
-        const tchar c = p.movedBy (-1).getCharacter();
+        const juce_wchar c = p.movedBy (-1).getCharacter();
 
-        if (c == T('\r') || c == T('\n'))
+        if (c == '\r' || c == '\n')
         {
             stoppedAtLineStart = true;
 
@@ -709,26 +710,20 @@ void CodeDocument::checkLastLineStatus()
 //==============================================================================
 void CodeDocument::addListener (CodeDocument::Listener* const listener) throw()
 {
-    listeners.addIfNotAlreadyThere (listener);
+    listeners.add (listener);
 }
 
 void CodeDocument::removeListener (CodeDocument::Listener* const listener) throw()
 {
-    listeners.removeValue (listener);
+    listeners.remove (listener);
 }
 
 void CodeDocument::sendListenerChangeMessage (const int startLine, const int endLine)
 {
-    const Position startPos (this, startLine, 0);
-    const Position endPos (this, endLine, 0);
+    Position startPos (this, startLine, 0);
+    Position endPos (this, endLine, 0);
 
-    for (int i = listeners.size(); --i >= 0;)
-    {
-        Listener* const l = (Listener*) listeners[i];
-
-        if (l != 0)
-            l->codeDocumentChanged (startPos, endPos);
-    }
+    listeners.call (&Listener::codeDocumentChanged, startPos, endPos);
 }
 
 //==============================================================================

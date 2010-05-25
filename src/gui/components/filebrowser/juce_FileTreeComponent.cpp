@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -47,7 +47,7 @@ public:
                       DirectoryContentsList* const parentContentsList_,
                       const int indexInContentsList_,
                       const File& file_,
-                      TimeSliceThread& thread_) throw()
+                      TimeSliceThread& thread_)
         : file (file_),
           owner (owner_),
           parentContentsList (parentContentsList_),
@@ -63,7 +63,7 @@ public:
              && parentContentsList_->getFileInfo (indexInContentsList_, fileInfo))
         {
             fileSize = File::descriptionOfSizeInBytes (fileInfo.fileSize);
-            modTime = fileInfo.modificationTime.formatted (T("%d %b '%y %H:%M"));
+            modTime = fileInfo.modificationTime.formatted ("%d %b '%y %H:%M");
             isDirectory = fileInfo.isDirectory;
         }
         else
@@ -72,7 +72,7 @@ public:
         }
     }
 
-    ~FileListTreeItem() throw()
+    ~FileListTreeItem()
     {
         thread.removeTimeSliceClient (this);
 
@@ -116,7 +116,7 @@ public:
         }
     }
 
-    void setSubContentsList (DirectoryContentsList* newList) throw()
+    void setSubContentsList (DirectoryContentsList* newList)
     {
         jassert (subContentsList == 0);
         subContentsList = newList;
@@ -203,11 +203,11 @@ private:
     String fileSize;
     String modTime;
 
-    void updateIcon (const bool onlyUpdateIfCached) throw()
+    void updateIcon (const bool onlyUpdateIfCached)
     {
         if (icon == 0)
         {
-            const int hashCode = (file.getFullPathName() + T("_iconCacheSalt")).hashCode();
+            const int hashCode = (file.getFullPathName() + "_iconCacheSalt").hashCode();
             Image* im = ImageCache::getFromHashCode (hashCode);
 
             if (im == 0 && ! onlyUpdateIfCached)
@@ -250,10 +250,13 @@ const File FileTreeComponent::getSelectedFile (const int index) const
 {
     const FileListTreeItem* const item = dynamic_cast <const FileListTreeItem*> (getSelectedItem (index));
 
-    if (item != 0)
-        return item->file;
+    return item != 0 ? item->file
+                     : File::nonexistent;
+}
 
-    return File::nonexistent;
+void FileTreeComponent::deselectAllFiles()
+{
+    clearSelectedItems();
 }
 
 void FileTreeComponent::scrollToTop()
@@ -261,7 +264,7 @@ void FileTreeComponent::scrollToTop()
     getViewport()->getVerticalScrollBar()->setCurrentRangeStart (0);
 }
 
-void FileTreeComponent::setDragAndDropDescription (const String& description) throw()
+void FileTreeComponent::setDragAndDropDescription (const String& description)
 {
     dragAndDropDescription = description;
 }

@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -42,6 +42,7 @@ public:
     //==============================================================================
     /** Creates a DrawableText object. */
     DrawableText();
+    DrawableText (const DrawableText& other);
 
     /** Destructor. */
     virtual ~DrawableText();
@@ -78,9 +79,28 @@ public:
     /** @internal */
     Drawable* createCopy() const;
     /** @internal */
-    ValueTree createValueTree() const throw();
+    void invalidatePoints();
     /** @internal */
-    static DrawableText* createFromValueTree (const ValueTree& tree) throw();
+    const Rectangle<float> refreshFromValueTree (const ValueTree& tree, ImageProvider* imageProvider);
+    /** @internal */
+    const ValueTree createValueTree (ImageProvider* imageProvider) const;
+    /** @internal */
+    static const Identifier valueTreeType;
+    /** @internal */
+    const Identifier getValueTreeType() const    { return valueTreeType; }
+
+    //==============================================================================
+    /** Internally-used class for wrapping a DrawableText's state into a ValueTree. */
+    class ValueTreeWrapper   : public ValueTreeWrapperBase
+    {
+    public:
+        ValueTreeWrapper (const ValueTree& state);
+
+        //xxx todo
+
+    private:
+        static const Identifier text;
+    };
 
     //==============================================================================
     juce_UseDebuggingNewOperator
@@ -89,7 +109,6 @@ private:
     GlyphArrangement text;
     Colour colour;
 
-    DrawableText (const DrawableText&);
     DrawableText& operator= (const DrawableText&);
 };
 

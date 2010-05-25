@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -57,7 +57,7 @@ public:
         @see TemporaryFile
     */
     FileOutputStream (const File& fileToWriteTo,
-                      const int bufferSizeToUse = 16384);
+                      int bufferSizeToUse = 16384);
 
     /** Destructor. */
     ~FileOutputStream();
@@ -87,6 +87,9 @@ private:
     int64 currentPosition;
     int bufferSize, bytesInBuffer;
     HeapBlock <char> buffer;
+
+    void flushInternal();
+    int64 getPositionInternal() const;
 
     FileOutputStream (const FileOutputStream&);
     FileOutputStream& operator= (const FileOutputStream&);

@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -48,8 +48,8 @@
       if (err == noErr)
           return true;
 
-      Logger::writeToLog (T("CoreAudio error: ") + String (lineNum) + T(" - ") + String::toHexString ((int)err));
-      jassertfalse
+      Logger::writeToLog ("CoreAudio error: " + String (lineNum) + " - " + String::toHexString ((int) err));
+      jassertfalse;
       return false;
   }
 
@@ -288,7 +288,7 @@ public:
                     if (ok)
                     {
                         sampleRates.add (possibleRates[i]);
-                        rates << possibleRates[i] << T(" ");
+                        rates << possibleRates[i] << ' ';
                     }
                 }
             }
@@ -300,7 +300,7 @@ public:
             rates << sampleRate;
         }
 
-        log (T("sr: ") + rates);
+        log ("sr: " + rates);
 
         inputLatency = 0;
         outputLatency = 0;
@@ -318,7 +318,7 @@ public:
         if (AudioObjectGetPropertyData (deviceID, &pa, 0, 0, &size, &lat) == noErr)
             outputLatency = (int) lat;
 
-        log (T("lat: ") + String (inputLatency) + T(" ") + String (outputLatency));
+        log ("lat: " + String (inputLatency) + " " + String (outputLatency));
 
         inChanNames.clear();
         outChanNames.clear();
@@ -338,14 +338,14 @@ public:
     {
         StringArray s;
         HeapBlock <OSType> types;
-        const int num = getAllDataSourcesForDevice (deviceID, input, types);
+        const int num = getAllDataSourcesForDevice (deviceID, types);
 
         for (int i = 0; i < num; ++i)
         {
             AudioValueTranslation avt;
             char buffer[256];
 
-            avt.mInputData = (void*) &(types[i]);
+            avt.mInputData = &(types[i]);
             avt.mInputDataSize = sizeof (UInt32);
             avt.mOutputData = buffer;
             avt.mOutputDataSize = 256;
@@ -383,7 +383,7 @@ public:
             if (OK (AudioObjectGetPropertyData (deviceID, &pa, 0, 0, &size, &currentSourceID)))
             {
                 HeapBlock <OSType> types;
-                const int num = getAllDataSourcesForDevice (deviceID, input, types);
+                const int num = getAllDataSourcesForDevice (deviceID, types);
 
                 for (int i = 0; i < num; ++i)
                 {
@@ -404,7 +404,7 @@ public:
         if (deviceID != 0)
         {
             HeapBlock <OSType> types;
-            const int num = getAllDataSourcesForDevice (deviceID, input, types);
+            const int num = getAllDataSourcesForDevice (deviceID, types);
 
             if (((unsigned int) index) < (unsigned int) num)
             {
@@ -421,8 +421,8 @@ public:
     }
 
     //==============================================================================
-    const String reopen (const BitArray& inputChannels,
-                         const BitArray& outputChannels,
+    const String reopen (const BigInteger& inputChannels,
+                         const BigInteger& outputChannels,
                          double newSampleRate,
                          int bufferSizeSamples)
     {
@@ -502,9 +502,9 @@ public:
             if (deviceID != 0)
             {
 #if MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5
-                if (OK (AudioDeviceAddIOProc (deviceID, audioIOProc, (void*) this)))
+                if (OK (AudioDeviceAddIOProc (deviceID, audioIOProc, this)))
 #else
-                if (OK (AudioDeviceCreateIOProcID (deviceID, audioIOProc, (void*) this, &audioProcID)))
+                if (OK (AudioDeviceCreateIOProcID (deviceID, audioIOProc, this, &audioProcID)))
 #endif
                 {
                     if (OK (AudioDeviceStart (deviceID, audioIOProc)))
@@ -761,7 +761,7 @@ public:
     juce_UseDebuggingNewOperator
 
     int inputLatency, outputLatency;
-    BitArray activeInputChans, activeOutputChans;
+    BigInteger activeInputChans, activeOutputChans;
     StringArray inChanNames, outChanNames;
     Array <double> sampleRates;
     Array <int> bufferSizes;
@@ -798,21 +798,21 @@ private:
     CoreAudioInternal& operator= (const CoreAudioInternal&);
 
     //==============================================================================
-    static OSStatus audioIOProc (AudioDeviceID inDevice,
-                                 const AudioTimeStamp* inNow,
+    static OSStatus audioIOProc (AudioDeviceID /*inDevice*/,
+                                 const AudioTimeStamp* /*inNow*/,
                                  const AudioBufferList* inInputData,
-                                 const AudioTimeStamp* inInputTime,
+                                 const AudioTimeStamp* /*inInputTime*/,
                                  AudioBufferList* outOutputData,
-                                 const AudioTimeStamp* inOutputTime,
+                                 const AudioTimeStamp* /*inOutputTime*/,
                                  void* device)
     {
-        ((CoreAudioInternal*) device)->audioCallback (inInputData, outOutputData);
+        static_cast <CoreAudioInternal*> (device)->audioCallback (inInputData, outOutputData);
         return noErr;
     }
 
     static OSStatus deviceListenerProc (AudioDeviceID /*inDevice*/, UInt32 /*inLine*/, const AudioObjectPropertyAddress* pa, void* inClientData)
     {
-        CoreAudioInternal* const intern = (CoreAudioInternal*) inClientData;
+        CoreAudioInternal* const intern = static_cast <CoreAudioInternal*> (inClientData);
 
         switch (pa->mSelector)
         {
@@ -837,7 +837,7 @@ private:
     }
 
     //==============================================================================
-    static int getAllDataSourcesForDevice (AudioDeviceID deviceID, const bool input, HeapBlock <OSType>& types)
+    static int getAllDataSourcesForDevice (AudioDeviceID deviceID, HeapBlock <OSType>& types)
     {
         AudioObjectPropertyAddress pa;
         pa.mSelector = kAudioDevicePropertyDataSources;
@@ -960,8 +960,8 @@ public:
         return 512;
     }
 
-    const String open (const BitArray& inputChannels,
-                       const BitArray& outputChannels,
+    const String open (const BigInteger& inputChannels,
+                       const BigInteger& outputChannels,
                        double sampleRate,
                        int bufferSizeSamples)
     {
@@ -1001,21 +1001,21 @@ public:
         return 32;  // no way to find out, so just assume it's high..
     }
 
-    const BitArray getActiveOutputChannels() const
+    const BigInteger getActiveOutputChannels() const
     {
-        return internal != 0 ? internal->activeOutputChans : BitArray();
+        return internal != 0 ? internal->activeOutputChans : BigInteger();
     }
 
-    const BitArray getActiveInputChannels() const
+    const BigInteger getActiveInputChannels() const
     {
-        BitArray chans;
+        BigInteger chans;
 
         if (internal != 0)
         {
             chans = internal->activeInputChans;
 
             if (internal->inputDevice != 0)
-                chans.orWith (internal->inputDevice->activeInputChans);
+                chans |= internal->inputDevice->activeInputChans;
         }
 
         return chans;
@@ -1090,7 +1090,7 @@ private:
 
     static OSStatus hardwareListenerProc (AudioDeviceID /*inDevice*/, UInt32 /*inLine*/, const AudioObjectPropertyAddress* pa, void* inClientData)
     {
-        CoreAudioInternal* const intern = (CoreAudioInternal*) inClientData;
+        CoreAudioInternal* const intern = static_cast <CoreAudioInternal*> (inClientData);
 
         switch (pa->mSelector)
         {
@@ -1117,7 +1117,7 @@ class CoreAudioIODeviceType  : public AudioIODeviceType
 public:
     //==============================================================================
     CoreAudioIODeviceType()
-        : AudioIODeviceType (T("CoreAudio")),
+        : AudioIODeviceType ("CoreAudio"),
           hasScanned (false)
     {
     }
@@ -1163,7 +1163,7 @@ public:
                         const String nameString (String::fromUTF8 (name, (int) strlen (name)));
 
                         if (! alreadyLogged)
-                            log (T("CoreAudio device: ") + nameString);
+                            log ("CoreAudio device: " + nameString);
 
                         const int numIns = getNumChannels (devs[i], true);
                         const int numOuts = getNumChannels (devs[i], false);
@@ -1190,7 +1190,7 @@ public:
         outputDeviceNames.appendNumbersToDuplicates (false, true);
     }
 
-    const StringArray getDeviceNames (const bool wantInputNames) const
+    const StringArray getDeviceNames (bool wantInputNames) const
     {
         jassert (hasScanned); // need to call scanForDevices() before doing this
 
@@ -1200,7 +1200,7 @@ public:
             return outputDeviceNames;
     }
 
-    int getDefaultDeviceIndex (const bool forInput) const
+    int getDefaultDeviceIndex (bool forInput) const
     {
         jassert (hasScanned); // need to call scanForDevices() before doing this
 
@@ -1234,7 +1234,7 @@ public:
         return 0;
     }
 
-    int getIndexOfDevice (AudioIODevice* device, const bool asInput) const
+    int getIndexOfDevice (AudioIODevice* device, bool asInput) const
     {
         jassert (hasScanned); // need to call scanForDevices() before doing this
 

@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -55,7 +55,7 @@ public:
         When first created, the thread is not running. Use the startThread()
         method to start it.
     */
-    Thread (const String& threadName);
+    explicit Thread (const String& threadName);
 
     /** Destructor.
 
@@ -96,7 +96,7 @@ public:
 
         @see startThread, setPriority
     */
-    void startThread (const int priority);
+    void startThread (int priority);
 
     /** Attempts to stop the thread running.
 
@@ -116,7 +116,7 @@ public:
                                     value in here will wait forever.
         @see signalThreadShouldExit, threadShouldExit, waitForThreadToExit, isThreadRunning
     */
-    void stopThread (const int timeOutMilliseconds);
+    void stopThread (int timeOutMilliseconds);
 
     //==============================================================================
     /** Returns true if the thread is currently active */
@@ -126,6 +126,10 @@ public:
 
         Calling this means that the threadShouldExit() method will then return true.
         The thread should be regularly checking this to see whether it should exit.
+
+        If your thread makes use of wait(), you might want to call notify() after calling
+        this method, to interrupt any waits that might be in progress, and allow it
+        to reach a point where it can exit.
 
         @see threadShouldExit
         @see waitForThreadToExit
@@ -149,7 +153,7 @@ public:
                                     is less than zero, it will wait forever.
         @returns    true if the thread exits, or false if the timeout expires first.
     */
-    bool waitForThreadToExit (const int timeOutMilliseconds) const;
+    bool waitForThreadToExit (int timeOutMilliseconds) const;
 
     //==============================================================================
     /** Changes the thread's priority.
@@ -158,7 +162,7 @@ public:
         @param priority     the new priority, in the range 0 (lowest) to 10 (highest). A priority
                             of 5 is normal.
     */
-    bool setPriority (const int priority);
+    bool setPriority (int priority);
 
     /** Changes the priority of the caller thread.
 
@@ -167,7 +171,7 @@ public:
 
         @see setPriority
     */
-    static bool setCurrentThreadPriority (const int priority);
+    static bool setCurrentThreadPriority (int priority);
 
     //==============================================================================
     /** Sets the affinity mask for the thread.
@@ -177,7 +181,7 @@ public:
 
         @see setCurrentThreadAffinityMask
     */
-    void setAffinityMask (const uint32 affinityMask);
+    void setAffinityMask (uint32 affinityMask);
 
     /** Changes the affinity mask for the caller thread.
 
@@ -185,7 +189,7 @@ public:
 
         @see setAffinityMask
     */
-    static void setCurrentThreadAffinityMask (const uint32 affinityMask);
+    static void setCurrentThreadAffinityMask (uint32 affinityMask);
 
     //==============================================================================
     // this can be called from any thread that needs to pause..
@@ -200,9 +204,11 @@ public:
         This puts the thread to sleep until either the timeout period expires, or
         another thread calls the notify() method to wake it up.
 
+        A negative time-out value means that the method will wait indefinitely.
+
         @returns    true if the event has been signalled, false if the timeout expires.
     */
-    bool wait (const int timeOutMilliseconds) const;
+    bool wait (int timeOutMilliseconds) const;
 
     /** Wakes up the thread.
 
@@ -243,7 +249,7 @@ public:
 
         @see getCurrentThreadId
     */
-    ThreadID getThreadId() const                                    { return threadId_; }
+    ThreadID getThreadId() const throw()                            { return threadId_; }
 
     /** Returns the name of the thread.
 
@@ -263,7 +269,7 @@ public:
 
         This will attempt to stop all the threads known to be running at the moment.
     */
-    static void stopAllThreads (const int timeoutInMillisecs);
+    static void stopAllThreads (int timeoutInMillisecs);
 
 
     //==============================================================================

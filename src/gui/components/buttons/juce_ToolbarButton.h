@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -60,10 +60,10 @@ public:
                             this object and will be deleted when no longer needed or when this button
                             is deleted.
     */
-    ToolbarButton (const int itemId,
+    ToolbarButton (int itemId,
                    const String& labelText,
-                   Drawable* const normalImage,
-                   Drawable* const toggledOnImage);
+                   Drawable* normalImage,
+                   Drawable* toggledOnImage);
 
     /** Destructor. */
     ~ToolbarButton();

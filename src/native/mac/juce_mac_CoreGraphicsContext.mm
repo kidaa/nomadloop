@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -210,21 +210,28 @@ public:
     {
         if (! transform.isSingularity())
         {
-            Image* singleChannelImage = createAlphaChannelImage (sourceImage);
+            ScopedPointer<Image> imageToDelete;
+            const Image* singleChannelImage = &sourceImage;
+
+            if (sourceImage.getFormat() != Image::SingleChannel)
+            {
+                imageToDelete = sourceImage.createCopyOfAlphaChannel();
+                singleChannelImage = imageToDelete;
+            }
+
             CGImageRef image = CoreGraphicsImage::createImage (*singleChannelImage, true, greyColourSpace);
 
             flip();
             AffineTransform t (AffineTransform::scale (1.0f, -1.0f).translated (0, sourceImage.getHeight()).followedBy (transform));
             applyTransform (t);
 
-            CGRect r = CGRectMake (0, 0, sourceImage.getWidth(), sourceImage.getHeight());
+            CGRect r = CGRectMake (srcClip.getX(), srcClip.getY(), srcClip.getWidth(), srcClip.getHeight());
             CGContextClipToMask (context, r, image);
 
             applyTransform (t.inverted());
             flip();
 
             CGImageRelease (image);
-            deleteAlphaChannelImage (sourceImage, singleChannelImage);
         }
     }
 
@@ -268,7 +275,7 @@ public:
         }
         else
         {
-            jassertfalse // trying to pop with an empty stack!
+            jassertfalse; // trying to pop with an empty stack!
         }
     }
 
@@ -399,7 +406,7 @@ public:
 
         if (fillEntireClipAsTiles)
         {
-#if JUCE_IPHONE || (MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_5)
+#if JUCE_IPHONE
             CGContextDrawTiledImage (context, imageRect, image);
 #else
   #if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
@@ -442,7 +449,7 @@ public:
     }
 
     //==============================================================================
-    void drawLine (double x1, double y1, double x2, double y2)
+    void drawLine (const Line<float>& line)
     {
         CGContextSetLineCap (context, kCGLineCapSquare);
         CGContextSetLineWidth (context, 1.0f);
@@ -450,31 +457,31 @@ public:
                                     state->fillType.colour.getFloatRed(), state->fillType.colour.getFloatGreen(),
                                     state->fillType.colour.getFloatBlue(), state->fillType.colour.getFloatAlpha());
 
-        CGPoint line[] = { { (CGFloat) x1, flipHeight - (CGFloat) y1 },
-                           { (CGFloat) x2, flipHeight - (CGFloat) y2 } };
+        CGPoint cgLine[] = { { (CGFloat) line.getStartX(), flipHeight - (CGFloat) line.getStartY() },
+                             { (CGFloat) line.getEndX(),   flipHeight - (CGFloat) line.getEndY()   } };
 
-        CGContextStrokeLineSegments (context, line, 1);
+        CGContextStrokeLineSegments (context, cgLine, 1);
     }
 
-    void drawVerticalLine (const int x, double top, double bottom)
+    void drawVerticalLine (const int x, float top, float bottom)
     {
 #if MAC_OS_X_VERSION_MIN_REQUIRED > MAC_OS_X_VERSION_10_5
-        CGContextFillRect (context, CGRectMake (x, flipHeight - (float) bottom, 1.0f, (float) (bottom - top)));
+        CGContextFillRect (context, CGRectMake (x, flipHeight - bottom, 1.0f, bottom - top));
 #else
         // On Leopard, unless both co-ordinates are non-integer, it disables anti-aliasing, so nudge
         // the x co-ord slightly to trick it..
-        CGContextFillRect (context, CGRectMake (x + 1.0f / 256.0f, flipHeight - (float) bottom, 1.0f + 1.0f / 256.0f, (float) (bottom - top)));
+        CGContextFillRect (context, CGRectMake (x + 1.0f / 256.0f, flipHeight - bottom, 1.0f + 1.0f / 256.0f, bottom - top));
 #endif
     }
 
-    void drawHorizontalLine (const int y, double left, double right)
+    void drawHorizontalLine (const int y, float left, float right)
     {
 #if MAC_OS_X_VERSION_MIN_REQUIRED > MAC_OS_X_VERSION_10_5
-        CGContextFillRect (context, CGRectMake ((float) left, flipHeight - (y + 1.0f), (float) (right - left), 1.0f));
+        CGContextFillRect (context, CGRectMake (left, flipHeight - (y + 1.0f), right - left, 1.0f));
 #else
         // On Leopard, unless both co-ordinates are non-integer, it disables anti-aliasing, so nudge
         // the x co-ord slightly to trick it..
-        CGContextFillRect (context, CGRectMake ((float) left, flipHeight - (y + (1.0f + 1.0f / 256.0f)), (float) (right - left), 1.0f + 1.0f / 256.0f));
+        CGContextFillRect (context, CGRectMake (left, flipHeight - (y + (1.0f + 1.0f / 256.0f)), right - left, 1.0f + 1.0f / 256.0f));
 #endif
     }
 
@@ -485,7 +492,7 @@ public:
             state->fontRef = 0;
             state->font = newFont;
 
-            MacTypeface* mf = dynamic_cast <MacTypeface*> ((Typeface*) state->font.getTypeface());
+            MacTypeface* mf = dynamic_cast <MacTypeface*> (state->font.getTypeface());
 
             if (mf != 0)
             {
@@ -511,6 +518,8 @@ public:
         {
             if (transform.isOnlyTranslation())
             {
+                CGContextSetTextMatrix (context, state->fontTransform); // have to set this each time, as it's not saved as part of the state
+
                 CGGlyph g = glyphNumber;
                 CGContextShowGlyphsAtPoint (context, transform.getTranslationX(),
                                             flipHeight - roundToInt (transform.getTranslationY()), &g, 1);
@@ -528,7 +537,6 @@ public:
                 CGGlyph g = glyphNumber;
                 CGContextShowGlyphsAtPoint (context, 0, 0, &g, 1);
 
-                CGContextSetTextMatrix (context, state->fontTransform);
                 CGContextRestoreGState (context);
             }
         }
@@ -579,7 +587,7 @@ private:
 
     static void gradientCallback (void* info, const CGFloat* inData, CGFloat* outData)
     {
-        const CoreGraphicsContext* const g = (const CoreGraphicsContext*) info;
+        const CoreGraphicsContext* const g = static_cast <const CoreGraphicsContext*> (info);
 
         const int index = roundToInt (g->numGradientLookupEntries * inData[0]);
         PixelARGB colour (g->gradientLookupTable [jlimit (0, g->numGradientLookupEntries, index)]);
@@ -597,19 +605,19 @@ private:
         --numGradientLookupEntries;
 
         CGShadingRef result = 0;
-        CGFunctionRef function = CGFunctionCreate ((void*) this, 1, 0, 4, 0, &gradientCallbacks);
-        CGPoint p1 (CGPointMake (gradient.x1, gradient.y1));
+        CGFunctionRef function = CGFunctionCreate (this, 1, 0, 4, 0, &gradientCallbacks);
+        CGPoint p1 (CGPointMake (gradient.point1.getX(), gradient.point1.getY()));
 
         if (gradient.isRadial)
         {
             result = CGShadingCreateRadial (rgbColourSpace, p1, 0,
-                                            p1, hypotf (gradient.x1 - gradient.x2, gradient.y1 - gradient.y2),
+                                            p1, gradient.point1.getDistanceFrom (gradient.point2),
                                             function, true, true);
         }
         else
         {
             result = CGShadingCreateAxial (rgbColourSpace, p1,
-                                           CGPointMake (gradient.x2, gradient.y2),
+                                           CGPointMake (gradient.point2.getX(), gradient.point2.getY()),
                                            function, true, true);
         }
 
@@ -639,23 +647,12 @@ private:
         {
             switch (i.elementType)
             {
-            case Path::Iterator::startNewSubPath:
-                CGContextMoveToPoint (context, i.x1, i.y1);
-                break;
-            case Path::Iterator::lineTo:
-                CGContextAddLineToPoint (context, i.x1, i.y1);
-                break;
-            case Path::Iterator::quadraticTo:
-                CGContextAddQuadCurveToPoint (context, i.x1, i.y1, i.x2, i.y2);
-                break;
-            case Path::Iterator::cubicTo:
-                CGContextAddCurveToPoint (context, i.x1, i.y1, i.x2, i.y2, i.x3, i.y3);
-                break;
-            case Path::Iterator::closePath:
-                CGContextClosePath (context); break;
-            default:
-                jassertfalse
-                break;
+                case Path::Iterator::startNewSubPath:  CGContextMoveToPoint (context, i.x1, i.y1); break;
+                case Path::Iterator::lineTo:           CGContextAddLineToPoint (context, i.x1, i.y1); break;
+                case Path::Iterator::quadraticTo:      CGContextAddQuadCurveToPoint (context, i.x1, i.y1, i.x2, i.y2); break;
+                case Path::Iterator::cubicTo:          CGContextAddCurveToPoint (context, i.x1, i.y1, i.x2, i.y2, i.x3, i.y3); break;
+                case Path::Iterator::closePath:        CGContextClosePath (context); break;
+                default:                               jassertfalse; break;
             }
         }
     }
@@ -691,24 +688,10 @@ private:
             case Path::Iterator::closePath:
                 CGContextClosePath (context); break;
             default:
-                jassertfalse
+                jassertfalse;
                 break;
             }
         }
-    }
-
-    static Image* createAlphaChannelImage (const Image& im)
-    {
-        if (im.getFormat() == Image::SingleChannel)
-            return const_cast <Image*> (&im);
-
-        return im.createCopyOfAlphaChannel();
-    }
-
-    static void deleteAlphaChannelImage (const Image& im, Image* const alphaIm)
-    {
-        if (im.getFormat() != Image::SingleChannel)
-            delete alphaIm;
     }
 
     void flip() const

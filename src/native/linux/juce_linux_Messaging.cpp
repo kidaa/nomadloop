@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -28,14 +28,13 @@
 #if JUCE_INCLUDED_FILE
 
 //==============================================================================
-#ifdef JUCE_DEBUG
+#if JUCE_DEBUG && ! defined (JUCE_DEBUG_XERRORS)
  #define JUCE_DEBUG_XERRORS 1
 #endif
 
-Display* display = 0;     // This is also referenced from WindowDriver.cpp
+Display* display = 0;
 Window juce_messageWindowHandle = None;
-
-XContext improbableNumber;   // This is referenced from Windowing.cpp
+XContext windowHandleXContext;   // This is referenced from Windowing.cpp
 
 extern void juce_windowMessageReceive (XEvent* event);  // Defined in Windowing.cpp
 extern void juce_handleSelectionRequest (XSelectionRequestEvent &evt);  // Defined in Clipboard.cpp
@@ -129,18 +128,6 @@ private:
 };
 
 //==============================================================================
-struct MessageThreadFuncCall
-{
-    enum { uniqueID = 0x73774623 };
-
-    MessageCallbackFunction* func;
-    void* parameter;
-    void* result;
-    CriticalSection lock;
-    WaitableEvent event;
-};
-
-//==============================================================================
 static InternalMessageQueue* juce_internalMessageQueue = 0;
 
 // error handling in X11
@@ -152,7 +139,7 @@ static XIOErrorHandler oldIOErrorHandler = (XIOErrorHandler) 0;
 // Usually happens when client-server connection is broken
 static int ioErrorHandler (Display* display)
 {
-    DBG (T("ERROR: connection to X server broken.. terminating."));
+    DBG ("ERROR: connection to X server broken.. terminating.");
 
     errorOccurred = true;
 
@@ -165,7 +152,7 @@ static int ioErrorHandler (Display* display)
 // A protocol error has occurred
 static int errorHandler (Display* display, XErrorEvent* event)
 {
-#ifdef JUCE_DEBUG_XERRORS
+#if JUCE_DEBUG_XERRORS
     char errorStr[64] = { 0 };
     char requestStr[64] = { 0 };
 
@@ -174,7 +161,7 @@ static int errorHandler (Display* display, XErrorEvent* event)
     XGetErrorDatabaseText (display, "XRequest", String (event->request_code).toCString(),
                            "Unknown", requestStr, 64);
 
-    DBG (T("ERROR: X returned ") + String (errorStr) + T(" for operation ") + String (requestStr));
+    DBG ("ERROR: X returned " + String (errorStr) + " for operation " + String (requestStr));
 #endif
 
     return 0;
@@ -246,15 +233,15 @@ void MessageManager::doPlatformSpecificInitialisation()
     saction.sa_handler = signalHandler;
     saction.sa_mask = maskSet;
     saction.sa_flags = 0;
-    sigaction (SIGINT, &saction, NULL);
+    sigaction (SIGINT, &saction, 0);
 
 #ifndef _DEBUG
     // Setup signal handlers for various fatal errors
-    sigaction (SIGILL, &saction, NULL);
-    sigaction (SIGBUS, &saction, NULL);
-    sigaction (SIGFPE, &saction, NULL);
-    sigaction (SIGSEGV, &saction, NULL);
-    sigaction (SIGSYS, &saction, NULL);
+    sigaction (SIGILL, &saction, 0);
+    sigaction (SIGBUS, &saction, 0);
+    sigaction (SIGFPE, &saction, 0);
+    sigaction (SIGSEGV, &saction, 0);
+    sigaction (SIGSYS, &saction, 0);
 #endif
 
     // Create the internal message queue
@@ -280,7 +267,7 @@ void MessageManager::doPlatformSpecificInitialisation()
 
     // Create a context to store user data associated with Windows we
     // create in WindowDriver
-    improbableNumber = XUniqueContext();
+    windowHandleXContext = XUniqueContext();
 
     // We're only interested in client messages for this window
     // which are always sent
@@ -327,6 +314,17 @@ void MessageManager::broadcastMessage (const String& value) throw()
 {
     /* TODO */
 }
+
+struct MessageThreadFuncCall
+{
+    enum { uniqueID = 0x73774623 };
+
+    MessageCallbackFunction* func;
+    void* parameter;
+    void* result;
+    CriticalSection lock;
+    WaitableEvent event;
+};
 
 void* MessageManager::callFunctionOnMessageThread (MessageCallbackFunction* func,
                                                    void* parameter)

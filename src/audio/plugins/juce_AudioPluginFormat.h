@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -95,7 +95,7 @@ public:
         than manually.
     */
     virtual const StringArray searchPathsForPlugins (const FileSearchPath& directoriesToSearch,
-                                                     const bool recursive) = 0;
+                                                     bool recursive) = 0;
 
     /** Returns the typical places to look for this kind of plugin.
 

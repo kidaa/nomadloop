@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -61,7 +61,7 @@ public:
         to match the size of the component.
     */
     void setFont (const Font& newFont,
-                  const bool resizeToMatchComponentHeight,
+                  bool resizeToMatchComponentHeight,
                   const Justification& justificationType = Justification::horizontallyCentred);
 
     //==============================================================================

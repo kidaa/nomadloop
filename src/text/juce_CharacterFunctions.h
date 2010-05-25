@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -85,6 +85,7 @@ public:
 
     static int compareIgnoreCase (const char* const s1, const char* const s2) throw();
     static int compareIgnoreCase (const juce_wchar* s1, const juce_wchar* s2) throw();
+    static int compareIgnoreCase (const juce_wchar* s1, const char* s2) throw();
 
     static int compareIgnoreCase (const char* const s1, const char* const s2, const int maxChars) throw();
     static int compareIgnoreCase (const juce_wchar* s1, const juce_wchar* s2, int maxChars) throw();

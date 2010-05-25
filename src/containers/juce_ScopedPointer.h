@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -41,11 +41,16 @@
     to an object. If you use the assignment operator to assign a different object to a
     ScopedPointer, the old one will be automatically deleted.
 
+    A const ScopedPointer is guaranteed not to lose ownership of its object or change the
+    object to which it points during its lifetime. This means that making a copy of a const
+    ScopedPointer is impossible, as that would involve the new copy taking ownership from the
+    old one.
+
     If you need to get a pointer out of a ScopedPointer without it being deleted, you
     can use the release() method.
 */
 template <class ObjectType>
-class JUCE_API  ScopedPointer
+class ScopedPointer
 {
 public:
     //==============================================================================
@@ -166,6 +171,12 @@ private:
 
     // (Required as an alternative to the overloaded & operator).
     const ScopedPointer* getAddress() const throw()                                 { return this; }
+
+  #if ! JUCE_MSVC  // (MSVC can't deal with multiple copy constructors)
+    // This is private to stop people accidentally copying a const ScopedPointer (the compiler
+    // will let you do so by implicitly casting the source to its raw object pointer).
+    ScopedPointer (const ScopedPointer&);
+  #endif
 };
 
 //==============================================================================

@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -239,7 +239,7 @@ void MemoryBlock::removeSection (size_t startByte, size_t numBytesToRemove) thro
 
 const String MemoryBlock::toString() const throw()
 {
-    return String ((const char*) data, size);
+    return String (static_cast <const char*> (getData()), size);
 }
 
 //==============================================================================
@@ -309,19 +309,19 @@ void MemoryBlock::loadFromHexString (const String& hex) throw()
             {
                 const juce_wchar c = hex [i++];
 
-                if (c >= T('0') && c <= T('9'))
+                if (c >= '0' && c <= '9')
                 {
-                    byte |= c - T('0');
+                    byte |= c - '0';
                     break;
                 }
-                else if (c >= T('a') && c <= T('z'))
+                else if (c >= 'a' && c <= 'z')
                 {
-                    byte |= c - (T('a') - 10);
+                    byte |= c - ('a' - 10);
                     break;
                 }
-                else if (c >= T('A') && c <= T('Z'))
+                else if (c >= 'A' && c <= 'Z')
                 {
-                    byte |= c - (T('A') - 10);
+                    byte |= c - ('A' - 10);
                     break;
                 }
                 else if (c == 0)
@@ -348,8 +348,9 @@ const String MemoryBlock::toBase64Encoding() const throw()
     const int initialLen = destString.length();
     destString.preallocateStorage (initialLen + 2 + numChars);
 
-    tchar* d = const_cast <tchar*> (((const tchar*) destString) + initialLen);
-    *d++ = T('.');
+    juce_wchar* d = destString;
+    d += initialLen;
+    *d++ = '.';
 
     for (size_t i = 0; i < numChars; ++i)
         *d++ = encodingTable [getBitRange (i * 6, 6)];
@@ -361,7 +362,7 @@ const String MemoryBlock::toBase64Encoding() const throw()
 
 bool MemoryBlock::fromBase64Encoding (const String& s) throw()
 {
-    const int startPos = s.indexOfChar (T('.')) + 1;
+    const int startPos = s.indexOfChar ('.') + 1;
 
     if (startPos <= 0)
         return false;
@@ -371,7 +372,8 @@ bool MemoryBlock::fromBase64Encoding (const String& s) throw()
     setSize (numBytesNeeded, true);
 
     const int numChars = s.length() - startPos;
-    const tchar* const srcChars = ((const tchar*) s) + startPos;
+    const juce_wchar* srcChars = s;
+    srcChars += startPos;
     int pos = 0;
 
     for (int i = 0; i < numChars; ++i)

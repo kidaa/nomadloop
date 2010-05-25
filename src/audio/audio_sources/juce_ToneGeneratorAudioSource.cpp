@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -76,7 +76,7 @@ void ToneGeneratorAudioSource::getNextAudioBlock (const AudioSourceChannelInfo& 
 
     for (int i = 0; i < info.numSamples; ++i)
     {
-        const float sample = amplitude * (float) sin (currentPhase);
+        const float sample = amplitude * (float) std::sin (currentPhase);
         currentPhase += phasePerSample;
 
         for (int j = info.buffer->getNumChannels(); --j >= 0;)

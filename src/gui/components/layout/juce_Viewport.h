@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -53,7 +53,7 @@ public:
         The viewport is initially empty - use the setViewedComponent() method to
         add a child component for it to manage.
     */
-    Viewport (const String& componentName = String::empty);
+    explicit Viewport (const String& componentName = String::empty);
 
     /** Destructor. */
     ~Viewport();
@@ -72,7 +72,7 @@ public:
                                         by the Viewport when it's no longer needed
         @see getViewedComponent
     */
-    void setViewedComponent (Component* const newViewedComponent);
+    void setViewedComponent (Component* newViewedComponent);
 
     /** Returns the component that's currently being used inside the Viewport.
 
@@ -91,8 +91,7 @@ public:
 
         @see getViewPositionX, getViewPositionY, setViewPositionProportionately
     */
-    void setViewPosition (const int xPixelsOffset,
-                          const int yPixelsOffset);
+    void setViewPosition (int xPixelsOffset, int yPixelsOffset);
 
     /** Changes the view position as a proportion of the distance it can move.
 
@@ -101,8 +100,7 @@ public:
         to the right as it's possible to go whilst keeping the child component
         on-screen.
     */
-    void setViewPositionProportionately (const double proportionX,
-                                         const double proportionY);
+    void setViewPositionProportionately (double proportionX, double proportionY);
 
     /** If the specified position is at the edges of the viewport, this method scrolls
         the viewport to bring that position nearer to the centre.
@@ -122,42 +120,46 @@ public:
     bool autoScroll (int mouseX, int mouseY, int distanceFromEdge, int maximumSpeed);
 
     /** Returns the position within the child component of the top-left of its visible area.
+    */
+    const Point<int> getViewPosition() const throw()        { return lastVisibleArea.getPosition(); }
+
+    /** Returns the position within the child component of the top-left of its visible area.
         @see getViewWidth, setViewPosition
     */
-    int getViewPositionX() const throw()                    { return lastVX; }
+    int getViewPositionX() const throw()                    { return lastVisibleArea.getX(); }
 
     /** Returns the position within the child component of the top-left of its visible area.
         @see getViewHeight, setViewPosition
     */
-    int getViewPositionY() const throw()                    { return lastVY; }
+    int getViewPositionY() const throw()                    { return lastVisibleArea.getY(); }
 
     /** Returns the width of the visible area of the child component.
 
         This may be less than the width of this Viewport if there's a vertical scrollbar
         or if the child component is itself smaller.
     */
-    int getViewWidth() const throw()                        { return lastVW; }
+    int getViewWidth() const throw()                        { return lastVisibleArea.getWidth(); }
 
     /** Returns the height of the visible area of the child component.
 
         This may be less than the height of this Viewport if there's a horizontal scrollbar
         or if the child component is itself smaller.
     */
-    int getViewHeight() const throw()                       { return lastVH; }
+    int getViewHeight() const throw()                       { return lastVisibleArea.getHeight(); }
 
     /** Returns the width available within this component for the contents.
 
         This will be the width of the viewport component minus the width of a
         vertical scrollbar (if visible).
     */
-    int getMaximumVisibleWidth() const throw();
+    int getMaximumVisibleWidth() const;
 
     /** Returns the height available within this component for the contents.
 
         This will be the height of the viewport component minus the space taken up
         by a horizontal scrollbar (if visible).
     */
-    int getMaximumVisibleHeight() const throw();
+    int getMaximumVisibleHeight() const;
 
     //==============================================================================
     /** Callback method that is called when the visible area changes.
@@ -174,8 +176,8 @@ public:
         If set to false, the scrollbars won't ever appear. When true (the default)
         they will appear only when needed.
     */
-    void setScrollBarsShown (const bool showVerticalScrollbarIfNeeded,
-                             const bool showHorizontalScrollbarIfNeeded);
+    void setScrollBarsShown (bool showVerticalScrollbarIfNeeded,
+                             bool showHorizontalScrollbarIfNeeded);
 
     /** True if the vertical scrollbar is enabled.
         @see setScrollBarsShown
@@ -193,24 +195,24 @@ public:
 
         @see LookAndFeel::getDefaultScrollbarWidth
     */
-    void setScrollBarThickness (const int thickness);
+    void setScrollBarThickness (int thickness);
 
     /** Returns the thickness of the scrollbars.
 
         @see setScrollBarThickness
     */
-    int getScrollBarThickness() const throw();
+    int getScrollBarThickness() const;
 
     /** Changes the distance that a single-step click on a scrollbar button
         will move the viewport.
     */
-    void setSingleStepSizes (const int stepX, const int stepY);
+    void setSingleStepSizes (int stepX, int stepY);
 
     /** Shows or hides the buttons on any scrollbars that are used.
 
         @see ScrollBar::setButtonVisibility
     */
-    void setScrollBarButtonVisibility (const bool buttonsVisible);
+    void setScrollBarButtonVisibility (bool buttonsVisible);
 
     /** Returns a pointer to the scrollbar component being used.
 
@@ -243,7 +245,7 @@ public:
 
 private:
     Component::SafePointer<Component> contentComp;
-    int lastVX, lastVY, lastVW, lastVH;
+    Rectangle<int> lastVisibleArea;
     int scrollBarThickness;
     int singleStepX, singleStepY;
     bool showHScrollbar, showVScrollbar;
@@ -251,7 +253,8 @@ private:
     ScrollBar* verticalScrollBar;
     ScrollBar* horizontalScrollBar;
 
-    void updateVisibleRegion();
+    void updateVisibleArea();
+
     Viewport (const Viewport&);
     Viewport& operator= (const Viewport&);
 };

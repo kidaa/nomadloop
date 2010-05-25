@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -163,12 +163,12 @@ private:
                 return StoredSettings::getInstance()->swatchColours.size();
             }
 
-            const Colour getSwatchColour (const int index) const
+            const Colour getSwatchColour (int index) const
             {
                 return StoredSettings::getInstance()->swatchColours [index];
             }
 
-            void setSwatchColour (const int index, const Colour& newColour) const
+            void setSwatchColour (int index, const Colour& newColour) const
             {
                 StoredSettings::getInstance()->swatchColours.set (index, newColour);
             }

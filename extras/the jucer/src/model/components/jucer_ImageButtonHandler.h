@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -323,7 +323,7 @@ public:
         }
 
         //==============================================================================
-        void setState (const bool newState)
+        void setState (bool newState)
         {
             setImageKeepProportions (layout, component, newState, true);
         }
@@ -405,12 +405,12 @@ public:
         }
 
         //==============================================================================
-        void setValue (const double newValue)
+        void setValue (double newValue)
         {
             setImageOpacity (layout, owner, role, (float) newValue, true);
         }
 
-        const double getValue() const
+        double getValue() const
         {
             return getImageOpacity (owner, role);
         }

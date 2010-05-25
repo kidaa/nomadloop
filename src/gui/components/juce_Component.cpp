@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -169,17 +169,20 @@ void Component::setVisible (bool shouldBeVisible)
             }
         }
 
-        sendVisibilityChangeMessage();
-
-        if (safePointer != 0 && flags.hasHeavyweightPeerFlag)
+        if (safePointer != 0)
         {
-            ComponentPeer* const peer = getPeer();
+            sendVisibilityChangeMessage();
 
-            jassert (peer != 0);
-            if (peer != 0)
+            if (safePointer != 0 && flags.hasHeavyweightPeerFlag)
             {
-                peer->setVisible (shouldBeVisible);
-                internalHierarchyChanged();
+                ComponentPeer* const peer = getPeer();
+
+                jassert (peer != 0);
+                if (peer != 0)
+                {
+                    peer->setVisible (shouldBeVisible);
+                    internalHierarchyChanged();
+                }
             }
         }
     }
@@ -232,7 +235,7 @@ public:
          alpha (1.0f),
          scale (1.0f)
     {
-        image = comp->createComponentSnapshot (Rectangle<int> (0, 0, comp->getWidth(), comp->getHeight()));
+        image = comp->createComponentSnapshot (comp->getLocalBounds());
         setBounds (comp->getBounds());
         comp->getParentComponent()->addAndMakeVisible (this);
         toBehind (comp);
@@ -469,7 +472,7 @@ void Component::userTriedToCloseWindow()
        If you want to ignore the event and don't want to trigger this assertion, just override
        this method and do nothing.
     */
-    jassertfalse
+    jassertfalse;
 }
 
 void Component::minimisationStateChanged (bool)
@@ -534,9 +537,11 @@ void Component::toFront (const bool setAsForeground)
     }
     else if (parentComponent_ != 0)
     {
-        if (parentComponent_->childComponentList_.getLast() != this)
+        Array<Component*>& childList = parentComponent_->childComponentList_;
+
+        if (childList.getLast() != this)
         {
-            const int index = parentComponent_->childComponentList_.indexOf (this);
+            const int index = childList.indexOf (this);
 
             if (index >= 0)
             {
@@ -544,18 +549,15 @@ void Component::toFront (const bool setAsForeground)
 
                 if (! flags.alwaysOnTopFlag)
                 {
-                    insertIndex = parentComponent_->childComponentList_.size() - 1;
+                    insertIndex = childList.size() - 1;
 
-                    while (insertIndex > 0
-                            && parentComponent_->childComponentList_.getUnchecked (insertIndex)->isAlwaysOnTop())
-                    {
+                    while (insertIndex > 0 && childList.getUnchecked (insertIndex)->isAlwaysOnTop())
                         --insertIndex;
-                    }
                 }
 
                 if (index != insertIndex)
                 {
-                    parentComponent_->childComponentList_.move (index, insertIndex);
+                    childList.move (index, insertIndex);
                     sendFakeMouseMove();
 
                     repaintParent();
@@ -573,28 +575,31 @@ void Component::toFront (const bool setAsForeground)
 
 void Component::toBehind (Component* const other)
 {
-    if (other != 0)
+    if (other != 0 && other != this)
     {
         // the two components must belong to the same parent..
         jassert (parentComponent_ == other->parentComponent_);
 
         if (parentComponent_ != 0)
         {
-            const int index = parentComponent_->childComponentList_.indexOf (this);
-            int otherIndex  = parentComponent_->childComponentList_.indexOf (other);
+            Array<Component*>& childList = parentComponent_->childComponentList_;
 
-            if (index >= 0
-                 && otherIndex >= 0
-                 && index != otherIndex - 1
-                 && other != this)
+            const int index = childList.indexOf (this);
+
+            if (index >= 0 && childList [index + 1] != other)
             {
-                if (index < otherIndex)
-                    --otherIndex;
+                int otherIndex = childList.indexOf (other);
 
-                parentComponent_->childComponentList_.move (index, otherIndex);
+                if (otherIndex >= 0)
+                {
+                    if (index < otherIndex)
+                        --otherIndex;
 
-                sendFakeMouseMove();
-                repaintParent();
+                    childList.move (index, otherIndex);
+
+                    sendFakeMouseMove();
+                    repaintParent();
+                }
             }
         }
         else if (isOnDesktop())
@@ -616,14 +621,15 @@ void Component::toBehind (Component* const other)
 
 void Component::toBack()
 {
+    Array<Component*>& childList = parentComponent_->childComponentList_;
+
     if (isOnDesktop())
     {
-        jassertfalse //xxx need to add this to native window
+        jassertfalse; //xxx need to add this to native window
     }
-    else if (parentComponent_ != 0
-         && parentComponent_->childComponentList_.getFirst() != this)
+    else if (parentComponent_ != 0 && childList.getFirst() != this)
     {
-        const int index = parentComponent_->childComponentList_.indexOf (this);
+        const int index = childList.indexOf (this);
 
         if (index > 0)
         {
@@ -631,8 +637,8 @@ void Component::toBack()
 
             if (flags.alwaysOnTopFlag)
             {
-                while (insertIndex < parentComponent_->childComponentList_.size()
-                        && ! parentComponent_->childComponentList_.getUnchecked (insertIndex)->isAlwaysOnTop())
+                while (insertIndex < childList.size()
+                        && ! childList.getUnchecked (insertIndex)->isAlwaysOnTop())
                 {
                     ++insertIndex;
                 }
@@ -640,7 +646,7 @@ void Component::toBack()
 
             if (index != insertIndex)
             {
-                parentComponent_->childComponentList_.move (index, insertIndex);
+                childList.move (index, insertIndex);
 
                 sendFakeMouseMove();
                 repaintParent();
@@ -806,7 +812,7 @@ void Component::setBounds (int x, int y, int w, int h)
     const bool wasResized  = (getWidth() != w || getHeight() != h);
     const bool wasMoved    = (getX() != x || getY() != y);
 
-#ifdef JUCE_DEBUG
+#if JUCE_DEBUG
     // It's a very bad idea to try to resize a window during its paint() method!
     jassert (! (flags.isInsidePaintCall && wasResized && isOnDesktop()));
 #endif
@@ -1204,14 +1210,14 @@ Component* Component::removeChildComponent (const int index)
 //==============================================================================
 void Component::removeAllChildren()
 {
-    for (int i = childComponentList_.size(); --i >= 0;)
-        removeChildComponent (i);
+    while (childComponentList_.size() > 0)
+        removeChildComponent (childComponentList_.size() - 1);
 }
 
 void Component::deleteAllChildren()
 {
-    for (int i = childComponentList_.size(); --i >= 0;)
-        delete (removeChildComponent (i));
+    while (childComponentList_.size() > 0)
+        delete (removeChildComponent (childComponentList_.size() - 1));
 }
 
 //==============================================================================
@@ -1318,7 +1324,7 @@ void Component::internalHierarchyChanged()
 //==============================================================================
 void* Component::runModalLoopCallback (void* userData)
 {
-    return (void*) (pointer_sized_int) ((Component*) userData)->runModalLoop();
+    return (void*) (pointer_sized_int) static_cast <Component*> (userData)->runModalLoop();
 }
 
 int Component::runModalLoop()
@@ -1328,7 +1334,7 @@ int Component::runModalLoop()
         // use a callback so this can be called from non-gui threads
         return (int) (pointer_sized_int)
                     MessageManager::getInstance()
-                       ->callFunctionOnMessageThread (&runModalLoopCallback, (void*) this);
+                       ->callFunctionOnMessageThread (&runModalLoopCallback, this);
     }
 
     SafePointer<Component> prevFocused (getCurrentlyFocusedComponent());
@@ -1549,6 +1555,11 @@ void Component::repaint (const int x, const int y,
         internalRepaint (x, y, w, h);
 }
 
+void Component::repaint (const Rectangle<int>& area)
+{
+    repaint (area.getX(), area.getY(), area.getWidth(), area.getHeight());
+}
+
 void Component::internalRepaint (int x, int y, int w, int h)
 {
     // if component methods are being called from threads other than the message
@@ -1590,7 +1601,7 @@ void Component::internalRepaint (int x, int y, int w, int h)
                 ComponentPeer* const peer = getPeer();
 
                 if (peer != 0)
-                    peer->repaint (x, y, w, h);
+                    peer->repaint (Rectangle<int> (x, y, w, h));
             }
         }
     }
@@ -1667,7 +1678,7 @@ void Component::paintEntireComponent (Graphics& g)
 {
     jassert (! g.isClipEmpty());
 
-#ifdef JUCE_DEBUG
+#if JUCE_DEBUG
     flags.isInsidePaintCall = true;
 #endif
 
@@ -1688,7 +1699,7 @@ void Component::paintEntireComponent (Graphics& g)
         renderComponent (g);
     }
 
-#ifdef JUCE_DEBUG
+#if JUCE_DEBUG
     flags.isInsidePaintCall = false;
 #endif
 }
@@ -1700,7 +1711,7 @@ Image* Component::createComponentSnapshot (const Rectangle<int>& areaToGrab,
     Rectangle<int> r (areaToGrab);
 
     if (clipImageToComponentBounds)
-        r = r.getIntersection (Rectangle<int> (0, 0, getWidth(), getHeight()));
+        r = r.getIntersection (getLocalBounds());
 
     ScopedPointer<Image> componentImage (Image::createNativeImage (flags.opaqueFlag ? Image::RGB : Image::ARGB,
                                                                    jmax (1, r.getWidth()),
@@ -1777,11 +1788,11 @@ void Component::sendLookAndFeelChange()
     }
 }
 
-static const var::identifier getColourPropertyId (const int colourId)
+static const Identifier getColourPropertyId (const int colourId)
 {
     String s;
     s.preallocateStorage (18);
-    s << T("jcclr_") << String::toHexString (colourId);
+    s << "jcclr_" << String::toHexString (colourId);
     return s;
 }
 
@@ -1821,9 +1832,9 @@ void Component::copyAllExplicitColoursTo (Component& target) const
 
     for (int i = properties.size(); --i >= 0;)
     {
-        const var::identifier name (properties.getName(i));
+        const Identifier name (properties.getName(i));
 
-        if (name.name.startsWith (T("jcclr_")))
+        if (name.toString().startsWith ("jcclr_"))
             if (target.properties.set (name, properties [name]))
                 changed = true;
     }
@@ -1837,6 +1848,11 @@ void Component::colourChanged()
 }
 
 //==============================================================================
+const Rectangle<int> Component::getLocalBounds() const throw()
+{
+    return Rectangle<int> (0, 0, getWidth(), getHeight());
+}
+
 const Rectangle<int> Component::getUnclippedArea() const
 {
     int x = 0, y = 0, w = getWidth(), h = getHeight();
@@ -1886,8 +1902,7 @@ void Component::clipObscuredRegions (Graphics& g, const Rectangle<int>& clipRect
     }
 }
 
-void Component::getVisibleArea (RectangleList& result,
-                                const bool includeSiblings) const
+void Component::getVisibleArea (RectangleList& result, const bool includeSiblings) const
 {
     result.clear();
     const Rectangle<int> unclipped (getUnclippedArea());
@@ -1901,8 +1916,7 @@ void Component::getVisibleArea (RectangleList& result,
             const Component* const c = getTopLevelComponent();
 
             c->subtractObscuredRegions (result, c->relativePositionToOtherComponent (this, Point<int>()),
-                                        Rectangle<int> (0, 0, c->getWidth(), c->getHeight()),
-                                        this);
+                                        c->getLocalBounds(), this);
         }
 
         subtractObscuredRegions (result, Point<int>(), unclipped, 0);
@@ -2009,13 +2023,13 @@ void Component::parentSizeChanged()
 
 void Component::addComponentListener (ComponentListener* const newListener)
 {
+    jassert (isValidComponent());
     componentListeners.add (newListener);
 }
 
 void Component::removeComponentListener (ComponentListener* const listenerToRemove)
 {
     jassert (isValidComponent());
-
     componentListeners.remove (listenerToRemove);
 }
 
@@ -2086,7 +2100,7 @@ void Component::addMouseListener (MouseListener* const newListener,
     checkMessageManagerIsLocked
 
     if (mouseListeners_ == 0)
-        mouseListeners_ = new VoidArray();
+        mouseListeners_ = new Array<MouseListener*>();
 
     if (! mouseListeners_->contains (newListener))
     {
@@ -2162,7 +2176,7 @@ void Component::internalMouseEnter (MouseInputSource& source, const Point<int>& 
         {
             for (int i = mouseListeners_->size(); --i >= 0;)
             {
-                ((MouseListener*) mouseListeners_->getUnchecked(i))->mouseEnter (me);
+                mouseListeners_->getUnchecked(i)->mouseEnter (me);
 
                 if (checker.shouldBailOut())
                     return;
@@ -2177,13 +2191,13 @@ void Component::internalMouseEnter (MouseInputSource& source, const Point<int>& 
         {
             if (p->numDeepMouseListeners > 0)
             {
-                BailOutChecker checker (this, p);
+                BailOutChecker checker2 (this, p);
 
                 for (int i = p->numDeepMouseListeners; --i >= 0;)
                 {
-                    ((MouseListener*) (p->mouseListeners_->getUnchecked(i)))->mouseEnter (me);
+                    p->mouseListeners_->getUnchecked(i)->mouseEnter (me);
 
-                    if (checker.shouldBailOut())
+                    if (checker2.shouldBailOut())
                         return;
 
                     i = jmin (i, p->numDeepMouseListeners);
@@ -2249,13 +2263,13 @@ void Component::internalMouseExit (MouseInputSource& source, const Point<int>& r
         {
             if (p->numDeepMouseListeners > 0)
             {
-                BailOutChecker checker (this, p);
+                BailOutChecker checker2 (this, p);
 
                 for (int i = p->numDeepMouseListeners; --i >= 0;)
                 {
-                    ((MouseListener*) (p->mouseListeners_->getUnchecked (i)))->mouseExit (me);
+                    p->mouseListeners_->getUnchecked (i)->mouseExit (me);
 
-                    if (checker.shouldBailOut())
+                    if (checker2.shouldBailOut())
                         return;
 
                     i = jmin (i, p->numDeepMouseListeners);
@@ -2416,13 +2430,13 @@ void Component::internalMouseDown (MouseInputSource& source, const Point<int>& r
     {
         if (p->numDeepMouseListeners > 0)
         {
-            BailOutChecker checker (this, p);
+            BailOutChecker checker2 (this, p);
 
             for (int i = p->numDeepMouseListeners; --i >= 0;)
             {
-                ((MouseListener*) (p->mouseListeners_->getUnchecked (i)))->mouseDown (me);
+                p->mouseListeners_->getUnchecked (i)->mouseDown (me);
 
-                if (checker.shouldBailOut())
+                if (checker2.shouldBailOut())
                     return;
 
                 i = jmin (i, p->numDeepMouseListeners);
@@ -2485,13 +2499,13 @@ void Component::internalMouseUp (MouseInputSource& source, const Point<int>& rel
             {
                 if (p->numDeepMouseListeners > 0)
                 {
-                    BailOutChecker checker (this, p);
+                    BailOutChecker checker2 (this, p);
 
                     for (int i = p->numDeepMouseListeners; --i >= 0;)
                     {
-                        ((MouseListener*) (p->mouseListeners_->getUnchecked (i)))->mouseUp (me);
+                        p->mouseListeners_->getUnchecked (i)->mouseUp (me);
 
-                        if (checker.shouldBailOut())
+                        if (checker2.shouldBailOut())
                             return;
 
                         i = jmin (i, p->numDeepMouseListeners);
@@ -2536,13 +2550,13 @@ void Component::internalMouseUp (MouseInputSource& source, const Point<int>& rel
             {
                 if (p->numDeepMouseListeners > 0)
                 {
-                    BailOutChecker checker (this, p);
+                    BailOutChecker checker2 (this, p);
 
                     for (int i = p->numDeepMouseListeners; --i >= 0;)
                     {
-                        ((MouseListener*) (p->mouseListeners_->getUnchecked (i)))->mouseDoubleClick (me);
+                        p->mouseListeners_->getUnchecked (i)->mouseDoubleClick (me);
 
-                        if (checker.shouldBailOut())
+                        if (checker2.shouldBailOut())
                             return;
 
                         i = jmin (i, p->numDeepMouseListeners);
@@ -2602,13 +2616,13 @@ void Component::internalMouseDrag (MouseInputSource& source, const Point<int>& r
         {
             if (p->numDeepMouseListeners > 0)
             {
-                BailOutChecker checker (this, p);
+                BailOutChecker checker2 (this, p);
 
                 for (int i = p->numDeepMouseListeners; --i >= 0;)
                 {
-                    ((MouseListener*) (p->mouseListeners_->getUnchecked (i)))->mouseDrag (me);
+                    p->mouseListeners_->getUnchecked (i)->mouseDrag (me);
 
-                    if (checker.shouldBailOut())
+                    if (checker2.shouldBailOut())
                         return;
 
                     i = jmin (i, p->numDeepMouseListeners);
@@ -2668,13 +2682,13 @@ void Component::internalMouseMove (MouseInputSource& source, const Point<int>& r
         {
             if (p->numDeepMouseListeners > 0)
             {
-                BailOutChecker checker (this, p);
+                BailOutChecker checker2 (this, p);
 
                 for (int i = p->numDeepMouseListeners; --i >= 0;)
                 {
-                    ((MouseListener*) (p->mouseListeners_->getUnchecked (i)))->mouseMove (me);
+                    p->mouseListeners_->getUnchecked (i)->mouseMove (me);
 
-                    if (checker.shouldBailOut())
+                    if (checker2.shouldBailOut())
                         return;
 
                     i = jmin (i, p->numDeepMouseListeners);
@@ -2734,13 +2748,13 @@ void Component::internalMouseWheel (MouseInputSource& source, const Point<int>& 
         {
             if (p->numDeepMouseListeners > 0)
             {
-                BailOutChecker checker (this, p);
+                BailOutChecker checker2 (this, p);
 
                 for (int i = p->numDeepMouseListeners; --i >= 0;)
                 {
-                    ((MouseListener*) (p->mouseListeners_->getUnchecked (i)))->mouseWheelMove (me, wheelIncrementX, wheelIncrementY);
+                    p->mouseListeners_->getUnchecked (i)->mouseWheelMove (me, wheelIncrementX, wheelIncrementY);
 
-                    if (checker.shouldBailOut())
+                    if (checker2.shouldBailOut())
                         return;
 
                     i = jmin (i, p->numDeepMouseListeners);
@@ -2920,14 +2934,16 @@ bool Component::isFocusContainer() const throw()
     return flags.isFocusContainerFlag;
 }
 
+static const Identifier juce_explicitFocusOrderId ("_jexfo");
+
 int Component::getExplicitFocusOrder() const
 {
-    return properties ["_jexfo"];
+    return properties [juce_explicitFocusOrderId];
 }
 
 void Component::setExplicitFocusOrder (const int newFocusOrderIndex)
 {
-    properties.set ("_jexfo", newFocusOrderIndex);
+    properties.set (juce_explicitFocusOrderId, newFocusOrderIndex);
 }
 
 KeyboardFocusTraverser* Component::createFocusTraverser()
@@ -3066,10 +3082,10 @@ void Component::moveKeyboardFocusToSibling (const bool moveToNext)
             {
                 if (nextComp->isCurrentlyBlockedByAnotherModalComponent())
                 {
-                    SafePointer<Component> safePointer (this);
+                    SafePointer<Component> nextCompPointer (nextComp);
                     internalModalInputAttempt();
 
-                    if (safePointer == 0 || nextComp->isCurrentlyBlockedByAnotherModalComponent())
+                    if (nextCompPointer == 0 || nextComp->isCurrentlyBlockedByAnotherModalComponent())
                         return;
                 }
 
@@ -3142,7 +3158,7 @@ const Rectangle<int> Component::getParentMonitorArea() const
 void Component::addKeyListener (KeyListener* const newListener)
 {
     if (keyListeners_ == 0)
-        keyListeners_ = new VoidArray();
+        keyListeners_ = new Array <KeyListener*>();
 
     keyListeners_->addIfNotAlreadyThere (newListener);
 }

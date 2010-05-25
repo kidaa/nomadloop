@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -29,7 +29,7 @@
 #include "juce_DirectoryContentsDisplayComponent.h"
 #include "juce_FilePreviewComponent.h"
 #include "../../../io/files/juce_File.h"
-#include "../../../containers/juce_BitArray.h"
+#include "../../../containers/juce_BigInteger.h"
 #include "../controls/juce_TextEditor.h"
 #include "../controls/juce_ComboBox.h"
 #include "../buttons/juce_DrawableButton.h"
@@ -114,6 +114,10 @@ public:
     */
     const File getSelectedFile (int index) const throw();
 
+    /** Deselects any files that are currently selected.
+    */
+    void deselectAllFiles();
+
     /** Returns true if the currently selected file(s) are usable.
 
         This can be used to decide whether the user can press "ok" for the
@@ -160,13 +164,13 @@ public:
 
         @see removeListener
     */
-    void addListener (FileBrowserListener* const listener) throw();
+    void addListener (FileBrowserListener* listener);
 
     /** Removes a listener.
 
         @see addListener
     */
-    void removeListener (FileBrowserListener* const listener) throw();
+    void removeListener (FileBrowserListener* listener);
 
 
     //==============================================================================
@@ -203,7 +207,7 @@ public:
     juce_UseDebuggingNewOperator
 
 protected:
-    virtual const BitArray getRoots (StringArray& rootNames, StringArray& rootPaths);
+    virtual const BigInteger getRoots (StringArray& rootNames, StringArray& rootPaths);
 
 private:
     //==============================================================================

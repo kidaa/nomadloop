@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -42,6 +42,11 @@ public:
     /** Plays the operating system's default alert 'beep' sound. */
     static void beep();
 
+    /** Tries to launch the system's default reader for a given file or URL. */
+    static bool openDocument (const String& documentURL, const String& parameters);
+
+    /** Tries to launch the system's default email app to let the user create an email.
+    */
     static bool launchEmailWithAttachments (const String& targetEmailAddress,
                                             const String& emailSubject,
                                             const String& bodyText,
@@ -151,7 +156,7 @@ public:
 
         This is needed to avoid unicode problems with the argc type params.
     */
-    static const String JUCE_CALLTYPE getCurrentCommandLineParams() throw();
+    static const String JUCE_CALLTYPE getCurrentCommandLineParams();
 #endif
 
     /** Clears the floating point unit's flags.
@@ -194,6 +199,11 @@ public:
     //==============================================================================
 
 #endif
+
+private:
+    PlatformUtilities();
+    PlatformUtilities (const PlatformUtilities&);
+    PlatformUtilities& operator= (const PlatformUtilities&);
 };
 
 

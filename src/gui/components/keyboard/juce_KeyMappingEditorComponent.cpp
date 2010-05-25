@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -29,7 +29,7 @@ BEGIN_JUCE_NAMESPACE
 
 // N.B. these two includes are put here deliberately to avoid problems with
 // old GCCs failing on long include paths
-#include "../../../containers/juce_VoidArray.h"
+#include "../../../containers/juce_Array.h"
 #include "../../../containers/juce_OwnedArray.h"
 
 #include "juce_KeyMappingEditorComponent.h"
@@ -331,7 +331,7 @@ bool KeyMappingEditorComponent::mightContainSubItems()
 
 const String KeyMappingEditorComponent::getUniqueName() const
 {
-    return T("keys");
+    return "keys";
 }
 
 void KeyMappingEditorComponent::setColours (const Colour& mainBackground,
@@ -356,10 +356,9 @@ void KeyMappingEditorComponent::resized()
         const int buttonHeight = 20;
         h -= buttonHeight + 8;
         int x = getWidth() - 8;
-        const int y = h + 6;
 
         resetButton->changeWidthToFitText (buttonHeight);
-        resetButton->setTopRightPosition (x, y);
+        resetButton->setTopRightPosition (x, h + 6);
     }
 
     tree->setBounds (0, 0, getWidth(), h);
@@ -381,7 +380,7 @@ void KeyMappingEditorComponent::buttonClicked (Button* button)
 
 void KeyMappingEditorComponent::changeListenerCallback (void*)
 {
-    ScopedPointer <XmlElement> openness (tree->getOpennessState (true));
+    ScopedPointer <XmlElement> oldOpenness (tree->getOpennessState (true));
 
     clearSubItems();
 
@@ -400,8 +399,8 @@ void KeyMappingEditorComponent::changeListenerCallback (void*)
             addSubItem (new KeyCategoryTreeViewItem (this, categories[i]));
     }
 
-    if (openness != 0)
-        tree->restoreOpennessState (*openness);
+    if (oldOpenness != 0)
+        tree->restoreOpennessState (*oldOpenness);
 }
 
 //==============================================================================
@@ -449,7 +448,7 @@ public:
         return true;
     }
 
-    bool keyStateChanged (const bool)
+    bool keyStateChanged (bool)
     {
         return true;
     }

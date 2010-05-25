@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -213,14 +213,14 @@ void* MessageManager::callFunctionOnMessageThread (MessageCallbackFunction* call
 static BOOL CALLBACK BroadcastEnumWindowProc (HWND hwnd, LPARAM lParam)
 {
     if (hwnd != juce_messageWindowHandle)
-        (reinterpret_cast <VoidArray*> (lParam))->add ((void*) hwnd);
+        reinterpret_cast <Array<void*>*> (lParam)->add ((void*) hwnd);
 
     return TRUE;
 }
 
 void MessageManager::broadcastMessage (const String& value) throw()
 {
-    VoidArray windows;
+    Array<void*> windows;
     EnumWindows (&BroadcastEnumWindowProc, (LPARAM) &windows);
 
     const String localCopy (value);
@@ -228,7 +228,7 @@ void MessageManager::broadcastMessage (const String& value) throw()
     COPYDATASTRUCT data;
     data.dwData = broadcastId;
     data.cbData = (localCopy.length() + 1) * sizeof (juce_wchar);
-    data.lpData = (void*) (const juce_wchar*) localCopy;
+    data.lpData = (void*) static_cast <const juce_wchar*> (localCopy);
 
     for (int i = windows.size(); --i >= 0;)
     {
@@ -238,7 +238,7 @@ void MessageManager::broadcastMessage (const String& value) throw()
         GetWindowText (hwnd, windowName, 64);
         windowName [63] = 0;
 
-        if (String (windowName) == String (messageWindowName))
+        if (String (windowName) == messageWindowName)
         {
             DWORD_PTR result;
             SendMessageTimeout (hwnd, WM_COPYDATA,
@@ -262,7 +262,7 @@ static const String getMessageWindowClassName()
     if (number == 0)
         number = 0x7fffffff & (int) Time::getHighResolutionTicks();
 
-    return T("JUCEcs_") + String (number);
+    return "JUCEcs_" + String (number);
 }
 
 void MessageManager::doPlatformSpecificInitialisation()

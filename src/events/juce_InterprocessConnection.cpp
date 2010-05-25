@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -217,7 +217,7 @@ void InterprocessConnection::handleMessage (const Message& message)
         {
         case 0:
             {
-                ScopedPointer <MemoryBlock> data ((MemoryBlock*) message.pointerParameter);
+                ScopedPointer <MemoryBlock> data (static_cast <MemoryBlock*> (message.pointerParameter));
                 messageReceived (*data);
                 break;
             }
@@ -281,27 +281,27 @@ bool InterprocessConnection::readNextMessageInt()
     if (bytes == sizeof (messageHeader)
          && ByteOrder::swapIfBigEndian (messageHeader[0]) == magicMessageHeader)
     {
-        const int bytesInMessage = (int) ByteOrder::swapIfBigEndian (messageHeader[1]);
+        int bytesInMessage = (int) ByteOrder::swapIfBigEndian (messageHeader[1]);
 
         if (bytesInMessage > 0 && bytesInMessage < maximumMessageSize)
         {
             MemoryBlock messageData (bytesInMessage, true);
             int bytesRead = 0;
 
-            while (bytesRead < bytesInMessage)
+            while (bytesInMessage > 0)
             {
                 if (threadShouldExit())
                     return false;
 
                 const int numThisTime = jmin (bytesInMessage, 65536);
-                const int bytesIn = (socket != 0) ? socket->read (((char*) messageData.getData()) + bytesRead, numThisTime, true)
-                                                  : pipe->read (((char*) messageData.getData()) + bytesRead, numThisTime,
-                                                                pipeReceiveMessageTimeout);
+                const int bytesIn = (socket != 0) ? socket->read (static_cast <char*> (messageData.getData()) + bytesRead, numThisTime, true)
+                                                  : pipe->read (static_cast <char*> (messageData.getData()) + bytesRead, numThisTime, pipeReceiveMessageTimeout);
 
                 if (bytesIn <= 0)
                     break;
 
                 bytesRead += bytesIn;
+                bytesInMessage -= bytesIn;
             }
 
             if (bytesRead >= 0)

@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -107,10 +107,10 @@ public:
 
         @see ApplicationCommandManager
     */
-    KeyPressMappingSet (ApplicationCommandManager* const commandManager) throw();
+    explicit KeyPressMappingSet (ApplicationCommandManager* commandManager);
 
     /** Creates an copy of a KeyPressMappingSet. */
-    KeyPressMappingSet (const KeyPressMappingSet& other) throw();
+    KeyPressMappingSet (const KeyPressMappingSet& other);
 
     /** Destructor. */
     ~KeyPressMappingSet();
@@ -123,7 +123,7 @@ public:
 
         @param commandID        the command's ID
     */
-    const Array <KeyPress> getKeyPressesAssignedToCommand (const CommandID commandID) const throw();
+    const Array <KeyPress> getKeyPressesAssignedToCommand (CommandID commandID) const;
 
     /** Assigns a keypress to a command.
 
@@ -138,43 +138,41 @@ public:
                             end of the list of keypresses; otherwise the new keypress will
                             be inserted into the existing list at this index
     */
-    void addKeyPress (const CommandID commandID,
+    void addKeyPress (CommandID commandID,
                       const KeyPress& newKeyPress,
-                      int insertIndex = -1) throw();
+                      int insertIndex = -1);
 
     /** Reset all mappings to the defaults, as dictated by the ApplicationCommandManager.
 
         @see resetToDefaultMapping
     */
-    void resetToDefaultMappings() throw();
+    void resetToDefaultMappings();
 
     /** Resets all key-mappings to the defaults for a particular command.
 
         @see resetToDefaultMappings
     */
-    void resetToDefaultMapping (const CommandID commandID) throw();
+    void resetToDefaultMapping (CommandID commandID);
 
     /** Removes all keypresses that are assigned to any commands. */
-    void clearAllKeyPresses() throw();
+    void clearAllKeyPresses();
 
     /** Removes all keypresses that are assigned to a particular command. */
-    void clearAllKeyPresses (const CommandID commandID) throw();
+    void clearAllKeyPresses (CommandID commandID);
 
     /** Removes one of the keypresses that are assigned to a command.
 
         See the getKeyPressesAssignedToCommand() for the list of keypresses to
         which the keyPressIndex refers.
     */
-    void removeKeyPress (const CommandID commandID,
-                         const int keyPressIndex) throw();
+    void removeKeyPress (CommandID commandID, int keyPressIndex);
 
     /** Removes a keypress from any command that it may be assigned to.
     */
-    void removeKeyPress (const KeyPress& keypress) throw();
+    void removeKeyPress (const KeyPress& keypress);
 
     /** Returns true if the given command is linked to this key. */
-    bool containsMapping (const CommandID commandID,
-                          const KeyPress& keyPress) const throw();
+    bool containsMapping (CommandID commandID, const KeyPress& keyPress) const throw();
 
     //==============================================================================
     /** Looks for a command that corresponds to a keypress.
@@ -218,13 +216,13 @@ public:
 
         @see restoreFromXml
     */
-    XmlElement* createXml (const bool saveDifferencesFromDefaultSet) const;
+    XmlElement* createXml (bool saveDifferencesFromDefaultSet) const;
 
     //==============================================================================
     /** @internal */
     bool keyPressed (const KeyPress& key, Component* originatingComponent);
     /** @internal */
-    bool keyStateChanged (const bool isKeyDown, Component* originatingComponent);
+    bool keyStateChanged (bool isKeyDown, Component* originatingComponent);
     /** @internal */
     void globalFocusChanged (Component* focusedComponent);
 

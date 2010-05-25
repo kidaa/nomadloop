@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -48,7 +48,11 @@ namespace CommandIDs
 
     static const int test                   = 0x202090;
     static const int toFront                = 0x2020a0;
-    static const int toBack                 = 0x2030b0;
+    static const int toBack                 = 0x2030a1;
+    static const int showOrHideProperties   = 0x2030b0;
+    static const int showOrHideTree         = 0x2030b1;
+    static const int showOrHideMarkers      = 0x2030b2;
+    static const int toggleSnapping         = 0x2030b3;
 
     static const int group                  = 0x202170;
     static const int ungroup                = 0x202180;
@@ -81,8 +85,8 @@ namespace CommandIDs
 
 namespace CommandCategories
 {
-    static const tchar* const general       = T("General");
-    static const tchar* const editing       = T("Editing");
-    static const tchar* const view          = T("View");
-    static const tchar* const windows       = T("Windows");
+    static const char* const general       = "General";
+    static const char* const editing       = "Editing";
+    static const char* const view          = "View";
+    static const char* const windows       = "Windows";
 }

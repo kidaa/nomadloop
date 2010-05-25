@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -66,6 +66,7 @@ using namespace JUCE_NAMESPACE;
 
 - (BOOL) panel: (id) sender shouldShowFilename: (NSString*) filename
 {
+    (void) sender;
     const File f (nsStringToJuce (filename));
 
     for (int i = filters->size(); --i >= 0;)
@@ -93,7 +94,7 @@ void FileChooser::showPlatformDialog (Array<File>& results,
     const ScopedAutoReleasePool pool;
 
     StringArray* filters = new StringArray();
-    filters->addTokens (filter.replaceCharacters (T(",:"), T(";;")), T(";"), String::empty);
+    filters->addTokens (filter.replaceCharacters (",:", ";;"), ";", String::empty);
     filters->trim();
     filters->removeEmptyStrings();
 
@@ -169,7 +170,7 @@ void FileChooser::showPlatformDialog (Array<File>& results,
 {
     const ScopedAutoReleasePool pool;
 
-    jassertfalse //xxx to do
+    jassertfalse; //xxx to do
 }
 
 #endif

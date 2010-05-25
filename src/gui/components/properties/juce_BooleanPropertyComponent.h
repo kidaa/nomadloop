@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -73,7 +73,7 @@ public:
 
     //==============================================================================
     /** Called to change the state of the boolean value. */
-    virtual void setState (const bool newState);
+    virtual void setState (bool newState);
 
     /** Must return the current value of the property. */
     virtual bool getState() const;

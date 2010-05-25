@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -104,12 +104,15 @@ public:
         @param shortcutKey2 a second optional key that can be pressed to trigger this button
     */
     void addButton (const String& name,
-                    const int returnValue,
+                    int returnValue,
                     const KeyPress& shortcutKey1 = KeyPress(),
                     const KeyPress& shortcutKey2 = KeyPress());
 
     /** Returns the number of buttons that the window currently has. */
     int getNumButtons() const;
+
+    /** Invokes a click of one of the buttons. */
+    void triggerButtonClick (const String& buttonName);
 
     //==============================================================================
     /** Adds a textbox to the window for entering strings.
@@ -127,7 +130,7 @@ public:
     void addTextEditor (const String& name,
                         const String& initialContents,
                         const String& onScreenLabel = String::empty,
-                        const bool isPasswordBox = false);
+                        bool isPasswordBox = false);
 
     /** Returns the contents of a named textbox.
 
@@ -187,7 +190,7 @@ public:
                             before it is passed in. The caller is responsible for deleting
                             the component later on - the AlertWindow won't delete it.
     */
-    void addCustomComponent (Component* const component);
+    void addCustomComponent (Component* component);
 
     /** Returns the number of custom components in the dialog box.
 
@@ -201,7 +204,7 @@ public:
                         will return 0
         @see getNumCustomComponents, addCustomComponent
     */
-    Component* getCustomComponent (const int index) const;
+    Component* getCustomComponent (int index) const;
 
     /** Removes one of the custom components in the dialog box.
 
@@ -212,7 +215,7 @@ public:
         @returns        the component that was removed (or zero)
         @see getNumCustomComponents, addCustomComponent
     */
-    Component* removeCustomComponent (const int index);
+    Component* removeCustomComponent (int index);
 
     //==============================================================================
     /** Returns true if the window contains any components other than just buttons.*/
@@ -359,13 +362,13 @@ private:
     ComponentBoundsConstrainer constrainer;
     ComponentDragger dragger;
     Rectangle<int> textArea;
-    VoidArray buttons, textBoxes, comboBoxes;
-    VoidArray progressBars, customComps, textBlocks, allComps;
+    Array<void*> buttons, textBoxes, comboBoxes;
+    Array<void*> progressBars, customComps, textBlocks, allComps;
     StringArray textboxNames, comboBoxNames;
     Font font;
     Component* associatedComponent;
 
-    void updateLayout (const bool onlyIncreaseSize);
+    void updateLayout (bool onlyIncreaseSize);
 
     // disable copy constructor
     AlertWindow (const AlertWindow&);

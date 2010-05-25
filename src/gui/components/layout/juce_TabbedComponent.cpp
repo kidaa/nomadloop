@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -36,8 +36,8 @@ class TabCompButtonBar  : public TabbedButtonBar
 {
 public:
     TabCompButtonBar (TabbedComponent* const owner_,
-                      const TabbedButtonBar::Orientation orientation)
-        : TabbedButtonBar (orientation),
+                      const TabbedButtonBar::Orientation orientation_)
+        : TabbedButtonBar (orientation_),
           owner (owner_)
     {
     }
@@ -46,14 +46,12 @@ public:
     {
     }
 
-    void currentTabChanged (const int newCurrentTabIndex,
-                            const String& newTabName)
+    void currentTabChanged (int newCurrentTabIndex, const String& newTabName)
     {
         owner->changeCallback (newCurrentTabIndex, newTabName);
     }
 
-    void popupMenuClickOnTab (const int tabIndex,
-                              const String& tabName)
+    void popupMenuClickOnTab (int tabIndex, const String& tabName)
     {
         owner->popupMenuClickOnTab (tabIndex, tabName);
     }
@@ -63,7 +61,7 @@ public:
         return owner->tabs->getTabBackgroundColour (tabIndex);
     }
 
-    TabBarButton* createTabButton (const String& tabName, const int tabIndex)
+    TabBarButton* createTabButton (const String& tabName, int tabIndex)
     {
         return owner->createTabButton (tabName, tabIndex);
     }
@@ -120,6 +118,8 @@ TabBarButton* TabbedComponent::createTabButton (const String& tabName, const int
 }
 
 //==============================================================================
+const Identifier TabbedComponent::deleteComponentId ("deleteByTabComp_");
+
 void TabbedComponent::clearTabs()
 {
     if (panelComponent != 0)
@@ -138,7 +138,7 @@ void TabbedComponent::clearTabs()
         // be careful not to delete these components until they've been removed from the tab component
         jassert (c == 0 || c->isValidComponent());
 
-        if (c != 0 && (bool) c->getProperties() ["deleteByTabComp_"])
+        if (c != 0 && (bool) c->getProperties() [deleteComponentId])
             delete c;
     }
 
@@ -154,13 +154,12 @@ void TabbedComponent::addTab (const String& tabName,
     contentComponents.insert (insertIndex, contentComponent);
 
     if (contentComponent != 0)
-        contentComponent->getProperties().set ("deleteByTabComp_", deleteComponentWhenNotNeeded);
+        contentComponent->getProperties().set (deleteComponentId, deleteComponentWhenNotNeeded);
 
     tabs->addTab (tabName, tabBackgroundColour, insertIndex);
 }
 
-void TabbedComponent::setTabName (const int tabIndex,
-                                  const String& newName)
+void TabbedComponent::setTabName (const int tabIndex, const String& newName)
 {
     tabs->setTabName (tabIndex, newName);
 }
@@ -169,7 +168,7 @@ void TabbedComponent::removeTab (const int tabIndex)
 {
     Component* const c = contentComponents [tabIndex];
 
-    if (c != 0 && (bool) c->getProperties() ["deleteByTabComp_"])
+    if (c != 0 && (bool) c->getProperties() [deleteComponentId])
     {
         if (c == panelComponent)
             panelComponent = 0;
@@ -302,7 +301,7 @@ void TabbedComponent::resized()
         indents.setRight (tabDepth + edgeIndent);
     }
 
-    const Rectangle<int> bounds (indents.subtractedFrom (Rectangle<int> (0, 0, getWidth(), getHeight())));
+    const Rectangle<int> bounds (indents.subtractedFrom (getLocalBounds()));
 
     for (int i = contentComponents.size(); --i >= 0;)
         if (contentComponents.getUnchecked (i) != 0)

@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -45,6 +45,17 @@ public:
     //==============================================================================
     void initialise (const String& commandLine)
     {
+        /* Running a command-line of the form "Jucer --resave foobar.jucer" will try to load that
+           jucer file and re-export all of its projects.
+        */
+        if (commandLine.startsWithIgnoreCase ("-resave ") || commandLine.startsWithIgnoreCase ("--resave "))
+        {
+            resaveJucerFile (File::getCurrentWorkingDirectory()
+                                  .getChildFile (commandLine.fromFirstOccurrenceOf (" ", false, false).unquoted()));
+            quit();
+            return;
+        }
+
         commandManager = new ApplicationCommandManager();
 
         theMainWindow = new MainWindow();
@@ -53,7 +64,7 @@ public:
         ImageCache::setCacheTimeout (30 * 1000);
 
         if (commandLine.trim().isNotEmpty()
-              && ! commandLine.trim().startsWithChar (T('-')))
+              && ! commandLine.trim().startsWithChar ('-'))
             anotherInstanceStarted (commandLine);
 
         theMainWindow->reloadLastProject();
@@ -107,6 +118,38 @@ public:
 
 private:
     ScopedPointer <MainWindow> theMainWindow;
+
+    void resaveJucerFile (const File& file)
+    {
+        if (! file.exists())
+        {
+            std::cout << "The file " << file.getFullPathName() << " doesn't exist!" << std::endl;
+            return;
+        }
+
+        if (! file.hasFileExtension (Project::projectFileExtension))
+        {
+            std::cout << file.getFullPathName() << " isn't a valid jucer project file!" << std::endl;
+            return;
+        }
+
+        ScopedPointer <Project> newDoc (new Project (file));
+
+        if (! newDoc->loadFrom (file, true))
+        {
+            std::cout << "Failed to load the project file: " << file.getFullPathName() << std::endl;
+            return;
+        }
+
+        std::cout << "The Jucer - Re-saving file: " << file.getFullPathName() << std::endl;
+        String error (newDoc->saveDocument (file));
+
+        if (error.isNotEmpty())
+        {
+            std::cout << "Error when writing project: " << error << std::endl;
+            return;
+        }
+    }
 };
 
 

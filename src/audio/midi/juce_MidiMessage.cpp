@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -76,30 +76,26 @@ int MidiMessage::getMessageLengthFromFirstByte (const uint8 firstByte) throw()
 }
 
 //==============================================================================
-MidiMessage::MidiMessage (const uint8* const d,
-                          const int dataSize,
-                          const double t) throw()
+MidiMessage::MidiMessage (const void* const d, const int dataSize, const double t)
    : timeStamp (t),
-     message (0),
      size (dataSize)
 {
     jassert (dataSize > 0);
 
     if (dataSize <= 4)
-        data = (uint8*) &message;
+        data = static_cast<uint8*> (preallocatedData.asBytes);
     else
-        data = (uint8*) juce_malloc (dataSize);
+        data = new uint8 [dataSize];
 
     memcpy (data, d, dataSize);
 
     // check that the length matches the data..
-    jassert (size > 3 || *d >= 0xf0 || getMessageLengthFromFirstByte (*d) == size);
+    jassert (size > 3 || data[0] >= 0xf0 || getMessageLengthFromFirstByte (data[0]) == size);
 }
 
-MidiMessage::MidiMessage (const int byte1,
-                          const double t) throw()
+MidiMessage::MidiMessage (const int byte1, const double t) throw()
    : timeStamp (t),
-     data ((uint8*) &message),
+     data (static_cast<uint8*> (preallocatedData.asBytes)),
      size (1)
 {
     data[0] = (uint8) byte1;
@@ -108,11 +104,9 @@ MidiMessage::MidiMessage (const int byte1,
     jassert (byte1 >= 0xf0 || getMessageLengthFromFirstByte ((uint8) byte1) == 1);
 }
 
-MidiMessage::MidiMessage (const int byte1,
-                          const int byte2,
-                          const double t) throw()
+MidiMessage::MidiMessage (const int byte1, const int byte2, const double t) throw()
    : timeStamp (t),
-     data ((uint8*) &message),
+     data (static_cast<uint8*> (preallocatedData.asBytes)),
      size (2)
 {
     data[0] = (uint8) byte1;
@@ -122,12 +116,9 @@ MidiMessage::MidiMessage (const int byte1,
     jassert (byte1 >= 0xf0 || getMessageLengthFromFirstByte ((uint8) byte1) == 2);
 }
 
-MidiMessage::MidiMessage (const int byte1,
-                          const int byte2,
-                          const int byte3,
-                          const double t) throw()
+MidiMessage::MidiMessage (const int byte1, const int byte2, const int byte3, const double t) throw()
    : timeStamp (t),
-     data ((uint8*) &message),
+     data (static_cast<uint8*> (preallocatedData.asBytes)),
      size (3)
 {
     data[0] = (uint8) byte1;
@@ -138,48 +129,43 @@ MidiMessage::MidiMessage (const int byte1,
     jassert (byte1 >= 0xf0 || getMessageLengthFromFirstByte ((uint8) byte1) == 3);
 }
 
-MidiMessage::MidiMessage (const MidiMessage& other) throw()
+MidiMessage::MidiMessage (const MidiMessage& other)
    : timeStamp (other.timeStamp),
-     message (other.message),
      size (other.size)
 {
-    if (other.data != (uint8*) &other.message)
+    if (other.data != static_cast <const uint8*> (other.preallocatedData.asBytes))
     {
-        data = (uint8*) juce_malloc (size);
+        data = new uint8 [size];
         memcpy (data, other.data, size);
     }
     else
     {
-        data = (uint8*) &message;
+        data = static_cast<uint8*> (preallocatedData.asBytes);
+        preallocatedData.asInt32 = other.preallocatedData.asInt32;
     }
 }
 
-MidiMessage::MidiMessage (const MidiMessage& other,
-                          const double newTimeStamp) throw()
+MidiMessage::MidiMessage (const MidiMessage& other, const double newTimeStamp)
    : timeStamp (newTimeStamp),
-     message (other.message),
      size (other.size)
 {
-    if (other.data != (uint8*) &other.message)
+    if (other.data != static_cast <const uint8*> (other.preallocatedData.asBytes))
     {
-        data = (uint8*) juce_malloc (size);
+        data = new uint8 [size];
         memcpy (data, other.data, size);
     }
     else
     {
-        data = (uint8*) &message;
+        data = static_cast<uint8*> (preallocatedData.asBytes);
+        preallocatedData.asInt32 = other.preallocatedData.asInt32;
     }
 }
 
-MidiMessage::MidiMessage (const uint8* src,
-                          int sz,
-                          int& numBytesUsed,
-                          const uint8 lastStatusByte,
-                          double t) throw()
+MidiMessage::MidiMessage (const void* src_, int sz, int& numBytesUsed, const uint8 lastStatusByte, double t)
     : timeStamp (t),
-      data ((uint8*) &message),
-      message (0)
+      data (static_cast<uint8*> (preallocatedData.asBytes))
 {
+    const uint8* src = static_cast <const uint8*> (src_);
     unsigned int byte = (unsigned int) *src;
 
     if (byte < 0x80)
@@ -198,7 +184,7 @@ MidiMessage::MidiMessage (const uint8* src,
     {
         if (byte == 0xf0)
         {
-            const uint8* d = (const uint8*) src;
+            const uint8* d = src;
 
             while (d < src + sz)
             {
@@ -215,7 +201,7 @@ MidiMessage::MidiMessage (const uint8* src,
 
             size = 1 + (int) (d - src);
 
-            data = (uint8*) juce_malloc (size);
+            data = new uint8 [size];
             *data = (uint8) byte;
             memcpy (data + 1, src, size - 1);
         }
@@ -225,14 +211,15 @@ MidiMessage::MidiMessage (const uint8* src,
             const int bytesLeft = readVariableLengthVal (src + 1, n);
             size = jmin (sz + 1, n + 2 + bytesLeft);
 
-            data = (uint8*) juce_malloc (size);
+            data = new uint8 [size];
             *data = (uint8) byte;
             memcpy (data + 1, src, size - 1);
         }
         else
         {
+            preallocatedData.asInt32 = 0;
             size = getMessageLengthFromFirstByte ((uint8) byte);
-            *data = (uint8) byte;
+            data[0] = (uint8) byte;
 
             if (size > 1)
             {
@@ -247,40 +234,40 @@ MidiMessage::MidiMessage (const uint8* src,
     }
     else
     {
-        message = 0;
+        preallocatedData.asInt32 = 0;
         size = 0;
     }
 }
 
-MidiMessage& MidiMessage::operator= (const MidiMessage& other) throw()
+MidiMessage& MidiMessage::operator= (const MidiMessage& other)
 {
     if (this != &other)
     {
         timeStamp = other.timeStamp;
         size = other.size;
-        message = other.message;
 
-        if (data != (uint8*) &message)
-            juce_free (data);
+        if (data != static_cast <const uint8*> (preallocatedData.asBytes))
+            delete[] data;
 
-        if (other.data != (uint8*) &other.message)
+        if (other.data != static_cast <const uint8*> (other.preallocatedData.asBytes))
         {
-            data = (uint8*) juce_malloc (size);
+            data = new uint8 [size];
             memcpy (data, other.data, size);
         }
         else
         {
-            data = (uint8*) &message;
+            data = static_cast<uint8*> (preallocatedData.asBytes);
+            preallocatedData.asInt32 = other.preallocatedData.asInt32;
         }
     }
 
     return *this;
 }
 
-MidiMessage::~MidiMessage() throw()
+MidiMessage::~MidiMessage()
 {
-    if (data != (uint8*) &message)
-        juce_free (data);
+    if (data != static_cast <const uint8*> (preallocatedData.asBytes))
+        delete[] data;
 }
 
 int MidiMessage::getChannel() const throw()
@@ -535,7 +522,7 @@ const MidiMessage MidiMessage::allControllersOff (const int channel) throw()
     return controllerEvent (channel, 121, 0);
 }
 
-const MidiMessage MidiMessage::masterVolume (const float volume) throw()
+const MidiMessage MidiMessage::masterVolume (const float volume)
 {
     const int vol = jlimit (0, 0x3fff, roundToInt (volume * 0x4000));
 
@@ -558,11 +545,10 @@ bool MidiMessage::isSysEx() const throw()
     return *data == 0xf0;
 }
 
-const MidiMessage MidiMessage::createSysExMessage (const uint8* sysexData,
-                                                   const int dataSize) throw()
+const MidiMessage MidiMessage::createSysExMessage (const uint8* sysexData, const int dataSize)
 {
     MemoryBlock mm (dataSize + 2);
-    uint8* const m = (uint8*) mm.getData();
+    uint8* const m = static_cast <uint8*> (mm.getData());
 
     m[0] = 0xf0;
     memcpy (m + 1, sysexData, dataSize);
@@ -573,14 +559,12 @@ const MidiMessage MidiMessage::createSysExMessage (const uint8* sysexData,
 
 const uint8* MidiMessage::getSysExData() const throw()
 {
-    return (isSysEx()) ? getRawData() + 1
-                       : 0;
+    return (isSysEx()) ? getRawData() + 1 : 0;
 }
 
 int MidiMessage::getSysExDataSize() const throw()
 {
-    return (isSysEx()) ? size - 2
-                       : 0;
+    return (isSysEx()) ? size - 2 : 0;
 }
 
 bool MidiMessage::isMetaEvent() const throw()
@@ -638,10 +622,9 @@ bool MidiMessage::isTextMetaEvent() const throw()
     return t > 0 && t < 16;
 }
 
-const String MidiMessage::getTextFromTextMetaEvent() const throw()
+const String MidiMessage::getTextFromTextMetaEvent() const
 {
-    return String ((const char*) getMetaEventData(),
-                   getMetaEventLength());
+    return String (reinterpret_cast <const char*> (getMetaEventData()), getMetaEventLength());
 }
 
 bool MidiMessage::isTrackNameEvent() const throw()
@@ -727,8 +710,7 @@ bool MidiMessage::isTimeSignatureMetaEvent() const throw()
              && (*data == (uint8) 0xff);
 }
 
-void MidiMessage::getTimeSignatureInfo (int& numerator,
-                                        int& denominator) const throw()
+void MidiMessage::getTimeSignatureInfo (int& numerator, int& denominator) const throw()
 {
     if (isTimeSignatureMetaEvent())
     {
@@ -743,8 +725,7 @@ void MidiMessage::getTimeSignatureInfo (int& numerator,
     }
 }
 
-const MidiMessage MidiMessage::timeSignatureMetaEvent (const int numerator,
-                                                       const int denominator) throw()
+const MidiMessage MidiMessage::timeSignatureMetaEvent (const int numerator, const int denominator)
 {
     uint8 d[8];
     d[0] = 0xff;

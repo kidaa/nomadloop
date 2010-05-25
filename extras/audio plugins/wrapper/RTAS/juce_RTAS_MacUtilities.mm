@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -110,9 +110,6 @@ void removeSubWindow (void* nsWindow, Component* comp)
     [hostWindow removeChildWindow: pluginWindow];
     comp->removeFromDesktop();
     [hostWindow release];
-
-    for (int i = 20; --i >= 0;)
-        MessageManager::getInstance()->runDispatchLoopUntil (1);
 }
 
 static bool isJuceWindow (WindowRef w)

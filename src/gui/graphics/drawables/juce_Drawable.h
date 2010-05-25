@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-9 by Raw Material Software Ltd.
+   Copyright 2004-10 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -27,8 +27,10 @@
 #define __JUCE_DRAWABLE_JUCEHEADER__
 
 #include "../contexts/juce_Graphics.h"
+#include "../geometry/juce_RelativeCoordinate.h"
 #include "../../../text/juce_XmlElement.h"
 #include "../../../containers/juce_ValueTree.h"
+class DrawableComposite;
 
 
 //==============================================================================
@@ -62,7 +64,7 @@ public:
     /** Renders this Drawable object.
         @see drawWithin
     */
-    void draw (Graphics& g, const float opacity,
+    void draw (Graphics& g, float opacity,
                const AffineTransform& transform = AffineTransform::identity) const;
 
     /** Renders the Drawable at a given offset within the Graphics context.
@@ -75,9 +77,8 @@ public:
         @endcode
     */
     void drawAt (Graphics& g,
-                 const float x,
-                 const float y,
-                 const float opacity) const;
+                 float x, float y,
+                 float opacity) const;
 
     /** Renders the Drawable within a rectangle, scaling it to fit neatly inside without
         changing its aspect-ratio.
@@ -95,12 +96,12 @@ public:
         @param opacity                  the opacity to use, in the range 0 to 1.0
     */
     void drawWithin (Graphics& g,
-                     const int destX,
-                     const int destY,
-                     const int destWidth,
-                     const int destHeight,
+                     int destX,
+                     int destY,
+                     int destWidth,
+                     int destHeight,
                      const RectanglePlacement& placement,
-                     const float opacity) const;
+                     float opacity) const;
 
 
     //==============================================================================
@@ -110,7 +111,7 @@ public:
     class RenderingContext
     {
     public:
-        RenderingContext (Graphics& g, const AffineTransform& transform, const float opacity) throw();
+        RenderingContext (Graphics& g, const AffineTransform& transform, float opacity) throw();
 
         Graphics& g;
         AffineTransform transform;
@@ -147,13 +148,16 @@ public:
     /** Assigns a name to this drawable. */
     void setName (const String& newName) throw()        { name = newName; }
 
+    /** Returns the DrawableComposite that contains this object, if there is one. */
+    DrawableComposite* getParent() const throw()        { return parent; }
+
     //==============================================================================
     /** Tries to turn some kind of image file into a drawable.
 
         The data could be an image that the ImageFileFormat class understands, or it
         could be SVG.
     */
-    static Drawable* createFromImageData (const void* data, const size_t numBytes);
+    static Drawable* createFromImageData (const void* data, size_t numBytes);
 
     /** Tries to turn a stream containing some kind of image data into a drawable.
 
@@ -181,25 +185,90 @@ public:
     static Drawable* createFromSVG (const XmlElement& svgDocument);
 
     //==============================================================================
+    /** This class is used when loading Drawables that contain images, and retrieves
+        the image for a stored identifier.
+        @see Drawable::createFromValueTree
+    */
+    class JUCE_API  ImageProvider
+    {
+    public:
+        ImageProvider() {}
+        virtual ~ImageProvider() {}
+
+        /** Retrieves the image associated with this identifier, which could be any
+            kind of string, number, filename, etc.
+
+            The image that is returned will be owned by the caller, but it may come
+            from the ImageCache.
+        */
+        virtual Image* getImageForIdentifier (const var& imageIdentifier) = 0;
+
+        /** Returns an identifier to be used to refer to a given image.
+            This is used when converting a drawable into a ValueTree, so if you're
+            only loading drawables, you can just return a var::null here.
+        */
+        virtual const var getIdentifierForImage (Image* image) = 0;
+    };
+
     /** Tries to create a Drawable from a previously-saved ValueTree.
         The ValueTree must have been created by the createValueTree() method.
+        If there are any images used within the drawable, you'll need to provide a valid
+        ImageProvider object that can be used to retrieve these images from whatever type
+        of identifier is used to represent them.
     */
-    static Drawable* createFromValueTree (const ValueTree& tree) throw();
+    static Drawable* createFromValueTree (const ValueTree& tree, ImageProvider* imageProvider);
+
+    /** Tries to refresh a Drawable from the same ValueTree that was used to create it.
+        @returns the damage rectangle that will need repainting due to any changes that were made.
+    */
+    virtual const Rectangle<float> refreshFromValueTree (const ValueTree& tree, ImageProvider* imageProvider) = 0;
 
     /** Creates a ValueTree to represent this Drawable.
         The VarTree that is returned can be turned back into a Drawable with
         createFromValueTree().
+        If there are any images used in this drawable, you'll need to provide a valid
+        ImageProvider object that can be used to create storable representations of them.
     */
-    virtual ValueTree createValueTree() const throw() = 0;
+    virtual const ValueTree createValueTree (ImageProvider* imageProvider) const = 0;
+
+    /** Returns the tag ID that is used for a ValueTree that stores this type of drawable.  */
+    virtual const Identifier getValueTreeType() const = 0;
+
+    //==============================================================================
+    /** Internal class used to manage ValueTrees that represent Drawables. */
+    class ValueTreeWrapperBase
+    {
+    public:
+        ValueTreeWrapperBase (const ValueTree& state);
+        ~ValueTreeWrapperBase();
+
+        ValueTree& getState() throw()           { return state; }
+
+        const String getID() const;
+        void setID (const String& newID, UndoManager* undoManager);
+        static const Identifier idProperty;
+
+    protected:
+        ValueTree state;
+        static const Identifier type, x1, x2, y1, y2, colour, radial, colours;
+
+        static const FillType readFillType (const ValueTree& v);
+        void replaceFillType (const Identifier& tag, const FillType& fillType, UndoManager* undoManager);
+    };
 
     //==============================================================================
     juce_UseDebuggingNewOperator
 
+protected:
+    friend class DrawableComposite;
+    DrawableComposite* parent;
+    virtual void invalidatePoints() = 0;
+
 private:
+    String name;
+
     Drawable (const Drawable&);
     Drawable& operator= (const Drawable&);
-
-    String name;
 };
 
 
