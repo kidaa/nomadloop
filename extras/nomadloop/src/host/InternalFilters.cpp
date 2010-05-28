@@ -28,6 +28,7 @@
 #include "FilterGraph.h"
 #include "Looper.h"
 #include "../filters/UtilityFilters.h"
+#include "../filters/ChordSetter.h"
 
 //==============================================================================
 InternalPluginFormat::InternalPluginFormat()
@@ -71,6 +72,11 @@ InternalPluginFormat::InternalPluginFormat()
 		Arpeggiator p;
 		p.fillInPluginDescription (arpeggiatorDesc);
 	}
+
+	{
+		ChordSetter p;
+		p.fillInPluginDescription (chordSetterDesc);
+	}
 }
 
 AudioPluginInstance* InternalPluginFormat::createInstanceFromDescription (const PluginDescription& desc)
@@ -107,6 +113,10 @@ AudioPluginInstance* InternalPluginFormat::createInstanceFromDescription (const 
 	{
 		return new Arpeggiator();
 	}
+	else if (desc.name == chordSetterDesc.name)
+	{
+		return new ChordSetter();
+	}
 
     return 0;
 }
@@ -131,6 +141,8 @@ const PluginDescription* InternalPluginFormat::getDescriptionFor (const Internal
 		return &gainCutDesc;
 	case arpeggiatorFilter:
 		return &arpeggiatorDesc;
+	case chordSetterFilter:
+		return &chordSetterDesc;
     }
 
     return 0;

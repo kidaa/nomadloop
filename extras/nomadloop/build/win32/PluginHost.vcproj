@@ -317,6 +317,14 @@
 					>
 				</File>
 				<File
+					RelativePath="..\..\src\filters\ChordSetter.cpp"
+					>
+				</File>
+				<File
+					RelativePath="..\..\src\filters\ChordSetter.h"
+					>
+				</File>
+				<File
 					RelativePath="..\..\src\filters\UtilityFilters.cpp"
 					>
 				</File>

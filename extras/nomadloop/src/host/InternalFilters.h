@@ -54,6 +54,7 @@ public:
 
 		gainCutFilter,
 		arpeggiatorFilter,
+		chordSetterFilter,
 
         endOfFilterTypes
     };
@@ -84,6 +85,7 @@ private:
 	PluginDescription midiLooperDesc;
 	PluginDescription gainCutDesc;
 	PluginDescription arpeggiatorDesc;
+	PluginDescription chordSetterDesc;
 };
 
 
