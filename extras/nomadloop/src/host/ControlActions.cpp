@@ -134,7 +134,7 @@ const String PluginParameterControlAction::getText() const
 
 void PluginParameterControlAction::audioProcessorParameterChanged(AudioProcessor *processor, int parameterIndex, float value)
 {
-	Logger::outputDebugString(String(T("got update: new value ")) << value);
+	//Logger::outputDebugString(String(T("got update: new value ")) << value);
 	if (parameterIndex == boundParameterIndex)
 	{
 		getMappedComponent()->setValue(value);		

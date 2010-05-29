@@ -26,6 +26,8 @@
 #ifndef __JUCE_FILTERGRAPH_JUCEHEADER__
 #define __JUCE_FILTERGRAPH_JUCEHEADER__
 
+#include "../includes.h"
+
 class FilterInGraph;
 class FilterGraph;
 
