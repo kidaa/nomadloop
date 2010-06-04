@@ -6,6 +6,14 @@
 #include <vector>
 #include <deque>
 
+enum LoopState
+{
+	Paused = 0,
+	Playing,
+	Recording,
+	Overdubbing
+};
+
 class LoopProcessor : public AudioPluginInstance
 {
 protected:
@@ -75,8 +83,12 @@ public:
 // A graph filter hooking into the looping engine
 class AudioLoopProcessor : public LoopProcessor
 {
-	bool recordingCued;
-	bool recording;
+	//bool recordingCued;
+	//bool recording;
+
+	LoopState cuedState;
+	LoopState state;
+
 	//std::deque<float> sampleData;
 	std::vector<float> sampleData;
 	int sampleScrub;

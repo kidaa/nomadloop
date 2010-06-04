@@ -271,7 +271,7 @@ double MidiLoopProcessor::getScrubPositionInSeconds() const
 // ==========================
 
 AudioLoopProcessor::AudioLoopProcessor()
-: recordingCued(false), recording(false), sampleScrub(0)
+: /*recordingCued(false), recording(false),*/ cuedState(Paused), state(Paused), sampleScrub(0)
 {
 	setPlayConfigDetails (1, 1, 0, 0);
 }
@@ -309,22 +309,23 @@ void AudioLoopProcessor::processBlock(AudioSampleBuffer& sampleBuffer, MidiBuffe
 {
 	LoopProcessor* masterLoop = LoopManager::getInstance()->getMasterLoop();
 
-	if (recording != recordingCued)
+	if (state != cuedState)
 	{
 		if (masterLoop == 0)
 		{			
-			recording = recordingCued;
-			if (!recording)
+			//recording = recordingCued;
+			state = cuedState;
+			if (state != Recording)
 			{
 				// take over as master, since no current master
 				LoopManager::getInstance()->setMasterLoop(this);
 			}
 		}
 		else if (masterLoop == this || masterLoop->getScrubPositionInSamples() == 0)
-			recording = recordingCued;
+			state = cuedState;
 	}
 
-	if (recording)
+	if (state == Recording)
 	{
 		for (int i=0; i<sampleBuffer.getNumSamples(); ++i)
 		{
@@ -412,7 +413,7 @@ const String AudioLoopProcessor::getParameterName(int index)
 
 float AudioLoopProcessor::getParameter(int)
 {
-	if (recordingCued)
+	if (cuedState == Recording)
 		return 1.f;
 	return 0.f;
 }
@@ -420,7 +421,7 @@ float AudioLoopProcessor::getParameter(int)
 const String AudioLoopProcessor::getParameterText(int index)
 {
 	if (index == 0)
-		return recordingCued?T("Recording"):T("Playing");
+		return (cuedState==Recording)?T("Recording"):T("Playing");
 	return String::empty;
 }
 
@@ -428,13 +429,13 @@ void AudioLoopProcessor::setParameter(int index, float value)
 {
 	if (index == 0)
 	{
-		if (value >= 0.5f && !recordingCued)
+		if (value >= 0.5f && cuedState != Recording)
 		{			
 			// clear loop
 			sampleData.clear();
 			sampleScrub = 0;
 		}
-		recordingCued = (value >= 0.5f);
+		cuedState = (value >= 0.5f)?Recording:Playing;
 	}
 }
 
