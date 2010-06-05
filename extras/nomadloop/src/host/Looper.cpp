@@ -344,13 +344,38 @@ void AudioLoopProcessor::processBlock(AudioSampleBuffer& sampleBuffer, MidiBuffe
 			int samplesLeftInLoop = sampleData.size() - sampleScrub;
 			if (samplesToCopy <= samplesLeftInLoop)
 			{
-				sampleBuffer.copyFrom(0, destStartSample, &sampleData[sampleScrub], samplesToCopy);
+				if (state == Overdubbing)
+				{
+					// first, sum the input to the buffer
+					AudioSampleBuffer sumBuffer(sampleBuffer);
+					sumBuffer.addFrom(0, destStartSample, &sampleData[sampleScrub], samplesToCopy);
+					sampleBuffer.copyFrom(0, destStartSample, &sampleData[sampleScrub], samplesToCopy);
+					float* ds = &sampleData[sampleScrub];
+					AudioSampleBuffer dataStoreBuffer(&ds, 1, samplesToCopy);
+					dataStoreBuffer.copyFrom(0, 0, sumBuffer, 0, 0, samplesToCopy);
+				}
+				else
+				{
+					sampleBuffer.copyFrom(0, destStartSample, &sampleData[sampleScrub], samplesToCopy);
+				}
 				sampleScrub += samplesToCopy;
 				samplesToCopy = 0;
 			}
 			else
 			{
-				sampleBuffer.copyFrom(0, destStartSample, &sampleData[sampleScrub], samplesLeftInLoop);				
+				if (state == Overdubbing)
+				{
+					AudioSampleBuffer sumBuffer(sampleBuffer);
+					sumBuffer.addFrom(0, destStartSample, &sampleData[sampleScrub], samplesLeftInLoop);
+					sampleBuffer.copyFrom(0, destStartSample, &sampleData[sampleScrub], samplesLeftInLoop);
+					float* ds = &sampleData[sampleScrub];
+					AudioSampleBuffer dataStoreBuffer(&ds, 1, samplesLeftInLoop);
+					dataStoreBuffer.copyFrom(0, 0, sumBuffer, 0, 0, samplesLeftInLoop);
+				}
+				else
+				{
+					sampleBuffer.copyFrom(0, destStartSample, &sampleData[sampleScrub], samplesLeftInLoop);				
+				}
 				sampleScrub = 0;  // reset to beginning of loop
 				destStartSample += samplesLeftInLoop;
 			}
@@ -401,19 +426,23 @@ AudioProcessorEditor* AudioLoopProcessor::createEditor()
 
 int AudioLoopProcessor::getNumParameters()
 {
-	return 1;
+	return 2;
 }
 
 const String AudioLoopProcessor::getParameterName(int index)
 {
 	if (index == 0)
-		return T("Recording State");
+		return T("Recording");
+	else if (index == 1)
+		return T("Overdub");
 	return String::empty;
 }
 
-float AudioLoopProcessor::getParameter(int)
+float AudioLoopProcessor::getParameter(int p)
 {
-	if (cuedState == Recording)
+	if (cuedState == Recording && p==0)
+		return 1.f;
+	else if (cuedState == Overdubbing && p==1)
 		return 1.f;
 	return 0.f;
 }
@@ -421,7 +450,9 @@ float AudioLoopProcessor::getParameter(int)
 const String AudioLoopProcessor::getParameterText(int index)
 {
 	if (index == 0)
-		return (cuedState==Recording)?T("Recording"):T("Playing");
+		return (cuedState==Recording)?T("On"):T("Off");
+	else if (index == 1)
+		return (cuedState==Overdubbing)?T("On"):T("Off");
 	return String::empty;
 }
 
@@ -430,12 +461,19 @@ void AudioLoopProcessor::setParameter(int index, float value)
 	if (index == 0)
 	{
 		if (value >= 0.5f && cuedState != Recording)
-		{			
+		{
 			// clear loop
 			sampleData.clear();
 			sampleScrub = 0;
 		}
 		cuedState = (value >= 0.5f)?Recording:Playing;
+	}
+	else if (index == 1)
+	{
+		if (value >= 0.5f)
+			cuedState = Overdubbing;
+		else if (state == Overdubbing)
+			cuedState = Playing;
 	}
 }
 
