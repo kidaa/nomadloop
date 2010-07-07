@@ -1037,6 +1037,8 @@ GraphDocumentComponent::GraphDocumentComponent (AudioDeviceManager* deviceManage
     graphPlayer.setProcessor (&graph.getGraph());
 	graph.getGraph().setPlayHead(playHead);
 
+	// TODO: make sure this is the proper sample rate
+	graphPlayer.getMidiMessageCollector().reset(44000);
     keyState.addListener (&graphPlayer.getMidiMessageCollector());
 
     addAndMakeVisible (keyboardComp = new MidiKeyboardComponent (keyState,
