@@ -56,6 +56,10 @@ public:
 		arpeggiatorFilter,
 		chordSetterFilter,
 
+#ifdef NOMAD_STATIC_LINK_PLUGINS
+		grooveGridFilter,
+#endif
+
         endOfFilterTypes
     };
 
@@ -86,6 +90,10 @@ private:
 	PluginDescription gainCutDesc;
 	PluginDescription arpeggiatorDesc;
 	PluginDescription chordSetterDesc;
+
+#ifdef NOMAD_STATIC_LINK_PLUGINS
+	PluginDescription grooveGridDesc;
+#endif
 };
 
 

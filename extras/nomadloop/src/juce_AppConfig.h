@@ -38,6 +38,8 @@
     to an explicit 0 or 1 in here.
 */
 
+#define NOMAD_STATIC_LINK_PLUGINS 1
+
 #if !(LINUX)
 
 #define JUCE_ObjCExtraSuffix NomadLoop
@@ -59,7 +61,7 @@
 //#define JUCE_ASIO  1
 //#define JUCE_ALSA  1
 #define JUCE_QUICKTIME  0
-//#define JUCE_OPENGL  1
+#define JUCE_OPENGL  0
 //#define JUCE_USE_FLAC  1
 //#define JUCE_USE_OGGVORBIS  1
 //#define JUCE_USE_CDBURNER  1

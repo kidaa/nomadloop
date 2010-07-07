@@ -23,8 +23,8 @@
   ==============================================================================
 */
 
-#ifndef DEMOJUCEPLUGINFILTER_H
-#define DEMOJUCEPLUGINFILTER_H
+#ifndef GROOVEGRIDPLUGINFILTER_H
+#define GROOVEGRIDPLUGINFILTER_H
 
 
 //==============================================================================
@@ -33,13 +33,30 @@
     passing through it.
 
 */
-class GrooveGridFilter  : public AudioProcessor,
+class GrooveGridFilter  : public AudioPluginInstance,
                         public ChangeBroadcaster
 {
 public:
     //==============================================================================
     GrooveGridFilter();
     ~GrooveGridFilter();
+
+#if (LINUX || NOMAD_STATIC_LINK_PLUGINS)
+	inline void fillInPluginDescription(PluginDescription &desc) const
+	{
+		desc.name = "Groove Grid";
+		desc.pluginFormatName = "Internal";
+		desc.category = "Sequencing";
+		desc.manufacturerName = "Monkey Fairness Productions";
+		desc.version = "0.1";
+		desc.fileOrIdentifier = "";
+		desc.lastFileModTime = 0;
+		desc.uid = 4;
+		desc.isInstrument = false;
+		desc.numInputChannels = 0;
+		desc.numOutputChannels = 0;
+	}
+#endif
 
     //==============================================================================
     void prepareToPlay (double sampleRate, int samplesPerBlock);
@@ -106,6 +123,9 @@ private:
     // parameter 0.
     float gain;
 	int lastStep;
+
+	AudioProcessorEditor* editorComp;
+
 };
 
 

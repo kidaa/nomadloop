@@ -41,6 +41,7 @@ AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 
 //==============================================================================
 GrooveGridFilter::GrooveGridFilter()
+	: editorComp(0)
 {
     gain = 1.0f;
     lastUIWidth = 400;
@@ -58,10 +59,20 @@ GrooveGridFilter::GrooveGridFilter()
     lastPosInfo.timeSigNumerator = 4;
     lastPosInfo.timeSigDenominator = 4;
     lastPosInfo.bpm = 120;
+
+	setPlayConfigDetails(1, 1, 0, 0);
 }
 
 GrooveGridFilter::~GrooveGridFilter()
 {
+#if (LINUX || NOMAD_STATIC_LINK_PLUGINS)
+	if (editorComp != 0)
+	{
+		delete editorComp;
+		editorBeingDeleted(editorComp);
+		editorComp = 0;
+	}
+#endif
 }
 
 //==============================================================================
@@ -213,7 +224,7 @@ midiMessages.clear();
 					}
 				}
 
-				midiMessages.swap(buffer);
+				midiMessages.swapWith(buffer);
 			}
         }
     }
@@ -229,7 +240,10 @@ midiMessages.clear();
 //==============================================================================
 AudioProcessorEditor* GrooveGridFilter::createEditor()
 {
-    return new GrooveGridEditorComponent (this);	
+	if (editorComp == 0)
+		return editorComp = new GrooveGridEditorComponent (this);
+	else
+		return editorComp;
 }
 
 //==============================================================================
