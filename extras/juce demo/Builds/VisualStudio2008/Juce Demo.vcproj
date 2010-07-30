@@ -10,7 +10,7 @@
   </Platforms>
   <ToolFiles/>
   <Configurations>
-    <Configuration Name="Debug&#124;Win32"
+    <Configuration Name="Debug|Win32"
                    OutputDirectory=".\Debug"
                    IntermediateDirectory=".\Debug"
                    ConfigurationType="1"
@@ -41,7 +41,7 @@
             AssemblerListingLocation=".\Debug\"
             ObjectFile=".\Debug\"
             ProgramDataBaseFileName=".\Debug\"
-            WarningLevel="3"
+            WarningLevel="4"
             SuppressStartupBanner="true"/>
       <Tool Name="VCManagedResourceCompilerTool"/>
       <Tool Name="VCResourceCompilerTool"
@@ -65,7 +65,7 @@
       <Tool Name="VCAppVerifierTool"/>
       <Tool Name="VCPostBuildEventTool"/>
     </Configuration>
-    <Configuration Name="Release&#124;Win32"
+    <Configuration Name="Release|Win32"
                    OutputDirectory=".\Release"
                    IntermediateDirectory=".\Release"
                    ConfigurationType="1"
@@ -97,7 +97,7 @@
             AssemblerListingLocation=".\Release\"
             ObjectFile=".\Release\"
             ProgramDataBaseFileName=".\Release\"
-            WarningLevel="3"
+            WarningLevel="4"
             SuppressStartupBanner="true"/>
       <Tool Name="VCManagedResourceCompilerTool"/>
       <Tool Name="VCResourceCompilerTool"
@@ -163,51 +163,52 @@
         </Filter>
         <Filter Name="Binary Data">
           <File RelativePath="..\..\Binary Data\cello.wav">
-            <FileConfiguration Name="Debug&#124;Win32"
+            <FileConfiguration Name="Debug|Win32"
                                ExcludedFromBuild="true">
               <Tool Name="VCCLCompilerTool"/>
             </FileConfiguration>
-            <FileConfiguration Name="Release&#124;Win32"
+            <FileConfiguration Name="Release|Win32"
                                ExcludedFromBuild="true">
               <Tool Name="VCCLCompilerTool"/>
             </FileConfiguration>
           </File>
           <File RelativePath="..\..\Binary Data\demo table data.xml">
-            <FileConfiguration Name="Debug&#124;Win32"
+            <FileConfiguration Name="Debug|Win32"
                                ExcludedFromBuild="true">
               <Tool Name="VCCLCompilerTool"/>
             </FileConfiguration>
-            <FileConfiguration Name="Release&#124;Win32"
+            <FileConfiguration Name="Release|Win32"
                                ExcludedFromBuild="true">
               <Tool Name="VCCLCompilerTool"/>
             </FileConfiguration>
           </File>
           <File RelativePath="..\..\Binary Data\icons.zip">
-            <FileConfiguration Name="Debug&#124;Win32"
+            <FileConfiguration Name="Debug|Win32"
                                ExcludedFromBuild="true">
               <Tool Name="VCCLCompilerTool"/>
             </FileConfiguration>
-            <FileConfiguration Name="Release&#124;Win32"
+            <FileConfiguration Name="Release|Win32"
                                ExcludedFromBuild="true">
               <Tool Name="VCCLCompilerTool"/>
             </FileConfiguration>
           </File>
           <File RelativePath="..\..\Binary Data\juce.png">
-            <FileConfiguration Name="Debug&#124;Win32"
+            <FileConfiguration Name="Debug|Win32"
                                ExcludedFromBuild="true">
               <Tool Name="VCCLCompilerTool"/>
             </FileConfiguration>
-            <FileConfiguration Name="Release&#124;Win32"
+            <FileConfiguration Name="Release|Win32"
                                ExcludedFromBuild="true">
               <Tool Name="VCCLCompilerTool"/>
             </FileConfiguration>
           </File>
+          <File RelativePath="..\..\Binary Data\juce_icon.png"/>
           <File RelativePath="..\..\Binary Data\treedemo.xml">
-            <FileConfiguration Name="Debug&#124;Win32"
+            <FileConfiguration Name="Debug|Win32"
                                ExcludedFromBuild="true">
               <Tool Name="VCCLCompilerTool"/>
             </FileConfiguration>
-            <FileConfiguration Name="Release&#124;Win32"
+            <FileConfiguration Name="Release|Win32"
                                ExcludedFromBuild="true">
               <Tool Name="VCCLCompilerTool"/>
             </FileConfiguration>
@@ -224,6 +225,8 @@
       <File RelativePath="..\..\JuceLibraryCode\JuceLibraryCode2.cpp"/>
       <File RelativePath="..\..\JuceLibraryCode\JuceLibraryCode3.cpp"/>
       <File RelativePath="..\..\JuceLibraryCode\JuceLibraryCode4.cpp"/>
+      <File RelativePath="icon.ico"/>
+      <File RelativePath="resources.rc"/>
     </Filter>
   </Files>
   <Globals/>

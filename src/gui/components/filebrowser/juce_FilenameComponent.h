@@ -72,7 +72,7 @@ class JUCE_API  FilenameComponent  : public Component,
                                      public SettableTooltipClient,
                                      public FileDragAndDropTarget,
                                      private AsyncUpdater,
-                                     private ButtonListener,
+                                     private ButtonListener,  // (can't use Button::Listener due to idiotic VC2005 bug)
                                      private ComboBoxListener
 {
 public:
@@ -203,9 +203,9 @@ public:
 
 private:
     //==============================================================================
-    ComboBox* filenameBox;
+    ComboBox filenameBox;
     String lastFilename;
-    Button* browseButton;
+    ScopedPointer<Button> browseButton;
     int maxRecentFiles;
     bool isDir, isSaving, isFileDragOver;
     String wildcard, enforcedSuffix, browseButtonText;

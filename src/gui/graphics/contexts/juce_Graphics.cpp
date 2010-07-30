@@ -32,7 +32,6 @@ BEGIN_JUCE_NAMESPACE
 #include "../geometry/juce_PathStrokeType.h"
 #include "juce_LowLevelGraphicsContext.h"
 
-static const Graphics::ResamplingQuality defaultQuality = Graphics::mediumResamplingQuality;
 
 //==============================================================================
 template <typename Type>
@@ -56,7 +55,7 @@ LowLevelGraphicsContext::~LowLevelGraphicsContext()
 }
 
 //==============================================================================
-Graphics::Graphics (Image& imageToDrawOnto)
+Graphics::Graphics (const Image& imageToDrawOnto)
     : context (imageToDrawOnto.createLowLevelContext()),
       contextToDelete (context),
       saveStatePending (false)
@@ -79,7 +78,7 @@ void Graphics::resetToDefaultState()
     saveStateIfPending();
     context->setFill (FillType());
     context->setFont (Font());
-    context->setInterpolationQuality (defaultQuality);
+    context->setInterpolationQuality (Graphics::mediumResamplingQuality);
 }
 
 bool Graphics::isVectorDevice() const
@@ -106,10 +105,10 @@ bool Graphics::reduceClipRegion (const Path& path, const AffineTransform& transf
     return ! context->isClipEmpty();
 }
 
-bool Graphics::reduceClipRegion (const Image& image, const Rectangle<int>& sourceClipRegion, const AffineTransform& transform)
+bool Graphics::reduceClipRegion (const Image& image, const AffineTransform& transform)
 {
     saveStateIfPending();
-    context->clipToImageAlpha (image, sourceClipRegion, transform);
+    context->clipToImageAlpha (image, transform);
     return ! context->isClipEmpty();
 }
 
@@ -158,9 +157,9 @@ void Graphics::setOrigin (const int newOriginX, const int newOriginY)
     context->setOrigin (newOriginX, newOriginY);
 }
 
-bool Graphics::clipRegionIntersects (const int x, const int y, const int w, const int h) const
+bool Graphics::clipRegionIntersects (const Rectangle<int>& area) const
 {
-    return context->clipRegionIntersects (Rectangle<int> (x, y, w, h));
+    return context->clipRegionIntersects (area);
 }
 
 //==============================================================================
@@ -393,7 +392,7 @@ void Graphics::drawBevel (const int x, const int y, const int width, const int h
     // passing in a silly number can cause maths problems in rendering!
     jassert (areCoordsSensibleNumbers (x, y, width, height));
 
-    if (clipRegionIntersects (x, y, width, height))
+    if (clipRegionIntersects (Rectangle<int> (x, y, width, height)))
     {
         context->saveState();
 
@@ -472,16 +471,14 @@ void Graphics::drawRoundedRectangle (const Rectangle<float>& r, const float corn
     drawRoundedRectangle (r.getX(), r.getY(), r.getWidth(), r.getHeight(), cornerSize, lineThickness);
 }
 
-void Graphics::drawArrow (const float startX, const float startY, const float endX, const float endY,
-                          const float lineThickness, const float arrowheadWidth, const float arrowheadLength) const
+void Graphics::drawArrow (const Line<float>& line, const float lineThickness, const float arrowheadWidth, const float arrowheadLength) const
 {
     Path p;
-    p.addArrow (startX, startY, endX, endY,
-                lineThickness, arrowheadWidth, arrowheadLength);
+    p.addArrow (line, lineThickness, arrowheadWidth, arrowheadLength);
     fillPath (p);
 }
 
-void Graphics::fillCheckerBoard (int x, int y, int width, int height,
+void Graphics::fillCheckerBoard (const Rectangle<int>& area,
                                  const int checkWidth, const int checkHeight,
                                  const Colour& colour1, const Colour& colour2) const
 {
@@ -494,29 +491,32 @@ void Graphics::fillCheckerBoard (int x, int y, int width, int height,
         if (colour1 == colour2)
         {
             context->setFill (colour1);
-            context->fillRect (Rectangle<int> (x, y, width, height), false);
+            context->fillRect (area, false);
         }
         else
         {
-            const Rectangle<int> clip (context->getClipBounds());
+            const Rectangle<int> clipped (context->getClipBounds().getIntersection (area));
 
-            const int right  = jmin (x + width, clip.getRight());
-            const int bottom = jmin (y + height, clip.getBottom());
-
-            int cy = 0;
-            while (y < bottom)
+            if (! clipped.isEmpty())
             {
-                int cx = cy;
+                context->clipToRectangle (clipped);
 
-                for (int xx = x; xx < right; xx += checkWidth)
+                const int checkNumX = (clipped.getX() - area.getX()) / checkWidth;
+                const int checkNumY = (clipped.getY() - area.getY()) / checkHeight;
+                const int startX = area.getX() + checkNumX * checkWidth;
+                const int startY = area.getY() + checkNumY * checkHeight;
+                const int right  = clipped.getRight();
+                const int bottom = clipped.getBottom();
+
+                for (int i = 0; i < 2; ++i)
                 {
-                    context->setFill (((cx++ & 1) == 0) ? colour1 : colour2);
-                    context->fillRect (Rectangle<int> (xx, y, jmin (checkWidth, right - xx), jmin (checkHeight, bottom - y)),
-                                       false);
-                }
+                    context->setFill (i == ((checkNumX ^ checkNumY) & 1) ? colour1 : colour2);
 
-                ++cy;
-                y += checkHeight;
+                    int cy = i;
+                    for (int y = startY; y < bottom; y += checkHeight)
+                        for (int x = startX + (cy++ & 1) * checkWidth; x < right; x += checkWidth * 2)
+                            context->fillRect (Rectangle<int> (x, y, checkWidth, checkHeight), false);
+                }
             }
         }
 
@@ -544,9 +544,7 @@ void Graphics::drawLine (const float startX, const float startY,
                          const float endX, const float endY,
                          const float lineThickness) const
 {
-    Path p;
-    p.addLineSegment (startX, startY, endX, endY, lineThickness);
-    fillPath (p);
+    drawLine (Line<float> (startX, startY, endX, endY),lineThickness);
 }
 
 void Graphics::drawLine (const Line<float>& line) const
@@ -556,7 +554,9 @@ void Graphics::drawLine (const Line<float>& line) const
 
 void Graphics::drawLine (const Line<float>& line, const float lineThickness) const
 {
-    drawLine (line.getStartX(), line.getStartY(), line.getEndX(), line.getEndY(), lineThickness);
+    Path p;
+    p.addLineSegment (line, lineThickness);
+    fillPath (p);
 }
 
 void Graphics::drawDashedLine (const float startX, const float startY,
@@ -608,23 +608,20 @@ void Graphics::setImageResamplingQuality (const Graphics::ResamplingQuality newQ
 }
 
 //==============================================================================
-void Graphics::drawImageAt (const Image* const imageToDraw,
+void Graphics::drawImageAt (const Image& imageToDraw,
                             const int topLeftX, const int topLeftY,
                             const bool fillAlphaChannelWithCurrentBrush) const
 {
-    if (imageToDraw != 0)
-    {
-        const int imageW = imageToDraw->getWidth();
-        const int imageH = imageToDraw->getHeight();
+    const int imageW = imageToDraw.getWidth();
+    const int imageH = imageToDraw.getHeight();
 
-        drawImage (imageToDraw,
-                   topLeftX, topLeftY, imageW, imageH,
-                   0, 0, imageW, imageH,
-                   fillAlphaChannelWithCurrentBrush);
-    }
+    drawImage (imageToDraw,
+               topLeftX, topLeftY, imageW, imageH,
+               0, 0, imageW, imageH,
+               fillAlphaChannelWithCurrentBrush);
 }
 
-void Graphics::drawImageWithin (const Image* const imageToDraw,
+void Graphics::drawImageWithin (const Image& imageToDraw,
                                 const int destX, const int destY,
                                 const int destW, const int destH,
                                 const RectanglePlacement& placementWithinTarget,
@@ -633,10 +630,10 @@ void Graphics::drawImageWithin (const Image* const imageToDraw,
     // passing in a silly number can cause maths problems in rendering!
     jassert (areCoordsSensibleNumbers (destX, destY, destW, destH));
 
-    if (imageToDraw != 0)
+    if (imageToDraw.isValid())
     {
-        const int imageW = imageToDraw->getWidth();
-        const int imageH = imageToDraw->getHeight();
+        const int imageW = imageToDraw.getWidth();
+        const int imageH = imageToDraw.getHeight();
 
         if (imageW > 0 && imageH > 0)
         {
@@ -659,7 +656,7 @@ void Graphics::drawImageWithin (const Image* const imageToDraw,
     }
 }
 
-void Graphics::drawImage (const Image* const imageToDraw,
+void Graphics::drawImage (const Image& imageToDraw,
                           int dx, int dy, int dw, int dh,
                           int sx, int sy, int sw, int sh,
                           const bool fillAlphaChannelWithCurrentBrush) const
@@ -668,34 +665,31 @@ void Graphics::drawImage (const Image* const imageToDraw,
     jassert (areCoordsSensibleNumbers (dx, dy, dw, dh));
     jassert (areCoordsSensibleNumbers (sx, sy, sw, sh));
 
-    if (context->clipRegionIntersects  (Rectangle<int> (dx, dy, dw, dh)))
+    if (imageToDraw.isValid() && context->clipRegionIntersects  (Rectangle<int> (dx, dy, dw, dh)))
     {
-        drawImageTransformed (imageToDraw, Rectangle<int> (sx, sy, sw, sh),
+        drawImageTransformed (imageToDraw.getClippedImage (Rectangle<int> (sx, sy, sw, sh)),
                               AffineTransform::scale (dw / (float) sw, dh / (float) sh)
                                               .translated ((float) dx, (float) dy),
                               fillAlphaChannelWithCurrentBrush);
     }
 }
 
-void Graphics::drawImageTransformed (const Image* const imageToDraw,
-                                     const Rectangle<int>& imageSubRegion,
+void Graphics::drawImageTransformed (const Image& imageToDraw,
                                      const AffineTransform& transform,
                                      const bool fillAlphaChannelWithCurrentBrush) const
 {
-    if (imageToDraw != 0 && ! context->isClipEmpty())
+    if (imageToDraw.isValid() && ! context->isClipEmpty())
     {
-        const Rectangle<int> srcClip (imageSubRegion.getIntersection (imageToDraw->getBounds()));
-
         if (fillAlphaChannelWithCurrentBrush)
         {
             context->saveState();
-            context->clipToImageAlpha (*imageToDraw, srcClip, transform);
+            context->clipToImageAlpha (imageToDraw, transform);
             fillAll();
             context->restoreState();
         }
         else
         {
-            context->drawImage (*imageToDraw, srcClip, transform, false);
+            context->drawImage (imageToDraw, transform, false);
         }
     }
 }

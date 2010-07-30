@@ -50,7 +50,7 @@
     @see PropertyComponent, PropertyPanel
 */
 class JUCE_API  ChoicePropertyComponent    : public PropertyComponent,
-                                             private ComboBoxListener
+                                             private ComboBoxListener  // (can't use ComboBox::Listener due to idiotic VC2005 bug)
 {
 protected:
     /** Creates the component.
@@ -117,7 +117,7 @@ protected:
     StringArray choices;
 
 private:
-    ComboBox* comboBox;
+    ComboBox comboBox;
     bool isCustomClass;
 
     class RemapperValueSource;

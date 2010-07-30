@@ -27,6 +27,7 @@
 #define __JUCE_DRAWABLEIMAGE_JUCEHEADER__
 
 #include "juce_Drawable.h"
+#include "../imaging/juce_Image.h"
 
 
 //==============================================================================
@@ -43,33 +44,14 @@ public:
     DrawableImage (const DrawableImage& other);
 
     /** Destructor. */
-    virtual ~DrawableImage();
+    ~DrawableImage();
 
     //==============================================================================
-    /** Sets the image that this drawable will render.
-
-        An internal copy is made of the image passed-in. If you want to provide an
-        image that this object can take charge of without needing to create a copy,
-        use the other setImage() method.
-    */
-    void setImage (const Image& imageToCopy);
-
-    /** Sets the image that this drawable will render.
-
-        A good way to use this is with the ImageCache - if you create an image
-        with ImageCache and pass it in here with releaseWhenNotNeeded = true, then
-        it'll be released neatly with its reference count being decreased.
-
-        @param imageToUse               the image to render (may be a null pointer)
-        @param releaseWhenNotNeeded     if false, a simple pointer is kept to the image; if true,
-                                        then the image will be deleted when this object no longer
-                                        needs it - unless the image was created by the ImageCache,
-                                        in which case it will be released with ImageCache::release().
-    */
-    void setImage (Image* imageToUse, bool releaseWhenNotNeeded);
+    /** Sets the image that this drawable will render. */
+    void setImage (const Image& imageToUse);
 
     /** Returns the current image. */
-    Image* getImage() const throw()                             { return image; }
+    const Image getImage() const                                { return image; }
 
     /** Sets the opacity to use when drawing the image. */
     void setOpacity (float newOpacity);
@@ -91,37 +73,14 @@ public:
     /** Returns the overlay colour. */
     const Colour& getOverlayColour() const throw()              { return overlayColour; }
 
-    /** Sets the transform to be applied to this image, by defining the positions
-        where three anchor points should end up in the target rendering space.
-
-        @param imageTopLeftPosition     the position that the image's top-left corner should be mapped to
-                                        in the target coordinate space.
-        @param imageTopRightPosition    the position that the image's top-right corner should be mapped to
-                                        in the target coordinate space.
-        @param imageBottomLeftPosition  the position that the image's bottom-left corner should be mapped to
-                                        in the target coordinate space.
-    */
-    void setTransform (const RelativePoint& imageTopLeftPosition,
-                       const RelativePoint& imageTopRightPosition,
-                       const RelativePoint& imageBottomLeftPosition);
+    /** Sets the bounding box within which the image should be displayed. */
+    void setBoundingBox (const RelativeParallelogram& newBounds);
 
     /** Returns the position to which the image's top-left corner should be remapped in the target
         coordinate space when rendering this object.
         @see setTransform
     */
-    const RelativePoint& getTargetPositionForTopLeft() const throw()         { return controlPoints[0]; }
-
-    /** Returns the position to which the image's top-right corner should be remapped in the target
-        coordinate space when rendering this object.
-        @see setTransform
-    */
-    const RelativePoint& getTargetPositionForTopRight() const throw()        { return controlPoints[1]; }
-
-    /** Returns the position to which the image's bottom-left corner should be remapped in the target
-        coordinate space when rendering this object.
-        @see setTransform
-    */
-    const RelativePoint& getTargetPositionForBottomLeft() const throw()      { return controlPoints[2]; }
+    const RelativeParallelogram& getBoundingBox() const throw()         { return bounds; }
 
     //==============================================================================
     /** @internal */
@@ -152,23 +111,19 @@ public:
 
         const var getImageIdentifier() const;
         void setImageIdentifier (const var& newIdentifier, UndoManager* undoManager);
+        Value getImageIdentifierValue (UndoManager* undoManager);
 
         float getOpacity() const;
         void setOpacity (float newOpacity, UndoManager* undoManager);
+        Value getOpacityValue (UndoManager* undoManager);
 
         const Colour getOverlayColour() const;
         void setOverlayColour (const Colour& newColour, UndoManager* undoManager);
+        Value getOverlayColourValue (UndoManager* undoManager);
 
-        const RelativePoint getTargetPositionForTopLeft() const;
-        void setTargetPositionForTopLeft (const RelativePoint& newPoint, UndoManager* undoManager);
+        const RelativeParallelogram getBoundingBox() const;
+        void setBoundingBox (const RelativeParallelogram& newBounds, UndoManager* undoManager);
 
-        const RelativePoint getTargetPositionForTopRight() const;
-        void setTargetPositionForTopRight (const RelativePoint& newPoint, UndoManager* undoManager);
-
-        const RelativePoint getTargetPositionForBottomLeft() const;
-        void setTargetPositionForBottomLeft (const RelativePoint& newPoint, UndoManager* undoManager);
-
-    private:
         static const Identifier opacity, overlay, image, topLeft, topRight, bottomLeft;
     };
 
@@ -176,11 +131,10 @@ public:
     juce_UseDebuggingNewOperator
 
 private:
-    Image* image;
-    bool canDeleteImage;
+    Image image;
     float opacity;
     Colour overlayColour;
-    RelativePoint controlPoints[3];
+    RelativeParallelogram bounds;
 
     const AffineTransform calculateTransform() const;
 

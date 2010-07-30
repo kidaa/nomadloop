@@ -27,7 +27,6 @@
 
 BEGIN_JUCE_NAMESPACE
 
-
 #include "juce_RSAKey.h"
 #include "juce_Primes.h"
 
@@ -53,6 +52,16 @@ RSAKey::RSAKey (const String& s)
 
 RSAKey::~RSAKey()
 {
+}
+
+bool RSAKey::operator== (const RSAKey& other) const throw()
+{
+    return part1 == other.part1 && part2 == other.part2;
+}
+
+bool RSAKey::operator!= (const RSAKey& other) const throw()
+{
+    return ! operator== (other);
 }
 
 const String RSAKey::toString() const
@@ -87,7 +96,7 @@ bool RSAKey::applyToValue (BigInteger& value) const
     return true;
 }
 
-static const BigInteger findBestCommonDivisor (const BigInteger& p, const BigInteger& q)
+const BigInteger RSAKey::findBestCommonDivisor (const BigInteger& p, const BigInteger& q)
 {
     // try 3, 5, 9, 17, etc first because these only contain 2 bits and so
     // are fast to divide + multiply
@@ -111,9 +120,10 @@ void RSAKey::createKeyPair (RSAKey& publicKey, RSAKey& privateKey,
                             const int numBits, const int* randomSeeds, const int numRandomSeeds)
 {
     jassert (numBits > 16); // not much point using less than this..
+    jassert (numRandomSeeds == 0 || numRandomSeeds >= 2); // you need to provide plenty of seeds here!
 
-    BigInteger p (Primes::createProbablePrime (numBits / 2, 30, randomSeeds, numRandomSeeds));
-    BigInteger q (Primes::createProbablePrime (numBits - numBits / 2, 30, randomSeeds, numRandomSeeds));
+    BigInteger p (Primes::createProbablePrime (numBits / 2, 30, randomSeeds, numRandomSeeds / 2));
+    BigInteger q (Primes::createProbablePrime (numBits - numBits / 2, 30, randomSeeds == 0 ? 0 : (randomSeeds + numRandomSeeds / 2), numRandomSeeds - numRandomSeeds / 2));
 
     const BigInteger n (p * q);
     const BigInteger m (--p * --q);

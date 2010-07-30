@@ -28,6 +28,7 @@
 
 #include "juce_Drawable.h"
 #include "../colour/juce_ColourGradient.h"
+#include "../contexts/juce_FillType.h"
 
 
 //==============================================================================
@@ -45,7 +46,7 @@ public:
     DrawablePath (const DrawablePath& other);
 
     /** Destructor. */
-    virtual ~DrawablePath();
+    ~DrawablePath();
 
     //==============================================================================
     /** Changes the path that will be drawn.
@@ -119,7 +120,7 @@ public:
     /** @internal */
     static const Identifier valueTreeType;
     /** @internal */
-    const Identifier getValueTreeType() const    { return valueTreeType; }
+    const Identifier getValueTreeType() const       { return valueTreeType; }
 
     //==============================================================================
     /** Internally-used class for wrapping a DrawablePath's state into a ValueTree. */
@@ -128,20 +129,68 @@ public:
     public:
         ValueTreeWrapper (const ValueTree& state);
 
-        const FillType getMainFill() const;
-        void setMainFill (const FillType& newFill, UndoManager* undoManager);
+        const FillType getMainFill (RelativeCoordinate::NamedCoordinateFinder* nameFinder,
+                                    ImageProvider* imageProvider) const;
+        ValueTree getMainFillState();
+        void setMainFill (const FillType& newFill, const RelativePoint* gradientPoint1,
+                          const RelativePoint* gradientPoint2, const RelativePoint* gradientPoint3,
+                          ImageProvider* imageProvider, UndoManager* undoManager);
 
-        const FillType getStrokeFill() const;
-        void setStrokeFill (const FillType& newFill, UndoManager* undoManager);
+        const FillType getStrokeFill (RelativeCoordinate::NamedCoordinateFinder* nameFinder,
+                                      ImageProvider* imageProvider) const;
+        ValueTree getStrokeFillState();
+        void setStrokeFill (const FillType& newFill, const RelativePoint* gradientPoint1,
+                            const RelativePoint* gradientPoint2, const RelativePoint* gradientPoint3,
+                            ImageProvider* imageProvider, UndoManager* undoManager);
 
         const PathStrokeType getStrokeType() const;
         void setStrokeType (const PathStrokeType& newStrokeType, UndoManager* undoManager);
 
-        void getPath (RelativePointPath& path) const;
-        void setPath (const String& newPath, UndoManager* undoManager);
+        bool usesNonZeroWinding() const;
+        void setUsesNonZeroWinding (bool b, UndoManager* undoManager);
 
-    private:
-        static const Identifier fill, stroke, jointStyle, capStyle, strokeWidth, path;
+        class Element
+        {
+        public:
+            explicit Element (const ValueTree& state);
+            ~Element();
+
+            const Identifier getType() const throw()    { return state.getType(); }
+            int getNumControlPoints() const throw();
+
+            const RelativePoint getControlPoint (int index) const;
+            Value getControlPointValue (int index, UndoManager* undoManager) const;
+            const RelativePoint getStartPoint() const;
+            const RelativePoint getEndPoint() const;
+            void setControlPoint (int index, const RelativePoint& point, UndoManager* undoManager);
+            float getLength (RelativeCoordinate::NamedCoordinateFinder* nameFinder) const;
+
+            ValueTreeWrapper getParent() const;
+            Element getPreviousElement() const;
+
+            const String getModeOfEndPoint() const;
+            void setModeOfEndPoint (const String& newMode, UndoManager* undoManager);
+
+            void convertToLine (UndoManager* undoManager);
+            void convertToCubic (RelativeCoordinate::NamedCoordinateFinder* nameFinder, UndoManager* undoManager);
+            void convertToPathBreak (UndoManager* undoManager);
+            ValueTree insertPoint (const Point<float>& targetPoint, RelativeCoordinate::NamedCoordinateFinder* nameFinder, UndoManager* undoManager);
+            void removePoint (UndoManager* undoManager);
+            float findProportionAlongLine (const Point<float>& targetPoint, RelativeCoordinate::NamedCoordinateFinder* nameFinder) const;
+
+            static const Identifier mode, startSubPathElement, closeSubPathElement,
+                                    lineToElement, quadraticToElement, cubicToElement;
+            static const char* cornerMode;
+            static const char* roundedMode;
+            static const char* symmetricMode;
+
+            ValueTree state;
+        };
+
+        ValueTree getPathState();
+
+        static const Identifier fill, stroke, path, jointStyle, capStyle, strokeWidth,
+                                nonZeroWinding, point1, point2, point3;
     };
 
     //==============================================================================

@@ -7,11 +7,11 @@
 
 namespace BinaryData
 {
-    extern const char*   brushed_aluminium_png;
-    const int            brushed_aluminium_pngSize = 14724;
-
     extern const char*   AudioPluginXCodeScript_txt;
     const int            AudioPluginXCodeScript_txtSize = 1449;
+
+    extern const char*   brushed_aluminium_png;
+    const int            brushed_aluminium_pngSize = 14724;
 
     extern const char*   jucer_AudioPluginEditorTemplate_cpp;
     const int            jucer_AudioPluginEditorTemplate_cppSize = 1003;
@@ -24,12 +24,6 @@ namespace BinaryData
 
     extern const char*   jucer_AudioPluginFilterTemplate_h;
     const int            jucer_AudioPluginFilterTemplate_hSize = 2353;
-
-    extern const char*   jucer_ComponentTemplate_cpp;
-    const int            jucer_ComponentTemplate_cppSize = 2274;
-
-    extern const char*   jucer_ComponentTemplate_h;
-    const int            jucer_ComponentTemplate_hSize = 2239;
 
     extern const char*   jucer_MainConsoleAppTemplate_cpp;
     const int            jucer_MainConsoleAppTemplate_cppSize = 749;

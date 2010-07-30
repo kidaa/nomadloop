@@ -148,6 +148,8 @@ public:
         if (buttonState == newButtonState)
             return false;
 
+        setScreenPos (screenPos, time, false);
+
         // (ignore secondary clicks when there's already a button down)
         if (buttonState.isAnyMouseButtonDown() == newButtonState.isAnyMouseButtonDown())
         {
@@ -356,8 +358,7 @@ public:
 
     void handleAsyncUpdate()
     {
-        if (! isDragging())
-            setScreenPos (Desktop::getMousePosition(), jmax (lastTime, Time::currentTimeMillis()), true);
+        setScreenPos (lastScreenPos, jmax (lastTime, Time::currentTimeMillis()), true);
     }
 
     //==============================================================================
@@ -374,7 +375,7 @@ public:
                 Component* current = getComponentUnderMouse();
                 if (current != 0)
                     Desktop::setMousePosition (current->getScreenBounds()
-                                                    .getConstrainedPoint (current->getMouseXYRelative()));
+                                                 .getConstrainedPoint (lastScreenPos));
             }
 
             isUnboundedMouseModeOn = enable;

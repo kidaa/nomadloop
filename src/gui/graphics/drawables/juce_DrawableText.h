@@ -45,28 +45,44 @@ public:
     DrawableText (const DrawableText& other);
 
     /** Destructor. */
-    virtual ~DrawableText();
+    ~DrawableText();
 
     //==============================================================================
-    /** Sets the block of text to render */
-    void setText (const GlyphArrangement& newText);
-
-    /** Sets a single line of text to render.
-
-        This is a convenient method of adding a single line - for
-        more complex text, use the setText() that takes a
-        GlyphArrangement instead.
-    */
-    void setText (const String& newText, const Font& fontToUse);
-
-    /** Returns the text arrangement that was set with setText(). */
-    const GlyphArrangement& getText() const throw()         { return text; }
+    /** Sets the text to display.*/
+    void setText (const String& newText);
 
     /** Sets the colour of the text. */
     void setColour (const Colour& newColour);
 
     /** Returns the current text colour. */
     const Colour& getColour() const throw()                 { return colour; }
+
+    /** Sets the font to use.
+        Note that the font height and horizontal scale are actually based upon the position
+        of the fontSizeAndScaleAnchor parameter to setBounds(). If applySizeAndScale is true, then
+        the height and scale control point will be moved to match the dimensions of the font supplied;
+        if it is false, then the new font's height and scale are ignored.
+    */
+    void setFont (const Font& newFont, bool applySizeAndScale);
+
+    /** Changes the justification of the text within the bounding box. */
+    void setJustification (const Justification& newJustification);
+
+    /** Returns the parallelogram that defines the text bounding box. */
+    const RelativeParallelogram& getBoundingBox() const throw()         { return bounds; }
+
+    /** Sets the bounding box that contains the text. */
+    void setBoundingBox (const RelativeParallelogram& newBounds);
+
+    /** Returns the point within the bounds that defines the font's size and scale. */
+    const RelativePoint& getFontSizeControlPoint() const throw()        { return fontSizeControlPoint; }
+
+    /** Sets the control point that defines the font's height and horizontal scale.
+        This position is a point within the bounding box parallelogram, whose Y position (relative
+        to the parallelogram's origin and possibly distorted shape) specifies the font's height,
+        and its X defines the font's horizontal scale.
+    */
+    void setFontSizeControlPoint (const RelativePoint& newPoint);
 
 
     //==============================================================================
@@ -96,18 +112,39 @@ public:
     public:
         ValueTreeWrapper (const ValueTree& state);
 
-        //xxx todo
+        const String getText() const;
+        void setText (const String& newText, UndoManager* undoManager);
+        Value getTextValue (UndoManager* undoManager);
 
-    private:
-        static const Identifier text;
+        const Colour getColour() const;
+        void setColour (const Colour& newColour, UndoManager* undoManager);
+
+        const Justification getJustification() const;
+        void setJustification (const Justification& newJustification, UndoManager* undoManager);
+
+        const Font getFont() const;
+        void setFont (const Font& newFont, UndoManager* undoManager);
+        Value getFontValue (UndoManager* undoManager);
+
+        const RelativeParallelogram getBoundingBox() const;
+        void setBoundingBox (const RelativeParallelogram& newBounds, UndoManager* undoManager);
+
+        const RelativePoint getFontSizeControlPoint() const;
+        void setFontSizeControlPoint (const RelativePoint& p, UndoManager* undoManager);
+
+        static const Identifier text, colour, font, justification, topLeft, topRight, bottomLeft, fontSizeAnchor;
     };
 
     //==============================================================================
     juce_UseDebuggingNewOperator
 
 private:
-    GlyphArrangement text;
+    RelativeParallelogram bounds;
+    RelativePoint fontSizeControlPoint;
+    Font font;
+    String text;
     Colour colour;
+    Justification justification;
 
     DrawableText& operator= (const DrawableText&);
 };

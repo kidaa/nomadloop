@@ -76,11 +76,11 @@ void AudioProcessorPlayer::setProcessor (AudioProcessor* const processorToPlay)
 }
 
 //==============================================================================
-void AudioProcessorPlayer::audioDeviceIOCallback (const float** inputChannelData,
-                                                  int numInputChannels,
-                                                  float** outputChannelData,
-                                                  int numOutputChannels,
-                                                  int numSamples)
+void AudioProcessorPlayer::audioDeviceIOCallback (const float** const inputChannelData,
+                                                  const int numInputChannels,
+                                                  float** const outputChannelData,
+                                                  const int numOutputChannels,
+                                                  const int numSamples)
 {
     // these should have been prepared by audioDeviceAboutToStart()...
     jassert (sampleRate > 0 && blockSize > 0);
@@ -133,7 +133,19 @@ void AudioProcessorPlayer::audioDeviceIOCallback (const float** inputChannelData
     const ScopedLock sl (lock);
 
     if (processor != 0)
-        processor->processBlock (buffer, incomingMidi);
+    {
+        const ScopedLock sl (processor->getCallbackLock());
+
+        if (processor->isSuspended())
+        {
+            for (i = 0; i < numOutputChannels; ++i)
+                zeromem (outputChannelData[i], sizeof (float) * numSamples);
+        }
+        else
+        {
+            processor->processBlock (buffer, incomingMidi);
+        }
+    }
 }
 
 void AudioProcessorPlayer::audioDeviceAboutToStart (AudioIODevice* device)

@@ -73,7 +73,7 @@ public:
             if (customComp != 0)
             {
                 addAndMakeVisible (customComp);
-                customComp->setBounds (0, 0, getWidth(), getHeight());
+                customComp->setBounds (getLocalBounds());
 
                 for (int i = getNumChildComponents(); --i >= 0;)
                     if (getChildComponent (i) != customComp)
@@ -146,7 +146,7 @@ public:
     void resized()
     {
         if (getNumChildComponents() > 0)
-            getChildComponent(0)->setBounds (0, 0, getWidth(), getHeight());
+            getChildComponent(0)->setBounds (getLocalBounds());
     }
 
     const String getTooltip()
@@ -333,7 +333,6 @@ private:
 ListBox::ListBox (const String& name, ListBoxModel* const model_)
     : Component (name),
       model (model_),
-      headerComponent (0),
       totalItems (0),
       rowHeight (22),
       minimumRowWidth (0),
@@ -351,7 +350,8 @@ ListBox::ListBox (const String& name, ListBoxModel* const model_)
 
 ListBox::~ListBox()
 {
-    deleteAllChildren();
+    headerComponent = 0;
+    viewport = 0;
 }
 
 void ListBox::setModel (ListBoxModel* const newModel)
@@ -865,9 +865,8 @@ void ListBox::setOutlineThickness (const int outlineThickness_)
 
 void ListBox::setHeaderComponent (Component* const newHeaderComponent)
 {
-    if (headerComponent != newHeaderComponent)
+    if (newHeaderComponent != headerComponent)
     {
-        delete headerComponent;
         headerComponent = newHeaderComponent;
 
         addAndMakeVisible (newHeaderComponent);
@@ -880,7 +879,7 @@ void ListBox::repaintRow (const int rowNumber) throw()
     repaint (getRowPosition (rowNumber, true));
 }
 
-Image* ListBox::createSnapshotOfSelectedRows (int& imageX, int& imageY)
+const Image ListBox::createSnapshotOfSelectedRows (int& imageX, int& imageY)
 {
     Rectangle<int> imageArea;
     const int firstRow = getRowContainingPosition (0, 0);
@@ -901,7 +900,7 @@ Image* ListBox::createSnapshotOfSelectedRows (int& imageX, int& imageY)
     imageArea = imageArea.getIntersection (getLocalBounds());
     imageX = imageArea.getX();
     imageY = imageArea.getY();
-    Image* snapshot = Image::createNativeImage (Image::ARGB, imageArea.getWidth(), imageArea.getHeight(), true);
+    Image snapshot (Image::ARGB, imageArea.getWidth(), imageArea.getHeight(), true, Image::NativeImage);
 
     for (i = getNumRowsOnScreen() + 2; --i >= 0;)
     {
@@ -911,7 +910,7 @@ Image* ListBox::createSnapshotOfSelectedRows (int& imageX, int& imageY)
         {
             const Point<int> pos (rowComp->relativePositionToOtherComponent (this, Point<int>()));
 
-            Graphics g (*snapshot);
+            Graphics g (snapshot);
             g.setOrigin (pos.getX() - imageX, pos.getY() - imageY);
             if (g.reduceClipRegion (0, 0, rowComp->getWidth(), rowComp->getHeight()))
                 rowComp->paintEntireComponent (g);
@@ -929,8 +928,8 @@ void ListBox::startDragAndDrop (const MouseEvent& e, const String& dragDescripti
     if (dragContainer != 0)
     {
         int x, y;
-        Image* dragImage = createSnapshotOfSelectedRows (x, y);
-        dragImage->multiplyAllAlphas (0.6f);
+        Image dragImage (createSnapshotOfSelectedRows (x, y));
+        dragImage.multiplyAllAlphas (0.6f);
 
         MouseEvent e2 (e.getEventRelativeTo (this));
         const Point<int> p (x - e2.x, y - e2.y);

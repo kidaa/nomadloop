@@ -115,6 +115,9 @@ public:
     /** Changes this line's end point */
     void setEnd (const Point<ValueType>& newEnd) throw()                    { end = newEnd; }
 
+    /** Returns a line that is the same as this one, but with the start and end reversed, */
+    const Line reversed() const throw()                                     { return Line (end, start); }
+
     /** Applies an affine transform to the line's start and end points. */
     void applyTransform (const AffineTransform& transform) throw()
     {
@@ -162,6 +165,18 @@ public:
     bool intersects (const Line& line, Point<ValueType>& intersection) const throw()
     {
         return findIntersection (start, end, line.start, line.end, intersection);
+    }
+
+    /** Finds the intersection between two lines.
+
+        @param line     the line to intersect with
+        @returns        the point at which the lines intersect, even if this lies beyond the end of the lines
+    */
+    const Point<ValueType> getIntersection (const Line& line) const throw()
+    {
+        Point<ValueType> p;
+        findIntersection (start, end, line.start, line.end, p);
+        return p;
     }
 
     //==============================================================================
@@ -223,25 +238,42 @@ public:
         distance from the line; if the point is a long way beyond one of the line's
         end-point's, it'll return the straight-line distance to the nearest end-point.
 
+        pointOnLine receives the position of the point that is found.
+
         @returns the point's distance from the line
         @see getPositionAlongLineOfNearestPoint
     */
-    ValueType getDistanceFromLine (const Point<ValueType>& point) const throw()
+    ValueType getDistanceFromPoint (const Point<ValueType>& targetPoint,
+                                    Point<ValueType>& pointOnLine) const throw()
     {
         const Point<ValueType> delta (end - start);
         const double length = delta.getX() * delta.getX() + delta.getY() * delta.getY();
 
         if (length > 0)
         {
-            const double prop = ((point.getX() - start.getX()) * delta.getX()
-                                  + (point.getY() - start.getY()) * delta.getY()) / length;
+            const double prop = ((targetPoint.getX() - start.getX()) * delta.getX()
+                                  + (targetPoint.getY() - start.getY()) * delta.getY()) / length;
 
             if (prop >= 0 && prop <= 1.0)
-                return point.getDistanceFrom (start + delta * (ValueType) prop);
+            {
+                pointOnLine = start + delta * (ValueType) prop;
+                return targetPoint.getDistanceFrom (pointOnLine);
+            }
         }
 
-        return jmin (point.getDistanceFrom (start),
-                     point.getDistanceFrom (end));
+        const float fromStart = targetPoint.getDistanceFrom (start);
+        const float fromEnd = targetPoint.getDistanceFrom (end);
+
+        if (fromStart < fromEnd)
+        {
+            pointOnLine = start;
+            return fromStart;
+        }
+        else
+        {
+            pointOnLine = end;
+            return fromEnd;
+        }
     }
 
     /** Finds the point on this line which is nearest to a given point, and
@@ -250,9 +282,9 @@ public:
         @returns    a value 0 to 1.0 which is the distance along this line from the
                     line's start to the point which is nearest to the point passed-in. To
                     turn this number into a position, use getPointAlongLineProportionally().
-        @see getDistanceFromLine, getPointAlongLineProportionally
+        @see getDistanceFromPoint, getPointAlongLineProportionally
     */
-    ValueType findNearestPointTo (const Point<ValueType>& point) const throw()
+    ValueType findNearestProportionalPositionTo (const Point<ValueType>& point) const throw()
     {
         const Point<ValueType> delta (end - start);
         const double length = delta.getX() * delta.getX() + delta.getY() * delta.getY();
@@ -261,6 +293,14 @@ public:
                            : jlimit ((ValueType) 0, (ValueType) 1,
                                      (ValueType) (((point.getX() - start.getX()) * delta.getX()
                                                     + (point.getY() - start.getY()) * delta.getY()) / length));
+    }
+
+    /** Finds the point on this line which is nearest to a given point.
+        @see getDistanceFromPoint, findNearestProportionalPositionTo
+    */
+    const Point<ValueType> findNearestPointTo (const Point<ValueType>& point) const throw()
+    {
+        return getPointAlongLineProportionally (findNearestProportionalPositionTo (point));
     }
 
     /** Returns true if the given point lies above this line.

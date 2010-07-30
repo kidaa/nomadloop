@@ -31,10 +31,11 @@
 #include "../geometry/juce_PathStrokeType.h"
 #include "../geometry/juce_Line.h"
 #include "../colour/juce_Colours.h"
-#include "juce_FillType.h"
+#include "../colour/juce_ColourGradient.h"
 #include "juce_RectanglePlacement.h"
 class LowLevelGraphicsContext;
 class Image;
+class FillType;
 class RectangleList;
 
 
@@ -64,7 +65,7 @@ public:
 
         Obviously you shouldn't delete the image before this context is deleted.
     */
-    explicit Graphics (Image& imageToDrawOnto);
+    explicit Graphics (const Image& imageToDrawOnto);
 
     /** Destructor. */
     ~Graphics();
@@ -255,7 +256,7 @@ public:
 
     /** Fills a rectangle with a checkerboard pattern, alternating between two colours.
     */
-    void fillCheckerBoard (int x, int y, int width, int height,
+    void fillCheckerBoard (const Rectangle<int>& area,
                            int checkWidth, int checkHeight,
                            const Colour& colour1, const Colour& colour2) const;
 
@@ -414,18 +415,14 @@ public:
                      const PathStrokeType& strokeType,
                      const AffineTransform& transform = AffineTransform::identity) const;
 
-    /** Draws a line with an arrowhead.
+    /** Draws a line with an arrowhead at its end.
 
-        @param startX           the line's start x co-ordinate
-        @param startY           the line's start y co-ordinate
-        @param endX             the line's end x co-ordinate (the tip of the arrowhead)
-        @param endY             the line's end y co-ordinate (the tip of the arrowhead)
+        @param line             the line to draw
         @param lineThickness    the thickness of the line
         @param arrowheadWidth   the width of the arrow head (perpendicular to the line)
         @param arrowheadLength  the length of the arrow head (along the length of the line)
     */
-    void drawArrow (float startX, float startY,
-                    float endX, float endY,
+    void drawArrow (const Line<float>& line,
                     float lineThickness,
                     float arrowheadWidth,
                     float arrowheadLength) const;
@@ -462,7 +459,7 @@ public:
         don't want it to be drawn semi-transparently, be sure to call setOpacity (1.0f)
         (or setColour() with an opaque colour) before drawing images.
     */
-    void drawImageAt (const Image* const imageToDraw, int topLeftX, int topLeftY,
+    void drawImageAt (const Image& imageToDraw, int topLeftX, int topLeftY,
                       bool fillAlphaChannelWithCurrentBrush = false) const;
 
     /** Draws part of an image, rescaling it to fit in a given target region.
@@ -490,22 +487,15 @@ public:
                                                     it will just fill the target with a solid rectangle)
         @see setImageResamplingQuality, drawImageAt, drawImageWithin, fillAlphaMap
     */
-    void drawImage (const Image* const imageToDraw,
+    void drawImage (const Image& imageToDraw,
                     int destX, int destY, int destWidth, int destHeight,
                     int sourceX, int sourceY, int sourceWidth, int sourceHeight,
                     bool fillAlphaChannelWithCurrentBrush = false) const;
 
-    /** Draws part of an image, having applied an affine transform to it.
+    /** Draws an image, having applied an affine transform to it.
 
         This lets you throw the image around in some wacky ways, rotate it, shear,
         scale it, etc.
-
-        A subregion is specified within the source image, and all transformations
-        will be treated as relative to the origin of this sub-region. So, for example if
-        your subregion is (50, 50, 100, 100), and your transform is a translation of (20, 20),
-        the resulting pixel drawn at (20, 20) in the destination context is from (50, 50) in
-        your image. If you want to use the whole image, then Image::getBounds() returns a
-        suitable rectangle to use as the imageSubRegion parameter.
 
         Images are composited using the context's current opacity, so if you
         don't want it to be drawn semi-transparently, be sure to call setOpacity (1.0f)
@@ -514,10 +504,12 @@ public:
         If fillAlphaChannelWithCurrentBrush is set to true, then the image's RGB channels
         are ignored and it is filled with the current brush, masked by its alpha channel.
 
+        If you want to render only a subsection of an image, use Image::getClippedImage() to
+        create the section that you need.
+
         @see setImageResamplingQuality, drawImage
     */
-    void drawImageTransformed (const Image* imageToDraw,
-                               const Rectangle<int>& imageSubRegion,
+    void drawImageTransformed (const Image& imageToDraw,
                                const AffineTransform& transform,
                                bool fillAlphaChannelWithCurrentBrush = false) const;
 
@@ -542,7 +534,7 @@ public:
                                                     similar to fillAlphaMap(), and see also drawImage()
         @see setImageResamplingQuality, drawImage, drawImageTransformed, drawImageAt, RectanglePlacement
     */
-    void drawImageWithin (const Image* imageToDraw,
+    void drawImageWithin (const Image& imageToDraw,
                           int destX, int destY, int destWidth, int destHeight,
                           const RectanglePlacement& placementWithinTarget,
                           bool fillAlphaChannelWithCurrentBrush = false) const;
@@ -561,7 +553,7 @@ public:
         method can be used to optimise a component's paint() method, by letting it
         avoid drawing complex objects that aren't within the region being repainted.
     */
-    bool clipRegionIntersects (int x, int y, int width, int height) const;
+    bool clipRegionIntersects (const Rectangle<int>& area) const;
 
     /** Intersects the current clipping region with another region.
 
@@ -591,15 +583,11 @@ public:
 
         @param image    the image whose alpha-channel should be used. If the image doesn't
                         have an alpha-channel, it is treated as entirely opaque.
-        @param sourceClipRegion     a subsection of the image that should be used. To use the
-                                    entire image, just pass a rectangle of bounds
-                                    (0, 0, image.getWidth(), image.getHeight()).
         @param transform    a matrix to apply to the image
         @returns true if the resulting clipping region is non-zero in size
         @see reduceClipRegion
     */
-    bool reduceClipRegion (const Image& image, const Rectangle<int>& sourceClipRegion,
-                           const AffineTransform& transform);
+    bool reduceClipRegion (const Image& image, const AffineTransform& transform);
 
     /** Excludes a rectangle to stop it being drawn into. */
     void excludeClipRegion (const Rectangle<int>& rectangleToExclude);

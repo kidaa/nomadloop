@@ -64,16 +64,6 @@ bool AudioCDReader::isCDStillPresent() const
     return false;
 }
 
-int AudioCDReader::getNumTracks() const
-{
-    return 0;
-}
-
-int AudioCDReader::getPositionOfTrackStart (int trackNum) const
-{
-    return 0;
-}
-
 bool AudioCDReader::isTrackAudio (int trackNum) const
 {
     return false;
@@ -91,11 +81,6 @@ int AudioCDReader::getLastIndex() const
 const Array<int> AudioCDReader::findIndexesInTrack (const int trackNumber)
 {
     return Array<int>();
-}
-
-int AudioCDReader::getCDDBId()
-{
-    return 0;
 }
 
 #endif

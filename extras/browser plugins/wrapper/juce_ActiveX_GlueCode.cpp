@@ -164,7 +164,7 @@ class IDispatchWrappingDynamicObject   : public IDispatch
 public:
     IDispatchWrappingDynamicObject (const var& object_)
         : object (object_),
-          refCount (0)
+          refCount (1)
     {
         DBG ("num Juce wrapper objs: " + String (++numJuceSO));
     }
@@ -835,7 +835,7 @@ static const String CLSIDToJuceString (REFCLSID clsid)
         malloc->Release();
     }
 
-    return result.removeCharacters (T("{}")).trim();
+    return result.removeCharacters ("{}").trim();
 }
 
 STDAPI DllGetClassObject (REFCLSID rclsid, REFIID riid, LPVOID* ppv)
@@ -865,7 +865,7 @@ STDAPI DllCanUnloadNow()
 //==============================================================================
 static const String makeLegalRegistryName (const String& s)
 {
-    return s.retainCharacters (T("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_."));
+    return s.retainCharacters ("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_.");
 }
 
 static HRESULT doRegistration (const bool unregister)

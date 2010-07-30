@@ -28,21 +28,24 @@
 #if JUCE_INCLUDED_FILE
 
 //==============================================================================
-class CoreGraphicsImage : public Image
+class CoreGraphicsImage : public Image::SharedImage
 {
 public:
     //==============================================================================
-    CoreGraphicsImage (const PixelFormat format_,
-                       const int imageWidth_,
-                       const int imageHeight_,
-                       const bool clearImage)
-        : Image (format_, imageWidth_, imageHeight_, clearImage)
+    CoreGraphicsImage (const Image::PixelFormat format_, const int width_, const int height_, const bool clearImage)
+        : Image::SharedImage (format_, width_, height_)
     {
+        pixelStride = format_ == Image::RGB ? 3 : ((format_ == Image::ARGB) ? 4 : 1);
+        lineStride = (pixelStride * jmax (1, width) + 3) & ~3;
+
+        imageDataAllocated.allocate (lineStride * jmax (1, height), clearImage);
+        imageData = imageDataAllocated;
+
         CGColorSpaceRef colourSpace = (format == Image::SingleChannel) ? CGColorSpaceCreateDeviceGray()
                                                                        : CGColorSpaceCreateDeviceRGB();
 
-        context = CGBitmapContextCreate (imageData, imageWidth, imageHeight, 8, lineStride,
-                                         colourSpace, getCGImageFlags (*this));
+        context = CGBitmapContextCreate (imageData, width, height, 8, lineStride,
+                                         colourSpace, getCGImageFlags (format_));
 
         CGColorSpaceRelease (colourSpace);
     }
@@ -52,12 +55,20 @@ public:
         CGContextRelease (context);
     }
 
+    Image::ImageType getType() const    { return Image::NativeImage; }
     LowLevelGraphicsContext* createLowLevelContext();
+
+    SharedImage* clone()
+    {
+        CoreGraphicsImage* im = new CoreGraphicsImage (format, width, height, false);
+        memcpy (im->imageData, imageData, lineStride * height);
+        return im;
+    }
 
     //==============================================================================
     static CGImageRef createImage (const Image& juceImage, const bool forAlpha, CGColorSpaceRef colourSpace)
     {
-        const CoreGraphicsImage* nativeImage = dynamic_cast <const CoreGraphicsImage*> (&juceImage);
+        const CoreGraphicsImage* nativeImage = dynamic_cast <const CoreGraphicsImage*> (juceImage.getSharedImage());
 
         if (nativeImage != 0 && (juceImage.getFormat() == Image::SingleChannel || ! forAlpha))
         {
@@ -65,13 +76,13 @@ public:
         }
         else
         {
-            const Image::BitmapData srcData (juceImage, 0, 0, juceImage.getWidth(), juceImage.getHeight());
+            const Image::BitmapData srcData (juceImage, false);
 
             CGDataProviderRef provider = CGDataProviderCreateWithData (0, srcData.data, srcData.lineStride * srcData.height, 0);
 
             CGImageRef imageRef = CGImageCreate (srcData.width, srcData.height,
                                                  8, srcData.pixelStride * 8, srcData.lineStride,
-                                                 colourSpace, getCGImageFlags (juceImage), provider,
+                                                 colourSpace, getCGImageFlags (juceImage.getFormat()), provider,
                                                  0, true, kCGRenderingIntentDefault);
 
             CGDataProviderRelease (provider);
@@ -104,24 +115,25 @@ public:
 
     //==============================================================================
     CGContextRef context;
+    HeapBlock<uint8> imageDataAllocated;
 
 private:
-    static CGBitmapInfo getCGImageFlags (const Image& image)
+    static CGBitmapInfo getCGImageFlags (const Image::PixelFormat& format)
     {
 #if JUCE_BIG_ENDIAN
-        return image.getFormat() == Image::ARGB ? (kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Big) : kCGBitmapByteOrderDefault;
+        return format == Image::ARGB ? (kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Big) : kCGBitmapByteOrderDefault;
 #else
-        return image.getFormat() == Image::ARGB ? (kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Little) : kCGBitmapByteOrderDefault;
+        return format == Image::ARGB ? (kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Little) : kCGBitmapByteOrderDefault;
 #endif
     }
 };
 
-Image* Image::createNativeImage (const PixelFormat format, const int imageWidth, const int imageHeight, const bool clearImage)
+Image::SharedImage* Image::SharedImage::createNativeImage (PixelFormat format, int width, int height, bool clearImage)
 {
 #if USE_COREGRAPHICS_RENDERING
-    return new CoreGraphicsImage (format == RGB ? ARGB : format, imageWidth, imageHeight, clearImage);
+    return new CoreGraphicsImage (format == RGB ? ARGB : format, width, height, clearImage);
 #else
-    return new Image (format, imageWidth, imageHeight, clearImage);
+    return createSoftwareImage (format, width, height, clearImage);
 #endif
 }
 
@@ -133,7 +145,8 @@ public:
         : context (context_),
           flipHeight (flipHeight_),
           state (new SavedState()),
-          numGradientLookupEntries (0)
+          numGradientLookupEntries (0),
+          lastClipRectIsValid (false)
     {
         CGContextRetain (context);
         CGContextSaveGState(context);
@@ -162,11 +175,21 @@ public:
     void setOrigin (int x, int y)
     {
         CGContextTranslateCTM (context, x, -y);
+
+        if (lastClipRectIsValid)
+            lastClipRect.translate (-x, -y);
     }
 
     bool clipToRectangle (const Rectangle<int>& r)
     {
         CGContextClipToRect (context, CGRectMake (r.getX(), flipHeight - r.getBottom(), r.getWidth(), r.getHeight()));
+
+        if (lastClipRectIsValid)
+        {
+            lastClipRect = lastClipRect.getIntersection (r);
+            return ! lastClipRect.isEmpty();
+        }
+
         return ! isClipEmpty();
     }
 
@@ -175,6 +198,8 @@ public:
         if (clipRegion.isEmpty())
         {
             CGContextClipToRect (context, CGRectMake (0, 0, 0, 0));
+            lastClipRectIsValid = true;
+            lastClipRect = Rectangle<int>();
             return false;
         }
         else
@@ -189,6 +214,7 @@ public:
             }
 
             CGContextClipToRects (context, rects, numRects);
+            lastClipRectIsValid = false;
             return ! isClipEmpty();
         }
     }
@@ -198,40 +224,39 @@ public:
         RectangleList remaining (getClipBounds());
         remaining.subtract (r);
         clipToRectangleList (remaining);
+        lastClipRectIsValid = false;
     }
 
     void clipToPath (const Path& path, const AffineTransform& transform)
     {
         createPath (path, transform);
         CGContextClip (context);
+        lastClipRectIsValid = false;
     }
 
-    void clipToImageAlpha (const Image& sourceImage, const Rectangle<int>& srcClip, const AffineTransform& transform)
+    void clipToImageAlpha (const Image& sourceImage, const AffineTransform& transform)
     {
         if (! transform.isSingularity())
         {
-            ScopedPointer<Image> imageToDelete;
-            const Image* singleChannelImage = &sourceImage;
+            Image singleChannelImage (sourceImage);
 
             if (sourceImage.getFormat() != Image::SingleChannel)
-            {
-                imageToDelete = sourceImage.createCopyOfAlphaChannel();
-                singleChannelImage = imageToDelete;
-            }
+                singleChannelImage = sourceImage.convertedToFormat (Image::SingleChannel);
 
-            CGImageRef image = CoreGraphicsImage::createImage (*singleChannelImage, true, greyColourSpace);
+            CGImageRef image = CoreGraphicsImage::createImage (singleChannelImage, true, greyColourSpace);
 
             flip();
             AffineTransform t (AffineTransform::scale (1.0f, -1.0f).translated (0, sourceImage.getHeight()).followedBy (transform));
             applyTransform (t);
 
-            CGRect r = CGRectMake (srcClip.getX(), srcClip.getY(), srcClip.getWidth(), srcClip.getHeight());
+            CGRect r = CGRectMake (0, 0, sourceImage.getWidth(), sourceImage.getHeight());
             CGContextClipToMask (context, r, image);
 
             applyTransform (t.inverted());
             flip();
 
             CGImageRelease (image);
+            lastClipRectIsValid = false;
         }
     }
 
@@ -242,17 +267,23 @@ public:
 
     const Rectangle<int> getClipBounds() const
     {
-        CGRect bounds = CGRectIntegral (CGContextGetClipBoundingBox (context));
+        if (! lastClipRectIsValid)
+        {
+            CGRect bounds = CGRectIntegral (CGContextGetClipBoundingBox (context));
 
-        return Rectangle<int> (roundToInt (bounds.origin.x),
-                               roundToInt (flipHeight - (bounds.origin.y + bounds.size.height)),
-                               roundToInt (bounds.size.width),
-                               roundToInt (bounds.size.height));
+            lastClipRectIsValid = true;
+            lastClipRect.setBounds (roundToInt (bounds.origin.x),
+                                    roundToInt (flipHeight - (bounds.origin.y + bounds.size.height)),
+                                    roundToInt (bounds.size.width),
+                                    roundToInt (bounds.size.height));
+        }
+
+        return lastClipRect;
     }
 
     bool isClipEmpty() const
     {
-        return CGRectIsEmpty (CGContextGetClipBoundingBox (context));
+        return getClipBounds().isEmpty();
     }
 
     //==============================================================================
@@ -272,6 +303,7 @@ public:
         {
             state = top;
             stateStack.removeLast (1, false);
+            lastClipRectIsValid = false;
         }
         else
         {
@@ -343,7 +375,7 @@ public:
             {
                 CGContextSaveGState (context);
                 CGContextClipToRect (context, cgRect);
-                drawImage (*(state->fillType.image), state->fillType.image->getBounds(), state->fillType.transform, true);
+                drawImage (state->fillType.image, state->fillType.transform, true);
                 CGContextRestoreGState (context);
             }
         }
@@ -376,37 +408,28 @@ public:
             if (state->fillType.isGradient())
                 drawGradient();
             else
-                drawImage (*(state->fillType.image), state->fillType.image->getBounds(), state->fillType.transform, true);
+                drawImage (state->fillType.image, state->fillType.transform, true);
         }
 
         CGContextRestoreGState (context);
     }
 
-    void drawImage (const Image& sourceImage, const Rectangle<int>& srcClip,
-                    const AffineTransform& transform, const bool fillEntireClipAsTiles)
+    void drawImage (const Image& sourceImage, const AffineTransform& transform, const bool fillEntireClipAsTiles)
     {
-        jassert (sourceImage.getBounds().contains (srcClip));
-
-        CGImageRef fullImage = CoreGraphicsImage::createImage (sourceImage, false, rgbColourSpace);
-        CGImageRef image = fullImage;
-
-        if (srcClip != sourceImage.getBounds())
-        {
-            image = CGImageCreateWithImageInRect (fullImage, CGRectMake (srcClip.getX(), srcClip.getY(),
-                                                                         srcClip.getWidth(), srcClip.getHeight()));
-            CGImageRelease (fullImage);
-        }
+        const int iw = sourceImage.getWidth();
+        const int ih = sourceImage.getHeight();
+        CGImageRef image = CoreGraphicsImage::createImage (sourceImage, false, rgbColourSpace);
 
         CGContextSaveGState (context);
         CGContextSetAlpha (context, state->fillType.getOpacity());
 
         flip();
-        applyTransform (AffineTransform::scale (1.0f, -1.0f).translated (0, srcClip.getHeight()).followedBy (transform));
-        CGRect imageRect = CGRectMake (0, 0, srcClip.getWidth(), srcClip.getHeight());
+        applyTransform (AffineTransform::scale (1.0f, -1.0f).translated (0, ih).followedBy (transform));
+        CGRect imageRect = CGRectMake (0, 0, iw, ih);
 
         if (fillEntireClipAsTiles)
         {
-#if JUCE_IPHONE
+#if JUCE_IOS
             CGContextDrawTiledImage (context, imageRect, image);
 #else
   #if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
@@ -419,8 +442,6 @@ public:
             {
                 // Fallback to manually doing a tiled fill on 10.4
                 CGRect clip = CGRectIntegral (CGContextGetClipBoundingBox (context));
-                const int iw = srcClip.getWidth();
-                const int ih = srcClip.getHeight();
 
                 int x = 0, y = 0;
                 while (x > clip.origin.x)   x -= iw;
@@ -556,6 +577,8 @@ private:
     const CGFloat flipHeight;
     CGColorSpaceRef rgbColourSpace, greyColourSpace;
     CGFunctionCallbacks gradientCallbacks;
+    mutable Rectangle<int> lastClipRect;
+    mutable bool lastClipRectIsValid;
 
     struct SavedState
     {
@@ -675,14 +698,11 @@ private:
                 CGContextAddLineToPoint (context, i.x1, flipHeight - i.y1);
                 break;
             case Path::Iterator::quadraticTo:
-                transform.transformPoint (i.x1, i.y1);
-                transform.transformPoint (i.x2, i.y2);
+                transform.transformPoints (i.x1, i.y1, i.x2, i.y2);
                 CGContextAddQuadCurveToPoint (context, i.x1, flipHeight - i.y1, i.x2, flipHeight - i.y2);
                 break;
             case Path::Iterator::cubicTo:
-                transform.transformPoint (i.x1, i.y1);
-                transform.transformPoint (i.x2, i.y2);
-                transform.transformPoint (i.x3, i.y3);
+                transform.transformPoints (i.x1, i.y1, i.x2, i.y2, i.x3, i.y3);
                 CGContextAddCurveToPoint (context, i.x1, flipHeight - i.y1, i.x2, flipHeight - i.y2, i.x3, flipHeight - i.y3);
                 break;
             case Path::Iterator::closePath:
@@ -717,7 +737,7 @@ private:
 
 LowLevelGraphicsContext* CoreGraphicsImage::createLowLevelContext()
 {
-    return new CoreGraphicsContext (context, imageHeight);
+    return new CoreGraphicsContext (context, height);
 }
 
 #endif

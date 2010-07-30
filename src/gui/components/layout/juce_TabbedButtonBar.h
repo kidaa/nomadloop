@@ -105,7 +105,7 @@ private:
 */
 class JUCE_API  TabbedButtonBar  : public Component,
                                    public ChangeBroadcaster,
-                                   public ButtonListener
+                                   public ButtonListener // (can't use Button::Listener due to idiotic VC2005 bug)
 {
 public:
     //==============================================================================
@@ -283,7 +283,7 @@ private:
     Array <Colour> tabColours;
     int currentTabIndex;
     Component* behindFrontTab;
-    Button* extraTabsButton;
+    ScopedPointer<Button> extraTabsButton;
 
     TabbedButtonBar (const TabbedButtonBar&);
     TabbedButtonBar& operator= (const TabbedButtonBar&);

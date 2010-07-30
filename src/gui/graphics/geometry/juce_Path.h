@@ -159,6 +159,27 @@ public:
     */
     const Line<float> getClippedLine (const Line<float>& line, bool keepSectionOutsidePath) const;
 
+    /** Returns the length of the path.
+        @see getPointAlongPath
+    */
+    float getLength (const AffineTransform& transform = AffineTransform::identity) const;
+
+    /** Returns a point that is the specified distance along the path.
+        If the distance is greater than the total length of the path, this will return the
+        end point.
+        @see getLength
+    */
+    const Point<float> getPointAlongPath (float distanceFromStart,
+                                          const AffineTransform& transform = AffineTransform::identity) const;
+
+    /** Finds the point along the path which is nearest to a given position.
+        This sets pointOnPath to the nearest point, and returns the distance of this point from the start
+        of the path.
+    */
+    float getNearestPoint (const Point<float>& targetPoint,
+                           Point<float>& pointOnPath,
+                           const AffineTransform& transform = AffineTransform::identity) const;
+
     //==============================================================================
     /** Removes all lines and curves, resetting the path completely. */
     void clear() throw();
@@ -175,6 +196,19 @@ public:
         @see lineTo, quadraticTo, cubicTo, closeSubPath
     */
     void startNewSubPath (float startX, float startY);
+
+    /** Begins a new subpath with a given starting position.
+
+        This will move the path's current position to the co-ordinates passed in and
+        make it ready to draw lines or curves starting from this position.
+
+        After adding whatever lines and curves are needed, you can either
+        close the current sub-path using closeSubPath() or call startNewSubPath()
+        to move to a new sub-path, leaving the old one open-ended.
+
+        @see lineTo, quadraticTo, cubicTo, closeSubPath
+    */
+    void startNewSubPath (const Point<float>& start);
 
     /** Closes a the current sub-path with a line back to its start-point.
 
@@ -201,6 +235,17 @@ public:
     */
     void lineTo (float endX, float endY);
 
+    /** Adds a line from the shape's last position to a new end-point.
+
+        This will connect the end-point of the last line or curve that was added
+        to a new point, using a straight line.
+
+        See the class description for an example of how to add lines and curves to a path.
+
+        @see startNewSubPath, quadraticTo, cubicTo, closeSubPath
+    */
+    void lineTo (const Point<float>& end);
+
     /** Adds a quadratic bezier curve from the shape's last position to a new position.
 
         This will connect the end-point of the last line or curve that was added
@@ -214,6 +259,18 @@ public:
                       float controlPointY,
                       float endPointX,
                       float endPointY);
+
+    /** Adds a quadratic bezier curve from the shape's last position to a new position.
+
+        This will connect the end-point of the last line or curve that was added
+        to a new point, using a quadratic spline with one control-point.
+
+        See the class description for an example of how to add lines and curves to a path.
+
+        @see startNewSubPath, lineTo, cubicTo, closeSubPath
+    */
+    void quadraticTo (const Point<float>& controlPoint,
+                      const Point<float>& endPoint);
 
     /** Adds a cubic bezier curve from the shape's last position to a new position.
 
@@ -230,6 +287,19 @@ public:
                   float controlPoint2Y,
                   float endPointX,
                   float endPointY);
+
+    /** Adds a cubic bezier curve from the shape's last position to a new position.
+
+        This will connect the end-point of the last line or curve that was added
+        to a new point, using a cubic spline with two control-points.
+
+        See the class description for an example of how to add lines and curves to a path.
+
+        @see startNewSubPath, lineTo, quadraticTo, closeSubPath
+    */
+    void cubicTo (const Point<float>& controlPoint1,
+                  const Point<float>& controlPoint2,
+                  const Point<float>& endPoint);
 
     /** Returns the last point that was added to the path by one of the drawing methods.
     */
@@ -402,26 +472,29 @@ public:
 
         @see addArrow
     */
-    void addLineSegment (float startX, float startY,
-                         float endX, float endY,
-                         float lineThickness);
+    void addLineSegment (const Line<float>& line, float lineThickness);
 
     /** Adds a line with an arrowhead on the end.
-
-        The arrow is added as a new closed sub-path. (Any currently open paths will be
-        left open).
+        The arrow is added as a new closed sub-path. (Any currently open paths will be left open).
+        @see PathStrokeType::createStrokeWithArrowheads
     */
-    void addArrow (float startX, float startY,
-                   float endX, float endY,
+    void addArrow (const Line<float>& line,
                    float lineThickness,
                    float arrowheadWidth,
                    float arrowheadLength);
 
-    /** Adds a star shape to the path.
-
+    /** Adds a polygon shape to the path.
+        @see addStar
     */
-    void addStar (float centreX,
-                  float centreY,
+    void addPolygon (const Point<float>& centre,
+                     int numberOfSides,
+                     float radius,
+                     float startAngle = 0.0f);
+
+    /** Adds a star shape to the path.
+        @see addPolygon
+    */
+    void addStar (const Point<float>& centre,
                   int numberOfPoints,
                   float innerRadius,
                   float outerRadius,

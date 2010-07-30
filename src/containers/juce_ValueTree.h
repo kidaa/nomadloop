@@ -214,11 +214,21 @@ public:
     */
     ValueTree getChild (int index) const;
 
-    /** Looks for a child node with the speficied type name.
+    /** Returns the first child node with the speficied type name.
         If no such node is found, it'll return an invalid node. (See isValid() to find out
         whether a node is valid).
+        @see getOrCreateChildWithName
     */
     ValueTree getChildWithName (const Identifier& type) const;
+
+    /** Returns the first child node with the speficied type name, creating and adding
+        a child with this name if there wasn't already one there.
+
+        The only time this will return an invalid object is when the object that you're calling
+        the method on is itself invalid.
+        @see getChildWithName
+    */
+    ValueTree getOrCreateChildWithName (const Identifier& type, UndoManager* undoManager);
 
     /** Looks for the first child node that has the speficied property value.
 
@@ -291,6 +301,14 @@ public:
         whether a node is valid).
     */
     ValueTree getParent() const;
+
+    /** Returns one of this node's siblings in its parent's child list.
+
+        The delta specifies how far to move through the list, so a value of 1 would return the node
+        that follows this one, -1 would return the node before it, 0 will return this node itself, etc.
+        If the requested position is beyond the range of available nodes, this will return ValueTree::invalid.
+    */
+    ValueTree getSibling (int delta) const;
 
     //==============================================================================
     /** Creates an XmlElement that holds a complete image of this node and all its children.
@@ -467,6 +485,7 @@ private:
         bool isAChildOf (const SharedObject* possibleParent) const;
         int indexOf (const ValueTree& child) const;
         ValueTree getChildWithName (const Identifier& type) const;
+        ValueTree getOrCreateChildWithName (const Identifier& type, UndoManager* undoManager);
         ValueTree getChildWithProperty (const Identifier& propertyName, const var& propertyValue) const;
         void addChild (SharedObject* child, int index, UndoManager*);
         void removeChild (int childIndex, UndoManager*);

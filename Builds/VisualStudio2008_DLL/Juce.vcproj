@@ -10,7 +10,7 @@
   </Platforms>
   <ToolFiles/>
   <Configurations>
-    <Configuration Name="Debug&#124;Win32"
+    <Configuration Name="Debug|Win32"
                    OutputDirectory=".\..\..\bin"
                    IntermediateDirectory=".\Debug"
                    ConfigurationType="2"
@@ -53,7 +53,7 @@
       <Tool Name="VCFxCopTool"/>
       <Tool Name="VCPostBuildEventTool"/>
     </Configuration>
-    <Configuration Name="Release&#124;Win32"
+    <Configuration Name="Release|Win32"
                    OutputDirectory=".\..\..\bin"
                    IntermediateDirectory=".\Release"
                    ConfigurationType="2"
@@ -120,6 +120,7 @@
             <File RelativePath="..\..\src\audio\audio_file_formats\juce_AiffAudioFormat.cpp"/>
             <File RelativePath="..\..\src\audio\audio_file_formats\juce_AiffAudioFormat.h"/>
             <File RelativePath="..\..\src\audio\audio_file_formats\juce_AudioCDBurner.h"/>
+            <File RelativePath="..\..\src\audio\audio_file_formats\juce_AudioCDReader.cpp"/>
             <File RelativePath="..\..\src\audio\audio_file_formats\juce_AudioCDReader.h"/>
             <File RelativePath="..\..\src\audio\audio_file_formats\juce_AudioFormat.cpp"/>
             <File RelativePath="..\..\src\audio\audio_file_formats\juce_AudioFormat.h"/>
@@ -198,6 +199,105 @@
             <File RelativePath="..\..\src\audio\midi\juce_MidiMessageSequence.h"/>
           </Filter>
           <Filter Name="plugins">
+            <Filter Name="wrapper code">
+              <Filter Name="AU">
+                <File RelativePath="..\..\extras\audio plugins\wrapper\AU\juce_AU_Wrapper.mm"/>
+              </Filter>
+              <Filter Name="RTAS">
+                <File RelativePath="..\..\extras\audio plugins\wrapper\RTAS\juce_RTAS_DigiCode_Header.h"/>
+                <File RelativePath="..\..\extras\audio plugins\wrapper\RTAS\juce_RTAS_DigiCode1.cpp">
+                  <FileConfiguration Name="Debug|Win32"
+                                     ExcludedFromBuild="true">
+                    <Tool Name="VCCLCompilerTool"/>
+                  </FileConfiguration>
+                  <FileConfiguration Name="Release|Win32"
+                                     ExcludedFromBuild="true">
+                    <Tool Name="VCCLCompilerTool"/>
+                  </FileConfiguration>
+                </File>
+                <File RelativePath="..\..\extras\audio plugins\wrapper\RTAS\juce_RTAS_DigiCode2.cpp">
+                  <FileConfiguration Name="Debug|Win32"
+                                     ExcludedFromBuild="true">
+                    <Tool Name="VCCLCompilerTool"/>
+                  </FileConfiguration>
+                  <FileConfiguration Name="Release|Win32"
+                                     ExcludedFromBuild="true">
+                    <Tool Name="VCCLCompilerTool"/>
+                  </FileConfiguration>
+                </File>
+                <File RelativePath="..\..\extras\audio plugins\wrapper\RTAS\juce_RTAS_DigiCode3.cpp">
+                  <FileConfiguration Name="Debug|Win32"
+                                     ExcludedFromBuild="true">
+                    <Tool Name="VCCLCompilerTool"/>
+                  </FileConfiguration>
+                  <FileConfiguration Name="Release|Win32"
+                                     ExcludedFromBuild="true">
+                    <Tool Name="VCCLCompilerTool"/>
+                  </FileConfiguration>
+                </File>
+                <File RelativePath="..\..\extras\audio plugins\wrapper\RTAS\juce_RTAS_MacUtilities.mm"/>
+                <File RelativePath="..\..\extras\audio plugins\wrapper\RTAS\juce_RTAS_WinUtilities.cpp">
+                  <FileConfiguration Name="Debug|Win32"
+                                     ExcludedFromBuild="true">
+                    <Tool Name="VCCLCompilerTool"/>
+                  </FileConfiguration>
+                  <FileConfiguration Name="Release|Win32"
+                                     ExcludedFromBuild="true">
+                    <Tool Name="VCCLCompilerTool"/>
+                  </FileConfiguration>
+                </File>
+                <File RelativePath="..\..\extras\audio plugins\wrapper\RTAS\juce_RTAS_Wrapper.cpp">
+                  <FileConfiguration Name="Debug|Win32"
+                                     ExcludedFromBuild="true">
+                    <Tool Name="VCCLCompilerTool"/>
+                  </FileConfiguration>
+                  <FileConfiguration Name="Release|Win32"
+                                     ExcludedFromBuild="true">
+                    <Tool Name="VCCLCompilerTool"/>
+                  </FileConfiguration>
+                </File>
+              </Filter>
+              <Filter Name="VST">
+                <File RelativePath="..\..\extras\audio plugins\wrapper\VST\juce_VST_Wrapper.cpp">
+                  <FileConfiguration Name="Debug|Win32"
+                                     ExcludedFromBuild="true">
+                    <Tool Name="VCCLCompilerTool"/>
+                  </FileConfiguration>
+                  <FileConfiguration Name="Release|Win32"
+                                     ExcludedFromBuild="true">
+                    <Tool Name="VCCLCompilerTool"/>
+                  </FileConfiguration>
+                </File>
+                <File RelativePath="..\..\extras\audio plugins\wrapper\VST\juce_VST_Wrapper.mm"/>
+              </Filter>
+              <Filter Name="Standalone">
+                <File RelativePath="..\..\extras\audio plugins\wrapper\Standalone\juce_AudioFilterStreamer.cpp">
+                  <FileConfiguration Name="Debug|Win32"
+                                     ExcludedFromBuild="true">
+                    <Tool Name="VCCLCompilerTool"/>
+                  </FileConfiguration>
+                  <FileConfiguration Name="Release|Win32"
+                                     ExcludedFromBuild="true">
+                    <Tool Name="VCCLCompilerTool"/>
+                  </FileConfiguration>
+                </File>
+                <File RelativePath="..\..\extras\audio plugins\wrapper\Standalone\juce_AudioFilterStreamer.h"/>
+                <File RelativePath="..\..\extras\audio plugins\wrapper\Standalone\juce_StandaloneFilterWindow.cpp">
+                  <FileConfiguration Name="Debug|Win32"
+                                     ExcludedFromBuild="true">
+                    <Tool Name="VCCLCompilerTool"/>
+                  </FileConfiguration>
+                  <FileConfiguration Name="Release|Win32"
+                                     ExcludedFromBuild="true">
+                    <Tool Name="VCCLCompilerTool"/>
+                  </FileConfiguration>
+                </File>
+                <File RelativePath="..\..\extras\audio plugins\wrapper\Standalone\juce_StandaloneFilterWindow.h"/>
+              </Filter>
+              <File RelativePath="..\..\extras\audio plugins\wrapper\juce_IncludeCharacteristics.h"/>
+              <File RelativePath="..\..\extras\audio plugins\wrapper\juce_PluginHeaders.h"/>
+              <File RelativePath="..\..\extras\audio plugins\wrapper\juce_PluginHostType.h"/>
+            </Filter>
             <Filter Name="formats">
               <File RelativePath="..\..\src\audio\plugins\formats\juce_AudioUnitPluginFormat.h"/>
               <File RelativePath="..\..\src\audio\plugins\formats\juce_AudioUnitPluginFormat.mm"/>
@@ -280,6 +380,7 @@
           <File RelativePath="..\..\src\core\juce_ByteOrder.h"/>
           <File RelativePath="..\..\src\core\juce_FileLogger.cpp"/>
           <File RelativePath="..\..\src\core\juce_FileLogger.h"/>
+          <File RelativePath="..\..\src\core\juce_Initialisation.cpp"/>
           <File RelativePath="..\..\src\core\juce_Initialisation.h"/>
           <File RelativePath="..\..\src\core\juce_Logger.cpp"/>
           <File RelativePath="..\..\src\core\juce_Logger.h"/>
@@ -351,6 +452,8 @@
             <File RelativePath="..\..\src\gui\components\juce_ComponentListener.h"/>
             <File RelativePath="..\..\src\gui\components\juce_Desktop.cpp"/>
             <File RelativePath="..\..\src\gui\components\juce_Desktop.h"/>
+            <File RelativePath="..\..\src\gui\components\juce_ModalComponentManager.cpp"/>
+            <File RelativePath="..\..\src\gui\components\juce_ModalComponentManager.h"/>
             <Filter Name="buttons">
               <File RelativePath="..\..\src\gui\components\buttons\juce_ArrowButton.cpp"/>
               <File RelativePath="..\..\src\gui\components\buttons\juce_ArrowButton.h"/>
@@ -391,7 +494,6 @@
               <File RelativePath="..\..\src\gui\components\controls\juce_ProgressBar.h"/>
               <File RelativePath="..\..\src\gui\components\controls\juce_Slider.cpp"/>
               <File RelativePath="..\..\src\gui\components\controls\juce_Slider.h"/>
-              <File RelativePath="..\..\src\gui\components\controls\juce_SliderListener.h"/>
               <File RelativePath="..\..\src\gui\components\controls\juce_TableHeaderComponent.cpp"/>
               <File RelativePath="..\..\src\gui\components\controls\juce_TableHeaderComponent.h"/>
               <File RelativePath="..\..\src\gui\components\controls\juce_TableListBox.cpp"/>
@@ -561,6 +663,8 @@
             <Filter Name="windows">
               <File RelativePath="..\..\src\gui\components\windows\juce_AlertWindow.cpp"/>
               <File RelativePath="..\..\src\gui\components\windows\juce_AlertWindow.h"/>
+              <File RelativePath="..\..\src\gui\components\windows\juce_CallOutBox.cpp"/>
+              <File RelativePath="..\..\src\gui\components\windows\juce_CallOutBox.h"/>
               <File RelativePath="..\..\src\gui\components\windows\juce_ComponentPeer.cpp"/>
               <File RelativePath="..\..\src\gui\components\windows\juce_ComponentPeer.h"/>
               <File RelativePath="..\..\src\gui\components\windows\juce_DialogWindow.cpp"/>

@@ -351,12 +351,12 @@ void Button::handleCommandMessage (int commandId)
 }
 
 //==============================================================================
-void Button::addButtonListener (ButtonListener* const newListener)
+void Button::addButtonListener (Listener* const newListener)
 {
     buttonListeners.add (newListener);
 }
 
-void Button::removeButtonListener (ButtonListener* const listener)
+void Button::removeButtonListener (Listener* const listener)
 {
     buttonListeners.remove (listener);
 }
@@ -377,7 +377,7 @@ void Button::sendClickMessage (const ModifierKeys& modifiers)
     clicked (modifiers);
 
     if (! checker.shouldBailOut())
-        buttonListeners.callChecked (checker, &ButtonListener::buttonClicked, this);
+        buttonListeners.callChecked (checker, &ButtonListener::buttonClicked, this);  // (can't use Button::Listener due to idiotic VC2005 bug)
 }
 
 void Button::sendStateMessage()

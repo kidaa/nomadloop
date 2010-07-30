@@ -89,7 +89,7 @@ bool File::isOnHardDisk() const
 
 bool File::isOnRemovableDrive() const
 {
-#if JUCE_IPHONE
+#if JUCE_IOS
     return false; // xxx is this possible?
 #else
     const ScopedAutoReleasePool pool;
@@ -109,7 +109,7 @@ bool File::isOnRemovableDrive() const
 
 static bool juce_isHiddenFile (const String& path)
 {
-#if JUCE_IPHONE
+#if JUCE_IOS
     return File (path).getFileName().startsWithChar ('.');
 #else
     FSRef ref;
@@ -200,6 +200,16 @@ const File File::getSpecialLocation (const SpecialLocationType type)
                 : exe;
     }
 
+    case hostApplicationPath:
+    {
+        unsigned int size = 8192;
+        HeapBlock<char> buffer;
+        buffer.calloc (size + 8);
+
+        _NSGetExecutablePath (buffer.getData(), &size);
+        return String::fromUTF8 (buffer, size);
+    }
+
     default:
         jassertfalse; // unknown type?
         break;
@@ -238,7 +248,7 @@ const String File::getVersion() const
 //==============================================================================
 const File File::getLinkedTarget() const
 {
-#if JUCE_IPHONE || (defined (MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5)
+#if JUCE_IOS || (defined (MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5)
     NSString* dest = [[NSFileManager defaultManager] destinationOfSymbolicLinkAtPath: juceStringToNS (getFullPathName()) error: nil];
 
 #else
@@ -257,7 +267,7 @@ bool File::moveToTrash() const
     if (! exists())
         return true;
 
-#if JUCE_IPHONE
+#if JUCE_IOS
     return deleteFile(); //xxx is there a trashcan on the iPhone?
 #else
     const ScopedAutoReleasePool pool;
@@ -385,7 +395,7 @@ bool juce_launchExecutable (const String& pathAndArguments)
 
 bool PlatformUtilities::openDocument (const String& fileName, const String& parameters)
 {
-#if JUCE_IPHONE
+#if JUCE_IOS
     return [[UIApplication sharedApplication] openURL: [NSURL fileURLWithPath: juceStringToNS (fileName)]];
 #else
     const ScopedAutoReleasePool pool;
@@ -428,7 +438,7 @@ bool PlatformUtilities::openDocument (const String& fileName, const String& para
 
 void File::revealToUser() const
 {
-#if ! JUCE_IPHONE
+#if ! JUCE_IOS
     if (exists())
         [[NSWorkspace sharedWorkspace] selectFile: juceStringToNS (getFullPathName()) inFileViewerRootedAtPath: @""];
     else if (getParentDirectory().exists())
@@ -437,7 +447,7 @@ void File::revealToUser() const
 }
 
 //==============================================================================
-#if ! JUCE_IPHONE
+#if ! JUCE_IOS
 bool PlatformUtilities::makeFSRefFromPath (FSRef* destFSRef, const String& path)
 {
     return FSPathMakeRef ((const UInt8*) path.toUTF8(), destFSRef, 0) == noErr;
@@ -460,7 +470,7 @@ OSType PlatformUtilities::getTypeOfFile (const String& filename)
 {
     const ScopedAutoReleasePool pool;
 
-#if JUCE_IPHONE || (defined (MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5)
+#if JUCE_IOS || (defined (MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5)
     NSDictionary* fileDict = [[NSFileManager defaultManager] attributesOfItemAtPath: juceStringToNS (filename) error: nil];
 #else
     NSDictionary* fileDict = [[NSFileManager defaultManager] fileAttributesAtPath: juceStringToNS (filename) traverseLink: NO];
@@ -471,7 +481,7 @@ OSType PlatformUtilities::getTypeOfFile (const String& filename)
 
 bool PlatformUtilities::isBundle (const String& filename)
 {
-#if JUCE_IPHONE
+#if JUCE_IOS
     return false; // xxx can't find a sensible way to do this without trying to open the bundle..
 #else
     const ScopedAutoReleasePool pool;

@@ -919,8 +919,7 @@ class TextEditorViewport  : public Viewport
 {
 public:
     TextEditorViewport (TextEditor* const owner_)
-        : owner (owner_),
-          lastWordWrapWidth (0)
+        : owner (owner_), lastWordWrapWidth (0), rentrant (false)
     {
     }
 
@@ -930,18 +929,26 @@ public:
 
     void visibleAreaChanged (int, int, int, int)
     {
-        const float wordWrapWidth = owner->getWordWrapWidth();
-
-        if (wordWrapWidth != lastWordWrapWidth)
+        if (! rentrant) // it's rare, but possible to get into a feedback loop as the viewport's scrollbars
+                        // appear and disappear, causing the wrap width to change.
         {
-            lastWordWrapWidth = wordWrapWidth;
-            owner->updateTextHolderSize();
+            const float wordWrapWidth = owner->getWordWrapWidth();
+
+            if (wordWrapWidth != lastWordWrapWidth)
+            {
+                lastWordWrapWidth = wordWrapWidth;
+
+                rentrant = true;
+                owner->updateTextHolderSize();
+                rentrant = false;
+            }
         }
     }
 
 private:
     TextEditor* const owner;
     float lastWordWrapWidth;
+    bool rentrant;
 
     TextEditorViewport (const TextEditorViewport&);
     TextEditorViewport& operator= (const TextEditorViewport&);
@@ -1267,12 +1274,12 @@ void TextEditor::escapePressed()
     postCommandMessage (TextEditorDefs::escapeKeyMessageId);
 }
 
-void TextEditor::addListener (TextEditorListener* const newListener)
+void TextEditor::addListener (Listener* const newListener)
 {
     listeners.add (newListener);
 }
 
-void TextEditor::removeListener (TextEditorListener* const listenerToRemove)
+void TextEditor::removeListener (Listener* const listenerToRemove)
 {
     listeners.remove (listenerToRemove);
 }
@@ -1766,6 +1773,28 @@ void TextEditor::paintOverChildren (Graphics& g)
 }
 
 //==============================================================================
+class TextEditorMenuPerformer  : public ModalComponentManager::Callback
+{
+public:
+    TextEditorMenuPerformer (TextEditor* const editor_)
+        : editor (editor_)
+    {
+    }
+
+    void modalStateFinished (int returnValue)
+    {
+        if (editor != 0 && returnValue != 0)
+            editor->performPopupMenuAction (returnValue);
+    }
+
+private:
+    Component::SafePointer<TextEditor> editor;
+
+    TextEditorMenuPerformer (const TextEditorMenuPerformer&);
+    TextEditorMenuPerformer& operator= (const TextEditorMenuPerformer&);
+};
+
+
 void TextEditor::mouseDown (const MouseEvent& e)
 {
     beginDragAutoRepeat (100);
@@ -1784,12 +1813,7 @@ void TextEditor::mouseDown (const MouseEvent& e)
             m.setLookAndFeel (&getLookAndFeel());
             addPopupMenuItems (m, &e);
 
-            menuActive = true;
-            const int result = m.show();
-            menuActive = false;
-
-            if (result != 0)
-                performPopupMenuAction (result);
+            m.show (0, 0, 0, 0, new TextEditorMenuPerformer (this));
         }
     }
 }
@@ -1838,7 +1862,8 @@ void TextEditor::mouseDoubleClick (const MouseEvent& e)
 
         while (tokenEnd < totalLength)
         {
-            if (CharacterFunctions::isLetterOrDigit (t [tokenEnd]))
+            // (note the slight bodge here - it's because iswalnum only checks for alphabetic chars in the current locale)
+            if (CharacterFunctions::isLetterOrDigit (t [tokenEnd]) || t [tokenEnd] > 128)
                 ++tokenEnd;
             else
                 break;
@@ -1848,7 +1873,8 @@ void TextEditor::mouseDoubleClick (const MouseEvent& e)
 
         while (tokenStart > 0)
         {
-            if (CharacterFunctions::isLetterOrDigit (t [tokenStart - 1]))
+            // (note the slight bodge here - it's because iswalnum only checks for alphabetic chars in the current locale)
+            if (CharacterFunctions::isLetterOrDigit (t [tokenStart - 1]) || t [tokenStart - 1] > 128)
                 --tokenStart;
             else
                 break;
@@ -2181,19 +2207,19 @@ void TextEditor::handleCommandMessage (const int commandId)
     switch (commandId)
     {
     case TextEditorDefs::textChangeMessageId:
-        listeners.callChecked (checker, &TextEditorListener::textEditorTextChanged, (TextEditor&) *this);
+        listeners.callChecked (checker, &TextEditor::Listener::textEditorTextChanged, (TextEditor&) *this);
         break;
 
     case TextEditorDefs::returnKeyMessageId:
-        listeners.callChecked (checker, &TextEditorListener::textEditorReturnKeyPressed, (TextEditor&) *this);
+        listeners.callChecked (checker, &TextEditor::Listener::textEditorReturnKeyPressed, (TextEditor&) *this);
         break;
 
     case TextEditorDefs::escapeKeyMessageId:
-        listeners.callChecked (checker, &TextEditorListener::textEditorEscapeKeyPressed, (TextEditor&) *this);
+        listeners.callChecked (checker, &TextEditor::Listener::textEditorEscapeKeyPressed, (TextEditor&) *this);
         break;
 
     case TextEditorDefs::focusLossMessageId:
-        listeners.callChecked (checker, &TextEditorListener::textEditorFocusLost, (TextEditor&) *this);
+        listeners.callChecked (checker, &TextEditor::Listener::textEditorFocusLost, (TextEditor&) *this);
         break;
 
     default:
@@ -2212,7 +2238,7 @@ void TextEditor::enablementChanged()
 //==============================================================================
 UndoManager* TextEditor::getUndoManager() throw()
 {
-    return isReadOnly() ? &undoManager : 0;
+    return isReadOnly() ? 0 : &undoManager;
 }
 
 void TextEditor::clearInternal (UndoManager* const um)

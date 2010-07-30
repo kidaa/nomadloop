@@ -39,7 +39,7 @@ BEGIN_JUCE_NAMESPACE
 //==============================================================================
 // platform-specific functions..
 bool juce_dispatchNextMessageOnSystemQueue (bool returnIfNoPendingMessages);
-bool juce_postMessageToSystemQueue (void* message);
+bool juce_postMessageToSystemQueue (Message* message);
 
 //==============================================================================
 MessageManager* MessageManager::instance = 0;
@@ -59,6 +59,10 @@ MessageManager::~MessageManager() throw()
     broadcastListeners = 0;
 
     doPlatformSpecificShutdown();
+
+    // If you hit this assertion, then you've probably leaked a Component or some other
+    // kind of MessageListener object...
+    jassert (messageListeners.size() == 0);
 
     jassert (instance == this);
     instance = 0;  // do this last in case this instance is still needed by doPlatformSpecificShutdown()
@@ -99,26 +103,26 @@ void MessageManager::postCallbackMessage (Message* const message)
 
 //==============================================================================
 // not for public use..
-void MessageManager::deliverMessage (void* const message)
+void MessageManager::deliverMessage (Message* const message)
 {
-    const ScopedPointer <Message> m (static_cast <Message*> (message));
-    MessageListener* const recipient = m->messageRecipient;
+    const ScopedPointer <Message> messageDeleter (message);
+    MessageListener* const recipient = message->messageRecipient;
 
     JUCE_TRY
     {
         if (messageListeners.contains (recipient))
         {
-            recipient->handleMessage (*m);
+            recipient->handleMessage (*message);
         }
         else if (recipient == 0)
         {
-            if (m->intParameter1 == quitMessageId)
+            if (message->intParameter1 == quitMessageId)
             {
                 quitMessageReceived = true;
             }
             else
             {
-                CallbackMessage* const cm = dynamic_cast <CallbackMessage*> (static_cast <Message*> (m));
+                CallbackMessage* const cm = dynamic_cast <CallbackMessage*> (message);
 
                 if (cm != 0)
                     cm->messageCallback();
@@ -129,7 +133,7 @@ void MessageManager::deliverMessage (void* const message)
 }
 
 //==============================================================================
-#if ! (JUCE_MAC || JUCE_IPHONE)
+#if ! (JUCE_MAC || JUCE_IOS)
 void MessageManager::runDispatchLoop()
 {
     jassert (isThisTheMessageThread()); // must only be called by the message thread

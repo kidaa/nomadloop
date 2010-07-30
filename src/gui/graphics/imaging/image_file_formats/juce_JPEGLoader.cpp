@@ -128,7 +128,7 @@ BEGIN_JUCE_NAMESPACE
 
 #include "../juce_ImageFileFormat.h"
 #include "../../../../io/streams/juce_InputStream.h"
-#include "../../../../io/streams/juce_OutputStream.h"
+#include "../../../../io/streams/juce_MemoryOutputStream.h"
 #include "../../colour/juce_PixelFormats.h"
 
 //==============================================================================
@@ -249,17 +249,17 @@ bool JPEGImageFormat::canUnderstand (InputStream& in)
     return false;
 }
 
-Image* JPEGImageFormat::decodeImage (InputStream& in)
+const Image JPEGImageFormat::decodeImage (InputStream& in)
 {
     using namespace jpeglibNamespace;
     using namespace JPEGHelpers;
 
-    MemoryBlock mb;
-    in.readIntoMemoryBlock (mb);
+    MemoryOutputStream mb;
+    mb.writeFromInputStream (in, -1);
 
-    Image* image = 0;
+    Image image;
 
-    if (mb.getSize() > 16)
+    if (mb.getDataSize() > 16)
     {
         struct jpeg_decompress_struct jpegDecompStruct;
 
@@ -279,7 +279,7 @@ Image* JPEGImageFormat::decodeImage (InputStream& in)
         jpegDecompStruct.src->term_source       = dummyCallback1;
 
         jpegDecompStruct.src->next_input_byte   = static_cast <const unsigned char*> (mb.getData());
-        jpegDecompStruct.src->bytes_in_buffer   = mb.getSize();
+        jpegDecompStruct.src->bytes_in_buffer   = mb.getDataSize();
 
         try
         {
@@ -299,10 +299,10 @@ Image* JPEGImageFormat::decodeImage (InputStream& in)
 
             if (jpeg_start_decompress (&jpegDecompStruct))
             {
-                image = Image::createNativeImage (Image::RGB, width, height, false);
-                const bool hasAlphaChan = image->hasAlphaChannel();
+                image = Image (Image::RGB, width, height, false);
+                const bool hasAlphaChan = image.hasAlphaChannel(); // (the native image creator may not give back what we expect)
 
-                const Image::BitmapData destData (*image, 0, 0, width, height, true);
+                const Image::BitmapData destData (image, true);
 
                 for (int y = 0; y < height; ++y)
                 {
@@ -405,7 +405,7 @@ bool JPEGImageFormat::writeImageToStream (const Image& image, OutputStream& out)
     JSAMPARRAY buffer = (*jpegCompStruct.mem->alloc_sarray) ((j_common_ptr) &jpegCompStruct,
                                                              JPOOL_IMAGE, strideBytes, 1);
 
-    const Image::BitmapData srcData (image, 0, 0, jpegCompStruct.image_width, jpegCompStruct.image_height);
+    const Image::BitmapData srcData (image, false);
 
     while (jpegCompStruct.next_scanline < jpegCompStruct.image_height)
     {

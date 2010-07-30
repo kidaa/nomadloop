@@ -27,7 +27,6 @@
 
 BEGIN_JUCE_NAMESPACE
 
-
 #include "juce_URL.h"
 #include "../../core/juce_Random.h"
 #include "../../core/juce_PlatformUtilities.h"
@@ -244,6 +243,7 @@ void juce_closeInternetFile (void* handle);
 int juce_readFromInternetFile (void* handle, void* dest, int bytesToRead);
 int juce_seekInInternetFile (void* handle, int newPosition);
 int64 juce_getInternetFileContentLength (void* handle);
+void juce_getInternetFileHeaders (void* handle, StringPairArray& headers);
 
 
 //==============================================================================
@@ -256,7 +256,8 @@ public:
                     URL::OpenStreamProgressCallback* const progressCallback_,
                     void* const progressCallbackContext_,
                     const String& extraHeaders,
-                    int timeOutMs_)
+                    const int timeOutMs_,
+                    StringPairArray* const responseHeaders)
       : position (0),
         finished (false),
         isPost (isPost_),
@@ -277,6 +278,9 @@ public:
         handle = juce_openInternetFile (server, headers, postData, isPost,
                                         progressCallback_, progressCallbackContext_,
                                         timeOutMs);
+
+        if (responseHeaders != 0)
+            juce_getInternetFileHeaders (handle, *responseHeaders);
     }
 
     ~WebInputStream()
@@ -357,7 +361,7 @@ private:
 
     void createHeadersAndPostData (const URL& url)
     {
-        MemoryOutputStream data (256, 256, &postData);
+        MemoryOutputStream data (postData, false);
 
         if (url.getFilesToUpload().size() > 0)
         {
@@ -398,11 +402,14 @@ private:
             }
 
             data << "--\r\n";
+            data.flush();
         }
         else
         {
             data << getMangledParameters (url.getParameters())
                  << url.getPostData();
+
+            data.flush();
 
             // just a short text attachment, so use simple url encoding..
             headers = "Content-Type: application/x-www-form-urlencoded\r\nContent-length: "
@@ -419,12 +426,12 @@ InputStream* URL::createInputStream (const bool usePostCommand,
                                      OpenStreamProgressCallback* const progressCallback,
                                      void* const progressCallbackContext,
                                      const String& extraHeaders,
-                                     const int timeOutMs) const
+                                     const int timeOutMs,
+                                     StringPairArray* const responseHeaders) const
 {
     ScopedPointer <WebInputStream> wi (new WebInputStream (*this, usePostCommand,
                                                            progressCallback, progressCallbackContext,
-                                                           extraHeaders,
-                                                           timeOutMs));
+                                                           extraHeaders, timeOutMs, responseHeaders));
 
     return wi->isError() ? 0 : wi.release();
 }
@@ -437,7 +444,7 @@ bool URL::readEntireBinaryStream (MemoryBlock& destData,
 
     if (in != 0)
     {
-        in->readIntoMemoryBlock (destData, -1);
+        in->readIntoMemoryBlock (destData);
         return true;
     }
 

@@ -176,9 +176,17 @@ public:
 
     ~WindowedGLContext()
     {
+        deleteContext();
+        viewHolder = 0;
+    }
+
+    void deleteContext()
+    {
         makeInactive();
         [renderContext clearDrawable];
-        viewHolder = 0;
+        [renderContext setView: nil];
+        [view setOpenGLContext: nil];
+        renderContext = nil;
     }
 
     bool makeActive() const throw()
@@ -309,7 +317,7 @@ void OpenGLPixelFormat::getAvailablePixelFormats (Component* /*component*/,
         p = aglNextPixelFormat (p);
     }*/
 
-    //jassertfalse  //xxx can't see how you do this in cocoa!
+    //jassertfalse  // can't see how you do this in cocoa!
 }
 
 #else
@@ -365,11 +373,18 @@ public:
 
     ~GLESContext()
     {
-        makeInactive();
-        [context release];
+        deleteContext();
+
         [view removeFromSuperview];
         [view release];
         freeGLBuffers();
+    }
+
+    void deleteContext()
+    {
+        makeInactive();
+        [context release];
+        context = nil;
     }
 
     bool makeActive() const throw()

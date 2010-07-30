@@ -41,8 +41,8 @@ class JUCE_API  LowLevelGraphicsSoftwareRenderer    : public LowLevelGraphicsCon
 {
 public:
     //==============================================================================
-    LowLevelGraphicsSoftwareRenderer (Image& imageToRenderOn);
-    LowLevelGraphicsSoftwareRenderer (Image& imageToRenderOn, int xOffset, int yOffset, const RectangleList& initialClip);
+    LowLevelGraphicsSoftwareRenderer (const Image& imageToRenderOn);
+    LowLevelGraphicsSoftwareRenderer (const Image& imageToRenderOn, int xOffset, int yOffset, const RectangleList& initialClip);
     ~LowLevelGraphicsSoftwareRenderer();
 
     bool isVectorDevice() const;
@@ -54,7 +54,7 @@ public:
     bool clipToRectangleList (const RectangleList& clipRegion);
     void excludeClipRectangle (const Rectangle<int>& r);
     void clipToPath (const Path& path, const AffineTransform& transform);
-    void clipToImageAlpha (const Image& sourceImage, const Rectangle<int>& srcClip, const AffineTransform& transform);
+    void clipToImageAlpha (const Image& sourceImage, const AffineTransform& transform);
 
     bool clipRegionIntersects (const Rectangle<int>& r);
     const Rectangle<int> getClipBounds() const;
@@ -72,8 +72,7 @@ public:
     void fillRect (const Rectangle<int>& r, bool replaceExistingContents);
     void fillPath (const Path& path, const AffineTransform& transform);
 
-    void drawImage (const Image& sourceImage, const Rectangle<int>& srcClip,
-                    const AffineTransform& transform, bool fillEntireClipAsTiles);
+    void drawImage (const Image& sourceImage, const AffineTransform& transform, bool fillEntireClipAsTiles);
 
     void drawLine (const Line <float>& line);
 
@@ -91,7 +90,7 @@ public:
 
 protected:
     //==============================================================================
-    Image& image;
+    Image image;
 
     class GlyphCache;
     class CachedGlyph;

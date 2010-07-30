@@ -40,7 +40,7 @@
     @see PropertyComponent
 */
 class JUCE_API  ButtonPropertyComponent  : public PropertyComponent,
-                                           private ButtonListener
+                                           private ButtonListener // (can't use Button::Listener due to idiotic VC2005 bug)
 {
 public:
     //==============================================================================
@@ -75,7 +75,7 @@ public:
     juce_UseDebuggingNewOperator
 
 private:
-    TextButton* button;
+    TextButton button;
 
     ButtonPropertyComponent (const ButtonPropertyComponent&);
     ButtonPropertyComponent& operator= (const ButtonPropertyComponent&);

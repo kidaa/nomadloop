@@ -91,9 +91,7 @@ ScrollBar::ScrollBar (const bool vertical_,
       minimumDelayInMillisecs (10),
       vertical (vertical_),
       isDraggingThumb (false),
-      autohides (true),
-      upButton (0),
-      downButton (0)
+      autohides (true)
 {
     setButtonVisibility (buttonsAreVisible);
 
@@ -103,7 +101,8 @@ ScrollBar::ScrollBar (const bool vertical_,
 
 ScrollBar::~ScrollBar()
 {
-    deleteAllChildren();
+    upButton = 0;
+    downButton = 0;
 }
 
 //==============================================================================
@@ -187,12 +186,12 @@ void ScrollBar::setButtonRepeatSpeed (const int initialDelayInMillisecs_,
 }
 
 //==============================================================================
-void ScrollBar::addListener (ScrollBarListener* const listener)
+void ScrollBar::addListener (Listener* const listener)
 {
     listeners.add (listener);
 }
 
-void ScrollBar::removeListener (ScrollBarListener* const listener)
+void ScrollBar::removeListener (Listener* const listener)
 {
     listeners.remove (listener);
 }
@@ -200,7 +199,7 @@ void ScrollBar::removeListener (ScrollBarListener* const listener)
 void ScrollBar::handleAsyncUpdate()
 {
     double start = visibleRange.getStart(); // (need to use a temp variable for VC7 compatibility)
-    listeners.call (&ScrollBarListener::scrollBarMoved, this, start);
+    listeners.call (&ScrollBar::Listener::scrollBarMoved, this, start);
 }
 
 //==============================================================================
@@ -256,9 +255,7 @@ void ScrollBar::setOrientation (const bool shouldBeVertical)
 
 void ScrollBar::setButtonVisibility (const bool buttonsAreVisible)
 {
-    delete upButton;
     upButton = 0;
-    delete downButton;
     downButton = 0;
 
     if (buttonsAreVisible)

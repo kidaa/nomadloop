@@ -55,6 +55,9 @@ public:
     /** Destructor. */
     ~RSAKey();
 
+    bool operator== (const RSAKey& other) const throw();
+    bool operator!= (const RSAKey& other) const throw();
+
     //==============================================================================
     /** Turns the key into a string representation.
 
@@ -89,7 +92,8 @@ public:
 
         The randomSeeds parameter lets you optionally pass it a set of values with
         which to seed the random number generation, improving the security of the
-        keys generated.
+        keys generated. If you supply these, make sure you provide more than 2 values,
+        and the more your provide, the better the security.
     */
     static void createKeyPair (RSAKey& publicKey,
                                RSAKey& privateKey,
@@ -103,6 +107,9 @@ public:
 
 protected:
     BigInteger part1, part2;
+
+private:
+    static const BigInteger findBestCommonDivisor (const BigInteger& p, const BigInteger& q);
 };
 
 

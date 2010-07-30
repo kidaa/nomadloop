@@ -66,8 +66,8 @@ public:
 
         newState.elementX = getCoordLength (xml.getStringAttribute ("x", String (newState.elementX)), viewBoxW);
         newState.elementY = getCoordLength (xml.getStringAttribute ("y", String (newState.elementY)), viewBoxH);
-        newState.width = getCoordLength (xml.getStringAttribute ("width", String (newState.width)), viewBoxW);
-        newState.height = getCoordLength (xml.getStringAttribute ("height", String (newState.height)), viewBoxH);
+        newState.width    = getCoordLength (xml.getStringAttribute ("width", String (newState.width)), viewBoxW);
+        newState.height   = getCoordLength (xml.getStringAttribute ("height", String (newState.height)), viewBoxH);
 
         if (xml.hasAttribute ("viewBox"))
         {
@@ -130,6 +130,7 @@ public:
 
         newState.parseSubElements (xml, drawable);
 
+        drawable->resetContentAreaAndBoundingBoxToFitChildren();
         return drawable;
     }
 
@@ -147,30 +148,18 @@ private:
         {
             Drawable* d = 0;
 
-            if (e->hasTagName ("g"))
-                d = parseGroupElement (*e);
-            else if (e->hasTagName ("svg"))
-                d = parseSVGElement (*e);
-            else if (e->hasTagName ("path"))
-                d = parsePath (*e);
-            else if (e->hasTagName ("rect"))
-                d = parseRect (*e);
-            else if (e->hasTagName ("circle"))
-                d = parseCircle (*e);
-            else if (e->hasTagName ("ellipse"))
-                d = parseEllipse (*e);
-            else if (e->hasTagName ("line"))
-                d = parseLine (*e);
-            else if (e->hasTagName ("polyline"))
-                d = parsePolygon (*e, true);
-            else if (e->hasTagName ("polygon"))
-                d = parsePolygon (*e, false);
-            else if (e->hasTagName ("text"))
-                d = parseText (*e);
-            else if (e->hasTagName ("switch"))
-                d = parseSwitch (*e);
-            else if (e->hasTagName ("style"))
-                parseCSSStyle (*e);
+            if (e->hasTagName ("g"))                d = parseGroupElement (*e);
+            else if (e->hasTagName ("svg"))         d = parseSVGElement (*e);
+            else if (e->hasTagName ("path"))        d = parsePath (*e);
+            else if (e->hasTagName ("rect"))        d = parseRect (*e);
+            else if (e->hasTagName ("circle"))      d = parseCircle (*e);
+            else if (e->hasTagName ("ellipse"))     d = parseEllipse (*e);
+            else if (e->hasTagName ("line"))        d = parseLine (*e);
+            else if (e->hasTagName ("polyline"))    d = parsePolygon (*e, true);
+            else if (e->hasTagName ("polygon"))     d = parsePolygon (*e, false);
+            else if (e->hasTagName ("text"))        d = parseText (*e);
+            else if (e->hasTagName ("switch"))      d = parseSwitch (*e);
+            else if (e->hasTagName ("style"))       parseCSSStyle (*e);
 
             parentDrawable->insertDrawable (d);
         }
@@ -204,6 +193,7 @@ private:
             parseSubElements (xml, drawable);
         }
 
+        drawable->resetContentAreaAndBoundingBoxToFitChildren();
         return drawable;
     }
 
@@ -544,8 +534,8 @@ private:
     {
         Path ellipse;
 
-        const float cx = getCoordLength (xml.getStringAttribute ("cx"), viewBoxW);
-        const float cy = getCoordLength (xml.getStringAttribute ("cy"), viewBoxH);
+        const float cx      = getCoordLength (xml.getStringAttribute ("cx"), viewBoxW);
+        const float cy      = getCoordLength (xml.getStringAttribute ("cy"), viewBoxH);
         const float radiusX = getCoordLength (xml.getStringAttribute ("rx"), viewBoxW);
         const float radiusY = getCoordLength (xml.getStringAttribute ("ry"), viewBoxH);
 
@@ -811,9 +801,8 @@ private:
             capStyle = PathStrokeType::square;
 
         float ox = 0.0f, oy = 0.0f;
-        transform.transformPoint (ox, oy);
         float x = getCoordLength (strokeWidth, viewBoxW), y = 0.0f;
-        transform.transformPoint (x, y);
+        transform.transformPoints (ox, oy, x, y);
 
         return PathStrokeType (strokeWidth.isNotEmpty() ? juce_hypotf (x - ox, y - oy) : 1.0f,
                                joinStyle, capStyle);

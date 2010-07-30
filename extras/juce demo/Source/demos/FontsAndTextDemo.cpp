@@ -42,7 +42,6 @@ class FontsAndTextDemo  : public Component,
     Slider* horizontalScaleSlider;
 
     StretchableLayoutManager verticalLayout;
-    StretchableLayoutManager horizontalLayout;
 
     StretchableLayoutResizerBar* verticalDividerBar;
 
@@ -50,11 +49,11 @@ public:
     //==============================================================================
     FontsAndTextDemo()
     {
-        setName (T("Fonts"));
+        setName ("Fonts");
 
         Font::findFonts (fonts);
 
-        addAndMakeVisible (listBox = new ListBox (T("fonts"), this));
+        addAndMakeVisible (listBox = new ListBox ("fonts", this));
         listBox->setRowHeight (28);
 
         addAndMakeVisible (textBox = new TextEditor());
@@ -64,12 +63,12 @@ public:
 
         textBox->setMultiLine (true, true);
         textBox->setReturnKeyStartsNewLine (true);
-        textBox->setText (T("The Quick Brown Fox Jumps Over The Lazy Dog\n\nAa Bb Cc Dd Ee Ff Gg Hh Ii Jj Kk Ll Mm Nn Oo Pp Qq Rr Ss Tt Uu Vv Ww Xx Yy Zz 0123456789"));
+        textBox->setText ("The Quick Brown Fox Jumps Over The Lazy Dog\n\nAa Bb Cc Dd Ee Ff Gg Hh Ii Jj Kk Ll Mm Nn Oo Pp Qq Rr Ss Tt Uu Vv Ww Xx Yy Zz 0123456789");
 
-        addAndMakeVisible (boldButton = new ToggleButton (T("bold")));
+        addAndMakeVisible (boldButton = new ToggleButton ("bold"));
         boldButton->addButtonListener (this);
 
-        addAndMakeVisible (italicButton = new ToggleButton (T("italic")));
+        addAndMakeVisible (italicButton = new ToggleButton ("italic"));
         italicButton->addButtonListener (this);
 
         addAndMakeVisible (sizeSlider = new Slider ("Size"));
@@ -104,22 +103,6 @@ public:
 
         verticalDividerBar = new StretchableLayoutResizerBar (&verticalLayout, 1, true);
         addAndMakeVisible (verticalDividerBar);
-
-        horizontalLayout.setItemLayout (0, -0.2, -1.0, -0.4);  // height of the font text box must be
-                                                               // between 20% and 100%, preferably 40%
-        horizontalLayout.setItemLayout (1, 8, 8, 8);           // the horizontal divider drag-bar thing is always 8 pixels high
-        horizontalLayout.setItemLayout (2, 2, 5, 5);           // a gap between the controls
-        horizontalLayout.setItemLayout (3, 15, 20, 20);        // the italic button would like to be 20 pixels high
-        horizontalLayout.setItemLayout (4, 2, 5, 5);           // a gap between the controls
-        horizontalLayout.setItemLayout (5, 15, 20, 20);        // the bold button would like to be 20 pixels high
-        horizontalLayout.setItemLayout (6, 2, 5, 5);           // a gap between the controls
-        horizontalLayout.setItemLayout (7, 15, 20, 20);        // the italic button would like to be 20 pixels high
-        horizontalLayout.setItemLayout (8, 2, 5, 5);           // a gap between the controls
-        horizontalLayout.setItemLayout (9, 15, 20, 20);        // the copy code button would like to be 20 pixels high
-        horizontalLayout.setItemLayout (10, 5, -1.0, 5);        // add a gap at the bottom that will fill up any
-                                                               // space left over - this will stop the
-                                                               // sliders from always sticking to the
-                                                               // bottom of the window
     }
 
     ~FontsAndTextDemo()
@@ -193,12 +176,12 @@ public:
         textBox->applyFontToAllText (font);
     }
 
-    void selectedRowsChanged (int lastRowselected)
+    void selectedRowsChanged (int /*lastRowselected*/)
     {
         updatePreviewBoxText();
     }
 
-    void buttonClicked (Button* button)
+    void buttonClicked (Button*)
     {
         updatePreviewBoxText();
     }

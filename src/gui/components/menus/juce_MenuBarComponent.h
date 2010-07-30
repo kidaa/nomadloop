@@ -36,7 +36,7 @@
     @see MenuBarModel
 */
 class JUCE_API  MenuBarComponent  : public Component,
-                                    private MenuBarModelListener,
+                                    private MenuBarModel::Listener,
                                     private Timer
 {
 public:
@@ -59,6 +59,10 @@ public:
         that is passed-in while it's still being used by this MenuBar.
     */
     void setModel (MenuBarModel* newModel);
+
+    /** Returns the current menu bar model being used.
+    */
+    MenuBarModel* getModel() const throw();
 
     //==============================================================================
     /** Pops up one of the menu items.
@@ -86,8 +90,6 @@ public:
     /** @internal */
     void mouseMove (const MouseEvent& e);
     /** @internal */
-    void inputAttemptWhenModal();
-    /** @internal */
     void handleCommandMessage (int commandId);
     /** @internal */
     bool keyPressed (const KeyPress& key);
@@ -102,20 +104,22 @@ public:
     juce_UseDebuggingNewOperator
 
 private:
+    class AsyncCallback;
+    friend class AsyncCallback;
     MenuBarModel* model;
 
     StringArray menuNames;
     Array <int> xPositions;
-    int itemUnderMouse, currentPopupIndex, topLevelIndexClicked, indexToShowAgain;
+    int itemUnderMouse, currentPopupIndex, topLevelIndexClicked;
     int lastMouseX, lastMouseY;
-    bool inModalState;
-    ScopedPointer <Component> currentPopup;
 
     int getItemAt (int x, int y);
+    void setItemUnderMouse (int index);
+    void setOpenItem (int index);
     void updateItemUnderMouse (int x, int y);
-    void hideCurrentMenu();
     void timerCallback();
     void repaintMenuItem (int index);
+    void menuDismissed (int topLevelIndex, int itemId);
 
     MenuBarComponent (const MenuBarComponent&);
     MenuBarComponent& operator= (const MenuBarComponent&);

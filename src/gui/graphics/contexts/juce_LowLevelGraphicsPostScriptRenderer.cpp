@@ -57,7 +57,7 @@ LowLevelGraphicsPostScriptRenderer::LowLevelGraphicsPostScriptRenderer (OutputSt
       needToClip (true)
 {
     stateStack.add (new SavedState());
-    stateStack.getLast()->clip = Rectangle<int> (0, 0, totalWidth_, totalHeight_);
+    stateStack.getLast()->clip = Rectangle<int> (totalWidth_, totalHeight_);
 
     const float scale = jmin ((520.0f / totalWidth_), (750.0f / totalHeight));
 
@@ -140,7 +140,7 @@ void LowLevelGraphicsPostScriptRenderer::clipToPath (const Path& path, const Aff
     out << "clip\n";
 }
 
-void LowLevelGraphicsPostScriptRenderer::clipToImageAlpha (const Image& /*sourceImage*/, const Rectangle<int>& /*srcClip*/, const AffineTransform& /*transform*/)
+void LowLevelGraphicsPostScriptRenderer::clipToImageAlpha (const Image& /*sourceImage*/, const AffineTransform& /*transform*/)
 {
     needToClip = true;
     jassertfalse; // xxx
@@ -454,11 +454,10 @@ void LowLevelGraphicsPostScriptRenderer::writeImage (const Image& im,
     out << "\n>}\n";
 }
 
-void LowLevelGraphicsPostScriptRenderer::drawImage (const Image& sourceImage, const Rectangle<int>& srcClip,
-                                                    const AffineTransform& transform, const bool /*fillEntireClipAsTiles*/)
+void LowLevelGraphicsPostScriptRenderer::drawImage (const Image& sourceImage, const AffineTransform& transform, const bool /*fillEntireClipAsTiles*/)
 {
-    const int w = jmin (sourceImage.getWidth(), srcClip.getRight());
-    const int h = jmin (sourceImage.getHeight(), srcClip.getBottom());
+    const int w = sourceImage.getWidth();
+    const int h = sourceImage.getHeight();
 
     writeClip();
 
@@ -468,7 +467,6 @@ void LowLevelGraphicsPostScriptRenderer::drawImage (const Image& sourceImage, co
 
     RectangleList imageClip;
     sourceImage.createSolidAreaMask (imageClip, 0.5f);
-    imageClip.clipTo (srcClip);
 
     out << "newpath ";
     int itemsOnLine = 0;
@@ -491,7 +489,7 @@ void LowLevelGraphicsPostScriptRenderer::drawImage (const Image& sourceImage, co
     out << w << ' ' << h << " scale\n";
     out << w << ' ' << h << " 8 [" << w << " 0 0 -" << h << ' ' << (int) 0 << ' ' << h << " ]\n";
 
-    writeImage (sourceImage, srcClip.getX(), srcClip.getY(), srcClip.getWidth(), srcClip.getHeight());
+    writeImage (sourceImage, 0, 0, w, h);
 
     out << "false 3 colorimage grestore\n";
     needToClip = true;
@@ -502,7 +500,7 @@ void LowLevelGraphicsPostScriptRenderer::drawImage (const Image& sourceImage, co
 void LowLevelGraphicsPostScriptRenderer::drawLine (const Line <float>& line)
 {
     Path p;
-    p.addLineSegment (line.getStartX(), line.getStartY(), line.getEndX(), line.getEndY(), 1.0f);
+    p.addLineSegment (line, 1.0f);
     fillPath (p, AffineTransform::identity);
 }
 

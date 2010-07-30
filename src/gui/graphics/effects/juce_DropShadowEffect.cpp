@@ -66,8 +66,8 @@ void DropShadowEffect::applyEffect (Image& image, Graphics& g)
 
     Image shadowImage (Image::SingleChannel, w, h, false);
 
-    const Image::BitmapData srcData (image, 0, 0, w, h);
-    const Image::BitmapData destData (shadowImage, 0, 0, w, h, true);
+    const Image::BitmapData srcData (image, false);
+    const Image::BitmapData destData (shadowImage, true);
 
     const int filter = roundToInt (63.0f / radius);
     const int radiusMinus1 = roundToInt ((radius - 1.0f) * 63.0f);
@@ -102,10 +102,10 @@ void DropShadowEffect::applyEffect (Image& image, Graphics& g)
     }
 
     g.setColour (Colours::black.withAlpha (opacity));
-    g.drawImageAt (&shadowImage, offsetX, offsetY, true);
+    g.drawImageAt (shadowImage, offsetX, offsetY, true);
 
     g.setOpacity (1.0f);
-    g.drawImageAt (&image, 0, 0);
+    g.drawImageAt (image, 0, 0);
 }
 
 #if JUCE_MSVC && JUCE_DEBUG

@@ -199,14 +199,14 @@ const Drawable* BinaryResources::getDrawable (const String& name) const
     return res->drawable;
 }
 
-Image* BinaryResources::getImageFromCache (const String& name) const
+const Image BinaryResources::getImageFromCache (const String& name) const
 {
     const BinaryResources::BinaryResource* const res = getResource (name);
 
     if (res != 0 && res->data.getSize() > 0)
         return ImageCache::getFromMemory (res->data.getData(), (int) res->data.getSize());
 
-    return 0;
+    return Image();
 }
 
 void BinaryResources::loadFromCpp (const File& cppFileLocation, const String& cppFile)
@@ -308,7 +308,7 @@ void BinaryResources::fillInGeneratedCode (GeneratedCode& code) const
 
             defs += line1;
 
-            MemoryOutputStream out (65536, 16384);
+            MemoryOutputStream out (65536);
             int charsOnLine = line1.length();
 
             for (size_t j = 0; j < mb.getSize(); ++j)
@@ -332,7 +332,7 @@ void BinaryResources::fillInGeneratedCode (GeneratedCode& code) const
             out << (char) 0;
 
             defs
-              << out.getData()
+              << (const char*) out.getData()
               << "0,0};\n\nconst char* "
               << code.className << "::" << name
               << " = (const char*) resource_" << code.className << "_" << name

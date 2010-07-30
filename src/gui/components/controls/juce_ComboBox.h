@@ -29,28 +29,6 @@
 #include "juce_Label.h"
 #include "../../../text/juce_StringArray.h"
 #include "../../../containers/juce_Value.h"
-class ComboBox;
-
-
-//==============================================================================
-/**
-    A class for receiving events from a ComboBox.
-
-    You can register a ComboBoxListener with a ComboBox using the ComboBox::addListener()
-    method, and it will be called when the selected item in the box changes.
-
-    @see ComboBox::addListener, ComboBox::removeListener
-*/
-class JUCE_API  ComboBoxListener
-{
-public:
-    /** Destructor. */
-    virtual ~ComboBoxListener() {}
-
-    /** Called when a ComboBox has its selected item changed.
-    */
-    virtual void comboBoxChanged (ComboBox* comboBoxThatHasChanged) = 0;
-};
 
 
 //==============================================================================
@@ -64,15 +42,15 @@ public:
     either be read-only text, or editable.
 
     To find out when the user selects a different item or edits the text, you
-    can register a ComboBoxListener to receive callbacks.
+    can register a ComboBox::Listener to receive callbacks.
 
-    @see ComboBoxListener
+    @see ComboBox::Listener
 */
 class JUCE_API  ComboBox  : public Component,
                             public SettableTooltipClient,
-                            private LabelListener,
-                            private AsyncUpdater,
-                            private Value::Listener
+                            public LabelListener,  // (can't use Label::Listener due to idiotic VC2005 bug)
+                            public Value::Listener,
+                            private AsyncUpdater
 {
 public:
     //==============================================================================
@@ -282,12 +260,33 @@ public:
     */
     void showEditor();
 
+    /** Pops up the combo box's list. */
+    void showPopup();
+
     //==============================================================================
+    /**
+        A class for receiving events from a ComboBox.
+
+        You can register a ComboBox::Listener with a ComboBox using the ComboBox::addListener()
+        method, and it will be called when the selected item in the box changes.
+
+        @see ComboBox::addListener, ComboBox::removeListener
+    */
+    class JUCE_API  Listener
+    {
+    public:
+        /** Destructor. */
+        virtual ~Listener() {}
+
+        /** Called when a ComboBox has its selected item changed. */
+        virtual void comboBoxChanged (ComboBox* comboBoxThatHasChanged) = 0;
+    };
+
     /** Registers a listener that will be called when the box's content changes. */
-    void addListener (ComboBoxListener* listener) throw();
+    void addListener (Listener* listener) throw();
 
     /** Deregisters a previously-registered listener. */
-    void removeListener (ComboBoxListener* listener) throw();
+    void removeListener (Listener* listener) throw();
 
     //==============================================================================
     /** Sets a message to display when there is no item currently selected.
@@ -388,15 +387,16 @@ private:
         bool isRealItem() const throw();
     };
 
+    class Callback;
+    friend class Callback;
+
     OwnedArray <ItemInfo> items;
     Value currentId;
     int lastCurrentId;
     bool isButtonDown, separatorPending, menuActive, textIsCustom;
-    ListenerList <ComboBoxListener> listeners;
+    ListenerList <Listener> listeners;
     ScopedPointer<Label> label;
     String textWhenNothingSelected, noChoicesMessage;
-
-    void showPopup();
 
     ItemInfo* getItemForId (int itemId) const throw();
     ItemInfo* getItemForIndex (int index) const throw();
@@ -404,5 +404,9 @@ private:
     ComboBox (const ComboBox&);
     ComboBox& operator= (const ComboBox&);
 };
+
+/** This typedef is just for compatibility with old code - newer code should use the ComboBox::Listener class directly. */
+typedef ComboBox::Listener ComboBoxListener;
+
 
 #endif   // __JUCE_COMBOBOX_JUCEHEADER__

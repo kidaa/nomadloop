@@ -27,7 +27,6 @@
 
 BEGIN_JUCE_NAMESPACE
 
-
 #include "juce_XmlElement.h"
 #include "../io/streams/juce_MemoryOutputStream.h"
 #include "../io/files/juce_TemporaryFile.h"
@@ -161,7 +160,7 @@ namespace XmlOutputFunctions
                 || (character >= '0' && character <= '9'))
             return true;
 
-        const char* t = " .,;:-()_+=?!'#@[]/\\*%~{}";
+        const char* t = " .,;:-()_+=?!'#@[]/\\*%~{}$|";
 
         do
         {
@@ -190,7 +189,7 @@ namespace XmlOutputFunctions
 
     static bool isLegalXmlChar (const uint32 c) throw()
     {
-        static const unsigned char legalChars[] = { 0, 0, 0, 0, 171, 255, 255, 175, 255, 255, 255, 191, 254, 255, 255, 111 };
+        static const unsigned char legalChars[] = { 0, 0, 0, 0, 187, 255, 255, 175, 255, 255, 255, 191, 254, 255, 255, 127 };
 
         return c < sizeof (legalChars) * 8
                  && (legalChars [c >> 3] & (1 << (c & 7))) != 0;
@@ -387,7 +386,7 @@ const String XmlElement::createDocument (const String& dtdToUse,
                                          const String& encodingType,
                                          const int lineWrapLength) const
 {
-    MemoryOutputStream mem (2048, 4096);
+    MemoryOutputStream mem (2048);
     writeToStream (mem, dtdToUse, allOnOneLine, includeXmlHeader, encodingType, lineWrapLength);
 
     return mem.toUTF8();

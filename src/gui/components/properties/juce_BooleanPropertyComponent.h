@@ -40,7 +40,7 @@
     @see PropertyComponent
 */
 class JUCE_API  BooleanPropertyComponent  : public PropertyComponent,
-                                            private ButtonListener
+                                            private ButtonListener // (can't use Button::Listener due to idiotic VC2005 bug)
 {
 protected:
     //==============================================================================
@@ -89,10 +89,8 @@ public:
     juce_UseDebuggingNewOperator
 
 private:
-    ToggleButton* button;
+    ToggleButton button;
     String onText, offText;
-
-    void createButton();
 
     BooleanPropertyComponent (const BooleanPropertyComponent&);
     BooleanPropertyComponent& operator= (const BooleanPropertyComponent&);

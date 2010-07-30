@@ -47,7 +47,7 @@ public:
     DrawableComposite (const DrawableComposite& other);
 
     /** Destructor. */
-    virtual ~DrawableComposite();
+    ~DrawableComposite();
 
     //==============================================================================
     /** Adds a new sub-drawable to this one.
@@ -118,54 +118,68 @@ public:
     */
     void bringToFront (int index);
 
-    /** Sets the transform to be applied to this drawable, by defining the positions
-        where three anchor points should end up in the target rendering space.
-
-        @param targetPositionForOrigin  the position that the local coordinate (0, 0) should be
-                                        mapped onto when rendering this object.
-        @param targetPositionForX1Y0    the position that the local coordinate (1, 0) should be
-                                        mapped onto when rendering this object.
-        @param targetPositionForX0Y1    the position that the local coordinate (0, 1) should be
-                                        mapped onto when rendering this object.
+    //==============================================================================
+    /** Changes the main content area.
+        The content area is actually defined by the markers named "left", "right", "top" and
+        "bottom", but this method is a shortcut that sets them all at once.
+        @see contentLeftMarkerName, contentRightMarkerName, contentTopMarkerName, contentBottomMarkerName
     */
-    void setTransform (const RelativePoint& targetPositionForOrigin,
-                       const RelativePoint& targetPositionForX1Y0,
-                       const RelativePoint& targetPositionForX0Y1);
+    const RelativeRectangle getContentArea() const;
 
-    /** Returns the position to which the local coordinate (0, 0) should be remapped in the target
-        coordinate space when rendering this object.
-        @see setTransform
+    /** Returns the main content rectangle.
+        The content area is actually defined by the markers named "left", "right", "top" and
+        "bottom", but this method is a shortcut that returns them all at once.
+        @see setBoundingBox, contentLeftMarkerName, contentRightMarkerName, contentTopMarkerName, contentBottomMarkerName
     */
-    const RelativePoint& getTargetPositionForOrigin() const throw()          { return controlPoints[0]; }
+    void setContentArea (const RelativeRectangle& newArea);
 
-    /** Returns the position to which the local coordinate (1, 0) should be remapped in the target
-        coordinate space when rendering this object.
-        @see setTransform
+    /** Sets the parallelogram that defines the target position of the content rectangle when the drawable is rendered.
+        @see setContentArea
     */
-    const RelativePoint& getTargetPositionForX1Y0() const throw()            { return controlPoints[1]; }
+    void setBoundingBox (const RelativeParallelogram& newBoundingBox);
 
-    /** Returns the position to which the local coordinate (0, 1) should be remapped in the target
-        coordinate space when rendering this object.
-        @see setTransform
+    /** Returns the parallelogram that defines the target position of the content rectangle when the drawable is rendered.
+        @see setBoundingBox
     */
-    const RelativePoint& getTargetPositionForX0Y1() const throw()            { return controlPoints[2]; }
+    const RelativeParallelogram& getBoundingBox() const throw()             { return bounds; }
+
+    /** Changes the bounding box transform to match the content area, so that any sub-items will
+        be drawn at their untransformed positions.
+    */
+    void resetBoundingBoxToContentArea();
+
+    /** Resets the content area and the bounding transform to fit around the area occupied
+        by the child components (ignoring any markers).
+    */
+    void resetContentAreaAndBoundingBoxToFitChildren();
 
     //==============================================================================
+    /** Represents a named marker position.
+        @see DrawableComposite::getMarker
+    */
     struct Marker
     {
         Marker (const Marker&);
-        Marker (const String& name, const RelativeCoordinate& position, bool isOnXAxis);
+        Marker (const String& name, const RelativeCoordinate& position);
         bool operator!= (const Marker&) const throw();
 
         String name;
         RelativeCoordinate position;
-        bool isOnXAxis;
     };
 
     int getNumMarkers (bool xAxis) const throw();
-    const Marker* getMarker (int index) const throw();
+    const Marker* getMarker (bool xAxis, int index) const throw();
     void setMarker (const String& name, bool xAxis, const RelativeCoordinate& position);
-    void removeMarker (int index);
+    void removeMarker (bool xAxis, int index);
+
+    /** The name of the marker that defines the left edge of the content area. */
+    static const char* const contentLeftMarkerName;
+    /** The name of the marker that defines the right edge of the content area. */
+    static const char* const contentRightMarkerName;
+    /** The name of the marker that defines the top edge of the content area. */
+    static const char* const contentTopMarkerName;
+    /** The name of the marker that defines the bottom edge of the content area. */
+    static const char* const contentBottomMarkerName;
 
     //==============================================================================
     /** @internal */
@@ -199,32 +213,36 @@ public:
         int getNumDrawables() const;
         ValueTree getDrawableState (int index) const;
         ValueTree getDrawableWithId (const String& objectId, bool recursive) const;
+        int indexOfDrawable (const ValueTree& item) const;
         void addDrawable (const ValueTree& newDrawableState, int index, UndoManager* undoManager);
         void moveDrawableOrder (int currentIndex, int newIndex, UndoManager* undoManager);
-        void removeDrawable (int index, UndoManager* undoManager);
+        void removeDrawable (const ValueTree& child, UndoManager* undoManager);
 
-        const RelativePoint getTargetPositionForOrigin() const;
-        void setTargetPositionForOrigin (const RelativePoint& newPoint, UndoManager* undoManager);
+        const RelativeParallelogram getBoundingBox() const;
+        void setBoundingBox (const RelativeParallelogram& newBounds, UndoManager* undoManager);
+        void resetBoundingBoxToContentArea (UndoManager* undoManager);
 
-        const RelativePoint getTargetPositionForX1Y0() const;
-        void setTargetPositionForX1Y0 (const RelativePoint& newPoint, UndoManager* undoManager);
+        const RelativeRectangle getContentArea() const;
+        void setContentArea (const RelativeRectangle& newArea, UndoManager* undoManager);
 
-        const RelativePoint getTargetPositionForX0Y1() const;
-        void setTargetPositionForX0Y1 (const RelativePoint& newPoint, UndoManager* undoManager);
+        int getNumMarkers (bool xAxis) const;
+        const ValueTree getMarkerState (bool xAxis, int index) const;
+        const ValueTree getMarkerState (bool xAxis, const String& name) const;
+        bool containsMarker (bool xAxis, const ValueTree& state) const;
+        const Marker getMarker (bool xAxis, const ValueTree& state) const;
+        void setMarker (bool xAxis, const Marker& marker, UndoManager* undoManager);
+        void removeMarker (bool xAxis, const ValueTree& state, UndoManager* undoManager);
 
-        int getNumMarkers() const;
-        const Marker getMarker (int index) const;
-        void setMarker (const String& name, bool xAxis, const RelativeCoordinate& position, UndoManager* undoManager);
-        void removeMarker (int index, UndoManager* undoManager);
+        static const Identifier nameProperty, posProperty;
 
     private:
-        static const Identifier topLeft, topRight, bottomLeft, childGroupTag, markerGroupTag,
-                                markerTag, nameProperty, xAxisProperty, posProperty;
+        static const Identifier topLeft, topRight, bottomLeft, childGroupTag, markerGroupTagX,
+                                markerGroupTagY, markerTag;
 
         ValueTree getChildList() const;
         ValueTree getChildListCreating (UndoManager* undoManager);
-        ValueTree getMarkerList() const;
-        ValueTree getMarkerListCreating (UndoManager* undoManager);
+        ValueTree getMarkerList (bool xAxis) const;
+        ValueTree getMarkerListCreating (bool xAxis, UndoManager* undoManager);
     };
 
     //==============================================================================
@@ -232,10 +250,10 @@ public:
 
 private:
     OwnedArray <Drawable> drawables;
-    RelativePoint controlPoints[3];
-    OwnedArray <Marker> markers;
+    RelativeParallelogram bounds;
+    OwnedArray <Marker> markersX, markersY;
 
-    const Rectangle<float> getUntransformedBounds() const;
+    const Rectangle<float> getUntransformedBounds (bool includeMarkers) const;
     const AffineTransform calculateTransform() const;
 
     DrawableComposite& operator= (const DrawableComposite&);

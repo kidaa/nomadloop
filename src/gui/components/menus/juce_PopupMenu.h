@@ -119,7 +119,7 @@ public:
                   const String& itemText,
                   bool isActive = true,
                   bool isTicked = false,
-                  const Image* iconToUse = 0);
+                  const Image& iconToUse = Image::null);
 
     /** Adds an item that represents one of the commands in a command manager object.
 
@@ -145,7 +145,7 @@ public:
                           const Colour& itemTextColour,
                           bool isActive = true,
                           bool isTicked = false,
-                          const Image* iconToUse = 0);
+                          const Image& iconToUse = Image::null);
 
     /** Appends a custom menu item.
 
@@ -183,7 +183,7 @@ public:
     void addSubMenu (const String& subMenuName,
                      const PopupMenu& subMenu,
                      bool isActive = true,
-                     Image* iconToUse = 0,
+                     const Image& iconToUse = Image::null,
                      bool isTicked = false);
 
     /** Appends a separator to the menu, to help break it up into sections.
@@ -240,12 +240,19 @@ public:
                                         in zero.
         @param standardItemHeight       if this is non-zero, it will be used as the standard
                                         height for menu items (apart from custom items)
+        @param callback                 if this is non-zero, the menu will be launched asynchronously,
+                                        returning immediately, and the callback will receive a
+                                        call when the menu is either dismissed or has an item
+                                        selected. This object will be owned and deleted by the
+                                        system, so make sure that it works safely and that any
+                                        pointers that it uses are safely within scope.
         @see showAt
     */
     int show (int itemIdThatMustBeVisible = 0,
               int minimumWidth = 0,
               int maximumNumColumns = 0,
-              int standardItemHeight = 0);
+              int standardItemHeight = 0,
+              ModalComponentManager::Callback* callback = 0);
 
 
     /** Displays the menu at a specific location.
@@ -264,7 +271,8 @@ public:
                 int itemIdThatMustBeVisible = 0,
                 int minimumWidth = 0,
                 int maximumNumColumns = 0,
-                int standardItemHeight = 0);
+                int standardItemHeight = 0,
+                ModalComponentManager::Callback* callback = 0);
 
     /** Displays the menu as if it's attached to a component such as a button.
 
@@ -276,7 +284,8 @@ public:
                 int itemIdThatMustBeVisible = 0,
                 int minimumWidth = 0,
                 int maximumNumColumns = 0,
-                int standardItemHeight = 0);
+                int standardItemHeight = 0,
+                ModalComponentManager::Callback* callback = 0);
 
     //==============================================================================
     /** Closes any menus that are currently open.
@@ -357,7 +366,7 @@ public:
         bool isCustomComponent;
         bool isSectionHeader;
         const Colour* customColour;
-        const Image* customImage;
+        Image customImage;
         ApplicationCommandManager* commandManager;
 
         //==============================================================================
@@ -383,6 +392,7 @@ private:
     friend class ItemComponent;
     friend class Window;
     friend class PopupMenuCustomComponent;
+    friend class MenuBarComponent;
     friend class OwnedArray <Item>;
     friend class ScopedPointer <Window>;
 
@@ -392,24 +402,14 @@ private:
 
     void addSeparatorIfPending();
 
-    int showMenu (int x, int y, int w, int h,
+    int showMenu (const Rectangle<int>& target,
                   int itemIdThatMustBeVisible,
                   int minimumWidth,
                   int maximumNumColumns,
                   int standardItemHeight,
                   bool alignToRectangle,
-                  Component* componentAttachedTo);
-
-    friend class MenuBarComponent;
-    Component* createMenuComponent (int x, int y, int w, int h,
-                                    int itemIdThatMustBeVisible,
-                                    int minimumWidth,
-                                    int maximumNumColumns,
-                                    int standardItemHeight,
-                                    bool alignToRectangle,
-                                    Component* menuBarComponent,
-                                    ApplicationCommandManager** managerOfChosenCommand,
-                                    Component* componentAttachedTo);
+                  Component* componentAttachedTo,
+                  ModalComponentManager::Callback* callback);
 };
 
 #endif   // __JUCE_POPUPMENU_JUCEHEADER__

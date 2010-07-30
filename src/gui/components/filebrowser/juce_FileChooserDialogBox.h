@@ -66,7 +66,7 @@
     @see FileChooser
 */
 class JUCE_API  FileChooserDialogBox : public ResizableWindow,
-                                       public ButtonListener,
+                                       public ButtonListener,  // (can't use Button::Listener due to idiotic VC2005 bug)
                                        public FileBrowserListener
 {
 public:
@@ -103,8 +103,16 @@ public:
 
         Leave the width or height as 0 to use the default size
     */
-    bool show (int width = 0,int height = 0);
+    bool show (int width = 0, int height = 0);
 
+    /** Displays and runs the dialog box modally.
+
+        This will show the box with the specified size at the specified location,
+        returning true if the user pressed 'ok', or false if they cancelled.
+
+        Leave the width or height as 0 to use the default size.
+    */
+    bool showAt (int x, int y, int width, int height);
 
     //==============================================================================
     /** A set of colour IDs to use to change the colour of various aspects of the box.

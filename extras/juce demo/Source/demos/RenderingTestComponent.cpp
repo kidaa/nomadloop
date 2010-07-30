@@ -68,8 +68,6 @@ public:
 
     ~RenderingTestCanvas()
     {
-        delete rgbImage;
-        delete argbImage;
         delete svgDrawable;
     }
 
@@ -90,7 +88,7 @@ public:
         if (owner.clipToImageToggle->getToggleState())
             clipToImage (g);
 
-        g.fillCheckerBoard (0, 0, getWidth(), getHeight(), 50, 50,
+        g.fillCheckerBoard (getLocalBounds(), 50, 50,
                             Colour (0xffdddddd), Colours::transparentBlack);
 
         switch (owner.testTypeComboBox->getSelectedId())
@@ -151,8 +149,7 @@ private:
     RenderingTestComponent& owner;
     double averageTime;
 
-    Image* rgbImage;
-    Image* argbImage;
+    Image rgbImage, argbImage;
     DrawableComposite* svgDrawable;
     GlyphArrangement glyphs;
     ColourGradient linearGradient, radialGradient;
@@ -181,7 +178,7 @@ private:
         float size = (float) jmin (getWidth(), getHeight());
 
         Path p;
-        p.addStar (bouncingPointX[1], bouncingPointY[1], 7,
+        p.addStar (Point<float> (bouncingPointX[1], bouncingPointY[1]), 7,
                    size * jmax (0.6f, bouncingNumber[4]),
                    size * jmax (0.7f, bouncingNumber[5]),
                    bouncingNumber[4]);
@@ -191,21 +188,19 @@ private:
 
     void clipToImage (Graphics& g)
     {
-        AffineTransform transform (AffineTransform::translation (argbImage->getWidth() / -2.0f, argbImage->getHeight() / -2.0f)
+        AffineTransform transform (AffineTransform::translation (argbImage.getWidth() / -2.0f, argbImage.getHeight() / -2.0f)
                                                    .rotated (bouncingNumber[3])
                                                    .scaled (bouncingNumber[2] + 4.0f, bouncingNumber[2] + 4.0f)
                                                    .translated (bouncingPointX[2], bouncingPointY[2]));
-        g.reduceClipRegion (*argbImage,
-                            Rectangle<int> (0, 0, argbImage->getWidth(), argbImage->getHeight()),
-                            transform);
+        g.reduceClipRegion (argbImage, transform);
     }
 
-    void drawPaths (Graphics& g, bool solid, bool linearGradient, bool radialGradient)
+    void drawPaths (Graphics& g, bool /*solid*/, bool linearGradient, bool radialGradient)
     {
         Path p;
         p.addRectangle (-50, 0, 100, 100);
-        p.addStar (100.0f, 0.0f, 7, 30.0f, 70.0f, 0.1f);
-        p.addStar (-100.0f, 0.0f, 6, 40.0f, 70.0f, 0.1f);
+        p.addStar (Point<float> (100.0f, 0.0f), 7, 30.0f, 70.0f, 0.1f);
+        p.addStar (Point<float> (-100.0f, 0.0f), 6, 40.0f, 70.0f, 0.1f);
         p.addEllipse (-60.0f, -100.0f, 120.0f, 90.0f);
 
         if (linearGradient || radialGradient)
@@ -264,24 +259,23 @@ private:
         g.strokePath (p, stroke, AffineTransform::identity);
     }
 
-    void drawImages (Graphics& g, Image* image)
+    void drawImages (Graphics& g, const Image& image)
     {
-        AffineTransform transform (AffineTransform::translation ((float) (image->getWidth() / -2),
-                                                                 (float) (image->getHeight() / -2))
+        AffineTransform transform (AffineTransform::translation ((float) (image.getWidth() / -2),
+                                                                 (float) (image.getHeight() / -2))
                                                    .followedBy (getTransform()));
 
         g.setOpacity ((float) owner.opacitySlider->getValue());
-        g.drawImageTransformed (image, image->getBounds(),
-                                transform, false);
+        g.drawImageTransformed (image, transform, false);
     }
 
-    void drawTiling (Graphics& g, Image* image)
+    void drawTiling (Graphics& g, const Image& image)
     {
-        AffineTransform transform (AffineTransform::translation ((float) (image->getWidth() / -2),
-                                                                 (float) (image->getHeight() / -2))
+        AffineTransform transform (AffineTransform::translation ((float) (image.getWidth() / -2),
+                                                                 (float) (image.getHeight() / -2))
                                                    .followedBy (getTransform()));
 
-        FillType fill (*image, transform);
+        FillType fill (image, transform);
         fill.setOpacity ((float) owner.opacitySlider->getValue());
         g.setFillType (fill);
         g.fillAll();
@@ -339,28 +333,19 @@ private:
         ZipFile icons (&iconsFileStream, false);
 
         // Load a random SVG file from our embedded icons.zip file.
-        InputStream* svgFileStream
-            = icons.createStreamForEntry (Random::getSystemRandom().nextInt (icons.getNumEntries()));
+        ScopedPointer<InputStream> svgFileStream (icons.createStreamForEntry (Random::getSystemRandom().nextInt (icons.getNumEntries())));
 
         if (svgFileStream != 0)
         {
             svgDrawable = dynamic_cast <DrawableComposite*> (Drawable::createFromImageDataStream (*svgFileStream));
-            delete svgFileStream;
 
             if (svgDrawable != 0)
             {
-                // to make our icon the right size, we'll put it inside a DrawableComposite, and apply
-                // a transform to get it to the size we want.
-
-                Rectangle<float> bounds = svgDrawable->getBounds();
-                const float scaleFactor = 200.0f / jmax (bounds.getWidth(), bounds.getHeight());
-
-                Point<float> topLeft (-bounds.getCentreX() * scaleFactor,
-                                      -bounds.getCentreY() * scaleFactor);
-
-                svgDrawable->setTransform (topLeft,
-                                           topLeft + Point<float> (scaleFactor, 0),
-                                           topLeft + Point<float> (0, scaleFactor));
+                // to make our icon the right size, we'll put it inside a DrawableComposite, and
+                // set its bounding box to the size and position that we want.
+                svgDrawable->setBoundingBox (RelativeParallelogram (Point<float> (-100, -100),
+                                                                    Point<float> (100, -100),
+                                                                    Point<float> (-100, 100)));
             }
         }
     }

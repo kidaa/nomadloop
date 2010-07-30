@@ -350,8 +350,53 @@ public:
         if (numElementsToAdd < 0 || startIndex + numElementsToAdd > arrayToAddFrom.size())
             numElementsToAdd = arrayToAddFrom.size() - startIndex;
 
+        data.ensureAllocatedSize (numUsed + numElementsToAdd);
+
         while (--numElementsToAdd >= 0)
-            add (arrayToAddFrom.getUnchecked (startIndex++));
+        {
+            data.elements [numUsed] = arrayToAddFrom.getUnchecked (startIndex++);
+            ++numUsed;
+        }
+    }
+
+    /** Adds copies of the elements in another array to the end of this array.
+
+        The other array must be either an OwnedArray of a compatible type of object, or an Array
+        containing pointers to the same kind of object. The objects involved must provide
+        a copy constructor, and this will be used to create new copies of each element, and
+        add them to this array.
+
+        @param arrayToAddFrom       the array from which to copy the elements
+        @param startIndex           the first element of the other array to start copying from
+        @param numElementsToAdd     how many elements to add from the other array. If this
+                                    value is negative or greater than the number of available elements,
+                                    all available elements will be copied.
+        @see add
+    */
+    template <class OtherArrayType>
+    void addCopiesOf (const OtherArrayType& arrayToAddFrom,
+                      int startIndex = 0,
+                      int numElementsToAdd = -1)
+    {
+        const typename OtherArrayType::ScopedLockType lock1 (arrayToAddFrom.getLock());
+        const ScopedLockType lock2 (getLock());
+
+        if (startIndex < 0)
+        {
+            jassertfalse;
+            startIndex = 0;
+        }
+
+        if (numElementsToAdd < 0 || startIndex + numElementsToAdd > arrayToAddFrom.size())
+            numElementsToAdd = arrayToAddFrom.size() - startIndex;
+
+        data.ensureAllocatedSize (numUsed + numElementsToAdd);
+
+        while (--numElementsToAdd >= 0)
+        {
+            data.elements [numUsed] = new ObjectClass (*arrayToAddFrom.getUnchecked (startIndex++));
+            ++numUsed;
+        }
     }
 
     /** Inserts a new object into the array assuming that the array is sorted.
@@ -457,6 +502,38 @@ public:
         }
     }
 
+    /** Removes and returns an object from the array without deleting it.
+
+        This will remove the object at a given index and return it, moving back all
+        the subsequent objects to close the gap. If the index passed in is out-of-range,
+        nothing will happen.
+
+        @param indexToRemove    the index of the element to remove
+        @see remove, removeObject, removeRange
+    */
+    ObjectClass* removeAndReturn (const int indexToRemove)
+    {
+        ObjectClass* removedItem = 0;
+        const ScopedLockType lock (getLock());
+
+        if (((unsigned int) indexToRemove) < (unsigned int) numUsed)
+        {
+            ObjectClass** const e = data.elements + indexToRemove;
+            removedItem = *e;
+
+            --numUsed;
+            const int numToShift = numUsed - indexToRemove;
+
+            if (numToShift > 0)
+                memmove (e, e + 1, numToShift * sizeof (ObjectClass*));
+
+            if ((numUsed << 1) < data.numAllocated)
+                minimiseStorageOverheads();
+        }
+
+        return removedItem;
+    }
+
     /** Removes a specified object from the array.
 
         If the item isn't found, no action is taken.
@@ -543,14 +620,9 @@ public:
         const ScopedLockType lock (getLock());
 
         if (howManyToRemove >= numUsed)
-        {
             clear (deleteObjects);
-        }
         else
-        {
-            while (--howManyToRemove >= 0)
-                remove (numUsed - 1, deleteObjects);
-        }
+            removeRange (numUsed - howManyToRemove, howManyToRemove, deleteObjects);
     }
 
     /** Swaps a pair of objects in the array.

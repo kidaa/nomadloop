@@ -23,9 +23,6 @@
   ==============================================================================
 */
 
-#if JUCE_MAC
- #include <mach-o/dyld.h>
-#endif
 
 //==============================================================================
 class PluginHostType
@@ -45,6 +42,7 @@ public:
         AbletonLive8,
         AbletonLiveGeneric,
         AppleLogic,
+        EmagicLogic,
         DigidesignProTools,
         CakewalkSonar8,
         CakewalkSonarGeneric,
@@ -54,7 +52,10 @@ public:
         SteinbergCubase4,
         SteinbergCubase5,
         SteinbergCubaseGeneric,
-        SteinbergWavelabGeneric
+        SteinbergWavelab5,
+        SteinbergWavelab6,
+        SteinbergWavelabGeneric,
+        MuseReceptorGeneric
     };
 
     const HostType type;
@@ -80,16 +81,26 @@ public:
         return type == CakewalkSonar8 || type == CakewalkSonarGeneric;
     }
 
+    bool isLogic() const throw()
+    {
+        return type == AppleLogic || type == EmagicLogic;
+    }
+
     bool isWavelab() const throw()
     {
-        return type == SteinbergWavelabGeneric;
+        return type == SteinbergWavelabGeneric || type == SteinbergWavelab5 || type == SteinbergWavelab6;
+    }
+
+    bool isReceptor() const throw()
+    {
+        return type == MuseReceptorGeneric;
     }
 
     //==============================================================================
 private:
     static HostType getHostType() throw()
     {
-        const String hostPath (getHostPath());
+        const String hostPath (File::getSpecialLocation (File::hostApplicationPath).getFullPathName());
         const String hostFilename (File (hostPath).getFileName());
 
 #if JUCE_MAC
@@ -115,8 +126,13 @@ private:
         if (hostFilename.containsIgnoreCase ("Cubase4"))    return SteinbergCubase4;
         if (hostFilename.containsIgnoreCase ("Cubase5"))    return SteinbergCubase5;
         if (hostFilename.containsIgnoreCase ("Cubase"))     return SteinbergCubaseGeneric;
+        if (hostFilename.containsIgnoreCase ("Wavelab 5"))  return SteinbergWavelab5;
+        if (hostFilename.containsIgnoreCase ("Wavelab 6" )) return SteinbergWavelab6;
         if (hostFilename.containsIgnoreCase ("Wavelab"))    return SteinbergWavelabGeneric;
         if (hostFilename.containsIgnoreCase ("reaper"))     return Reaper;
+        if (hostFilename.containsIgnoreCase ("Logic"))      return EmagicLogic;
+        if (hostFilename.containsIgnoreCase ("rm-host"))    return MuseReceptorGeneric;
+
 
 #elif JUCE_LINUX
         jassertfalse   // not yet done!
@@ -124,26 +140,5 @@ private:
         #error
 #endif
         return UnknownHost;
-    }
-
-    static const String getHostPath() throw()
-    {
-        unsigned int size = 8192;
-        HeapBlock<char> buffer;
-        buffer.calloc (size + 8);
-
-#if JUCE_WINDOWS
-        WCHAR* w = reinterpret_cast <WCHAR*> (buffer.getData());
-        GetModuleFileNameW (0, w, size / sizeof (WCHAR));
-        return String (w, size);
-#elif JUCE_MAC
-        _NSGetExecutablePath (buffer.getData(), &size);
-        return String::fromUTF8 (buffer, size);
-#elif JUCE_LINUX
-        readlink ("/proc/self/exe", buffer.getData(), size);
-        return String::fromUTF8 (buffer, size);
-#else
-        #error
-#endif
     }
 };

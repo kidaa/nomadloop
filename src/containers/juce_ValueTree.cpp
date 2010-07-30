@@ -160,9 +160,9 @@ private:
 class ValueTree::MoveChildAction  : public UndoableAction
 {
 public:
-    MoveChildAction (const SharedObjectPtr& target_,
+    MoveChildAction (const SharedObjectPtr& parent_,
                      const int startIndex_, const int endIndex_)
-        : target (target_),
+        : parent (parent_),
           startIndex (startIndex_),
           endIndex (endIndex_)
     {
@@ -172,13 +172,13 @@ public:
 
     bool perform()
     {
-        target->moveChild (startIndex, endIndex, 0);
+        parent->moveChild (startIndex, endIndex, 0);
         return true;
     }
 
     bool undo()
     {
-        target->moveChild (endIndex, startIndex, 0);
+        parent->moveChild (endIndex, startIndex, 0);
         return true;
     }
 
@@ -191,14 +191,14 @@ public:
     {
         MoveChildAction* next = dynamic_cast <MoveChildAction*> (nextAction);
 
-        if (next != 0 && next->target == target && next->child == child)
-            return new MoveChildAction (target, startIndex, next->endIndex);
+        if (next != 0 && next->parent == parent && next->startIndex == endIndex)
+            return new MoveChildAction (parent, startIndex, next->endIndex);
 
         return 0;
     }
 
 private:
-    const SharedObjectPtr target, child;
+    const SharedObjectPtr parent;
     const int startIndex, endIndex;
 
     MoveChildAction (const MoveChildAction&);
@@ -379,6 +379,18 @@ ValueTree ValueTree::SharedObject::getChildWithName (const Identifier& typeToMat
             return ValueTree (static_cast <SharedObject*> (children.getUnchecked(i)));
 
     return ValueTree::invalid;
+}
+
+ValueTree ValueTree::SharedObject::getOrCreateChildWithName (const Identifier& typeToMatch, UndoManager* undoManager)
+{
+    for (int i = 0; i < children.size(); ++i)
+        if (children.getUnchecked(i)->type == typeToMatch)
+            return ValueTree (static_cast <SharedObject*> (children.getUnchecked(i)));
+
+    SharedObject* const newObject = new SharedObject (typeToMatch);
+    addChild (newObject, -1, undoManager);
+    return ValueTree (newObject);
+
 }
 
 ValueTree ValueTree::SharedObject::getChildWithProperty (const Identifier& propertyName, const var& propertyValue) const
@@ -598,6 +610,15 @@ ValueTree ValueTree::getParent() const
     return ValueTree (object != 0 ? object->parent : (SharedObject*) 0);
 }
 
+ValueTree ValueTree::getSibling (const int delta) const
+{
+    if (object == 0 || object->parent == 0)
+        return invalid;
+
+    const int index = object->parent->indexOf (*this) + delta;
+    return ValueTree (static_cast <SharedObject*> (object->parent->children [index]));
+}
+
 const var& ValueTree::operator[] (const Identifier& name) const
 {
     return object == 0 ? var::null : object->getProperty (name);
@@ -715,6 +736,11 @@ ValueTree ValueTree::getChild (int index) const
 ValueTree ValueTree::getChildWithName (const Identifier& type) const
 {
     return object != 0 ? object->getChildWithName (type) : ValueTree::invalid;
+}
+
+ValueTree ValueTree::getOrCreateChildWithName (const Identifier& type, UndoManager* undoManager)
+{
+    return object != 0 ? object->getOrCreateChildWithName (type, undoManager) : ValueTree::invalid;
 }
 
 ValueTree ValueTree::getChildWithProperty (const Identifier& propertyName, const var& propertyValue) const

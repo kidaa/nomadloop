@@ -326,9 +326,6 @@
 #ifndef __JUCE_SLIDER_JUCEHEADER__
  #include "gui/components/controls/juce_Slider.h"
 #endif
-#ifndef __JUCE_SLIDERLISTENER_JUCEHEADER__
- #include "gui/components/controls/juce_SliderListener.h"
-#endif
 #ifndef __JUCE_TABLEHEADERCOMPONENT_JUCEHEADER__
  #include "gui/components/controls/juce_TableHeaderComponent.h"
 #endif
@@ -403,6 +400,9 @@
 #endif
 #ifndef __JUCE_DESKTOP_JUCEHEADER__
  #include "gui/components/juce_Desktop.h"
+#endif
+#ifndef __JUCE_MODALCOMPONENTMANAGER_JUCEHEADER__
+ #include "gui/components/juce_ModalComponentManager.h"
 #endif
 #ifndef __JUCE_KEYBOARDFOCUSTRAVERSER_JUCEHEADER__
  #include "gui/components/keyboard/juce_KeyboardFocusTraverser.h"
@@ -583,6 +583,9 @@
 #endif
 #ifndef __JUCE_ALERTWINDOW_JUCEHEADER__
  #include "gui/components/windows/juce_AlertWindow.h"
+#endif
+#ifndef __JUCE_CALLOUTBOX_JUCEHEADER__
+ #include "gui/components/windows/juce_CallOutBox.h"
 #endif
 #ifndef __JUCE_COMPONENTPEER_JUCEHEADER__
  #include "gui/components/windows/juce_ComponentPeer.h"

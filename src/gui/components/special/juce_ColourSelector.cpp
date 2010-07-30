@@ -33,8 +33,6 @@ BEGIN_JUCE_NAMESPACE
 #include "../../graphics/imaging/juce_Image.h"
 #include "../../../text/juce_LocalisedStrings.h"
 
-static const int swatchesPerRow = 8;
-static const int swatchHeight = 22;
 
 //==============================================================================
 class ColourComponentSlider  : public Slider
@@ -103,24 +101,23 @@ public:
           lastHue (0.0f),
           edge (edgeSize)
     {
-        addAndMakeVisible (marker = new ColourSpaceMarker());
+        addAndMakeVisible (&marker);
         setMouseCursor (MouseCursor::CrosshairCursor);
     }
 
     ~ColourSpaceView()
     {
-        deleteAllChildren();
     }
 
     void paint (Graphics& g)
     {
-        if (colours == 0)
+        if (colours.isNull())
         {
             const int width = getWidth() / 2;
             const int height = getHeight() / 2;
-            colours = new Image (Image::RGB, width, height, false);
+            colours = Image (Image::RGB, width, height, false);
 
-            Image::BitmapData pixels (*colours, 0, 0, width, height, true);
+            Image::BitmapData pixels (colours, true);
 
             for (int y = 0; y < height; ++y)
             {
@@ -129,17 +126,15 @@ public:
                 for (int x = 0; x < width; ++x)
                 {
                     const float sat = x / (float) width;
-                    const Colour col (h, sat, val, 1.0f);
 
-                    PixelRGB* const pix = (PixelRGB*) pixels.getPixelPointer (x, y);
-                    pix->set (col.getPixelARGB());
+                    pixels.setPixelColour (x, y, Colour (h, sat, val, 1.0f));
                 }
             }
         }
 
         g.setOpacity (1.0f);
         g.drawImage (colours, edge, edge, getWidth() - edge * 2, getHeight() - edge * 2,
-                     0, 0, colours->getWidth(), colours->getHeight());
+                     0, 0, colours.getWidth(), colours.getHeight());
     }
 
     void mouseDown (const MouseEvent& e)
@@ -160,7 +155,7 @@ public:
         if (lastHue != h)
         {
             lastHue = h;
-            colours = 0;
+            colours = Image::null;
             repaint();
         }
 
@@ -169,7 +164,7 @@ public:
 
     void resized()
     {
-        colours = 0;
+        colours = Image::null;
         updateMarker();
     }
 
@@ -179,16 +174,15 @@ private:
     float& s;
     float& v;
     float lastHue;
-    ColourSpaceMarker* marker;
+    ColourSpaceMarker marker;
     const int edge;
+    Image colours;
 
-    ScopedPointer <Image> colours;
-
-    void updateMarker() const
+    void updateMarker()
     {
-        marker->setBounds (roundToInt ((getWidth() - edge * 2) * s),
-                           roundToInt ((getHeight() - edge * 2) * (1.0f - v)),
-                           edge * 2, edge * 2);
+        marker.setBounds (roundToInt ((getWidth() - edge * 2) * s),
+                          roundToInt ((getHeight() - edge * 2) * (1.0f - v)),
+                          edge * 2, edge * 2);
     }
 
     ColourSpaceView (const ColourSpaceView&);
@@ -243,12 +237,11 @@ public:
           lastHue (0.0f),
           edge (edgeSize)
     {
-        addAndMakeVisible (marker = new HueSelectorMarker());
+        addAndMakeVisible (&marker);
     }
 
     ~HueSelectorComp()
     {
-        deleteAllChildren();
     }
 
     void paint (Graphics& g)
@@ -266,8 +259,8 @@ public:
 
     void resized()
     {
-        marker->setBounds (0, roundToInt ((getHeight() - edge * 2) * h),
-                           getWidth(), edge * 2);
+        marker.setBounds (0, roundToInt ((getHeight() - edge * 2) * h),
+                          getWidth(), edge * 2);
     }
 
     void mouseDown (const MouseEvent& e)
@@ -293,7 +286,7 @@ private:
     float& s;
     float& v;
     float lastHue;
-    HueSelectorMarker* marker;
+    HueSelectorMarker marker;
     const int edge;
 
     HueSelectorComp (const HueSelectorComp&);
@@ -318,8 +311,7 @@ public:
     {
         const Colour colour (owner->getSwatchColour (index));
 
-        g.fillCheckerBoard (0, 0, getWidth(), getHeight(),
-                            6, 6,
+        g.fillCheckerBoard (getLocalBounds(), 6, 6,
                             Colour (0xffdddddd).overlaidWith (colour),
                             Colour (0xffffffff).overlaidWith (colour));
     }
@@ -360,8 +352,9 @@ ColourSelector::ColourSelector (const int flags_,
                                 const int edgeGap_,
                                 const int gapAroundColourSpaceComponent)
     : colour (Colours::white),
+      colourSpace (0),
+      hueSelector (0),
       flags (flags_),
-      topSpace (0),
       edgeGap (edgeGap_)
 {
     // not much point having a selector with no components in it!
@@ -390,11 +383,6 @@ ColourSelector::ColourSelector (const int flags_,
     {
         addAndMakeVisible (colourSpace = new ColourSpaceView (this, h, s, v, gapAroundColourSpaceComponent));
         addAndMakeVisible (hueSelector = new HueSelectorComp (this, h, s, v, gapAroundColourSpaceComponent));
-    }
-    else
-    {
-        colourSpace = 0;
-        hueSelector = 0;
     }
 
     update();
@@ -474,7 +462,7 @@ void ColourSelector::update()
     }
 
     if ((flags & showColourAtTop) != 0)
-        repaint (0, edgeGap, getWidth(), topSpace - edgeGap);
+        repaint (previewArea);
 
     sendChangeMessage (this);
 }
@@ -488,15 +476,14 @@ void ColourSelector::paint (Graphics& g)
     {
         const Colour currentColour (getCurrentColour());
 
-        g.fillCheckerBoard (edgeGap, edgeGap, getWidth() - edgeGap - edgeGap, topSpace - edgeGap - edgeGap,
-                            10, 10,
+        g.fillCheckerBoard (previewArea, 10, 10,
                             Colour (0xffdddddd).overlaidWith (currentColour),
                             Colour (0xffffffff).overlaidWith (currentColour));
 
         g.setColour (Colours::white.overlaidWith (currentColour).contrasting());
         g.setFont (14.0f, true);
         g.drawText (currentColour.toDisplayString ((flags & showAlphaChannel) != 0),
-                    0, edgeGap, getWidth(), topSpace - edgeGap * 2,
+                    previewArea.getX(), previewArea.getY(), previewArea.getWidth(), previewArea.getHeight(),
                     Justification::centred, false);
     }
 
@@ -518,12 +505,17 @@ void ColourSelector::paint (Graphics& g)
 
 void ColourSelector::resized()
 {
+    const int swatchesPerRow = 8;
+    const int swatchHeight = 22;
+
     const int numSliders = ((flags & showAlphaChannel) != 0) ? 4 : 3;
     const int numSwatches = getNumSwatches();
 
     const int swatchSpace = numSwatches > 0 ? edgeGap + swatchHeight * ((numSwatches + 7) / swatchesPerRow) : 0;
     const int sliderSpace = ((flags & showSliders) != 0)  ? jmin (22 * numSliders + edgeGap, proportionOfHeight (0.3f)) : 0;
-    topSpace = ((flags & showColourAtTop) != 0) ? jmin (30 + edgeGap * 2, proportionOfHeight (0.2f)) : edgeGap;
+    const int topSpace = ((flags & showColourAtTop) != 0) ? jmin (30 + edgeGap * 2, proportionOfHeight (0.2f)) : edgeGap;
+
+    previewArea.setBounds (edgeGap, edgeGap, getWidth() - edgeGap * 2, topSpace - edgeGap * 2);
 
     int y = topSpace;
 

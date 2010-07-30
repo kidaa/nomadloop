@@ -49,7 +49,7 @@
     for each of these pages.
 */
 class JUCE_API  PreferencesPanel  : public Component,
-                                    private ButtonListener
+                                    private ButtonListener // (can't use Button::Listener due to idiotic VC2005 bug)
 {
 public:
     //==============================================================================
@@ -95,7 +95,7 @@ public:
         @param imageDataSize    the size of the image data, in bytes
     */
     void addSettingsPage (const String& pageTitle,
-                          const char* imageData,
+                          const void* imageData,
                           int imageDataSize);
 
     /** Utility method to display this panel in a DialogWindow.

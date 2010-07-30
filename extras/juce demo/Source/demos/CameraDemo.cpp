@@ -32,29 +32,28 @@
 class CameraDemo  : public Component,
                     public ComboBoxListener,
                     public ButtonListener,
-                    public CameraImageListener
+                    public CameraDevice::Listener
 {
 public:
     //==============================================================================
     CameraDemo()
     {
-        setName (T("Camera"));
+        setName ("Camera");
 
         cameraDevice = 0;
         cameraPreviewComp = 0;
-        lastSnapshot = 0;
         recordingMovie = false;
 
-        addAndMakeVisible (cameraSelectorComboBox = new ComboBox (T("Camera")));
+        addAndMakeVisible (cameraSelectorComboBox = new ComboBox ("Camera"));
         createListOfCameras();
         cameraSelectorComboBox->setSelectedId (1);
         cameraSelectorComboBox->addListener (this);
 
-        addAndMakeVisible (snapshotButton = new TextButton (T("Take a snapshot")));
+        addAndMakeVisible (snapshotButton = new TextButton ("Take a snapshot"));
         snapshotButton->addButtonListener (this);
         snapshotButton->setEnabled (false);
 
-        addAndMakeVisible (recordMovieButton = new TextButton (T("Record a movie file (to your desktop)...")));
+        addAndMakeVisible (recordMovieButton = new TextButton ("Record a movie file (to your desktop)..."));
         recordMovieButton->addButtonListener (this);
         recordMovieButton->setEnabled (false);
 
@@ -65,16 +64,14 @@ public:
     {
         deleteAllChildren();
         delete cameraDevice;
-        delete lastSnapshot;
     }
 
     void paint (Graphics& g)
     {
-        if (lastSnapshot != 0)
-            g.drawImageWithin (lastSnapshot,
-                               getWidth() / 2 + 10, 40,
-                               getWidth() / 2 - 20, getHeight() - 50,
-                               RectanglePlacement::centred, false);
+        g.drawImageWithin (lastSnapshot,
+                           getWidth() / 2 + 10, 40,
+                           getWidth() / 2 - 20, getHeight() - 50,
+                           RectanglePlacement::centred, false);
     }
 
     void resized()
@@ -136,18 +133,18 @@ public:
                     recordingMovie = true;
 
                     File file (File::getSpecialLocation (File::userDesktopDirectory)
-                                .getNonexistentChildFile (T("JuceCameraDemo"),
+                                .getNonexistentChildFile ("JuceCameraDemo",
                                                           CameraDevice::getFileExtension()));
 
                     cameraDevice->startRecordingToFile (file);
-                    recordMovieButton->setButtonText (T("Stop Recording"));
+                    recordMovieButton->setButtonText ("Stop Recording");
                 }
                 else
                 {
                     // Already recording, so stop...
                     recordingMovie = false;
                     cameraDevice->stopRecording();
-                    recordMovieButton->setButtonText (T("Start recording (to a file on your desktop)"));
+                    recordMovieButton->setButtonText ("Start recording (to a file on your desktop)");
                 }
             }
             else
@@ -160,7 +157,7 @@ public:
     }
 
     // This is called by the camera device when a new image arrives
-    void imageReceived (Image& image)
+    void imageReceived (const Image& image)
     {
         // In this app we just want to take one image, so as soon as this happens,
         // we'll unregister ourselves as a listener.
@@ -170,8 +167,7 @@ public:
         // This callback won't be on the message thread, so need to lock it before using
         // data that may already be in use..
         const MessageManagerLock mm;
-        deleteAndZero (lastSnapshot);
-        lastSnapshot = image.createCopy();
+        lastSnapshot = image;
         repaint();
     }
 
@@ -185,7 +181,7 @@ private:
     Component* cameraPreviewComp;
     bool recordingMovie;
 
-    Image* lastSnapshot;
+    Image lastSnapshot;
 };
 
 

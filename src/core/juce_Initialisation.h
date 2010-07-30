@@ -126,5 +126,55 @@ public:
 };
 
 
+//==============================================================================
+/*
+    To start a JUCE app, use this macro: START_JUCE_APPLICATION (AppSubClass) where
+    AppSubClass is the name of a class derived from JUCEApplication.
+
+    See the JUCEApplication class documentation (juce_Application.h) for more details.
+
+*/
+#if defined (JUCE_GCC) || defined (__MWERKS__)
+
+  #define START_JUCE_APPLICATION(AppClass) \
+    static JUCE_NAMESPACE::JUCEApplication* juce_CreateApplication() { return new AppClass(); } \
+    int main (int argc, char* argv[]) \
+    { \
+        JUCE_NAMESPACE::JUCEApplication::createInstance = &juce_CreateApplication; \
+        return JUCE_NAMESPACE::JUCEApplication::main (argc, (const char**) argv); \
+    }
+
+#elif JUCE_WINDOWS
+
+  #ifdef _CONSOLE
+    #define START_JUCE_APPLICATION(AppClass) \
+        static JUCE_NAMESPACE::JUCEApplication* juce_CreateApplication() { return new AppClass(); } \
+        int main (int, char* argv[]) \
+        { \
+            JUCE_NAMESPACE::JUCEApplication::createInstance = &juce_CreateApplication; \
+            return JUCE_NAMESPACE::JUCEApplication::main (JUCE_NAMESPACE::PlatformUtilities::getCurrentCommandLineParams()); \
+        }
+  #elif ! defined (_AFXDLL)
+    #ifdef _WINDOWS_
+      #define START_JUCE_APPLICATION(AppClass) \
+          static JUCE_NAMESPACE::JUCEApplication* juce_CreateApplication() { return new AppClass(); } \
+          int WINAPI WinMain (HINSTANCE, HINSTANCE, LPSTR, int) \
+          { \
+              JUCE_NAMESPACE::JUCEApplication::createInstance = &juce_CreateApplication; \
+              return JUCE_NAMESPACE::JUCEApplication::main (JUCE_NAMESPACE::PlatformUtilities::getCurrentCommandLineParams()); \
+          }
+    #else
+      #define START_JUCE_APPLICATION(AppClass) \
+          static JUCE_NAMESPACE::JUCEApplication* juce_CreateApplication() { return new AppClass(); } \
+          int __stdcall WinMain (int, int, const char*, int) \
+          { \
+              JUCE_NAMESPACE::JUCEApplication::createInstance = &juce_CreateApplication; \
+              return JUCE_NAMESPACE::JUCEApplication::main (JUCE_NAMESPACE::PlatformUtilities::getCurrentCommandLineParams()); \
+          }
+    #endif
+  #endif
+
+#endif
+
 
 #endif   // __JUCE_INITIALISATION_JUCEHEADER__

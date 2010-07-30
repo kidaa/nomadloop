@@ -59,6 +59,9 @@ public:
     /** Copies this point from another one. */
     Point& operator= (const Point& other) throw()                       { x = other.x; y = other.y; return *this; }
 
+    inline bool operator== (const Point& other) const throw()           { return x == other.x && y == other.y; }
+    inline bool operator!= (const Point& other) const throw()           { return x != other.x || y != other.y; }
+
     /** Returns true if the point is (0, 0). */
     bool isOrigin() const throw()                                       { return x == ValueType() && y == ValueType(); }
 
@@ -86,8 +89,8 @@ public:
     /** Adds a pair of co-ordinates to this value. */
     void addXY (const ValueType xToAdd, const ValueType yToAdd) throw() { x += xToAdd; y += yToAdd; }
 
-    inline bool operator== (const Point& other) const throw()           { return x == other.x && y == other.y; }
-    inline bool operator!= (const Point& other) const throw()           { return x != other.x || y != other.y; }
+    /** Returns a point with a given offset from this one. */
+    const Point translated (const ValueType xDelta, const ValueType yDelta) const throw()   { return Point (x + xDelta, y + yDelta); }
 
     /** Adds two points together. */
     const Point operator+ (const Point& other) const throw()            { return Point (x + other.x, y + other.y); }
@@ -125,9 +128,23 @@ public:
     /** Returns the angle from this point to another one.
 
         The return value is the number of radians clockwise from the 3 o'clock direction,
-        where this point is the centre and the other point is on the radius.
+        where this point is the centre and the other point is on the circumference.
     */
     ValueType getAngleToPoint (const Point& other) const throw()        { return (ValueType) std::atan2 (other.x - x, other.y - y); }
+
+    /** Taking this point to be the centre of a circle, this returns a point on its circumference.
+        @param radius   the radius of the circle.
+        @param angle    the angle of the point, in radians clockwise from the 12 o'clock position.
+    */
+    const Point getPointOnCircumference (const float radius, const float angle) const throw()   { return Point<float> (x + radius * std::sin (angle),
+                                                                                                                       y - radius * std::cos (angle)); }
+    /** Taking this point to be the centre of an ellipse, this returns a point on its circumference.
+        @param radiusX  the horizontal radius of the circle.
+        @param radiusY  the vertical radius of the circle.
+        @param angle    the angle of the point, in radians clockwise from the 12 o'clock position.
+    */
+    const Point getPointOnCircumference (const float radiusX, const float radiusY, const float angle) const throw()   { return Point<float> (x + radiusX * std::sin (angle),
+                                                                                                                                             y - radiusY * std::cos (angle)); }
 
     /** Uses a transform to change the point's co-ordinates.
         This will only compile if ValueType = float!
@@ -136,10 +153,14 @@ public:
     void applyTransform (const AffineTransform& transform) throw()      { transform.transformPoint (x, y); }
 
     /** Returns the position of this point, if it is transformed by a given AffineTransform. */
-    const Point transformedBy (const AffineTransform& transform) const throw()    { ValueType x2 (x), y2 (y); transform.transformPoint (x2, y2); return Point (x2, y2); }
+    const Point transformedBy (const AffineTransform& transform) const throw()    { return Point (transform.mat00 * x + transform.mat01 * y + transform.mat02,
+                                                                                                  transform.mat10 * x + transform.mat11 * y + transform.mat12); }
 
     /** Casts this point to a Point<float> object. */
     const Point<float> toFloat() const throw()                          { return Point<float> (static_cast <float> (x), static_cast<float> (y)); }
+
+    /** Casts this point to a Point<int> object. */
+    const Point<int> toInt() const throw()                              { return Point<int> (static_cast <int> (x), static_cast<int> (y)); }
 
     /** Returns the point as a string in the form "x, y". */
     const String toString() const                                       { return String (x) + ", " + String (y); }

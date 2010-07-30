@@ -27,7 +27,6 @@
 
 BEGIN_JUCE_NAMESPACE
 
-
 #include "juce_Desktop.h"
 #include "windows/juce_ComponentPeer.h"
 #include "mouse/juce_MouseInputSource.h"
@@ -305,7 +304,7 @@ void Desktop::sendMouseMove()
             const Time now (Time::getCurrentTime());
 
             const MouseEvent me (getMainMouseSource(), pos, ModifierKeys::getCurrentModifiers(),
-                                 target, now, pos, now, 0, false);
+                                 target, target, now, pos, now, 0, false);
 
             if (me.mods.isAnyMouseButtonDown())
                 mouseListeners.callChecked (checker, &MouseListener::mouseDrag, me);

@@ -159,7 +159,7 @@ void Slider::handleAsyncUpdate()
     cancelPendingUpdate();
 
     Component::BailOutChecker checker (this);
-    listeners.callChecked (checker, &SliderListener::sliderValueChanged, this);
+    listeners.callChecked (checker, &SliderListener::sliderValueChanged, this);  // (can't use Slider::Listener due to idiotic VC2005 bug)
 }
 
 void Slider::sendDragStart()
@@ -180,12 +180,12 @@ void Slider::sendDragEnd()
     listeners.callChecked (checker, &SliderListener::sliderDragEnded, this);
 }
 
-void Slider::addListener (SliderListener* const listener)
+void Slider::addListener (Listener* const listener)
 {
     listeners.add (listener);
 }
 
-void Slider::removeListener (SliderListener* const listener)
+void Slider::removeListener (Listener* const listener)
 {
     listeners.remove (listener);
 }
@@ -880,13 +880,13 @@ void Slider::resized()
     if (style == LinearBar)
     {
         if (valueBox != 0)
-            valueBox->setBounds (0, 0, getWidth(), getHeight());
+            valueBox->setBounds (getLocalBounds());
     }
     else
     {
         if (textBoxPos == NoTextBox)
         {
-            sliderRect.setBounds (0, 0, getWidth(), getHeight());
+            sliderRect = getLocalBounds();
         }
         else if (textBoxPos == TextBoxLeft)
         {
@@ -1423,7 +1423,7 @@ void Slider::mouseWheelMove (const MouseEvent& e, float wheelIncrementX, float w
     }
 }
 
-void SliderListener::sliderDragStarted (Slider*)
+void SliderListener::sliderDragStarted (Slider*)  // (can't write Slider::Listener due to idiotic VC2005 bug)
 {
 }
 

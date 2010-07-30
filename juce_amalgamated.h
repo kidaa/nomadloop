@@ -64,7 +64,7 @@
 */
 #define JUCE_MAJOR_VERSION	  1
 #define JUCE_MINOR_VERSION	  52
-#define JUCE_BUILDNUMBER	6
+#define JUCE_BUILDNUMBER	47
 
 /** Current Juce version number.
 
@@ -103,6 +103,7 @@
 
   #if TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR
 	#define	 JUCE_IPHONE 1
+	#define	 JUCE_IOS 1
   #else
 	#define	 JUCE_MAC 1
   #endif
@@ -167,7 +168,7 @@
 
 #endif
 
-#if JUCE_IPHONE
+#if JUCE_IOS
 
   #ifndef NDEBUG
 	#define JUCE_DEBUG 1
@@ -293,11 +294,11 @@
 	If you're building on Windows, you'll need to have the Apple QuickTime SDK
 	installed, and its header files will need to be on your include path.
 */
-#if ! (defined (JUCE_QUICKTIME) || JUCE_LINUX || JUCE_IPHONE || (JUCE_WINDOWS && ! JUCE_MSVC))
+#if ! (defined (JUCE_QUICKTIME) || JUCE_LINUX || JUCE_IOS || (JUCE_WINDOWS && ! JUCE_MSVC))
   #define JUCE_QUICKTIME 0
 #endif
 
-#if (JUCE_IPHONE || JUCE_LINUX) && JUCE_QUICKTIME
+#if (JUCE_IOS || JUCE_LINUX) && JUCE_QUICKTIME
   #undef JUCE_QUICKTIME
 #endif
 
@@ -535,7 +536,7 @@
 
 	@see Logger::outputDebugString
   */
-  #define DBG(dbgtext)		  Logger::outputDebugString (dbgtext);
+  #define DBG(dbgtext)		  JUCE_NAMESPACE::Logger::outputDebugString (dbgtext);
 
   // Assertions..
 
@@ -562,7 +563,7 @@
 	#endif
   #elif JUCE_MAC
 	#define juce_breakDebugger		  Debugger();
-  #elif JUCE_IPHONE
+  #elif JUCE_IOS
 	#define juce_breakDebugger		  kill (0, SIGTRAP);
   #elif JUCE_LINUX
 	#define juce_breakDebugger		  kill (0, SIGTRAP);
@@ -620,21 +621,25 @@
 
   #define JUCE_TRY try
 
-  /** Used in try-catch blocks, this macro will send exceptions to the JUCEApplication
-	  object so they can be logged by the application if it wants to.
-  */
-  #define JUCE_CATCH_EXCEPTION \
-	catch (const std::exception& e)  \
-	{ \
-		JUCEApplication::sendUnhandledException (&e, __FILE__, __LINE__); \
-	} \
-	catch (...) \
-	{ \
-		JUCEApplication::sendUnhandledException (0, __FILE__, __LINE__); \
-	}
-
   #define JUCE_CATCH_ALL		catch (...) {}
   #define JUCE_CATCH_ALL_ASSERT	 catch (...) { jassertfalse; }
+
+  #if JUCE_ONLY_BUILD_CORE_LIBRARY
+	#define JUCE_CATCH_EXCEPTION	JUCE_CATCH_ALL
+  #else
+	/** Used in try-catch blocks, this macro will send exceptions to the JUCEApplication
+		object so they can be logged by the application if it wants to.
+	*/
+	#define JUCE_CATCH_EXCEPTION \
+	  catch (const std::exception& e)  \
+	  { \
+		  JUCEApplication::sendUnhandledException (&e, __FILE__, __LINE__); \
+	  } \
+	  catch (...) \
+	  { \
+		  JUCEApplication::sendUnhandledException (0, __FILE__, __LINE__); \
+	  }
+  #endif
 
 #else
 
@@ -708,7 +713,7 @@
   #include <intrin.h>
 #endif
 
-#if JUCE_MAC || JUCE_IPHONE
+#if JUCE_MAC || JUCE_IOS
   #include <libkern/OSAtomic.h>
 #endif
 
@@ -1103,7 +1108,11 @@ inline void swapVariables (Type& variable1, Type& variable2)
 	@endcode
 */
 template <typename Type>
-inline int numElementsInArray (Type& array)	 { return static_cast<int> (sizeof (array) / sizeof (array[0])); }
+inline int numElementsInArray (Type& array)
+{
+	(void) array; // (required to avoid a spurious warning in MS compilers)
+	return static_cast<int> (sizeof (array) / sizeof (array[0]));
+}
 
 // Some useful maths functions that aren't always present with all compilers and build settings.
 
@@ -1245,6 +1254,9 @@ inline int roundFloatToInt (const float value) throw()
 */
 namespace TypeHelpers
 {
+#if defined (_MSC_VER) && _MSC_VER <= 1400
+	#define PARAMETER_TYPE(a) a
+#else
 	/** The ParameterType struct is used to find the best type to use when passing some kind
 		of object as a parameter.
 
@@ -1257,10 +1269,9 @@ namespace TypeHelpers
 		would evaluate to "myfunction (int, const MyObject&)", keeping any primitive types as
 		pass-by-value, but passing objects as a const reference, to avoid copying.
 	*/
-#if defined (_MSC_VER) && _MSC_VER <= 1400
-	#define PARAMETER_TYPE(a) a
-#else
 	template <typename Type> struct ParameterType		   { typedef const Type& type; };
+
+#if ! DOXYGEN
 	template <typename Type> struct ParameterType <Type&>	   { typedef Type& type; };
 	template <typename Type> struct ParameterType <Type*>	   { typedef Type* type; };
 	template <>		  struct ParameterType <char>		{ typedef char type; };
@@ -1276,7 +1287,11 @@ namespace TypeHelpers
 	template <>		  struct ParameterType <bool>		{ typedef bool type; };
 	template <>		  struct ParameterType <float>	   { typedef float type; };
 	template <>		  struct ParameterType <double>	  { typedef double type; };
+#endif
 
+	/** A helpful macro to simplify the use of the ParameterType template.
+		@see ParameterType
+	*/
 	#define PARAMETER_TYPE(a)	typename TypeHelpers::ParameterType<a>::type
 #endif
 }
@@ -1371,7 +1386,7 @@ inline uint16 ByteOrder::swap (uint16 n)
 
 inline uint32 ByteOrder::swap (uint32 n)
 {
-#if JUCE_MAC || JUCE_IPHONE
+#if JUCE_MAC || JUCE_IOS
 	return OSSwapInt32 (n);
 #elif JUCE_GCC
 	asm("bswap %%eax" : "=a"(n) : "a"(n));
@@ -1390,7 +1405,7 @@ inline uint32 ByteOrder::swap (uint32 n)
 
 inline uint64 ByteOrder::swap (uint64 value)
 {
-#if JUCE_MAC || JUCE_IPHONE
+#if JUCE_MAC || JUCE_IOS
 	return OSSwapInt64 (value);
 #elif JUCE_USE_INTRINSICS
 	return _byteswap_uint64 (value);
@@ -2560,83 +2575,83 @@ private:
 };
 
 /** Concatenates two strings. */
-const String JUCE_CALLTYPE operator+  (const char* string1,	   const String& string2);
+const String JUCE_PUBLIC_FUNCTION operator+  (const char* string1,	   const String& string2);
 /** Concatenates two strings. */
-const String JUCE_CALLTYPE operator+  (const juce_wchar* string1, const String& string2);
+const String JUCE_PUBLIC_FUNCTION operator+  (const juce_wchar* string1, const String& string2);
 /** Concatenates two strings. */
-const String JUCE_CALLTYPE operator+  (char string1,		  const String& string2);
+const String JUCE_PUBLIC_FUNCTION operator+  (char string1,		  const String& string2);
 /** Concatenates two strings. */
-const String JUCE_CALLTYPE operator+  (juce_wchar string1,	const String& string2);
+const String JUCE_PUBLIC_FUNCTION operator+  (juce_wchar string1,	const String& string2);
 
 /** Concatenates two strings. */
-const String JUCE_CALLTYPE operator+  (String string1, const String& string2);
+const String JUCE_PUBLIC_FUNCTION operator+  (String string1, const String& string2);
 /** Concatenates two strings. */
-const String JUCE_CALLTYPE operator+  (String string1, const char* string2);
+const String JUCE_PUBLIC_FUNCTION operator+  (String string1, const char* string2);
 /** Concatenates two strings. */
-const String JUCE_CALLTYPE operator+  (String string1, const juce_wchar* string2);
+const String JUCE_PUBLIC_FUNCTION operator+  (String string1, const juce_wchar* string2);
 /** Concatenates two strings. */
-const String JUCE_CALLTYPE operator+  (String string1, char characterToAppend);
+const String JUCE_PUBLIC_FUNCTION operator+  (String string1, char characterToAppend);
 /** Concatenates two strings. */
-const String JUCE_CALLTYPE operator+  (String string1, juce_wchar characterToAppend);
+const String JUCE_PUBLIC_FUNCTION operator+  (String string1, juce_wchar characterToAppend);
 
 /** Appends a character at the end of a string. */
-String& JUCE_CALLTYPE operator<< (String& string1, char characterToAppend);
+String& JUCE_PUBLIC_FUNCTION operator<< (String& string1, char characterToAppend);
 /** Appends a character at the end of a string. */
-String& JUCE_CALLTYPE operator<< (String& string1, juce_wchar characterToAppend);
+String& JUCE_PUBLIC_FUNCTION operator<< (String& string1, juce_wchar characterToAppend);
 /** Appends a string to the end of the first one. */
-String& JUCE_CALLTYPE operator<< (String& string1, const char* string2);
+String& JUCE_PUBLIC_FUNCTION operator<< (String& string1, const char* string2);
 /** Appends a string to the end of the first one. */
-String& JUCE_CALLTYPE operator<< (String& string1, const juce_wchar* string2);
+String& JUCE_PUBLIC_FUNCTION operator<< (String& string1, const juce_wchar* string2);
 /** Appends a string to the end of the first one. */
-String& JUCE_CALLTYPE operator<< (String& string1, const String& string2);
+String& JUCE_PUBLIC_FUNCTION operator<< (String& string1, const String& string2);
 
 /** Appends a decimal number at the end of a string. */
-String& JUCE_CALLTYPE operator<< (String& string1, short number);
+String& JUCE_PUBLIC_FUNCTION operator<< (String& string1, short number);
 /** Appends a decimal number at the end of a string. */
-String& JUCE_CALLTYPE operator<< (String& string1, int number);
+String& JUCE_PUBLIC_FUNCTION operator<< (String& string1, int number);
 /** Appends a decimal number at the end of a string. */
-String& JUCE_CALLTYPE operator<< (String& string1, unsigned int number);
+String& JUCE_PUBLIC_FUNCTION operator<< (String& string1, unsigned int number);
 /** Appends a decimal number at the end of a string. */
-String& JUCE_CALLTYPE operator<< (String& string1, long number);
+String& JUCE_PUBLIC_FUNCTION operator<< (String& string1, long number);
 /** Appends a decimal number at the end of a string. */
-String& JUCE_CALLTYPE operator<< (String& string1, unsigned long number);
+String& JUCE_PUBLIC_FUNCTION operator<< (String& string1, unsigned long number);
 /** Appends a decimal number at the end of a string. */
-String& JUCE_CALLTYPE operator<< (String& string1, float number);
+String& JUCE_PUBLIC_FUNCTION operator<< (String& string1, float number);
 /** Appends a decimal number at the end of a string. */
-String& JUCE_CALLTYPE operator<< (String& string1, double number);
+String& JUCE_PUBLIC_FUNCTION operator<< (String& string1, double number);
 
 /** Case-sensitive comparison of two strings. */
-bool JUCE_CALLTYPE operator== (const String& string1, const String& string2) throw();
+bool JUCE_PUBLIC_FUNCTION operator== (const String& string1, const String& string2) throw();
 /** Case-sensitive comparison of two strings. */
-bool JUCE_CALLTYPE operator== (const String& string1, const char* string2) throw();
+bool JUCE_PUBLIC_FUNCTION operator== (const String& string1, const char* string2) throw();
 /** Case-sensitive comparison of two strings. */
-bool JUCE_CALLTYPE operator== (const String& string1, const juce_wchar* string2) throw();
+bool JUCE_PUBLIC_FUNCTION operator== (const String& string1, const juce_wchar* string2) throw();
 /** Case-sensitive comparison of two strings. */
-bool JUCE_CALLTYPE operator!= (const String& string1, const String& string2) throw();
+bool JUCE_PUBLIC_FUNCTION operator!= (const String& string1, const String& string2) throw();
 /** Case-sensitive comparison of two strings. */
-bool JUCE_CALLTYPE operator!= (const String& string1, const char* string2) throw();
+bool JUCE_PUBLIC_FUNCTION operator!= (const String& string1, const char* string2) throw();
 /** Case-sensitive comparison of two strings. */
-bool JUCE_CALLTYPE operator!= (const String& string1, const juce_wchar* string2) throw();
+bool JUCE_PUBLIC_FUNCTION operator!= (const String& string1, const juce_wchar* string2) throw();
 /** Case-sensitive comparison of two strings. */
-bool JUCE_CALLTYPE operator>  (const String& string1, const String& string2) throw();
+bool JUCE_PUBLIC_FUNCTION operator>  (const String& string1, const String& string2) throw();
 /** Case-sensitive comparison of two strings. */
-bool JUCE_CALLTYPE operator<  (const String& string1, const String& string2) throw();
+bool JUCE_PUBLIC_FUNCTION operator<  (const String& string1, const String& string2) throw();
 /** Case-sensitive comparison of two strings. */
-bool JUCE_CALLTYPE operator>= (const String& string1, const String& string2) throw();
+bool JUCE_PUBLIC_FUNCTION operator>= (const String& string1, const String& string2) throw();
 /** Case-sensitive comparison of two strings. */
-bool JUCE_CALLTYPE operator<= (const String& string1, const String& string2) throw();
+bool JUCE_PUBLIC_FUNCTION operator<= (const String& string1, const String& string2) throw();
 
 /** This streaming override allows you to pass a juce String directly into std output streams.
 	This is very handy for writing strings to std::cout, std::cerr, etc.
 */
 template <class charT, class traits>
-std::basic_ostream <charT, traits>& JUCE_CALLTYPE operator<< (std::basic_ostream <charT, traits>& stream, const String& stringToWrite)
+std::basic_ostream <charT, traits>& JUCE_PUBLIC_FUNCTION operator<< (std::basic_ostream <charT, traits>& stream, const String& stringToWrite)
 {
 	return stream << stringToWrite.toUTF8();
 }
 
 /** Writes a string to an OutputStream as UTF8. */
-OutputStream& JUCE_CALLTYPE operator<< (OutputStream& stream, const String& text);
+OutputStream& JUCE_PUBLIC_FUNCTION operator<< (OutputStream& stream, const String& text);
 
 #endif   // __JUCE_STRING_JUCEHEADER__
 /*** End of inlined file: juce_String.h ***/
@@ -2695,6 +2710,9 @@ protected:
 		@see setCurrentLogger
 	*/
 	virtual void logMessage (const String& message) = 0;
+
+private:
+	static Logger* currentLogger;
 };
 
 #endif   // __JUCE_LOGGER_JUCEHEADER__
@@ -3921,7 +3939,10 @@ public:
 			data.ensureAllocatedSize (numUsed + numElementsToAdd);
 
 			while (--numElementsToAdd >= 0)
-				new (data.elements + numUsed++) ElementType (*elementsToAdd++);
+			{
+				new (data.elements + numUsed) ElementType (*elementsToAdd++);
+				++numUsed;
+			}
 		}
 	}
 
@@ -4689,6 +4710,68 @@ typedef BigInteger BitArray;
 #ifndef __JUCE_IDENTIFIER_JUCEHEADER__
 #define __JUCE_IDENTIFIER_JUCEHEADER__
 
+
+/*** Start of inlined file: juce_StringPool.h ***/
+#ifndef __JUCE_STRINGPOOL_JUCEHEADER__
+#define __JUCE_STRINGPOOL_JUCEHEADER__
+
+/**
+	A StringPool holds a set of shared strings, which reduces storage overheads and improves
+	comparison speed when dealing with many duplicate strings.
+
+	When you add a string to a pool using getPooledString, it'll return a character
+	array containing the same string. This array is owned by the pool, and the same array
+	is returned every time a matching string is asked for. This means that it's trivial to
+	compare two pooled strings for equality, as you can simply compare their pointers. It
+	also cuts down on storage if you're using many copies of the same string.
+*/
+class JUCE_API  StringPool
+{
+public:
+
+	/** Creates an empty pool. */
+	StringPool() throw();
+
+	/** Destructor */
+	~StringPool();
+
+	/** Returns a pointer to a copy of the string that is passed in.
+
+		The pool will always return the same pointer when asked for a string that matches it.
+		The pool will own all the pointers that it returns, deleting them when the pool itself
+		is deleted.
+	*/
+	const juce_wchar* getPooledString (const String& original);
+
+	/** Returns a pointer to a copy of the string that is passed in.
+
+		The pool will always return the same pointer when asked for a string that matches it.
+		The pool will own all the pointers that it returns, deleting them when the pool itself
+		is deleted.
+	*/
+	const juce_wchar* getPooledString (const char* original);
+
+	/** Returns a pointer to a copy of the string that is passed in.
+
+		The pool will always return the same pointer when asked for a string that matches it.
+		The pool will own all the pointers that it returns, deleting them when the pool itself
+		is deleted.
+	*/
+	const juce_wchar* getPooledString (const juce_wchar* original);
+
+	/** Returns the number of strings in the pool. */
+	int size() const throw();
+
+	/** Returns one of the strings in the pool, by index. */
+	const juce_wchar* operator[] (int index) const throw();
+
+private:
+	Array <String> strings;
+};
+
+#endif   // __JUCE_STRINGPOOL_JUCEHEADER__
+/*** End of inlined file: juce_StringPool.h ***/
+
 /**
 	Represents a string identifier, designed for accessing properties by name.
 
@@ -4741,7 +4824,7 @@ private:
 
 	const juce_wchar* name;
 
-	class Pool;
+	static StringPool& getPool();
 };
 
 #endif   // __JUCE_IDENTIFIER_JUCEHEADER__
@@ -4956,6 +5039,7 @@ private:
 
 	HeapBlock <char> data;
 	size_t size;
+	static const char* const encodingTable;
 };
 
 #endif   // __JUCE_MEMORYBLOCK_JUCEHEADER__
@@ -5461,13 +5545,13 @@ public:
 	const String toString() const;
 	DynamicObject* getObject() const;
 
-	bool isVoid() const throw()	 { return type == voidType; }
-	bool isInt() const throw()	  { return type == intType; }
-	bool isBool() const throw()	 { return type == boolType; }
-	bool isDouble() const throw()	   { return type == doubleType; }
-	bool isString() const throw()	   { return type == stringType; }
-	bool isObject() const throw()	   { return type == objectType; }
-	bool isMethod() const throw()	   { return type == methodType; }
+	bool isVoid() const throw();
+	bool isInt() const throw();
+	bool isBool() const throw();
+	bool isDouble() const throw();
+	bool isString() const throw();
+	bool isObject() const throw();
+	bool isMethod() const throw();
 
 	/** Writes a binary representation of this value to a stream.
 		The data can be read back later using readFromStream().
@@ -5508,16 +5592,24 @@ public:
 	bool equals (const var& other) const throw();
 
 private:
-	enum Type
-	{
-		voidType = 0,
-		intType,
-		boolType,
-		doubleType,
-		stringType,
-		objectType,
-		methodType
-	};
+	class VariantType;
+	friend class VariantType;
+	class VariantType_Void;
+	friend class VariantType_Void;
+	class VariantType_Int;
+	friend class VariantType_Int;
+	class VariantType_Double;
+	friend class VariantType_Double;
+	class VariantType_Float;
+	friend class VariantType_Float;
+	class VariantType_Bool;
+	friend class VariantType_Bool;
+	class VariantType_String;
+	friend class VariantType_String;
+	class VariantType_Object;
+	friend class VariantType_Object;
+	class VariantType_Method;
+	friend class VariantType_Method;
 
 	union ValueUnion
 	{
@@ -5529,7 +5621,7 @@ private:
 		MethodFunction methodValue;
 	};
 
-	Type type;
+	const VariantType* type;
 	ValueUnion value;
 };
 
@@ -5669,13 +5761,6 @@ public:
 	{
 	}
 
-	/** Copies another value onto this one (atomically). */
-	inline Atomic& operator= (const Atomic& other) throw()
-	{
-		set (other.get());
-		return *this;
-	}
-
 	/** Destructor. */
 	inline ~Atomic() throw()
 	{
@@ -5686,8 +5771,14 @@ public:
 	/** Atomically reads and returns the current value. */
 	Type get() const throw();
 
+	/** Copies another value onto this one (atomically). */
+	inline Atomic& operator= (const Atomic& other) throw()	  { exchange (other.get()); return *this; }
+
+	/** Copies another value onto this one (atomically). */
+	inline Atomic& operator= (const Type newValue) throw()	  { exchange (newValue); return *this; }
+
 	/** Atomically sets the current value. */
-	void set (Type newValue) throw();
+	void set (Type newValue) throw()				{ exchange (newValue); }
 
 	/** Atomically sets the current value, returning the value that was replaced. */
 	Type exchange (Type value) throw();
@@ -5756,28 +5847,44 @@ public:
 		This is exposed publically in case you need to manipulate it directly
 		for performance reasons.
 	*/
-	Type value;
+	volatile Type value;
+
+private:
+	static inline Type castFrom32Bit (int32 value) throw()	{ return *(Type*) &value; }
+	static inline Type castFrom64Bit (int64 value) throw()	{ return *(Type*) &value; }
+	static inline int32 castTo32Bit (Type value) throw()	  { return *(int32*) &value; }
+	static inline int64 castTo64Bit (Type value) throw()	  { return *(int64*) &value; }
 };
 
 /*
 	The following code is in the header so that the atomics can be inlined where possible...
 */
-#if (JUCE_IPHONE && (__IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_3_2 || ! defined (__IPHONE_3_2))) \
-	  || (JUCE_MAC &&  (JUCE_PPC || __GNUC__ < 4 || (__GNUC__ == 4 && __GNUC_MINOR__ < 2)))
+#if (JUCE_IOS && (__IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_3_2 || ! defined (__IPHONE_3_2))) \
+	  || (JUCE_MAC && (JUCE_PPC || __GNUC__ < 4 || (__GNUC__ == 4 && __GNUC_MINOR__ < 2)))
   #define JUCE_ATOMICS_MAC 1	// Older OSX builds using gcc4.1 or earlier
 
-  #if JUCE_PPC || JUCE_IPHONE
+  #if MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5
+	#define JUCE_MAC_ATOMICS_VOLATILE
+  #else
+	#define JUCE_MAC_ATOMICS_VOLATILE volatile
+  #endif
+
+  #if JUCE_PPC || JUCE_IOS
 	// None of these atomics are available for PPC or for iPhoneOS 3.1 or earlier!!
-	template <typename Type> static Type OSAtomicAdd64 (Type b, volatile Type* a) throw()   { jassertfalse; return *a += b; }
-	template <typename Type> static Type OSAtomicIncrement64 (volatile Type* a) throw()	 { jassertfalse; return ++*a; }
-	template <typename Type> static Type OSAtomicDecrement64 (volatile Type* a) throw()	 { jassertfalse; return --*a; }
-	template <typename Type> static bool OSAtomicCompareAndSwap64Barrier (Type old, Type newValue, volatile Type* value) throw()
+	template <typename Type> static Type OSAtomicAdd64Barrier (Type b, JUCE_MAC_ATOMICS_VOLATILE Type* a) throw()   { jassertfalse; return *a += b; }
+	template <typename Type> static Type OSAtomicIncrement64Barrier (JUCE_MAC_ATOMICS_VOLATILE Type* a) throw()	 { jassertfalse; return ++*a; }
+	template <typename Type> static Type OSAtomicDecrement64Barrier (JUCE_MAC_ATOMICS_VOLATILE Type* a) throw()	 { jassertfalse; return --*a; }
+	template <typename Type> static bool OSAtomicCompareAndSwap64Barrier (Type old, Type newValue, JUCE_MAC_ATOMICS_VOLATILE Type* value) throw()
 		{ jassertfalse; if (old == *value) { *value = newValue; return true; } return false; }
 	#define JUCE_64BIT_ATOMICS_UNAVAILABLE 1
   #endif
 
 #elif JUCE_GCC
   #define JUCE_ATOMICS_GCC 1	// GCC with intrinsics
+
+  #if JUCE_IOS
+	#define JUCE_64BIT_ATOMICS_UNAVAILABLE 1  // (on the iphone, the 64-bit ops will compile but not link)
+  #endif
 
 #else
   #define JUCE_ATOMICS_WINDOWS 1	// Windows with intrinsics
@@ -5827,13 +5934,16 @@ public:
 template <typename Type>
 inline Type Atomic<Type>::get() const throw()
 {
-	return const_cast <Atomic<Type>*> (this)->operator+= (0);
-}
-
-template <typename Type>
-inline void Atomic<Type>::set (const Type newValue) throw()
-{
-	exchange (newValue);
+  #if JUCE_ATOMICS_MAC
+	return sizeof (Type) == 4 ? castFrom32Bit ((int32) OSAtomicAdd32Barrier ((int32_t) 0, (JUCE_MAC_ATOMICS_VOLATILE int32_t*) &value))
+							  : castFrom64Bit ((int64) OSAtomicAdd64Barrier ((int64_t) 0, (JUCE_MAC_ATOMICS_VOLATILE int64_t*) &value));
+  #elif JUCE_ATOMICS_WINDOWS
+	return sizeof (Type) == 4 ? castFrom32Bit ((int32) juce_InterlockedExchangeAdd ((volatile long*) &value, (long) 0))
+							  : castFrom64Bit ((int64) juce_InterlockedExchangeAdd64 ((volatile __int64*) &value, (__int64) 0));
+  #elif JUCE_ATOMICS_GCC
+	return sizeof (Type) == 4 ? castFrom32Bit ((int32) __sync_add_and_fetch ((volatile int32*) &value, 0))
+							  : castFrom64Bit ((int64) __sync_add_and_fetch ((volatile int64*) &value, 0));
+  #endif
 }
 
 template <typename Type>
@@ -5844,8 +5954,8 @@ inline Type Atomic<Type>::exchange (const Type newValue) throw()
 	while (! compareAndSetBool (newValue, currentVal)) { currentVal = value; }
 	return currentVal;
   #elif JUCE_ATOMICS_WINDOWS
-	return sizeof (Type) == 4 ? (Type) juce_InterlockedExchange ((volatile long*) &value, (long) newValue)
-							  : (Type) juce_InterlockedExchange64 ((volatile __int64*) &value, (__int64) newValue);
+	return sizeof (Type) == 4 ? castFrom32Bit ((int32) juce_InterlockedExchange ((volatile long*) &value, (long) castTo32Bit (newValue)))
+							  : castFrom64Bit ((int64) juce_InterlockedExchange64 ((volatile __int64*) &value, (__int64) castTo64Bit (newValue)));
   #endif
 }
 
@@ -5853,8 +5963,8 @@ template <typename Type>
 inline Type Atomic<Type>::operator+= (const Type amountToAdd) throw()
 {
   #if JUCE_ATOMICS_MAC
-	return sizeof (Type) == 4 ? (Type) OSAtomicAdd32 ((int32_t) amountToAdd, (int32_t*) &value)
-							  : (Type) OSAtomicAdd64 ((int64_t) amountToAdd, (int64_t*) &value);
+	return sizeof (Type) == 4 ? (Type) OSAtomicAdd32Barrier ((int32_t) amountToAdd, (JUCE_MAC_ATOMICS_VOLATILE int32_t*) &value)
+							  : (Type) OSAtomicAdd64Barrier ((int64_t) amountToAdd, (JUCE_MAC_ATOMICS_VOLATILE int64_t*) &value);
   #elif JUCE_ATOMICS_WINDOWS
 	return sizeof (Type) == 4 ? (Type) (juce_InterlockedExchangeAdd ((volatile long*) &value, (long) amountToAdd) + (long) amountToAdd)
 							  : (Type) (juce_InterlockedExchangeAdd64 ((volatile __int64*) &value, (__int64) amountToAdd) + (__int64) amountToAdd);
@@ -5873,8 +5983,8 @@ template <typename Type>
 inline Type Atomic<Type>::operator++() throw()
 {
   #if JUCE_ATOMICS_MAC
-	return sizeof (Type) == 4 ? (Type) OSAtomicIncrement32 ((int32_t*) &value)
-							  : (Type) OSAtomicIncrement64 ((int64_t*) &value);
+	return sizeof (Type) == 4 ? (Type) OSAtomicIncrement32Barrier ((JUCE_MAC_ATOMICS_VOLATILE int32_t*) &value)
+							  : (Type) OSAtomicIncrement64Barrier ((JUCE_MAC_ATOMICS_VOLATILE int64_t*) &value);
   #elif JUCE_ATOMICS_WINDOWS
 	return sizeof (Type) == 4 ? (Type) juce_InterlockedIncrement ((volatile long*) &value)
 							  : (Type) juce_InterlockedIncrement64 ((volatile __int64*) &value);
@@ -5887,8 +5997,8 @@ template <typename Type>
 inline Type Atomic<Type>::operator--() throw()
 {
   #if JUCE_ATOMICS_MAC
-	return sizeof (Type) == 4 ? (Type) OSAtomicDecrement32 ((int32_t*) &value)
-							  : (Type) OSAtomicDecrement64 ((int64_t*) &value);
+	return sizeof (Type) == 4 ? (Type) OSAtomicDecrement32Barrier ((JUCE_MAC_ATOMICS_VOLATILE int32_t*) &value)
+							  : (Type) OSAtomicDecrement64Barrier ((JUCE_MAC_ATOMICS_VOLATILE int64_t*) &value);
   #elif JUCE_ATOMICS_WINDOWS
 	return sizeof (Type) == 4 ? (Type) juce_InterlockedDecrement ((volatile long*) &value)
 							  : (Type) juce_InterlockedDecrement64 ((volatile __int64*) &value);
@@ -5901,12 +6011,13 @@ template <typename Type>
 inline bool Atomic<Type>::compareAndSetBool (const Type newValue, const Type valueToCompare) throw()
 {
   #if JUCE_ATOMICS_MAC
-	return sizeof (Type) == 4 ? OSAtomicCompareAndSwap32Barrier ((int32_t) valueToCompare, (int32_t) newValue, (int32_t*) &value)
-							  : OSAtomicCompareAndSwap64Barrier ((int64_t) valueToCompare, (int64_t) newValue, (int64_t*) &value);
+	return sizeof (Type) == 4 ? OSAtomicCompareAndSwap32Barrier ((int32_t) castTo32Bit (valueToCompare), (int32_t) castTo32Bit (newValue), (JUCE_MAC_ATOMICS_VOLATILE int32_t*) &value)
+							  : OSAtomicCompareAndSwap64Barrier ((int64_t) castTo64Bit (valueToCompare), (int64_t) castTo64Bit (newValue), (JUCE_MAC_ATOMICS_VOLATILE int64_t*) &value);
   #elif JUCE_ATOMICS_WINDOWS
 	return compareAndSetValue (newValue, valueToCompare) == valueToCompare;
   #elif JUCE_ATOMICS_GCC
-	return __sync_bool_compare_and_swap (&value, valueToCompare, newValue);
+	return sizeof (Type) == 4 ? __sync_bool_compare_and_swap ((volatile int32*) &value, castTo32Bit (valueToCompare), castTo32Bit (newValue))
+							  : __sync_bool_compare_and_swap ((volatile int64*) &value, castTo64Bit (valueToCompare), castTo64Bit (newValue));
   #endif
 }
 
@@ -5925,10 +6036,11 @@ inline Type Atomic<Type>::compareAndSetValue (const Type newValue, const Type va
 	}
 
   #elif JUCE_ATOMICS_WINDOWS
-	return sizeof (Type) == 4 ? (Type) juce_InterlockedCompareExchange ((volatile long*) &value, (long) newValue, (long) valueToCompare)
-							  : (Type) juce_InterlockedCompareExchange64 ((volatile __int64*) &value, (__int64) newValue, (__int64) valueToCompare);
+	return sizeof (Type) == 4 ? castFrom32Bit ((int32) juce_InterlockedCompareExchange ((volatile long*) &value, (long) castTo32Bit (newValue), (long) castTo32Bit (valueToCompare)))
+							  : castFrom64Bit ((int64) juce_InterlockedCompareExchange64 ((volatile __int64*) &value, (__int64) castTo64Bit (newValue), (__int64) castTo64Bit (valueToCompare)));
   #elif JUCE_ATOMICS_GCC
-	return __sync_val_compare_and_swap (&value, valueToCompare, newValue);
+	return sizeof (Type) == 4 ? castFrom32Bit ((int32) __sync_val_compare_and_swap ((volatile int32*) &value, castTo32Bit (valueToCompare), castTo32Bit (newValue)))
+							  : castFrom64Bit ((int64) __sync_val_compare_and_swap ((volatile int64*) &value, castTo64Bit (valueToCompare), castTo64Bit (newValue)));
   #endif
 }
 
@@ -6763,8 +6875,53 @@ public:
 		if (numElementsToAdd < 0 || startIndex + numElementsToAdd > arrayToAddFrom.size())
 			numElementsToAdd = arrayToAddFrom.size() - startIndex;
 
+		data.ensureAllocatedSize (numUsed + numElementsToAdd);
+
 		while (--numElementsToAdd >= 0)
-			add (arrayToAddFrom.getUnchecked (startIndex++));
+		{
+			data.elements [numUsed] = arrayToAddFrom.getUnchecked (startIndex++);
+			++numUsed;
+		}
+	}
+
+	/** Adds copies of the elements in another array to the end of this array.
+
+		The other array must be either an OwnedArray of a compatible type of object, or an Array
+		containing pointers to the same kind of object. The objects involved must provide
+		a copy constructor, and this will be used to create new copies of each element, and
+		add them to this array.
+
+		@param arrayToAddFrom	   the array from which to copy the elements
+		@param startIndex	   the first element of the other array to start copying from
+		@param numElementsToAdd	 how many elements to add from the other array. If this
+									value is negative or greater than the number of available elements,
+									all available elements will be copied.
+		@see add
+	*/
+	template <class OtherArrayType>
+	void addCopiesOf (const OtherArrayType& arrayToAddFrom,
+					  int startIndex = 0,
+					  int numElementsToAdd = -1)
+	{
+		const typename OtherArrayType::ScopedLockType lock1 (arrayToAddFrom.getLock());
+		const ScopedLockType lock2 (getLock());
+
+		if (startIndex < 0)
+		{
+			jassertfalse;
+			startIndex = 0;
+		}
+
+		if (numElementsToAdd < 0 || startIndex + numElementsToAdd > arrayToAddFrom.size())
+			numElementsToAdd = arrayToAddFrom.size() - startIndex;
+
+		data.ensureAllocatedSize (numUsed + numElementsToAdd);
+
+		while (--numElementsToAdd >= 0)
+		{
+			data.elements [numUsed] = new ObjectClass (*arrayToAddFrom.getUnchecked (startIndex++));
+			++numUsed;
+		}
 	}
 
 	/** Inserts a new object into the array assuming that the array is sorted.
@@ -6869,6 +7026,38 @@ public:
 		}
 	}
 
+	/** Removes and returns an object from the array without deleting it.
+
+		This will remove the object at a given index and return it, moving back all
+		the subsequent objects to close the gap. If the index passed in is out-of-range,
+		nothing will happen.
+
+		@param indexToRemove	the index of the element to remove
+		@see remove, removeObject, removeRange
+	*/
+	ObjectClass* removeAndReturn (const int indexToRemove)
+	{
+		ObjectClass* removedItem = 0;
+		const ScopedLockType lock (getLock());
+
+		if (((unsigned int) indexToRemove) < (unsigned int) numUsed)
+		{
+			ObjectClass** const e = data.elements + indexToRemove;
+			removedItem = *e;
+
+			--numUsed;
+			const int numToShift = numUsed - indexToRemove;
+
+			if (numToShift > 0)
+				memmove (e, e + 1, numToShift * sizeof (ObjectClass*));
+
+			if ((numUsed << 1) < data.numAllocated)
+				minimiseStorageOverheads();
+		}
+
+		return removedItem;
+	}
+
 	/** Removes a specified object from the array.
 
 		If the item isn't found, no action is taken.
@@ -6955,14 +7144,9 @@ public:
 		const ScopedLockType lock (getLock());
 
 		if (howManyToRemove >= numUsed)
-		{
 			clear (deleteObjects);
-		}
 		else
-		{
-			while (--howManyToRemove >= 0)
-				remove (numUsed - 1, deleteObjects);
-		}
+			removeRange (numUsed - howManyToRemove, howManyToRemove, deleteObjects);
 	}
 
 	/** Swaps a pair of objects in the array.
@@ -8860,6 +9044,9 @@ public:
 			the actual location of the target executable.
 		*/
 		invokedExecutableFile,
+
+		/** In a plugin, this will return the path of the host executable. */
+		hostApplicationPath,
 
 		/** The directory in which applications normally get installed.
 
@@ -13046,11 +13233,21 @@ public:
 	*/
 	ValueTree getChild (int index) const;
 
-	/** Looks for a child node with the speficied type name.
+	/** Returns the first child node with the speficied type name.
 		If no such node is found, it'll return an invalid node. (See isValid() to find out
 		whether a node is valid).
+		@see getOrCreateChildWithName
 	*/
 	ValueTree getChildWithName (const Identifier& type) const;
+
+	/** Returns the first child node with the speficied type name, creating and adding
+		a child with this name if there wasn't already one there.
+
+		The only time this will return an invalid object is when the object that you're calling
+		the method on is itself invalid.
+		@see getChildWithName
+	*/
+	ValueTree getOrCreateChildWithName (const Identifier& type, UndoManager* undoManager);
 
 	/** Looks for the first child node that has the speficied property value.
 
@@ -13123,6 +13320,14 @@ public:
 		whether a node is valid).
 	*/
 	ValueTree getParent() const;
+
+	/** Returns one of this node's siblings in its parent's child list.
+
+		The delta specifies how far to move through the list, so a value of 1 would return the node
+		that follows this one, -1 would return the node before it, 0 will return this node itself, etc.
+		If the requested position is beyond the range of available nodes, this will return ValueTree::invalid.
+	*/
+	ValueTree getSibling (int delta) const;
 
 	/** Creates an XmlElement that holds a complete image of this node and all its children.
 
@@ -13294,6 +13499,7 @@ private:
 		bool isAChildOf (const SharedObject* possibleParent) const;
 		int indexOf (const ValueTree& child) const;
 		ValueTree getChildWithName (const Identifier& type) const;
+		ValueTree getOrCreateChildWithName (const Identifier& type, UndoManager* undoManager);
 		ValueTree getChildWithProperty (const Identifier& propertyName, const var& propertyValue) const;
 		void addChild (SharedObject* child, int index, UndoManager*);
 		void removeChild (int childIndex, UndoManager*);
@@ -13533,6 +13739,55 @@ public:
 	~ScopedJuceInitialiser_GUI()	{ shutdownJuce_GUI(); }
 };
 
+/*
+	To start a JUCE app, use this macro: START_JUCE_APPLICATION (AppSubClass) where
+	AppSubClass is the name of a class derived from JUCEApplication.
+
+	See the JUCEApplication class documentation (juce_Application.h) for more details.
+
+*/
+#if defined (JUCE_GCC) || defined (__MWERKS__)
+
+  #define START_JUCE_APPLICATION(AppClass) \
+	static JUCE_NAMESPACE::JUCEApplication* juce_CreateApplication() { return new AppClass(); } \
+	int main (int argc, char* argv[]) \
+	{ \
+		JUCE_NAMESPACE::JUCEApplication::createInstance = &juce_CreateApplication; \
+		return JUCE_NAMESPACE::JUCEApplication::main (argc, (const char**) argv); \
+	}
+
+#elif JUCE_WINDOWS
+
+  #ifdef _CONSOLE
+	#define START_JUCE_APPLICATION(AppClass) \
+		static JUCE_NAMESPACE::JUCEApplication* juce_CreateApplication() { return new AppClass(); } \
+		int main (int, char* argv[]) \
+		{ \
+			JUCE_NAMESPACE::JUCEApplication::createInstance = &juce_CreateApplication; \
+			return JUCE_NAMESPACE::JUCEApplication::main (JUCE_NAMESPACE::PlatformUtilities::getCurrentCommandLineParams()); \
+		}
+  #elif ! defined (_AFXDLL)
+	#ifdef _WINDOWS_
+	  #define START_JUCE_APPLICATION(AppClass) \
+		  static JUCE_NAMESPACE::JUCEApplication* juce_CreateApplication() { return new AppClass(); } \
+		  int WINAPI WinMain (HINSTANCE, HINSTANCE, LPSTR, int) \
+		  { \
+			  JUCE_NAMESPACE::JUCEApplication::createInstance = &juce_CreateApplication; \
+			  return JUCE_NAMESPACE::JUCEApplication::main (JUCE_NAMESPACE::PlatformUtilities::getCurrentCommandLineParams()); \
+		  }
+	#else
+	  #define START_JUCE_APPLICATION(AppClass) \
+		  static JUCE_NAMESPACE::JUCEApplication* juce_CreateApplication() { return new AppClass(); } \
+		  int __stdcall WinMain (int, int, const char*, int) \
+		  { \
+			  JUCE_NAMESPACE::JUCEApplication::createInstance = &juce_CreateApplication; \
+			  return JUCE_NAMESPACE::JUCEApplication::main (JUCE_NAMESPACE::PlatformUtilities::getCurrentCommandLineParams()); \
+		  }
+	#endif
+  #endif
+
+#endif
+
 #endif   // __JUCE_INITIALISATION_JUCEHEADER__
 /*** End of inlined file: juce_Initialisation.h ***/
 
@@ -13661,7 +13916,7 @@ public:
 											const String& bodyText,
 											const StringArray& filesToAttach);
 
-#if JUCE_MAC || JUCE_IPHONE || DOXYGEN
+#if JUCE_MAC || JUCE_IOS || DOXYGEN
 
 	/** MAC ONLY - Turns a Core CF String into a juce one. */
 	static const String cfStringToJuceString (CFStringRef cfString);
@@ -13812,7 +14067,7 @@ private:
 	PlatformUtilities& operator= (const PlatformUtilities&);
 };
 
-#if JUCE_MAC || JUCE_IPHONE
+#if JUCE_MAC || JUCE_IOS
 
 /** A handy C++ wrapper that creates and deletes an NSAutoreleasePool object
 	using RAII.
@@ -13829,6 +14084,12 @@ private:
 	ScopedAutoReleasePool (const ScopedAutoReleasePool&);
 	ScopedAutoReleasePool& operator= (const ScopedAutoReleasePool&);
 };
+
+#define JUCE_AUTORELEASEPOOL  const JUCE_NAMESPACE::ScopedAutoReleasePool pool;
+
+#else
+
+#define JUCE_AUTORELEASEPOOL
 
 #endif
 
@@ -14119,7 +14380,7 @@ private:
 	static classname* _singletonInstance;  \
 	static JUCE_NAMESPACE::CriticalSection _singletonLock; \
 \
-	static classname* getInstance() \
+	static classname* JUCE_CALLTYPE getInstance() \
 	{ \
 		if (_singletonInstance == 0) \
 		{\
@@ -14147,12 +14408,12 @@ private:
 		return _singletonInstance; \
 	} \
 \
-	static inline classname* getInstanceWithoutCreating() throw() \
+	static inline classname* JUCE_CALLTYPE getInstanceWithoutCreating() throw() \
 	{ \
 		return _singletonInstance; \
 	} \
 \
-	static void deleteInstance() \
+	static void JUCE_CALLTYPE deleteInstance() \
 	{ \
 		const JUCE_NAMESPACE::ScopedLock sl (_singletonLock); \
 		if (_singletonInstance != 0) \
@@ -14403,20 +14664,20 @@ public:
 	static const String getCpuVendor();
 
 	/** Checks whether Intel MMX instructions are available. */
-	static bool hasMMX();
+	static bool hasMMX() throw()	{ return cpuFlags.hasMMX; }
 
 	/** Checks whether Intel SSE instructions are available. */
-	static bool hasSSE();
+	static bool hasSSE() throw()	{ return cpuFlags.hasSSE; }
 
 	/** Checks whether Intel SSE2 instructions are available. */
-	static bool hasSSE2();
+	static bool hasSSE2() throw()	   { return cpuFlags.hasSSE2; }
 
 	/** Checks whether AMD 3DNOW instructions are available. */
-	static bool has3DNow();
+	static bool has3DNow() throw()	  { return cpuFlags.has3DNow; }
 
 	/** Returns the number of CPUs.
 	*/
-	static int getNumCpus();
+	static int getNumCpus() throw()	 { return cpuFlags.numCpus; }
 
 	/** Finds out how much RAM is in the machine.
 
@@ -14463,6 +14724,17 @@ public:
 	static void initialiseStats();
 
 private:
+	struct CPUFlags
+	{
+		int numCpus;
+		bool hasMMX : 1;
+		bool hasSSE : 1;
+		bool hasSSE2 : 1;
+		bool has3DNow : 1;
+	};
+
+	static CPUFlags cpuFlags;
+
 	SystemStats();
 	SystemStats (const SystemStats&);
 	SystemStats& operator= (const SystemStats&);
@@ -14800,6 +15072,9 @@ public:
 	/** Destructor. */
 	~RSAKey();
 
+	bool operator== (const RSAKey& other) const throw();
+	bool operator!= (const RSAKey& other) const throw();
+
 	/** Turns the key into a string representation.
 
 		This can be reloaded using the constructor that takes a string.
@@ -14831,7 +15106,8 @@ public:
 
 		The randomSeeds parameter lets you optionally pass it a set of values with
 		which to seed the random number generation, improving the security of the
-		keys generated.
+		keys generated. If you supply these, make sure you provide more than 2 values,
+		and the more your provide, the better the security.
 	*/
 	static void createKeyPair (RSAKey& publicKey,
 							   RSAKey& privateKey,
@@ -14843,6 +15119,9 @@ public:
 
 protected:
 	BigInteger part1, part2;
+
+private:
+	static const BigInteger findBestCommonDivisor (const BigInteger& p, const BigInteger& q);
 };
 
 #endif   // __JUCE_RSAKEY_JUCEHEADER__
@@ -15536,8 +15815,7 @@ public:
 		@param deleteStreamWhenDestroyed	if set to true, the object passed-in
 											will be deleted when this ZipFile object is deleted
 	*/
-	ZipFile (InputStream* inputStream,
-			 bool deleteStreamWhenDestroyed) throw();
+	ZipFile (InputStream* inputStream, bool deleteStreamWhenDestroyed);
 
 	/** Creates a ZipFile based for a file. */
 	ZipFile (const File& file);
@@ -15550,7 +15828,7 @@ public:
 	ZipFile (InputSource* inputSource);
 
 	/** Destructor. */
-	~ZipFile() throw();
+	~ZipFile();
 
 	/**
 		Contains information about one of the entries in a ZipFile.
@@ -15993,7 +16271,7 @@ public:
 	*/
 	const URL withNewSubPath (const String& newPath) const;
 
-	/** Returns a copy of this URL, with a GET parameter added to the end.
+	/** Returns a copy of this URL, with a GET or POST parameter added to the end.
 
 		Any control characters in the value will be encoded.
 
@@ -16097,12 +16375,17 @@ public:
 		@param connectionTimeOutMs  if 0, this will use whatever default setting the OS chooses. If
 								a negative number, it will be infinite. Otherwise it specifies a
 								time in milliseconds.
-	*/
+		@param responseHeaders  if this is non-zero, all the (key, value) pairs received as headers
+								in the response will be stored in this array
+		@returns	an input stream that the caller must delete, or a null pointer if there was an
+					error trying to open it.
+	 */
 	InputStream* createInputStream (bool usePostCommand,
 									OpenStreamProgressCallback* progressCallback = 0,
 									void* progressCallbackContext = 0,
 									const String& extraHeaders = String::empty,
-									int connectionTimeOutMs = 0) const;
+									int connectionTimeOutMs = 0,
+									StringPairArray* responseHeaders = 0) const;
 
 	/** Tries to download the entire contents of this URL into a binary data block.
 
@@ -16498,21 +16781,28 @@ class JUCE_API  MemoryOutputStream  : public OutputStream
 {
 public:
 
-	/** Creates a memory stream ready for writing into.
+	/** Creates an empty memory stream ready for writing into.
 
-		@param initialSize  the intial amount of space to allocate for writing into
-		@param granularity  the increments by which the internal storage will be increased
-		@param memoryBlockToWriteTo if this is non-zero, then this block will be used as the
-									place that the data gets stored. If it's zero, the stream
-									will allocate its own storage internally, which you can
-									access using getData() and getDataSize()
+		@param initialSize  the intial amount of capacity to allocate for writing into
 	*/
-	MemoryOutputStream (size_t initialSize = 256,
-						size_t granularity = 256,
-						MemoryBlock* memoryBlockToWriteTo = 0);
+	MemoryOutputStream (size_t initialSize = 256);
+
+	/** Creates a memory stream for writing into into a pre-existing MemoryBlock object.
+
+		Note that the destination block will always be larger than the amount of data
+		that has been written to the stream, because the MemoryOutputStream keeps some
+		spare capactity at its end. To trim the block's size down to fit the actual
+		data, call flush(), or delete the MemoryOutputStream.
+
+		@param memoryBlockToWriteTo		 the block into which new data will be written.
+		@param appendToExistingBlockContent	 if this is true, the contents of the block will be
+												kept, and new data will be appended to it. If false,
+												the block will be cleared before use
+	*/
+	MemoryOutputStream (MemoryBlock& memoryBlockToWriteTo,
+						bool appendToExistingBlockContent);
 
 	/** Destructor.
-
 		This will free any data that was written to it.
 	*/
 	~MemoryOutputStream();
@@ -16521,7 +16811,7 @@ public:
 
 		@see getDataSize
 	*/
-	const char* getData() const throw();
+	const void* getData() const throw();
 
 	/** Returns the number of bytes of data that have been written to the stream.
 
@@ -16532,24 +16822,43 @@ public:
 	/** Resets the stream, clearing any data that has been written to it so far. */
 	void reset() throw();
 
+	/** Increases the internal storage capacity to be able to contain at least the specified
+		amount of data without needing to be resized.
+	*/
+	void preallocate (size_t bytesToPreallocate);
+
 	/** Returns a String created from the (UTF8) data that has been written to the stream. */
 	const String toUTF8() const;
 
+	/** Attempts to detect the encoding of the data and convert it to a string.
+		@see String::createStringFromData
+	*/
+	const String toString() const;
+
+	/** If the stream is writing to a user-supplied MemoryBlock, this will trim any excess
+		capacity off the block, so that its length matches the amount of actual data that
+		has been written so far.
+	*/
 	void flush();
+
 	bool write (const void* buffer, int howMany);
 	int64 getPosition()				 { return position; }
 	bool setPosition (int64 newPosition);
+	int writeFromInputStream (InputStream& source, int64 maxNumBytesToWrite);
 
 	juce_UseDebuggingNewOperator
 
 private:
-	MemoryBlock* data;
-	ScopedPointer <MemoryBlock> dataToDelete;
-	size_t position, size, blockSize;
+	MemoryBlock& data;
+	MemoryBlock internalBlock;
+	size_t position, size;
 
 	MemoryOutputStream (const MemoryOutputStream&);
 	MemoryOutputStream& operator= (const MemoryOutputStream&);
 };
+
+/** Copies all the data that has been written to a MemoryOutputStream into another stream. */
+OutputStream& JUCE_CALLTYPE operator<< (OutputStream& stream, const MemoryOutputStream& streamToRead);
 
 #endif   // __JUCE_MEMORYOUTPUTSTREAM_JUCEHEADER__
 /*** End of inlined file: juce_MemoryOutputStream.h ***/
@@ -16802,68 +17111,6 @@ private:
 
 #endif
 #ifndef __JUCE_STRINGPOOL_JUCEHEADER__
-
-/*** Start of inlined file: juce_StringPool.h ***/
-#ifndef __JUCE_STRINGPOOL_JUCEHEADER__
-#define __JUCE_STRINGPOOL_JUCEHEADER__
-
-/**
-	A StringPool holds a set of shared strings, which reduces storage overheads and improves
-	comparison speed when dealing with many duplicate strings.
-
-	When you add a string to a pool using getPooledString, it'll return a character
-	array containing the same string. This array is owned by the pool, and the same array
-	is returned every time a matching string is asked for. This means that it's trivial to
-	compare two pooled strings for equality, as you can simply compare their pointers. It
-	also cuts down on storage if you're using many copies of the same string.
-*/
-class JUCE_API  StringPool
-{
-public:
-
-	/** Creates an empty pool. */
-	StringPool() throw();
-
-	/** Destructor */
-	~StringPool();
-
-	/** Returns a pointer to a copy of the string that is passed in.
-
-		The pool will always return the same pointer when asked for a string that matches it.
-		The pool will own all the pointers that it returns, deleting them when the pool itself
-		is deleted.
-	*/
-	const juce_wchar* getPooledString (const String& original);
-
-	/** Returns a pointer to a copy of the string that is passed in.
-
-		The pool will always return the same pointer when asked for a string that matches it.
-		The pool will own all the pointers that it returns, deleting them when the pool itself
-		is deleted.
-	*/
-	const juce_wchar* getPooledString (const char* original);
-
-	/** Returns a pointer to a copy of the string that is passed in.
-
-		The pool will always return the same pointer when asked for a string that matches it.
-		The pool will own all the pointers that it returns, deleting them when the pool itself
-		is deleted.
-	*/
-	const juce_wchar* getPooledString (const juce_wchar* original);
-
-	/** Returns the number of strings in the pool. */
-	int size() const throw();
-
-	/** Returns one of the strings in the pool, by index. */
-	const juce_wchar* operator[] (int index) const throw();
-
-private:
-	Array <String> strings;
-};
-
-#endif   // __JUCE_STRINGPOOL_JUCEHEADER__
-/*** End of inlined file: juce_StringPool.h ***/
-
 
 #endif
 #ifndef __JUCE_XMLDOCUMENT_JUCEHEADER__
@@ -18805,12 +19052,48 @@ public:
 	static const AffineTransform identity;
 
 	/** Transforms a 2D co-ordinate using this matrix. */
-	void transformPoint (float& x,
-						 float& y) const throw();
+	template <typename ValueType>
+	void transformPoint (ValueType& x, ValueType& y) const throw()
+	{
+		const ValueType oldX = x;
+		x = static_cast <ValueType> (mat00 * oldX + mat01 * y + mat02);
+		y = static_cast <ValueType> (mat10 * oldX + mat11 * y + mat12);
+	}
 
-	/** Transforms a 2D co-ordinate using this matrix. */
-	void transformPoint (double& x,
-						 double& y) const throw();
+	/** Transforms two 2D co-ordinates using this matrix.
+		This is just a shortcut for calling transformPoint() on each of these pairs of
+		coordinates in turn. (And putting all the calculations into one function hopefully
+		also gives the compiler a bit more scope for pipelining it).
+	*/
+	template <typename ValueType>
+	void transformPoints (ValueType& x1, ValueType& y1,
+						  ValueType& x2, ValueType& y2) const throw()
+	{
+		const ValueType oldX1 = x1, oldX2 = x2;
+		x1 = static_cast <ValueType> (mat00 * oldX1 + mat01 * y1 + mat02);
+		y1 = static_cast <ValueType> (mat10 * oldX1 + mat11 * y1 + mat12);
+		x2 = static_cast <ValueType> (mat00 * oldX2 + mat01 * y2 + mat02);
+		y2 = static_cast <ValueType> (mat10 * oldX2 + mat11 * y2 + mat12);
+	}
+
+	/** Transforms three 2D co-ordinates using this matrix.
+		This is just a shortcut for calling transformPoint() on each of these pairs of
+		coordinates in turn. (And putting all the calculations into one function hopefully
+		also gives the compiler a bit more scope for pipelining it).
+	*/
+	template <typename ValueType>
+	void transformPoints (ValueType& x1, ValueType& y1,
+						  ValueType& x2, ValueType& y2,
+						  ValueType& x3, ValueType& y3) const throw()
+	{
+		const ValueType oldX1 = x1, oldX2 = x2, oldX3 = x3;
+		x1 = static_cast <ValueType> (mat00 * oldX1 + mat01 * y1 + mat02);
+		y1 = static_cast <ValueType> (mat10 * oldX1 + mat11 * y1 + mat12);
+		x2 = static_cast <ValueType> (mat00 * oldX2 + mat01 * y2 + mat02);
+		y2 = static_cast <ValueType> (mat10 * oldX2 + mat11 * y2 + mat12);
+		x3 = static_cast <ValueType> (mat00 * oldX3 + mat01 * y3 + mat02);
+		y3 = static_cast <ValueType> (mat10 * oldX3 + mat11 * y3 + mat12);
+	}
 
 	/** Returns a new transform which is the same as this one followed by a translation. */
 	const AffineTransform translated (float deltaX,
@@ -18878,6 +19161,12 @@ public:
 	static const AffineTransform fromTargetPoints (float x00, float y00,
 												   float x10, float y10,
 												   float x01, float y01) throw();
+
+	/** Returns the transform that will map three specified points onto three target points.
+	*/
+	static const AffineTransform fromTargetPoints (float sourceX1, float sourceY1, float targetX1, float targetY1,
+												   float sourceX2, float sourceY2, float targetX2, float targetY2,
+												   float sourceX3, float sourceY3, float targetX3, float targetY3) throw();
 
 	/** Returns the result of concatenating another transformation after this one. */
 	const AffineTransform followedBy (const AffineTransform& other) const throw();
@@ -18950,6 +19239,9 @@ public:
 	/** Copies this point from another one. */
 	Point& operator= (const Point& other) throw()			   { x = other.x; y = other.y; return *this; }
 
+	inline bool operator== (const Point& other) const throw()	   { return x == other.x && y == other.y; }
+	inline bool operator!= (const Point& other) const throw()	   { return x != other.x || y != other.y; }
+
 	/** Returns true if the point is (0, 0). */
 	bool isOrigin() const throw()					   { return x == ValueType() && y == ValueType(); }
 
@@ -18977,8 +19269,8 @@ public:
 	/** Adds a pair of co-ordinates to this value. */
 	void addXY (const ValueType xToAdd, const ValueType yToAdd) throw() { x += xToAdd; y += yToAdd; }
 
-	inline bool operator== (const Point& other) const throw()	   { return x == other.x && y == other.y; }
-	inline bool operator!= (const Point& other) const throw()	   { return x != other.x || y != other.y; }
+	/** Returns a point with a given offset from this one. */
+	const Point translated (const ValueType xDelta, const ValueType yDelta) const throw()   { return Point (x + xDelta, y + yDelta); }
 
 	/** Adds two points together. */
 	const Point operator+ (const Point& other) const throw()		{ return Point (x + other.x, y + other.y); }
@@ -19016,9 +19308,23 @@ public:
 	/** Returns the angle from this point to another one.
 
 		The return value is the number of radians clockwise from the 3 o'clock direction,
-		where this point is the centre and the other point is on the radius.
+		where this point is the centre and the other point is on the circumference.
 	*/
 	ValueType getAngleToPoint (const Point& other) const throw()	{ return (ValueType) std::atan2 (other.x - x, other.y - y); }
+
+	/** Taking this point to be the centre of a circle, this returns a point on its circumference.
+		@param radius   the radius of the circle.
+		@param angle	the angle of the point, in radians clockwise from the 12 o'clock position.
+	*/
+	const Point getPointOnCircumference (const float radius, const float angle) const throw()   { return Point<float> (x + radius * std::sin (angle),
+																													   y - radius * std::cos (angle)); }
+	/** Taking this point to be the centre of an ellipse, this returns a point on its circumference.
+		@param radiusX  the horizontal radius of the circle.
+		@param radiusY  the vertical radius of the circle.
+		@param angle	the angle of the point, in radians clockwise from the 12 o'clock position.
+	*/
+	const Point getPointOnCircumference (const float radiusX, const float radiusY, const float angle) const throw()   { return Point<float> (x + radiusX * std::sin (angle),
+																																			 y - radiusY * std::cos (angle)); }
 
 	/** Uses a transform to change the point's co-ordinates.
 		This will only compile if ValueType = float!
@@ -19027,10 +19333,14 @@ public:
 	void applyTransform (const AffineTransform& transform) throw()	  { transform.transformPoint (x, y); }
 
 	/** Returns the position of this point, if it is transformed by a given AffineTransform. */
-	const Point transformedBy (const AffineTransform& transform) const throw()	{ ValueType x2 (x), y2 (y); transform.transformPoint (x2, y2); return Point (x2, y2); }
+	const Point transformedBy (const AffineTransform& transform) const throw()	{ return Point (transform.mat00 * x + transform.mat01 * y + transform.mat02,
+																								  transform.mat10 * x + transform.mat11 * y + transform.mat12); }
 
 	/** Casts this point to a Point<float> object. */
 	const Point<float> toFloat() const throw()			  { return Point<float> (static_cast <float> (x), static_cast<float> (y)); }
+
+	/** Casts this point to a Point<int> object. */
+	const Point<int> toInt() const throw()				  { return Point<int> (static_cast <int> (x), static_cast<int> (y)); }
 
 	/** Returns the point as a string in the form "x, y". */
 	const String toString() const                                       { return String (x) + ", " + String (y); }
@@ -19061,7 +19371,8 @@ public:
 		@param source	   the source that's invoking the event
 		@param position	 the position of the mouse, relative to the component that is passed-in
 		@param modifiers	the key modifiers at the time of the event
-		@param originator	   the component that the mouse event applies to
+		@param eventComponent   the component that the mouse event applies to
+		@param originator	   the component that originally received the event
 		@param eventTime	the time the event happened
 		@param mouseDownPos	 the position of the corresponding mouse-down event (relative to the component that is passed-in).
 								If there isn't a corresponding mouse-down (e.g. for a mouse-move), this will just be
@@ -19075,6 +19386,7 @@ public:
 	MouseEvent (MouseInputSource& source,
 				const Point<int>& position,
 				const ModifierKeys& modifiers,
+				Component* eventComponent,
 				Component* originator,
 				const Time& eventTime,
 				const Point<int> mouseDownPos,
@@ -19321,6 +19633,7 @@ private:
 	const Time mouseDownTime;
 	const int numberOfClicks;
 	const bool wasMovedSinceMouseDown;
+	static int doubleClickTimeOutMs;
 
 	MouseEvent& operator= (const MouseEvent&);
 };
@@ -19404,10 +19717,12 @@ public:
 	/** Called when the component is in the process of being deleted.
 
 		This callback is made from inside the destructor, so be very, very cautious
-		about what you do inside the callback.
+		about what you do in here.
 
-		It will be called before the component has been removed from its parent, and
-		before any child components have been removed.
+		In particular, bear in mind that it's the Component base class's destructor that calls
+		this - so if the object that's being deleted is a subclass of Component, then the
+		subclass layers of the object will already have been destructed when it gets to this
+		point!
 	*/
 	virtual void componentBeingDeleted (Component& component);
 };
@@ -19866,6 +20181,9 @@ public:
 	/** Changes this line's end point */
 	void setEnd (const Point<ValueType>& newEnd) throw()			{ end = newEnd; }
 
+	/** Returns a line that is the same as this one, but with the start and end reversed, */
+	const Line reversed() const throw()					 { return Line (end, start); }
+
 	/** Applies an affine transform to the line's start and end points. */
 	void applyTransform (const AffineTransform& transform) throw()
 	{
@@ -19910,6 +20228,18 @@ public:
 	bool intersects (const Line& line, Point<ValueType>& intersection) const throw()
 	{
 		return findIntersection (start, end, line.start, line.end, intersection);
+	}
+
+	/** Finds the intersection between two lines.
+
+		@param line	 the line to intersect with
+		@returns	the point at which the lines intersect, even if this lies beyond the end of the lines
+	*/
+	const Point<ValueType> getIntersection (const Line& line) const throw()
+	{
+		Point<ValueType> p;
+		findIntersection (start, end, line.start, line.end, p);
+		return p;
 	}
 
 	/** Returns the location of the point which is a given distance along this line.
@@ -19970,25 +20300,42 @@ public:
 		distance from the line; if the point is a long way beyond one of the line's
 		end-point's, it'll return the straight-line distance to the nearest end-point.
 
+		pointOnLine receives the position of the point that is found.
+
 		@returns the point's distance from the line
 		@see getPositionAlongLineOfNearestPoint
 	*/
-	ValueType getDistanceFromLine (const Point<ValueType>& point) const throw()
+	ValueType getDistanceFromPoint (const Point<ValueType>& targetPoint,
+									Point<ValueType>& pointOnLine) const throw()
 	{
 		const Point<ValueType> delta (end - start);
 		const double length = delta.getX() * delta.getX() + delta.getY() * delta.getY();
 
 		if (length > 0)
 		{
-			const double prop = ((point.getX() - start.getX()) * delta.getX()
-								  + (point.getY() - start.getY()) * delta.getY()) / length;
+			const double prop = ((targetPoint.getX() - start.getX()) * delta.getX()
+								  + (targetPoint.getY() - start.getY()) * delta.getY()) / length;
 
 			if (prop >= 0 && prop <= 1.0)
-				return point.getDistanceFrom (start + delta * (ValueType) prop);
+			{
+				pointOnLine = start + delta * (ValueType) prop;
+				return targetPoint.getDistanceFrom (pointOnLine);
+			}
 		}
 
-		return jmin (point.getDistanceFrom (start),
-					 point.getDistanceFrom (end));
+		const float fromStart = targetPoint.getDistanceFrom (start);
+		const float fromEnd = targetPoint.getDistanceFrom (end);
+
+		if (fromStart < fromEnd)
+		{
+			pointOnLine = start;
+			return fromStart;
+		}
+		else
+		{
+			pointOnLine = end;
+			return fromEnd;
+		}
 	}
 
 	/** Finds the point on this line which is nearest to a given point, and
@@ -19997,9 +20344,9 @@ public:
 		@returns	a value 0 to 1.0 which is the distance along this line from the
 					line's start to the point which is nearest to the point passed-in. To
 					turn this number into a position, use getPointAlongLineProportionally().
-		@see getDistanceFromLine, getPointAlongLineProportionally
+		@see getDistanceFromPoint, getPointAlongLineProportionally
 	*/
-	ValueType findNearestPointTo (const Point<ValueType>& point) const throw()
+	ValueType findNearestProportionalPositionTo (const Point<ValueType>& point) const throw()
 	{
 		const Point<ValueType> delta (end - start);
 		const double length = delta.getX() * delta.getX() + delta.getY() * delta.getY();
@@ -20008,6 +20355,14 @@ public:
 						   : jlimit ((ValueType) 0, (ValueType) 1,
 									 (ValueType) (((point.getX() - start.getX()) * delta.getX()
 													+ (point.getY() - start.getY()) * delta.getY()) / length));
+	}
+
+	/** Finds the point on this line which is nearest to a given point.
+		@see getDistanceFromPoint, findNearestProportionalPositionTo
+	*/
+	const Point<ValueType> findNearestPointTo (const Point<ValueType>& point) const throw()
+	{
+		return getPointAlongLineProportionally (findNearestProportionalPositionTo (point));
 	}
 
 	/** Returns true if the given point lies above this line.
@@ -20226,6 +20581,18 @@ public:
 	/** Returns a rectangle with the same size as this one, but a new position. */
 	const Rectangle withPosition (const Point<ValueType>& newPos) const throw()			 { return Rectangle (newPos.getX(), newPos.getY(), w, h); }
 
+	/** Returns the rectangle's top-left position as a Point. */
+	const Point<ValueType> getTopLeft() const throw()						   { return getPosition(); }
+
+	/** Returns the rectangle's top-right position as a Point. */
+	const Point<ValueType> getTopRight() const throw()						  { return Point<ValueType> (x + w, y); }
+
+	/** Returns the rectangle's bottom-left position as a Point. */
+	const Point<ValueType> getBottomLeft() const throw()						{ return Point<ValueType> (x, y + h); }
+
+	/** Returns the rectangle's bottom-right position as a Point. */
+	const Point<ValueType> getBottomRight() const throw()					   { return Point<ValueType> (x + w, y + h); }
+
 	/** Changes the rectangle's size, leaving the position of its top-left corner unchanged. */
 	void setSize (const ValueType newWidth, const ValueType newHeight) throw()			  { w = newWidth; h = newHeight; }
 
@@ -20238,6 +20605,12 @@ public:
 	{
 		x = newX; y = newY; w = newWidth; h = newHeight;
 	}
+
+	/** Changes the rectangle's X coordinate */
+	void setX (const ValueType newX) throw()			{ x = newX; }
+
+	/** Changes the rectangle's Y coordinate */
+	void setY (const ValueType newY) throw()			{ y = newY; }
 
 	/** Changes the rectangle's width */
 	void setWidth (const ValueType newWidth) throw()		{ w = newWidth; }
@@ -20382,6 +20755,72 @@ public:
 							 const ValueType deltaY) const throw()
 	{
 		return expanded (-deltaX, -deltaY);
+	}
+
+	/** Removes a strip from the top of this rectangle, reducing this rectangle
+		by the specified amount and returning the section that was removed.
+
+		E.g. if this rectangle is (100, 100, 300, 300) and amountToRemove is 50, this will
+		return (100, 100, 300, 50) and leave this rectangle as (100, 150, 300, 250).
+
+		If amountToRemove is greater than the height of this rectangle, it'll be clipped to
+		that value.
+	*/
+	const Rectangle removeFromTop (const ValueType amountToRemove) throw()
+	{
+		const Rectangle r (x, y, w, jmin (amountToRemove, h));
+		y += r.h; h -= r.h;
+		return r;
+	}
+
+	/** Removes a strip from the left-hand edge of this rectangle, reducing this rectangle
+		by the specified amount and returning the section that was removed.
+
+		E.g. if this rectangle is (100, 100, 300, 300) and amountToRemove is 50, this will
+		return (100, 100, 50, 300) and leave this rectangle as (150, 100, 250, 300).
+
+		If amountToRemove is greater than the width of this rectangle, it'll be clipped to
+		that value.
+	*/
+	const Rectangle removeFromLeft (const ValueType amountToRemove) throw()
+	{
+		const Rectangle r (x, y, jmin (amountToRemove, w), h);
+		x += r.w; w -= r.w;
+		return r;
+	}
+
+	/** Removes a strip from the right-hand edge of this rectangle, reducing this rectangle
+		by the specified amount and returning the section that was removed.
+
+		E.g. if this rectangle is (100, 100, 300, 300) and amountToRemove is 50, this will
+		return (250, 100, 50, 300) and leave this rectangle as (100, 100, 250, 300).
+
+		If amountToRemove is greater than the width of this rectangle, it'll be clipped to
+		that value.
+	*/
+	const Rectangle removeFromRight (ValueType amountToRemove) throw()
+	{
+		amountToRemove = jmin (amountToRemove, w);
+		const Rectangle r (x + w - amountToRemove, y, amountToRemove, h);
+		w -= amountToRemove;
+		return r;
+	}
+
+	/** Removes a strip from the bottom of this rectangle, reducing this rectangle
+		by the specified amount and returning the section that was removed.
+
+		E.g. if this rectangle is (100, 100, 300, 300) and amountToRemove is 50, this will
+		return (100, 250, 300, 50) and leave this rectangle as (100, 100, 300, 250).
+
+		If amountToRemove is greater than the height of this rectangle, it'll be clipped to
+		that value.
+	*/
+	const Rectangle removeFromBottom (ValueType amountToRemove) throw()
+	{
+		amountToRemove = jmin (amountToRemove, h);
+		const Rectangle r (x, y + h - amountToRemove, w, amountToRemove);
+		h -= amountToRemove;
+		return r;
 	}
 
 	/** Returns true if the two rectangles are identical. */
@@ -20564,10 +21003,8 @@ public:
 		float x3 = x,	 y3 = y + h;
 		float x4 = x2,	y4 = y3;
 
-		transform.transformPoint (x1, y1);
-		transform.transformPoint (x2, y2);
-		transform.transformPoint (x3, y3);
-		transform.transformPoint (x4, y4);
+		transform.transformPoints (x1, y1, x2, y2);
+		transform.transformPoints (x3, y3, x4, y4);
 
 		const float rx = jmin (x1, x2, x3, x4);
 		const float ry = jmin (y1, y2, y3, y4);
@@ -20589,6 +21026,28 @@ public:
 		const int y2 = (int) std::floor (static_cast<float> (y + h + 0.9999f));
 
 		return Rectangle<int> (x1, y1, x2 - x1, y2 - y1);
+	}
+
+	/** Returns the smallest Rectangle that can contain a set of points. */
+	static const Rectangle findAreaContainingPoints (const Point<ValueType>* const points, const int numPoints) throw()
+	{
+		if (numPoints == 0)
+			return Rectangle();
+
+		ValueType minX (points[0].getX());
+		ValueType maxX (minX);
+		ValueType minY (points[0].getY());
+		ValueType maxY (minY);
+
+		for (int i = 1; i < numPoints; ++i)
+		{
+			minX = jmin (minX, points[i].getX());
+			maxX = jmax (maxX, points[i].getX());
+			minY = jmin (minY, points[i].getY());
+			maxY = jmax (maxY, points[i].getY());
+		}
+
+		return Rectangle (minX, minY, maxX - minX, maxY - minY);
 	}
 
 	/** Casts this rectangle to a Rectangle<float>.
@@ -20944,6 +21403,27 @@ public:
 	*/
 	const Line<float> getClippedLine (const Line<float>& line, bool keepSectionOutsidePath) const;
 
+	/** Returns the length of the path.
+		@see getPointAlongPath
+	*/
+	float getLength (const AffineTransform& transform = AffineTransform::identity) const;
+
+	/** Returns a point that is the specified distance along the path.
+		If the distance is greater than the total length of the path, this will return the
+		end point.
+		@see getLength
+	*/
+	const Point<float> getPointAlongPath (float distanceFromStart,
+										  const AffineTransform& transform = AffineTransform::identity) const;
+
+	/** Finds the point along the path which is nearest to a given position.
+		This sets pointOnPath to the nearest point, and returns the distance of this point from the start
+		of the path.
+	*/
+	float getNearestPoint (const Point<float>& targetPoint,
+						   Point<float>& pointOnPath,
+						   const AffineTransform& transform = AffineTransform::identity) const;
+
 	/** Removes all lines and curves, resetting the path completely. */
 	void clear() throw();
 
@@ -20959,6 +21439,19 @@ public:
 		@see lineTo, quadraticTo, cubicTo, closeSubPath
 	*/
 	void startNewSubPath (float startX, float startY);
+
+	/** Begins a new subpath with a given starting position.
+
+		This will move the path's current position to the co-ordinates passed in and
+		make it ready to draw lines or curves starting from this position.
+
+		After adding whatever lines and curves are needed, you can either
+		close the current sub-path using closeSubPath() or call startNewSubPath()
+		to move to a new sub-path, leaving the old one open-ended.
+
+		@see lineTo, quadraticTo, cubicTo, closeSubPath
+	*/
+	void startNewSubPath (const Point<float>& start);
 
 	/** Closes a the current sub-path with a line back to its start-point.
 
@@ -20985,6 +21478,17 @@ public:
 	*/
 	void lineTo (float endX, float endY);
 
+	/** Adds a line from the shape's last position to a new end-point.
+
+		This will connect the end-point of the last line or curve that was added
+		to a new point, using a straight line.
+
+		See the class description for an example of how to add lines and curves to a path.
+
+		@see startNewSubPath, quadraticTo, cubicTo, closeSubPath
+	*/
+	void lineTo (const Point<float>& end);
+
 	/** Adds a quadratic bezier curve from the shape's last position to a new position.
 
 		This will connect the end-point of the last line or curve that was added
@@ -20998,6 +21502,18 @@ public:
 					  float controlPointY,
 					  float endPointX,
 					  float endPointY);
+
+	/** Adds a quadratic bezier curve from the shape's last position to a new position.
+
+		This will connect the end-point of the last line or curve that was added
+		to a new point, using a quadratic spline with one control-point.
+
+		See the class description for an example of how to add lines and curves to a path.
+
+		@see startNewSubPath, lineTo, cubicTo, closeSubPath
+	*/
+	void quadraticTo (const Point<float>& controlPoint,
+					  const Point<float>& endPoint);
 
 	/** Adds a cubic bezier curve from the shape's last position to a new position.
 
@@ -21014,6 +21530,19 @@ public:
 				  float controlPoint2Y,
 				  float endPointX,
 				  float endPointY);
+
+	/** Adds a cubic bezier curve from the shape's last position to a new position.
+
+		This will connect the end-point of the last line or curve that was added
+		to a new point, using a cubic spline with two control-points.
+
+		See the class description for an example of how to add lines and curves to a path.
+
+		@see startNewSubPath, lineTo, quadraticTo, closeSubPath
+	*/
+	void cubicTo (const Point<float>& controlPoint1,
+				  const Point<float>& controlPoint2,
+				  const Point<float>& endPoint);
 
 	/** Returns the last point that was added to the path by one of the drawing methods.
 	*/
@@ -21185,26 +21714,29 @@ public:
 
 		@see addArrow
 	*/
-	void addLineSegment (float startX, float startY,
-						 float endX, float endY,
-						 float lineThickness);
+	void addLineSegment (const Line<float>& line, float lineThickness);
 
 	/** Adds a line with an arrowhead on the end.
-
-		The arrow is added as a new closed sub-path. (Any currently open paths will be
-		left open).
+		The arrow is added as a new closed sub-path. (Any currently open paths will be left open).
+		@see PathStrokeType::createStrokeWithArrowheads
 	*/
-	void addArrow (float startX, float startY,
-				   float endX, float endY,
+	void addArrow (const Line<float>& line,
 				   float lineThickness,
 				   float arrowheadWidth,
 				   float arrowheadLength);
 
-	/** Adds a star shape to the path.
-
+	/** Adds a polygon shape to the path.
+		@see addStar
 	*/
-	void addStar (float centreX,
-				  float centreY,
+	void addPolygon (const Point<float>& centre,
+					 int numberOfSides,
+					 float radius,
+					 float startAngle = 0.0f);
+
+	/** Adds a star shape to the path.
+		@see addPolygon
+	*/
+	void addStar (const Point<float>& centre,
 				  int numberOfPoints,
 				  float innerRadius,
 				  float outerRadius,
@@ -22075,14 +22607,48 @@ public:
 							 const AffineTransform& transform = AffineTransform::identity,
 							 float extraAccuracy = 1.0f) const;
 
+	/** Applies this stroke type to a path and returns the resultant stroke as another Path.
+
+		@param destPath		 the resultant stroked outline shape will be copied into this path.
+									Note that it's ok for the source and destination Paths to be
+									the same object, so you can easily turn a path into a stroked version
+									of itself.
+		@param sourcePath	   the path to use as the source
+		@param arrowheadStartWidth  the width of the arrowhead at the start of the path
+		@param arrowheadStartLength the length of the arrowhead at the start of the path
+		@param arrowheadEndWidth	the width of the arrowhead at the end of the path
+		@param arrowheadEndLength   the length of the arrowhead at the end of the path
+		@param transform		an optional transform to apply to the points from the source path
+									as they are being used
+		@param extraAccuracy	if this is greater than 1.0, it will subdivide the path to
+									a higher resolution, which improved the quality if you'll later want
+									to enlarge the stroked path
+		@see createDashedStroke
+	*/
+	void createStrokeWithArrowheads (Path& destPath,
+									 const Path& sourcePath,
+									 float arrowheadStartWidth, float arrowheadStartLength,
+									 float arrowheadEndWidth, float arrowheadEndLength,
+									 const AffineTransform& transform = AffineTransform::identity,
+									 float extraAccuracy = 1.0f) const;
+
 	/** Returns the stroke thickness. */
 	float getStrokeThickness() const throw()			{ return thickness; }
+
+	/** Sets the stroke thickness. */
+	void setStrokeThickness (float newThickness) throw()	{ thickness = newThickness; }
 
 	/** Returns the joint style. */
 	JointStyle getJointStyle() const throw()			{ return jointStyle; }
 
+	/** Sets the joint style. */
+	void setJointStyle (JointStyle newStyle) throw()		{ jointStyle = newStyle; }
+
 	/** Returns the end-cap style. */
 	EndCapStyle getEndStyle() const throw()			 { return endStyle; }
+
+	/** Sets the end-cap style. */
+	void setEndStyle (EndCapStyle newStyle) throw()		 { endStyle = newStyle; }
 
 	juce_UseDebuggingNewOperator
 
@@ -23061,11 +23627,6 @@ private:
 /*** End of inlined file: juce_Colours.h ***/
 
 
-/*** Start of inlined file: juce_FillType.h ***/
-#ifndef __JUCE_FILLTYPE_JUCEHEADER__
-#define __JUCE_FILLTYPE_JUCEHEADER__
-
-
 /*** Start of inlined file: juce_ColourGradient.h ***/
 #ifndef __JUCE_COLOURGRADIENT_JUCEHEADER__
 #define __JUCE_COLOURGRADIENT_JUCEHEADER__
@@ -23126,9 +23687,13 @@ public:
 											of the distance along the line between the two points
 											at which the colour should occur.
 		@param colour			   the colour that should be used at this point
+		@returns the index at which the new point was added
 	*/
-	void addColour (double proportionAlongGradient,
-					const Colour& colour);
+	int addColour (double proportionAlongGradient,
+				   const Colour& colour);
+
+	/** Removes one of the colours from the gradient. */
+	void removeColour (int index);
 
 	/** Multiplies the alpha value of all the colours by the given scale factor */
 	void multiplyOpacity (float multiplier) throw();
@@ -23143,15 +23708,19 @@ public:
 	double getColourPosition (int index) const throw();
 
 	/** Returns the colour that was added with a given index.
-
-		The index is from 0 to getNumColours() - 1. The return value will be between 0.0 and 1.0
+		The index is from 0 to getNumColours() - 1.
 	*/
 	const Colour getColour (int index) const throw();
+
+	/** Changes the colour at a given index.
+		The index is from 0 to getNumColours() - 1.
+	*/
+	void setColour (int index, const Colour& newColour) throw();
 
 	/** Returns the an interpolated colour at any position along the gradient.
 		@param position	 the position along the gradient, between 0 and 1
 	*/
-	const Colour getColourAtPosition (float position) const throw();
+	const Colour getColourAtPosition (double position) const throw();
 
 	/** Creates a set of interpolated premultiplied ARGB values.
 		This will resize the HeapBlock, fill it with the colours, and will return the number of
@@ -23184,14 +23753,14 @@ private:
 	{
 		ColourPoint() throw() {}
 
-		ColourPoint (uint32 position_, const Colour& colour_) throw()
+		ColourPoint (const double position_, const Colour& colour_) throw()
 			: position (position_), colour (colour_)
 		{}
 
 		bool operator== (const ColourPoint& other) const throw()   { return position == other.position && colour == other.colour; }
 		bool operator!= (const ColourPoint& other) const throw()   { return position != other.position || colour != other.colour; }
 
-		uint32 position;
+		double position;
 		Colour colour;
 	};
 
@@ -23200,117 +23769,6 @@ private:
 
 #endif   // __JUCE_COLOURGRADIENT_JUCEHEADER__
 /*** End of inlined file: juce_ColourGradient.h ***/
-
-class Image;
-
-/**
-	Represents a colour or fill pattern to use for rendering paths.
-
-	This is used by the Graphics and DrawablePath classes as a way to encapsulate
-	a brush type. It can either be a solid colour, a gradient, or a tiled image.
-
-	@see Graphics::setFillType, DrawablePath::setFill
-*/
-class JUCE_API  FillType
-{
-public:
-	/** Creates a default fill type, of solid black. */
-	FillType() throw();
-
-	/** Creates a fill type of a solid colour.
-		@see setColour
-	*/
-	FillType (const Colour& colour) throw();
-
-	/** Creates a gradient fill type.
-		@see setGradient
-	*/
-	FillType (const ColourGradient& gradient);
-
-	/** Creates a tiled image fill type. The transform allows you to set the scaling, offset
-		and rotation of the pattern.
-		@see setTiledImage
-	*/
-	FillType (const Image& image, const AffineTransform& transform) throw();
-
-	/** Creates a copy of another FillType. */
-	FillType (const FillType& other);
-
-	/** Makes a copy of another FillType. */
-	FillType& operator= (const FillType& other);
-
-	/** Destructor. */
-	~FillType() throw();
-
-	/** Returns true if this is a solid colour fill, and not a gradient or image. */
-	bool isColour() const throw()	   { return gradient == 0 && image == 0; }
-
-	/** Returns true if this is a gradient fill. */
-	bool isGradient() const throw()	 { return gradient != 0; }
-
-	/** Returns true if this is a tiled image pattern fill. */
-	bool isTiledImage() const throw()	   { return image != 0; }
-
-	/** Turns this object into a solid colour fill.
-		If the object was an image or gradient, those fields will no longer be valid. */
-	void setColour (const Colour& newColour) throw();
-
-	/** Turns this object into a gradient fill. */
-	void setGradient (const ColourGradient& newGradient);
-
-	/** Turns this object into a tiled image fill type. The transform allows you to set
-		the scaling, offset and rotation of the pattern.
-	*/
-	void setTiledImage (const Image& image, const AffineTransform& transform) throw();
-
-	/** Changes the opacity that should be used.
-		If the fill is a solid colour, this just changes the opacity of that colour. For
-		gradients and image tiles, it changes the opacity that will be used for them.
-	*/
-	void setOpacity (float newOpacity) throw();
-
-	/** Returns the current opacity to be applied to the colour, gradient, or image.
-		@see setOpacity
-	*/
-	float getOpacity() const throw()	{ return colour.getFloatAlpha(); }
-
-	/** Returns true if this fill type is completely transparent. */
-	bool isInvisible() const throw();
-
-	bool operator== (const FillType& other) const;
-	bool operator!= (const FillType& other) const;
-
-	/** The solid colour being used.
-
-		If the fill type is not a solid colour, the alpha channel of this colour indicates
-		the opacity that should be used for the fill, and the RGB channels are ignored.
-	*/
-	Colour colour;
-
-	/** Returns the gradient that should be used for filling.
-		This will be zero if the object is some other type of fill.
-		If a gradient is active, the overall opacity with which it should be applied
-		is indicated by the alpha channel of the colour variable.
-	*/
-	ScopedPointer <ColourGradient> gradient;
-
-	/** Returns the image that should be used for tiling.
-		The FillType object just keeps a pointer to this image, it doesn't own it, so you have to
-		be careful to make sure the image doesn't get deleted while it's being used.
-		If an image fill is active, the overall opacity with which it should be applied
-		is indicated by the alpha channel of the colour variable.
-	*/
-	const Image* image;
-
-	/** The transform that should be applied to the image or gradient that's being drawn.
-	*/
-	AffineTransform transform;
-
-	juce_UseDebuggingNewOperator
-};
-
-#endif   // __JUCE_FILLTYPE_JUCEHEADER__
-/*** End of inlined file: juce_FillType.h ***/
 
 
 /*** Start of inlined file: juce_RectanglePlacement.h ***/
@@ -23441,6 +23899,7 @@ private:
 
 class LowLevelGraphicsContext;
 class Image;
+class FillType;
 class RectangleList;
 
 /**
@@ -23468,7 +23927,7 @@ public:
 
 		Obviously you shouldn't delete the image before this context is deleted.
 	*/
-	explicit Graphics (Image& imageToDrawOnto);
+	explicit Graphics (const Image& imageToDrawOnto);
 
 	/** Destructor. */
 	~Graphics();
@@ -23655,7 +24114,7 @@ public:
 
 	/** Fills a rectangle with a checkerboard pattern, alternating between two colours.
 	*/
-	void fillCheckerBoard (int x, int y, int width, int height,
+	void fillCheckerBoard (const Rectangle<int>& area,
 						   int checkWidth, int checkHeight,
 						   const Colour& colour1, const Colour& colour2) const;
 
@@ -23811,18 +24270,14 @@ public:
 					 const PathStrokeType& strokeType,
 					 const AffineTransform& transform = AffineTransform::identity) const;
 
-	/** Draws a line with an arrowhead.
+	/** Draws a line with an arrowhead at its end.
 
-		@param startX	   the line's start x co-ordinate
-		@param startY	   the line's start y co-ordinate
-		@param endX		 the line's end x co-ordinate (the tip of the arrowhead)
-		@param endY		 the line's end y co-ordinate (the tip of the arrowhead)
+		@param line		 the line to draw
 		@param lineThickness	the thickness of the line
 		@param arrowheadWidth   the width of the arrow head (perpendicular to the line)
 		@param arrowheadLength  the length of the arrow head (along the length of the line)
 	*/
-	void drawArrow (float startX, float startY,
-					float endX, float endY,
+	void drawArrow (const Line<float>& line,
 					float lineThickness,
 					float arrowheadWidth,
 					float arrowheadLength) const;
@@ -23857,7 +24312,7 @@ public:
 		don't want it to be drawn semi-transparently, be sure to call setOpacity (1.0f)
 		(or setColour() with an opaque colour) before drawing images.
 	*/
-	void drawImageAt (const Image* const imageToDraw, int topLeftX, int topLeftY,
+	void drawImageAt (const Image& imageToDraw, int topLeftX, int topLeftY,
 					  bool fillAlphaChannelWithCurrentBrush = false) const;
 
 	/** Draws part of an image, rescaling it to fit in a given target region.
@@ -23885,22 +24340,15 @@ public:
 													it will just fill the target with a solid rectangle)
 		@see setImageResamplingQuality, drawImageAt, drawImageWithin, fillAlphaMap
 	*/
-	void drawImage (const Image* const imageToDraw,
+	void drawImage (const Image& imageToDraw,
 					int destX, int destY, int destWidth, int destHeight,
 					int sourceX, int sourceY, int sourceWidth, int sourceHeight,
 					bool fillAlphaChannelWithCurrentBrush = false) const;
 
-	/** Draws part of an image, having applied an affine transform to it.
+	/** Draws an image, having applied an affine transform to it.
 
 		This lets you throw the image around in some wacky ways, rotate it, shear,
 		scale it, etc.
-
-		A subregion is specified within the source image, and all transformations
-		will be treated as relative to the origin of this sub-region. So, for example if
-		your subregion is (50, 50, 100, 100), and your transform is a translation of (20, 20),
-		the resulting pixel drawn at (20, 20) in the destination context is from (50, 50) in
-		your image. If you want to use the whole image, then Image::getBounds() returns a
-		suitable rectangle to use as the imageSubRegion parameter.
 
 		Images are composited using the context's current opacity, so if you
 		don't want it to be drawn semi-transparently, be sure to call setOpacity (1.0f)
@@ -23909,10 +24357,12 @@ public:
 		If fillAlphaChannelWithCurrentBrush is set to true, then the image's RGB channels
 		are ignored and it is filled with the current brush, masked by its alpha channel.
 
+		If you want to render only a subsection of an image, use Image::getClippedImage() to
+		create the section that you need.
+
 		@see setImageResamplingQuality, drawImage
 	*/
-	void drawImageTransformed (const Image* imageToDraw,
-							   const Rectangle<int>& imageSubRegion,
+	void drawImageTransformed (const Image& imageToDraw,
 							   const AffineTransform& transform,
 							   bool fillAlphaChannelWithCurrentBrush = false) const;
 
@@ -23937,7 +24387,7 @@ public:
 													similar to fillAlphaMap(), and see also drawImage()
 		@see setImageResamplingQuality, drawImage, drawImageTransformed, drawImageAt, RectanglePlacement
 	*/
-	void drawImageWithin (const Image* imageToDraw,
+	void drawImageWithin (const Image& imageToDraw,
 						  int destX, int destY, int destWidth, int destHeight,
 						  const RectanglePlacement& placementWithinTarget,
 						  bool fillAlphaChannelWithCurrentBrush = false) const;
@@ -23954,7 +24404,7 @@ public:
 		method can be used to optimise a component's paint() method, by letting it
 		avoid drawing complex objects that aren't within the region being repainted.
 	*/
-	bool clipRegionIntersects (int x, int y, int width, int height) const;
+	bool clipRegionIntersects (const Rectangle<int>& area) const;
 
 	/** Intersects the current clipping region with another region.
 
@@ -23984,15 +24434,11 @@ public:
 
 		@param image	the image whose alpha-channel should be used. If the image doesn't
 						have an alpha-channel, it is treated as entirely opaque.
-		@param sourceClipRegion	 a subsection of the image that should be used. To use the
-									entire image, just pass a rectangle of bounds
-									(0, 0, image.getWidth(), image.getHeight()).
 		@param transform	a matrix to apply to the image
 		@returns true if the resulting clipping region is non-zero in size
 		@see reduceClipRegion
 	*/
-	bool reduceClipRegion (const Image& image, const Rectangle<int>& sourceClipRegion,
-						   const AffineTransform& transform);
+	bool reduceClipRegion (const Image& image, const AffineTransform& transform);
 
 	/** Excludes a rectangle to stop it being drawn into. */
 	void excludeClipRegion (const Rectangle<int>& rectangleToExclude);
@@ -24088,6 +24534,406 @@ public:
 
 #endif   // __JUCE_IMAGEEFFECTFILTER_JUCEHEADER__
 /*** End of inlined file: juce_ImageEffectFilter.h ***/
+
+
+/*** Start of inlined file: juce_Image.h ***/
+#ifndef __JUCE_IMAGE_JUCEHEADER__
+#define __JUCE_IMAGE_JUCEHEADER__
+
+/**
+	Holds a fixed-size bitmap.
+
+	The image is stored in either 24-bit RGB or 32-bit premultiplied-ARGB format.
+
+	To draw into an image, create a Graphics object for it.
+	e.g. @code
+
+	// create a transparent 500x500 image..
+	Image myImage (Image::RGB, 500, 500, true);
+
+	Graphics g (myImage);
+	g.setColour (Colours::red);
+	g.fillEllipse (20, 20, 300, 200);  // draws a red ellipse in our image.
+	@endcode
+
+	Other useful ways to create an image are with the ImageCache class, or the
+	ImageFileFormat, which provides a way to load common image files.
+
+	@see Graphics, ImageFileFormat, ImageCache, ImageConvolutionKernel
+*/
+class JUCE_API  Image
+{
+public:
+
+	/**
+	*/
+	enum PixelFormat
+	{
+		UnknownFormat,
+		RGB,		/**<< each pixel is a 3-byte packed RGB colour value. For byte order, see the PixelRGB class. */
+		ARGB,		   /**<< each pixel is a 4-byte ARGB premultiplied colour value. For byte order, see the PixelARGB class. */
+		SingleChannel	   /**<< each pixel is a 1-byte alpha channel value. */
+	};
+
+	/**
+	*/
+	enum ImageType
+	{
+		SoftwareImage = 0,
+		NativeImage
+	};
+
+	/** Creates a null image. */
+	Image();
+
+	/** Creates an image with a specified size and format.
+
+		@param format	   the number of colour channels in the image
+		@param imageWidth	   the desired width of the image, in pixels - this value must be
+								greater than zero (otherwise a width of 1 will be used)
+		@param imageHeight	  the desired width of the image, in pixels - this value must be
+								greater than zero (otherwise a height of 1 will be used)
+		@param clearImage	   if true, the image will initially be cleared to black (if it's RGB)
+								or transparent black (if it's ARGB). If false, the image may contain
+								junk initially, so you need to make sure you overwrite it thoroughly.
+		@param type		 the type of image - this lets you specify whether you want a purely
+								memory-based image, or one that may be managed by the OS if possible.
+	*/
+	Image (PixelFormat format,
+		   int imageWidth,
+		   int imageHeight,
+		   bool clearImage,
+		   ImageType type = NativeImage);
+
+	/** Creates a shared reference to another image.
+
+		This won't create a duplicate of the image - when Image objects are copied, they simply
+		point to the same shared image data. To make sure that an Image object has its own unique,
+		unshared internal data, call duplicateIfShared().
+	*/
+	Image (const Image& other);
+
+	/** Makes this image refer to the same underlying image as another object.
+
+		This won't create a duplicate of the image - when Image objects are copied, they simply
+		point to the same shared image data. To make sure that an Image object has its own unique,
+		unshared internal data, call duplicateIfShared().
+	*/
+	Image& operator= (const Image&);
+
+	/** Destructor. */
+	~Image();
+
+	/** Returns true if the two images are referring to the same internal, shared image. */
+	bool operator== (const Image& other) const throw()	  { return image == other.image; }
+
+	/** Returns true if the two images are not referring to the same internal, shared image. */
+	bool operator!= (const Image& other) const throw()	  { return image != other.image; }
+
+	/** Returns true if this image isn't null.
+		If you create an Image with the default constructor, it has no size or content, and is null
+		until you reassign it to an Image which contains some actual data.
+		The isNull() method is the opposite of isValid().
+		@see isNull
+	*/
+	inline bool isValid() const throw()			 { return image != 0; }
+
+	/** Returns true if this image is not valid.
+		If you create an Image with the default constructor, it has no size or content, and is null
+		until you reassign it to an Image which contains some actual data.
+		The isNull() method is the opposite of isValid().
+		@see isValid
+	*/
+	inline bool isNull() const throw()			  { return image == 0; }
+
+	/** A null Image object that can be used when you need to return an invalid image.
+		This object is the equivalient to an Image created with the default constructor.
+	*/
+	static const Image null;
+
+	/** Returns the image's width (in pixels). */
+	int getWidth() const throw()				{ return image == 0 ? 0 : image->width; }
+
+	/** Returns the image's height (in pixels). */
+	int getHeight() const throw()			   { return image == 0 ? 0 : image->height; }
+
+	/** Returns a rectangle with the same size as this image.
+		The rectangle's origin is always (0, 0).
+	*/
+	const Rectangle<int> getBounds() const throw()	  { return image == 0 ? Rectangle<int>() : Rectangle<int> (image->width, image->height); }
+
+	/** Returns the image's pixel format. */
+	PixelFormat getFormat() const throw()		   { return image == 0 ? UnknownFormat : image->format; }
+
+	/** True if the image's format is ARGB. */
+	bool isARGB() const throw()				 { return getFormat() == ARGB; }
+
+	/** True if the image's format is RGB. */
+	bool isRGB() const throw()				  { return getFormat() == RGB; }
+
+	/** True if the image's format is a single-channel alpha map. */
+	bool isSingleChannel() const throw()			{ return getFormat() == SingleChannel; }
+
+	/** True if the image contains an alpha-channel. */
+	bool hasAlphaChannel() const throw()			{ return getFormat() != RGB; }
+
+	/** Clears a section of the image with a given colour.
+
+		This won't do any alpha-blending - it just sets all pixels in the image to
+		the given colour (which may be non-opaque if the image has an alpha channel).
+	*/
+	void clear (const Rectangle<int>& area, const Colour& colourToClearTo = Colour (0x00000000));
+
+	/** Returns a rescaled version of this image.
+
+		A new image is returned which is a copy of this one, rescaled to the given size.
+
+		Note that if the new size is identical to the existing image, this will just return
+		a reference to the original image, and won't actually create a duplicate.
+	*/
+	const Image rescaled (int newWidth, int newHeight,
+						  Graphics::ResamplingQuality quality = Graphics::mediumResamplingQuality) const;
+
+	/** Returns a version of this image with a different image format.
+
+		A new image is returned which has been converted to the specified format.
+
+		Note that if the new format is no different to the current one, this will just return
+		a reference to the original image, and won't actually create a copy.
+	*/
+	const Image convertedToFormat (PixelFormat newFormat) const;
+
+	/** Makes sure that no other Image objects share the same underlying data as this one.
+
+		If no other Image objects refer to the same shared data as this one, this method has no
+		effect. But if there are other references to the data, this will create a new copy of
+		the data internally.
+
+		Call this if you want to draw onto the image, but want to make sure that this doesn't
+		affect any other code that may be sharing the same data.
+
+		@see getReferenceCount
+	*/
+	void duplicateIfShared();
+
+	/** Returns an image which refers to a subsection of this image.
+
+		This will not make a copy of the original - the new image will keep a reference to it, so that
+		if the original image is changed, the contents of the subsection will also change. Likewise if you
+		draw into the subimage, you'll also be drawing onto that area of the original image. Note that if
+		you use operator= to make the original Image object refer to something else, the subsection image
+		won't pick up this change, it'll remain pointing at the original.
+
+		The area passed-in will be clipped to the bounds of this image, so this may return a smaller
+		image than the area you asked for, or even a null image if the area was out-of-bounds.
+	*/
+	const Image getClippedImage (const Rectangle<int>& area) const;
+
+	/** Returns the colour of one of the pixels in the image.
+
+		If the co-ordinates given are beyond the image's boundaries, this will
+		return Colours::transparentBlack.
+
+		@see setPixelAt, Image::BitmapData::getPixelColour
+	*/
+	const Colour getPixelAt (int x, int y) const;
+
+	/** Sets the colour of one of the image's pixels.
+
+		If the co-ordinates are beyond the image's boundaries, then nothing will happen.
+
+		Note that this won't do any alpha-blending, it'll just replace the existing pixel
+		with the given one. The colour's opacity will be ignored if this image doesn't have
+		an alpha-channel.
+
+		@see getPixelAt, Image::BitmapData::setPixelColour
+	*/
+	void setPixelAt (int x, int y, const Colour& colour);
+
+	/** Changes the opacity of a pixel.
+
+		This only has an effect if the image has an alpha channel and if the
+		given co-ordinates are inside the image's boundary.
+
+		The multiplier must be in the range 0 to 1.0, and the current alpha
+		at the given co-ordinates will be multiplied by this value.
+
+		@see setPixelAt
+	*/
+	void multiplyAlphaAt (int x, int y, float multiplier);
+
+	/** Changes the overall opacity of the image.
+
+		This will multiply the alpha value of each pixel in the image by the given
+		amount (limiting the resulting alpha values between 0 and 255). This allows
+		you to make an image more or less transparent.
+
+		If the image doesn't have an alpha channel, this won't have any effect.
+	*/
+	void multiplyAllAlphas (float amountToMultiplyBy);
+
+	/** Changes all the colours to be shades of grey, based on their current luminosity.
+	*/
+	void desaturate();
+
+	/** Retrieves a section of an image as raw pixel data, so it can be read or written to.
+
+		You should only use this class as a last resort - messing about with the internals of
+		an image is only recommended for people who really know what they're doing!
+
+		A BitmapData object should be used as a temporary, stack-based object. Don't keep one
+		hanging around while the image is being used elsewhere.
+
+		Depending on the way the image class is implemented, this may create a temporary buffer
+		which is copied back to the image when the object is deleted, or it may just get a pointer
+		directly into the image's raw data.
+
+		You can use the stride and data values in this class directly, but don't alter them!
+		The actual format of the pixel data depends on the image's format - see Image::getFormat(),
+		and the PixelRGB, PixelARGB and PixelAlpha classes for more info.
+	*/
+	class BitmapData
+	{
+	public:
+		BitmapData (Image& image, int x, int y, int w, int h, bool needsToBeWritable);
+		BitmapData (const Image& image, int x, int y, int w, int h);
+		BitmapData (const Image& image, bool needsToBeWritable);
+		~BitmapData();
+
+		/** Returns a pointer to the start of a line in the image.
+			The co-ordinate you provide here isn't checked, so it's the caller's responsibility to make
+			sure it's not out-of-range.
+		*/
+		inline uint8* getLinePointer (int y) const throw()		  { return data + y * lineStride; }
+
+		/** Returns a pointer to a pixel in the image.
+			The co-ordinates you give here are not checked, so it's the caller's responsibility to make sure they're
+			not out-of-range.
+		*/
+		inline uint8* getPixelPointer (int x, int y) const throw()	  { return data + y * lineStride + x * pixelStride; }
+
+		/** Returns the colour of a given pixel.
+			For performance reasons, this won't do any bounds-checking on the coordinates, so it's the caller's
+			repsonsibility to make sure they're within the image's size.
+		*/
+		const Colour getPixelColour (int x, int y) const throw();
+
+		/** Sets the colour of a given pixel.
+			For performance reasons, this won't do any bounds-checking on the coordinates, so it's the caller's
+			repsonsibility to make sure they're within the image's size.
+		*/
+		void setPixelColour (int x, int y, const Colour& colour) const throw();
+
+		uint8* data;
+		const PixelFormat pixelFormat;
+		int lineStride, pixelStride, width, height;
+
+	private:
+		BitmapData (const BitmapData&);
+		BitmapData& operator= (const BitmapData&);
+	};
+
+	/** Copies some pixel values to a rectangle of the image.
+
+		The format of the pixel data must match that of the image itself, and the
+		rectangle supplied must be within the image's bounds.
+	*/
+	void setPixelData (int destX, int destY, int destW, int destH,
+					   const uint8* sourcePixelData, int sourceLineStride);
+
+	/** Copies a section of the image to somewhere else within itself. */
+	void moveImageSection (int destX, int destY,
+						   int sourceX, int sourceY,
+						   int width, int height);
+
+	/** Creates a RectangleList containing rectangles for all non-transparent pixels
+		of the image.
+
+		@param result	   the list that will have the area added to it
+		@param alphaThreshold   for a semi-transparent image, any pixels whose alpha is
+								above this level will be considered opaque
+	*/
+	void createSolidAreaMask (RectangleList& result,
+							  float alphaThreshold = 0.5f) const;
+
+	/** Returns a user-specified data item that was set with setTag().
+		setTag() and getTag() allow you to attach an arbitrary identifier value to an
+		image. The value is shared between all Image object that are referring to the
+		same underlying image data object.
+	*/
+	const var getTag() const;
+
+	/** Attaches a user-specified data item to this image, which can be retrieved using getTag().
+		setTag() and getTag() allow you to attach an arbitrary identifier value to an
+		image. The value is shared between all Image object that are referring to the
+		same underlying image data object.
+
+		Note that if this Image is null, this method will fail to store the data.
+	*/
+	void setTag (const var& newTag);
+
+	/** Creates a context suitable for drawing onto this image.
+		Don't call this method directly! It's used internally by the Graphics class.
+	*/
+	LowLevelGraphicsContext* createLowLevelContext() const;
+
+	/** Returns the number of Image objects which are currently referring to the same internal
+		shared image data.
+
+		@see duplicateIfShared
+	*/
+	int getReferenceCount() const throw()		   { return image == 0 ? 0 : image->getReferenceCount(); }
+
+	/** This is a base class for task-specific types of image.
+
+		Don't use this class directly! It's used internally by the Image class.
+	*/
+	class SharedImage  : public ReferenceCountedObject
+	{
+	public:
+		SharedImage (PixelFormat format, int width, int height);
+		~SharedImage();
+
+		virtual LowLevelGraphicsContext* createLowLevelContext() = 0;
+		virtual SharedImage* clone() = 0;
+		virtual ImageType getType() const = 0;
+
+		static SharedImage* createNativeImage (PixelFormat format, int width, int height, bool clearImage);
+		static SharedImage* createSoftwareImage (PixelFormat format, int width, int height, bool clearImage);
+
+		const PixelFormat getPixelFormat() const throw()	{ return format; }
+		int getWidth() const throw()			{ return width; }
+		int getHeight() const throw()			   { return height; }
+		int getPixelStride() const throw()		  { return pixelStride; }
+		int getLineStride() const throw()		   { return lineStride; }
+		uint8* getPixelData (int x, int y) const throw();
+
+	protected:
+		friend class Image;
+		friend class Image::BitmapData;
+		const PixelFormat format;
+		const int width, height;
+		int pixelStride, lineStride;
+		uint8* imageData;
+		var userTag;
+
+		SharedImage (const SharedImage&);
+		SharedImage& operator= (const SharedImage&);
+	};
+
+	/** @internal */
+	SharedImage* getSharedImage() const throw()	 { return image; }
+	/** @internal */
+	explicit Image (SharedImage* instance);
+
+	juce_UseDebuggingNewOperator
+
+private:
+	ReferenceCountedObjectPtr<SharedImage> image;
+};
+
+#endif   // __JUCE_IMAGE_JUCEHEADER__
+/*** End of inlined file: juce_Image.h ***/
 
 
 /*** Start of inlined file: juce_RectangleList.h ***/
@@ -24398,6 +25244,167 @@ private:
 #endif   // __JUCE_BORDERSIZE_JUCEHEADER__
 /*** End of inlined file: juce_BorderSize.h ***/
 
+
+/*** Start of inlined file: juce_ModalComponentManager.h ***/
+#ifndef __JUCE_MODALCOMPONENTMANAGER_JUCEHEADER__
+#define __JUCE_MODALCOMPONENTMANAGER_JUCEHEADER__
+
+
+/*** Start of inlined file: juce_DeletedAtShutdown.h ***/
+#ifndef __JUCE_DELETEDATSHUTDOWN_JUCEHEADER__
+#define __JUCE_DELETEDATSHUTDOWN_JUCEHEADER__
+
+/**
+	Classes derived from this will be automatically deleted when the application exits.
+
+	After JUCEApplication::shutdown() has been called, any objects derived from
+	DeletedAtShutdown which are still in existence will be deleted in the reverse
+	order to that in which they were created.
+
+	So if you've got a singleton and don't want to have to explicitly delete it, just
+	inherit from this and it'll be taken care of.
+*/
+class JUCE_API  DeletedAtShutdown
+{
+protected:
+	/** Creates a DeletedAtShutdown object. */
+	DeletedAtShutdown();
+
+	/** Destructor.
+
+		It's ok to delete these objects explicitly - it's only the ones left
+		dangling at the end that will be deleted automatically.
+	*/
+	virtual ~DeletedAtShutdown();
+
+public:
+	/** Deletes all extant objects.
+
+		This shouldn't be used by applications, as it's called automatically
+		in the shutdown code of the JUCEApplication class.
+	*/
+	static void deleteAll();
+
+private:
+	DeletedAtShutdown (const DeletedAtShutdown&);
+	DeletedAtShutdown& operator= (const DeletedAtShutdown&);
+
+	static CriticalSection& getLock();
+	static Array <DeletedAtShutdown*>& getObjects();
+};
+
+#endif   // __JUCE_DELETEDATSHUTDOWN_JUCEHEADER__
+/*** End of inlined file: juce_DeletedAtShutdown.h ***/
+
+/**
+	Manages the system's stack of modal components.
+
+	Normally you'll just use the Component methods to invoke modal states in components,
+	and won't have to deal with this class directly, but this is the singleton object that's
+	used internally to manage the stack.
+
+	@see Component::enterModalState, Component::exitModalState, Component::isCurrentlyModal,
+		 Component::getCurrentlyModalComponent, Component::isCurrentlyBlockedByAnotherModalComponent
+*/
+class JUCE_API  ModalComponentManager   : public AsyncUpdater,
+										  public DeletedAtShutdown
+{
+public:
+
+	/** Receives callbacks when a modal component is dismissed.
+
+		You can register a callback using Component::enterModalState() or
+		ModalComponentManager::attachCallback().
+	*/
+	class Callback
+	{
+	public:
+		/** */
+		Callback() {}
+
+		/** Destructor. */
+		virtual ~Callback() {}
+
+		/** Called to indicate that a modal component has been dismissed.
+
+			You can register a callback using Component::enterModalState() or
+			ModalComponentManager::attachCallback().
+
+			The returnValue parameter is the value that was passed to Component::exitModalState()
+			when the component was dismissed.
+
+			The callback object will be deleted shortly after this method is called.
+		*/
+		virtual void modalStateFinished (int returnValue) = 0;
+	};
+
+	/** Returns the number of components currently being shown modally.
+		@see getModalComponent
+	*/
+	int getNumModalComponents() const;
+
+	/** Returns one of the components being shown modally.
+		An index of 0 is the most recently-shown, topmost component.
+	*/
+	Component* getModalComponent (int index) const;
+
+	/** Returns true if the specified component is in a modal state. */
+	bool isModal (Component* component) const;
+
+	/** Returns true if the specified component is currently the topmost modal component. */
+	bool isFrontModalComponent (Component* component) const;
+
+	/** Adds a new callback that will be called when the specified modal component is dismissed.
+
+		If the component is modal, then when it is dismissed, either by being hidden, or by calling
+		Component::exitModalState(), then the Callback::modalStateFinished() method will be
+		called.
+
+		Each component can have any number of callbacks associated with it, and this one is added
+		to that list.
+
+		The object that is passed in will be deleted by the manager when it's no longer needed. If
+		the given component is not currently modal, the callback object is deleted immediately and
+		no action is taken.
+	*/
+	void attachCallback (Component* component, Callback* callback);
+
+	/** Runs the event loop until the currently topmost modal component is dismissed, and
+		returns the exit code for that component.
+	*/
+	int runEventLoopForCurrentComponent();
+
+	juce_DeclareSingleton_SingleThreaded_Minimal (ModalComponentManager);
+
+protected:
+	/** Creates a ModalComponentManager.
+		You shouldn't ever call the constructor - it's a singleton, so use ModalComponentManager::getInstance()
+	*/
+	ModalComponentManager();
+
+	/** Destructor. */
+	~ModalComponentManager();
+
+	/** @internal */
+	void handleAsyncUpdate();
+
+private:
+	class ModalItem;
+	class ReturnValueRetriever;
+
+	friend class Component;
+	friend class OwnedArray <ModalItem>;
+	OwnedArray <ModalItem> stack;
+
+	void startModal (Component* component, Callback* callback);
+	void endModal (Component* component, int returnValue);
+	void endModal (Component* component);
+
+};
+
+#endif   // __JUCE_MODALCOMPONENTMANAGER_JUCEHEADER__
+/*** End of inlined file: juce_ModalComponentManager.h ***/
+
 class LookAndFeel;
 class MouseInputSource;
 class MouseInputSourceInternal;
@@ -24428,8 +25435,15 @@ public:
 
 	/** Destructor.
 
-		Note that when a component is deleted, any child components it might
-		contain are NOT deleted unless you explicitly call deleteAllChildren() first.
+		Note that when a component is deleted, any child components it contain are NOT
+		automatically deleted. It's your responsibilty to manage their lifespan - you
+		may want to use helper methods like deleteAllChildren(), or less haphazard
+		approaches like using ScopedPointers or normal object aggregation to manage them.
+
+		If the component being deleted is currently the child of another one, then during
+		deletion, it will be removed from its parent, and the parent will receive a childrenChanged()
+		callback. Any ComponentListener objects that have registered with it will also have their
+		ComponentListener::componentBeingDeleted() methods called.
 	*/
 	virtual ~Component();
 
@@ -24826,7 +25840,8 @@ public:
 	/** Changes the component's size and centres it within its parent.
 
 		After changing the size, the component will be moved so that it's
-		centred within its parent.
+		centred within its parent. If the component is on the desktop (or has no
+		parent component), then it'll be centred within the main monitor area.
 	*/
 	void centreWithSize (int width, int height);
 
@@ -24894,29 +25909,37 @@ public:
 
 	/** Adds a child component to this one.
 
-		@param child	the new component to add. If the component passed-in is already
-						the child of another component, it'll first be removed from that.
+		Adding a child component does not mean that the component will own or delete the child - it's
+		your responsibility to delete the component. Note that it's safe to delete a component
+		without first removing it from its parent - doing so will automatically remove it and
+		send out the appropriate notifications before the deletion completes.
 
+		If the child is already a child of this component, then no action will be taken, and its
+		z-order will be left unchanged.
+
+		@param child	the new component to add. If the component passed-in is already
+						the child of another component, it'll first be removed from it current parent.
 		@param zOrder   The index in the child-list at which this component should be inserted.
 						A value of -1 will insert it in front of the others, 0 is the back.
-		@see removeChildComponent, addAndMakeVisible, getChild,
-			 ComponentListener::componentChildrenChanged
+		@see removeChildComponent, addAndMakeVisible, getChild, ComponentListener::componentChildrenChanged
 	*/
 	void addChildComponent (Component* child, int zOrder = -1);
 
 	/** Adds a child component to this one, and also makes the child visible if it isn't.
 
 		Quite a useful function, this is just the same as calling addChildComponent()
-		followed by setVisible (true) on the child.
+		followed by setVisible (true) on the child. See addChildComponent() for more details.
 	*/
 	void addAndMakeVisible (Component* child, int zOrder = -1);
 
 	/** Removes one of this component's child-components.
 
 		If the child passed-in isn't actually a child of this component (either because
-		it's invalid or is the child of a different parent), then nothing is done.
+		it's invalid or is the child of a different parent), then no action is taken.
 
-		Note that removing a child will not delete it!
+		Note that removing a child will not delete it! But it's ok to delete a component
+		without first removing it - doing so will automatically remove it and send out the
+		appropriate notifications before the deletion completes.
 
 		@see addChildComponent, ComponentListener::componentChildrenChanged
 	*/
@@ -24927,7 +25950,9 @@ public:
 		This will return a pointer to the component that was removed, or null if
 		the index was out-of-range.
 
-		Note that removing a child will not delete it!
+		Note that removing a child will not delete it! But it's ok to delete a component
+		without first removing it - doing so will automatically remove it and send out the
+		appropriate notifications before the deletion completes.
 
 		@see addChildComponent, ComponentListener::componentChildrenChanged
 	*/
@@ -24987,7 +26012,7 @@ public:
 
 	/** Checks whether a component is anywhere inside this component or its children.
 
-		This will recursively check through this components children to see if the
+		This will recursively check through this component's children to see if the
 		given component is anywhere inside.
 	*/
 	bool isParentOf (const Component* possibleChild) const throw();
@@ -25208,12 +26233,10 @@ public:
 		the size of the component, it'll be clipped. If clipImageToComponentBounds is false
 		then parts of the component beyond its bounds can be drawn.
 
-		The caller is responsible for deleting the image that is returned.
-
 		@see paintEntireComponent
 	*/
-	Image* createComponentSnapshot (const Rectangle<int>& areaToGrab,
-									bool clipImageToComponentBounds = true);
+	const Image createComponentSnapshot (const Rectangle<int>& areaToGrab,
+										 bool clipImageToComponentBounds = true);
 
 	/** Draws this component and all its subcomponents onto the specified graphics
 		context.
@@ -26049,7 +27072,7 @@ public:
 		passed into exitModalState().
 
 		@see enterModalState, exitModalState, isCurrentlyModal, getCurrentlyModalComponent,
-			 isCurrentlyBlockedByAnotherModalComponent, MessageManager::dispatchNextMessage
+			 isCurrentlyBlockedByAnotherModalComponent, ModalComponentManager
 	*/
 	int runModalLoop();
 
@@ -26063,9 +27086,15 @@ public:
 		get the focus, which is usually what you'll want it to do. If not, it will leave
 		the focus unchanged.
 
-		@see exitModalState, runModalLoop
+		The callback is an optional object which will receive a callback when the modal
+		component loses its modal status, either by being hidden or when exitModalState()
+		is called. If you pass an object in here, the system will take care of deleting it
+		later, after making the callback
+
+		@see exitModalState, runModalLoop, ModalComponentManager::attachCallback
 	*/
-	void enterModalState (bool takeKeyboardFocus = true);
+	void enterModalState (bool takeKeyboardFocus = true,
+						  ModalComponentManager::Callback* callback = 0);
 
 	/** Ends a component's modal state.
 
@@ -26327,7 +27356,7 @@ private:
 	LookAndFeel* lookAndFeel_;
 	MouseCursor cursor_;
 	ImageEffectFilter* effect_;
-	Image* bufferedImage_;
+	Image bufferedImage_;
 	Array <MouseListener*>* mouseListeners_;
 	Array <KeyListener*>* keyListeners_;
 	ListenerList <ComponentListener> componentListeners;
@@ -26398,6 +27427,7 @@ private:
 	// how much of the component is not off the edges of its parents
 	const Rectangle<int> getUnclippedArea() const;
 	void sendVisibilityChangeMessage();
+	const Rectangle<int> getParentOrMainMonitorBounds() const;
 
 	// This is included here just to cause a compile error if your code is still handling
 	// drag-and-drop with this method. If so, just update it to use the new FileDragAndDropTarget
@@ -26918,22 +27948,16 @@ public:
 	e.g. @code
 		class MyJUCEApp  : public JUCEApplication
 		{
-			// NEVER put objects inside a JUCEApplication class - only use pointers to
-			// objects, which you must create in the initialise() method.
 			MyApplicationWindow* myMainWindow;
 
 		public:
 			MyJUCEApp()
 				: myMainWindow (0)
 			{
-				// never create any Juce objects in the constructor - do all your initialisation
-				// in the initialise() method.
 			}
 
 			~MyJUCEApp()
 			{
-				// all your shutdown code must have already been done in the shutdown() method -
-				// nothing should happen in this destructor.
 			}
 
 			void initialise (const String& commandLine)
@@ -26963,12 +27987,6 @@ public:
 		START_JUCE_APPLICATION (MyJUCEApp)
 	@endcode
 
-	Because this object will be created before Juce has properly initialised, you must
-	NEVER add any member variable objects that will be automatically constructed. Likewise
-	don't put ANY code in the constructor that could call Juce functions. Any objects that
-	you want to add to the class must be pointers, which you should instantiate during the
-	initialise() method, and delete in the shutdown() method.
-
 	@see MessageManager, DeletedAtShutdown
 */
 class JUCE_API  JUCEApplication  : public ApplicationCommandTarget,
@@ -26994,7 +28012,7 @@ public:
 	virtual ~JUCEApplication();
 
 	/** Returns the global instance of the application object being run. */
-	static JUCEApplication* getInstance() throw();
+	static JUCEApplication* getInstance() throw()	   { return appInstance; }
 
 	/** Called when the application starts.
 
@@ -27021,7 +28039,7 @@ public:
 		This is handy for things like splash screens to know when the app's up-and-running
 		properly.
 	*/
-	bool isInitialising() const throw();
+	bool isInitialising() const throw()			 { return stillInitialising; }
 
 	/* Called to allow the application to clear up before exiting.
 
@@ -27044,11 +28062,8 @@ public:
 	virtual const String getApplicationName() = 0;
 
 	/** Returns the application's version number.
-
-		An application can implement this to give itself a version.
-		(The default implementation of this just returns an empty string).
 	*/
-	virtual const String getApplicationVersion();
+	virtual const String getApplicationVersion() = 0;
 
 	/** Checks whether multiple instances of the app are allowed.
 
@@ -27130,14 +28145,15 @@ public:
 	// These are used by the START_JUCE_APPLICATION() macro and aren't for public use.
 
 	/** @internal */
-	static int main (String& commandLine, JUCEApplication* newApp);
+	static int main (const String& commandLine);
 	/** @internal */
-	static int main (int argc, const char* argv[], JUCEApplication* newApp);
+	static int main (int argc, const char* argv[]);
+	/** @internal */
+	static void sendUnhandledException (const std::exception* e, const char* sourceFile, int lineNumber);
 
-	/** @internal */
-	static void sendUnhandledException (const std::exception* e,
-										const char* sourceFile,
-										int lineNumber);
+	/** Returns true if this executable is running as an app (as opposed to being a plugin
+		or other kind of shared library. */
+	static inline bool isStandaloneApp() throw()	{ return createInstance != 0; }
 
 	/** @internal */
 	ApplicationCommandTarget* getNextCommandTarget();
@@ -27149,6 +28165,14 @@ public:
 	bool perform (const InvocationInfo& info);
 	/** @internal */
 	void actionListenerCallback (const String& message);
+	/** @internal */
+	bool initialiseApp (const String& commandLine);
+	/** @internal */
+	int shutdownApp();
+	/** @internal */
+	typedef JUCEApplication* (*CreateInstanceFunction)();
+	/** @internal */
+	static CreateInstanceFunction createInstance;
 
 private:
 
@@ -27156,15 +28180,10 @@ private:
 	int appReturnValue;
 	bool stillInitialising;
 	ScopedPointer<InterProcessLock> appLock;
+	static JUCEApplication* appInstance;
 
 	JUCEApplication (const JUCEApplication&);
 	JUCEApplication& operator= (const JUCEApplication&);
-
-public:
-	/** @internal */
-	bool initialiseApp (String& commandLine);
-	/** @internal */
-	static int shutdownAppAndClearUp();
 };
 
 #endif   // __JUCE_APPLICATION_JUCEHEADER__
@@ -27188,53 +28207,6 @@ public:
 /*** Start of inlined file: juce_Desktop.h ***/
 #ifndef __JUCE_DESKTOP_JUCEHEADER__
 #define __JUCE_DESKTOP_JUCEHEADER__
-
-
-/*** Start of inlined file: juce_DeletedAtShutdown.h ***/
-#ifndef __JUCE_DELETEDATSHUTDOWN_JUCEHEADER__
-#define __JUCE_DELETEDATSHUTDOWN_JUCEHEADER__
-
-/**
-	Classes derived from this will be automatically deleted when the application exits.
-
-	After JUCEApplication::shutdown() has been called, any objects derived from
-	DeletedAtShutdown which are still in existence will be deleted in the reverse
-	order to that in which they were created.
-
-	So if you've got a singleton and don't want to have to explicitly delete it, just
-	inherit from this and it'll be taken care of.
-*/
-class JUCE_API  DeletedAtShutdown
-{
-protected:
-	/** Creates a DeletedAtShutdown object. */
-	DeletedAtShutdown();
-
-	/** Destructor.
-
-		It's ok to delete these objects explicitly - it's only the ones left
-		dangling at the end that will be deleted automatically.
-	*/
-	virtual ~DeletedAtShutdown();
-
-public:
-	/** Deletes all extant objects.
-
-		This shouldn't be used by applications, as it's called automatically
-		in the shutdown code of the JUCEApplication class.
-	*/
-	static void deleteAll();
-
-private:
-	DeletedAtShutdown (const DeletedAtShutdown&);
-	DeletedAtShutdown& operator= (const DeletedAtShutdown&);
-
-	static CriticalSection& getLock();
-	static Array <DeletedAtShutdown*>& getObjects();
-};
-
-#endif   // __JUCE_DELETEDATSHUTDOWN_JUCEHEADER__
-/*** End of inlined file: juce_DeletedAtShutdown.h ***/
 
 
 /*** Start of inlined file: juce_Timer.h ***/
@@ -28842,7 +29814,7 @@ public:
 							  int numSamples,
 							  int readerStartSample,
 							  bool useReaderLeftChan,
-							  bool useReaderRightChan) throw();
+							  bool useReaderRightChan);
 
 	/** Writes a section of this buffer to an audio writer.
 
@@ -28853,7 +29825,7 @@ public:
 	*/
 	void writeToAudioWriter (AudioFormatWriter* writer,
 							 int startSample,
-							 int numSamples) const throw();
+							 int numSamples) const;
 
 	juce_UseDebuggingNewOperator
 
@@ -29296,7 +30268,7 @@ public:
 #ifndef __JUCE_AUDIOCDBURNER_JUCEHEADER__
 #define __JUCE_AUDIOCDBURNER_JUCEHEADER__
 
-#if JUCE_USE_CDBURNER
+#if JUCE_USE_CDBURNER || DOXYGEN
 
 /**
 */
@@ -29439,7 +30411,7 @@ private:
 #ifndef __JUCE_AUDIOCDREADER_JUCEHEADER__
 #define __JUCE_AUDIOCDREADER_JUCEHEADER__
 
-#if JUCE_USE_CDREADER
+#if JUCE_USE_CDREADER || DOXYGEN
 
 #if JUCE_MAC
 
@@ -29494,7 +30466,8 @@ public:
 
 	/** Finds the sample offset of the start of a track.
 
-		@param trackNum	 the track number, where 0 is the first track.
+		@param trackNum	 the track number, where trackNum = 0 is the first track
+							and trackNum = getNumTracks() means the end of the CD.
 	*/
 	int getPositionOfTrackStart (int trackNum) const;
 
@@ -29503,6 +30476,11 @@ public:
 		@param trackNum	 the track number, where 0 is the first track.
 	*/
 	bool isTrackAudio (int trackNum) const;
+
+	/** Returns an array of sample offsets for the start of each track, followed by
+		the sample position of the end of the CD.
+	*/
+	const Array<int>& getTrackOffsets() const;
 
 	/** Refreshes the object's table of contents.
 
@@ -29553,24 +30531,22 @@ public:
 	*/
 	void ejectDisk();
 
+	static const int framesPerSecond = 75;
+	static const int samplesPerFrame = 44100 / framesPerSecond;
+
 	juce_UseDebuggingNewOperator
 
 private:
+	Array<int> trackStartSamples;
 
 #if JUCE_MAC
 	File volumeDir;
 	Array<File> tracks;
-	Array<int> trackStartSamples;
 	int currentReaderTrack;
 	ScopedPointer <AudioFormatReader> reader;
 	AudioCDReader (const File& volume);
-public:
-	static int compareElements (const File&, const File&);
-private:
 
 #elif JUCE_WINDOWS
-	int numTracks;
-	int trackStarts[100];
 	bool audioTracks [100];
 	void* handle;
 	bool indexingEnabled;
@@ -30760,8 +31736,15 @@ public:
 	*/
 	AudioSource* getCurrentSource() const throw()	   { return source; }
 
-	/** Sets a gain to apply to the audio data. */
+	/** Sets a gain to apply to the audio data.
+		@see getGain
+	*/
 	void setGain (const float newGain) throw();
+
+	/** Returns the current gain.
+		@see setGain
+	*/
+	float getGain() const throw()			   { return gain; }
 
 	/** Implementation of the AudioIODeviceCallback method. */
 	void audioDeviceIOCallback (const float** inputChannelData,
@@ -30905,9 +31888,11 @@ public:
 		@param inputSource		  the input source to read from
 		@param deleteInputWhenDeleted   if true, the input source will be deleted when
 										this object is deleted
+		@param numChannels		  the number of channels to process
 	*/
 	ResamplingAudioSource (AudioSource* const inputSource,
-						   const bool deleteInputWhenDeleted);
+						   const bool deleteInputWhenDeleted,
+						   int numChannels = 2);
 
 	/** Destructor. */
 	~ResamplingAudioSource();
@@ -30943,6 +31928,8 @@ private:
 	double subSampleOffset;
 	double coefficients[6];
 	CriticalSection ratioLock;
+	const int numChannels;
+	HeapBlock<float*> destBuffers, srcBuffers;
 
 	void setFilterCoefficients (double c1, double c2, double c3, double c4, double c5, double c6);
 	void createLowPass (const double proportionalRate);
@@ -30952,7 +31939,7 @@ private:
 		double x1, x2, y1, y2;
 	};
 
-	FilterState filterStates[2];
+	HeapBlock<FilterState> filterStates;
 	void resetFilters();
 
 	void applyFilter (float* samples, int num, FilterState& fs);
@@ -33228,26 +34215,6 @@ private:
 #endif   // __JUCE_TOOLTIPWINDOW_JUCEHEADER__
 /*** End of inlined file: juce_TooltipWindow.h ***/
 
-class Button;
-
-/**
-	Used to receive callbacks when a button is clicked.
-
-	@see Button::addButtonListener, Button::removeButtonListener
-*/
-class JUCE_API  ButtonListener
-{
-public:
-	/** Destructor. */
-	virtual ~ButtonListener()				   {}
-
-	/** Called when the button is clicked. */
-	virtual void buttonClicked (Button* button) = 0;
-
-	/** Called when the button's state changes. */
-	virtual void buttonStateChanged (Button*)		   {}
-};
-
 /**
 	A base class for buttons.
 
@@ -33378,19 +34345,37 @@ public:
 	*/
 	int getRadioGroupId() const throw()			 { return radioGroupId; }
 
+	/**
+		Used to receive callbacks when a button is clicked.
+
+		@see Button::addButtonListener, Button::removeButtonListener
+	*/
+	class JUCE_API  Listener
+	{
+	public:
+		/** Destructor. */
+		virtual ~Listener()					 {}
+
+		/** Called when the button is clicked. */
+		virtual void buttonClicked (Button* button) = 0;
+
+		/** Called when the button's state changes. */
+		virtual void buttonStateChanged (Button*)		   {}
+	};
+
 	/** Registers a listener to receive events when this button's state changes.
 
 		If the listener is already registered, this will not register it again.
 
 		@see removeButtonListener
 	*/
-	void addButtonListener (ButtonListener* newListener);
+	void addButtonListener (Listener* newListener);
 
 	/** Removes a previously-registered button listener
 
 		@see addButtonListener
 	*/
-	void removeButtonListener (ButtonListener* listener);
+	void removeButtonListener (Listener* listener);
 
 	/** Causes the button to act as if it's been clicked.
 
@@ -33645,7 +34630,7 @@ private:
 	Array <KeyPress> shortcuts;
 	Component::SafePointer<Component> keySource;
 	String text;
-	ListenerList <ButtonListener> buttonListeners;
+	ListenerList <Listener> buttonListeners;
 
 	class RepeatTimer;
 	friend class RepeatTimer;
@@ -33681,33 +34666,11 @@ private:
 	Button& operator= (const Button&);
 };
 
+/** This typedef is just for compatibility with old code - newer code should use Button::Listener instead. */
+typedef Button::Listener ButtonListener;
+
 #endif   // __JUCE_BUTTON_JUCEHEADER__
 /*** End of inlined file: juce_Button.h ***/
-
-class ScrollBar;
-
-/**
-	A class for receiving events from a ScrollBar.
-
-	You can register a ScrollBarListener with a ScrollBar using the ScrollBar::addListener()
-	method, and it will be called when the bar's position changes.
-
-	@see ScrollBar::addListener, ScrollBar::removeListener
-*/
-class JUCE_API  ScrollBarListener
-{
-public:
-	/** Destructor. */
-	virtual ~ScrollBarListener() {}
-
-	/** Called when a ScrollBar is moved.
-
-		@param scrollBarThatHasMoved	the bar that has moved
-		@param newRangeStart		the new range start of this bar
-	*/
-	virtual void scrollBarMoved (ScrollBar* scrollBarThatHasMoved,
-								 double newRangeStart) = 0;
-};
 
 /**
 	A scrollbar component.
@@ -33716,7 +34679,7 @@ public:
 	sets the range of values it can represent. Then you can use setCurrentRange() to
 	change the position and size of the scrollbar's 'thumb'.
 
-	Registering a ScrollBarListener with the scrollbar will allow you to find out when
+	Registering a ScrollBar::Listener with the scrollbar will allow you to find out when
 	the user moves it, and you can use the getCurrentRangeStart() to find out where
 	they moved it to.
 
@@ -33726,7 +34689,7 @@ public:
 	For most purposes, it's probably easier to use a ViewportContainer or ListBox
 	instead of handling a scrollbar directly.
 
-	@see ScrollBarListener
+	@see ScrollBar::Listener
 */
 class JUCE_API  ScrollBar  : public Component,
 							 public AsyncUpdater,
@@ -33813,7 +34776,7 @@ public:
 	/** Changes the position of the scrollbar's 'thumb'.
 
 		If this method call actually changes the scrollbar's position, it will trigger an
-		asynchronous call to ScrollBarListener::scrollBarMoved() for all the listeners that
+		asynchronous call to ScrollBar::Listener::scrollBarMoved() for all the listeners that
 		are registered.
 
 		@see getCurrentRange. setCurrentRangeStart
@@ -33826,7 +34789,7 @@ public:
 		changing the size, you can use setCurrentRangeStart().
 
 		If this method call actually changes the scrollbar's position, it will trigger an
-		asynchronous call to ScrollBarListener::scrollBarMoved() for all the listeners that
+		asynchronous call to ScrollBar::Listener::scrollBarMoved() for all the listeners that
 		are registered.
 
 		@param newStart	 the top (or left) of the thumb, in the range
@@ -33845,7 +34808,7 @@ public:
 		that the maximum thumb start position is (getMaximumRangeLimit() - getCurrentRangeSize()).
 
 		If this method call actually changes the scrollbar's position, it will trigger an
-		asynchronous call to ScrollBarListener::scrollBarMoved() for all the listeners that
+		asynchronous call to ScrollBar::Listener::scrollBarMoved() for all the listeners that
 		are registered.
 
 		@see setCurrentRange
@@ -33931,11 +34894,34 @@ public:
 		trackColourId		   = 0x1000401	 /**< A base colour to use for the slot area of the bar. The look and feel will probably use variations on this colour. */
 	};
 
+	/**
+		A class for receiving events from a ScrollBar.
+
+		You can register a ScrollBar::Listener with a ScrollBar using the ScrollBar::addListener()
+		method, and it will be called when the bar's position changes.
+
+		@see ScrollBar::addListener, ScrollBar::removeListener
+	*/
+	class JUCE_API  Listener
+	{
+	public:
+		/** Destructor. */
+		virtual ~Listener() {}
+
+		/** Called when a ScrollBar is moved.
+
+			@param scrollBarThatHasMoved	the bar that has moved
+			@param newRangeStart		the new range start of this bar
+		*/
+		virtual void scrollBarMoved (ScrollBar* scrollBarThatHasMoved,
+									 double newRangeStart) = 0;
+	};
+
 	/** Registers a listener that will be called when the scrollbar is moved. */
-	void addListener (ScrollBarListener* listener);
+	void addListener (Listener* listener);
 
 	/** Deregisters a previously-registered listener. */
-	void removeListener (ScrollBarListener* listener);
+	void removeListener (Listener* listener);
 
 	/** @internal */
 	bool keyPressed (const KeyPress& key);
@@ -33967,9 +34953,9 @@ private:
 	int initialDelayInMillisecs, repeatDelayInMillisecs, minimumDelayInMillisecs;
 	bool vertical, isDraggingThumb, autohides;
 	class ScrollbarButton;
-	ScrollbarButton* upButton;
-	ScrollbarButton* downButton;
-	ListenerList <ScrollBarListener> listeners;
+	friend class ScopedPointer<ScrollbarButton>;
+	ScopedPointer<ScrollbarButton> upButton, downButton;
+	ListenerList <Listener> listeners;
 
 	void updateThumbPosition();
 	void timerCallback();
@@ -33977,6 +34963,9 @@ private:
 	ScrollBar (const ScrollBar&);
 	ScrollBar& operator= (const ScrollBar&);
 };
+
+/** This typedef is just for compatibility with old code - newer code should use the ScrollBar::Listener class directly. */
+typedef ScrollBar::Listener ScrollBarListener;
 
 #endif   // __JUCE_SCROLLBAR_JUCEHEADER__
 /*** End of inlined file: juce_ScrollBar.h ***/
@@ -33995,7 +34984,7 @@ private:
 */
 class JUCE_API  Viewport  : public Component,
 							private ComponentListener,
-							private ScrollBarListener
+							private ScrollBar::Listener
 {
 public:
 
@@ -34041,6 +35030,18 @@ public:
 		@see getViewPositionX, getViewPositionY, setViewPositionProportionately
 	*/
 	void setViewPosition (int xPixelsOffset, int yPixelsOffset);
+
+	/** Changes the position of the viewed component.
+
+		The inner component will be moved so that the pixel at the top left of
+		the viewport will be the pixel at the specified coordinates within the
+		inner component.
+
+		This will update the scrollbars and might cause a call to visibleAreaChanged().
+
+		@see getViewPositionX, getViewPositionY, setViewPositionProportionately
+	*/
+	void setViewPosition (const Point<int>& newPosition);
 
 	/** Changes the view position as a proportion of the distance it can move.
 
@@ -34162,16 +35163,14 @@ public:
 	void setScrollBarButtonVisibility (bool buttonsVisible);
 
 	/** Returns a pointer to the scrollbar component being used.
-
 		Handy if you need to customise the bar somehow.
 	*/
-	ScrollBar* getVerticalScrollBar() const throw()		 { return verticalScrollBar; }
+	ScrollBar* getVerticalScrollBar() throw()		   { return &verticalScrollBar; }
 
 	/** Returns a pointer to the scrollbar component being used.
-
 		Handy if you need to customise the bar somehow.
 	*/
-	ScrollBar* getHorizontalScrollBar() const throw()	   { return horizontalScrollBar; }
+	ScrollBar* getHorizontalScrollBar() throw()		 { return &horizontalScrollBar; }
 
 	juce_UseDebuggingNewOperator
 
@@ -34194,9 +35193,9 @@ private:
 	int scrollBarThickness;
 	int singleStepX, singleStepY;
 	bool showHScrollbar, showVScrollbar;
-	Component* contentHolder;
-	ScrollBar* verticalScrollBar;
-	ScrollBar* horizontalScrollBar;
+	Component contentHolder;
+	ScrollBar verticalScrollBar;
+	ScrollBar horizontalScrollBar;
 
 	void updateVisibleArea();
 
@@ -34301,7 +35300,7 @@ public:
 				  const String& itemText,
 				  bool isActive = true,
 				  bool isTicked = false,
-				  const Image* iconToUse = 0);
+				  const Image& iconToUse = Image::null);
 
 	/** Adds an item that represents one of the commands in a command manager object.
 
@@ -34326,7 +35325,7 @@ public:
 						  const Colour& itemTextColour,
 						  bool isActive = true,
 						  bool isTicked = false,
-						  const Image* iconToUse = 0);
+						  const Image& iconToUse = Image::null);
 
 	/** Appends a custom menu item.
 
@@ -34364,7 +35363,7 @@ public:
 	void addSubMenu (const String& subMenuName,
 					 const PopupMenu& subMenu,
 					 bool isActive = true,
-					 Image* iconToUse = 0,
+					 const Image& iconToUse = Image::null,
 					 bool isTicked = false);
 
 	/** Appends a separator to the menu, to help break it up into sections.
@@ -34420,12 +35419,19 @@ public:
 										in zero.
 		@param standardItemHeight	   if this is non-zero, it will be used as the standard
 										height for menu items (apart from custom items)
+		@param callback		 if this is non-zero, the menu will be launched asynchronously,
+										returning immediately, and the callback will receive a
+										call when the menu is either dismissed or has an item
+										selected. This object will be owned and deleted by the
+										system, so make sure that it works safely and that any
+										pointers that it uses are safely within scope.
 		@see showAt
 	*/
 	int show (int itemIdThatMustBeVisible = 0,
 			  int minimumWidth = 0,
 			  int maximumNumColumns = 0,
-			  int standardItemHeight = 0);
+			  int standardItemHeight = 0,
+			  ModalComponentManager::Callback* callback = 0);
 
 	/** Displays the menu at a specific location.
 
@@ -34443,7 +35449,8 @@ public:
 				int itemIdThatMustBeVisible = 0,
 				int minimumWidth = 0,
 				int maximumNumColumns = 0,
-				int standardItemHeight = 0);
+				int standardItemHeight = 0,
+				ModalComponentManager::Callback* callback = 0);
 
 	/** Displays the menu as if it's attached to a component such as a button.
 
@@ -34455,7 +35462,8 @@ public:
 				int itemIdThatMustBeVisible = 0,
 				int minimumWidth = 0,
 				int maximumNumColumns = 0,
-				int standardItemHeight = 0);
+				int standardItemHeight = 0,
+				ModalComponentManager::Callback* callback = 0);
 
 	/** Closes any menus that are currently open.
 
@@ -34530,7 +35538,7 @@ public:
 		bool isCustomComponent;
 		bool isSectionHeader;
 		const Colour* customColour;
-		const Image* customImage;
+		Image customImage;
 		ApplicationCommandManager* commandManager;
 
 		juce_UseDebuggingNewOperator
@@ -34554,6 +35562,7 @@ private:
 	friend class ItemComponent;
 	friend class Window;
 	friend class PopupMenuCustomComponent;
+	friend class MenuBarComponent;
 	friend class OwnedArray <Item>;
 	friend class ScopedPointer <Window>;
 
@@ -34563,24 +35572,14 @@ private:
 
 	void addSeparatorIfPending();
 
-	int showMenu (int x, int y, int w, int h,
+	int showMenu (const Rectangle<int>& target,
 				  int itemIdThatMustBeVisible,
 				  int minimumWidth,
 				  int maximumNumColumns,
 				  int standardItemHeight,
 				  bool alignToRectangle,
-				  Component* componentAttachedTo);
-
-	friend class MenuBarComponent;
-	Component* createMenuComponent (int x, int y, int w, int h,
-									int itemIdThatMustBeVisible,
-									int minimumWidth,
-									int maximumNumColumns,
-									int standardItemHeight,
-									bool alignToRectangle,
-									Component* menuBarComponent,
-									ApplicationCommandManager** managerOfChosenCommand,
-									Component* componentAttachedTo);
+				  Component* componentAttachedTo,
+				  ModalComponentManager::Callback* callback);
 };
 
 #endif   // __JUCE_POPUPMENU_JUCEHEADER__
@@ -34633,39 +35632,13 @@ public:
 #endif   // __JUCE_TEXTINPUTTARGET_JUCEHEADER__
 /*** End of inlined file: juce_TextInputTarget.h ***/
 
-class TextEditor;
-
-/**
-	Receives callbacks from a TextEditor component when it changes.
-
-	@see TextEditor::addListener
-*/
-class JUCE_API  TextEditorListener
-{
-public:
-	/** Destructor. */
-	virtual ~TextEditorListener()  {}
-
-	/** Called when the user changes the text in some way. */
-	virtual void textEditorTextChanged (TextEditor& editor) = 0;
-
-	/** Called when the user presses the return key. */
-	virtual void textEditorReturnKeyPressed (TextEditor& editor) = 0;
-
-	/** Called when the user presses the escape key. */
-	virtual void textEditorEscapeKeyPressed (TextEditor& editor) = 0;
-
-	/** Called when the text editor loses focus. */
-	virtual void textEditorFocusLost (TextEditor& editor) = 0;
-};
-
 /**
 	A component containing text that can be edited.
 
 	A TextEditor can either be in single- or multi-line mode, and supports mixed
 	fonts and colours.
 
-	@see TextEditorListener, Label
+	@see TextEditor::Listener, Label
 */
 class JUCE_API  TextEditor  : public Component,
 							  public TextInputTarget,
@@ -34709,7 +35682,7 @@ public:
 	/** Changes the behaviour of the return key.
 
 		If set to true, the return key will insert a new-line into the text; if false
-		it will trigger a call to the TextEditorListener::textEditorReturnKeyPressed()
+		it will trigger a call to the TextEditor::Listener::textEditorReturnKeyPressed()
 		method. By default this is set to false, and when true it will only insert
 		new-lines when in multi-line mode (see setMultiLine()).
 	*/
@@ -34909,17 +35882,41 @@ public:
 	*/
 	void setScrollBarButtonVisibility (bool buttonsVisible);
 
+	/**
+		Receives callbacks from a TextEditor component when it changes.
+
+		@see TextEditor::addListener
+	*/
+	class JUCE_API  Listener
+	{
+	public:
+		/** Destructor. */
+		virtual ~Listener()  {}
+
+		/** Called when the user changes the text in some way. */
+		virtual void textEditorTextChanged (TextEditor& editor) = 0;
+
+		/** Called when the user presses the return key. */
+		virtual void textEditorReturnKeyPressed (TextEditor& editor) = 0;
+
+		/** Called when the user presses the escape key. */
+		virtual void textEditorEscapeKeyPressed (TextEditor& editor) = 0;
+
+		/** Called when the text editor loses focus. */
+		virtual void textEditorFocusLost (TextEditor& editor) = 0;
+	};
+
 	/** Registers a listener to be told when things happen to the text.
 
 		@see removeListener
 	*/
-	void addListener (TextEditorListener* newListener);
+	void addListener (Listener* newListener);
 
 	/** Deregisters a listener.
 
 		@see addListener
 	*/
-	void removeListener (TextEditorListener* listenerToRemove);
+	void removeListener (Listener* listenerToRemove);
 
 	/** Returns the entire contents of the editor. */
 	const String getText() const;
@@ -35116,10 +36113,6 @@ public:
 	/** @internal */
 	bool isTextInputActive() const;
 
-	juce_UseDebuggingNewOperator
-
-protected:
-
 	/** This adds the items to the popup menu.
 
 		By default it adds the cut/copy/paste items, but you can override this if
@@ -35156,6 +36149,10 @@ protected:
 		@see addPopupMenuItems, setPopupMenuEnabled, isPopupMenuEnabled
 	*/
 	virtual void performPopupMenuAction (int menuItemID);
+
+	juce_UseDebuggingNewOperator
+
+protected:
 
 	/** Scrolls the minimum distance needed to get the caret into view. */
 	void scrollToMakeSureCursorIsVisible();
@@ -35237,7 +36234,7 @@ private:
 	} dragType;
 
 	String allowedCharacters;
-	ListenerList <TextEditorListener> listeners;
+	ListenerList <Listener> listeners;
 
 	void coalesceSimilarSections();
 	void splitSection (int sectionIndex, int charToSplitAt);
@@ -35267,31 +36264,11 @@ private:
 	TextEditor& operator= (const TextEditor&);
 };
 
+/** This typedef is just for compatibility with old code - newer code should use the TextEditor::Listener class directly. */
+typedef TextEditor::Listener TextEditorListener;
+
 #endif   // __JUCE_TEXTEDITOR_JUCEHEADER__
 /*** End of inlined file: juce_TextEditor.h ***/
-
-class Label;
-
-/**
-	A class for receiving events from a Label.
-
-	You can register a LabelListener with a Label using the Label::addListener()
-	method, and it will be called when the text of the label changes, either because
-	of a call to Label::setText() or by the user editing the text (if the label is
-	editable).
-
-	@see Label::addListener, Label::removeListener
-*/
-class JUCE_API  LabelListener
-{
-public:
-	/** Destructor. */
-	virtual ~LabelListener() {}
-
-	/** Called when a Label's text has changed.
-	*/
-	virtual void labelTextChanged (Label* labelThatHasChanged) = 0;
-};
 
 /**
 	A component that displays a text string, and can optionally become a text
@@ -35299,7 +36276,7 @@ public:
 */
 class JUCE_API  Label  : public Component,
 						 public SettableTooltipClient,
-						 protected TextEditorListener,
+						 protected TextEditor::Listener,
 						 private ComponentListener,
 						 private Value::Listener
 {
@@ -35319,11 +36296,10 @@ public:
 	/** Changes the label text.
 
 		If broadcastChangeMessage is true and the new text is different to the current
-		text, then the class will broadcast a change message to any LabelListeners that
-		are registered.
+		text, then the class will broadcast a change message to any Label::Listener objects
+		that are registered.
 	*/
-	void setText (const String& newText,
-				  bool broadcastChangeMessage);
+	void setText (const String& newText, bool broadcastChangeMessage);
 
 	/** Returns the label's current text.
 
@@ -35429,11 +36405,32 @@ public:
 
 	float getMinimumHorizontalScale() const throw()				 { return minimumHorizontalScale; }
 
+	/**
+		A class for receiving events from a Label.
+
+		You can register a Label::Listener with a Label using the Label::addListener()
+		method, and it will be called when the text of the label changes, either because
+		of a call to Label::setText() or by the user editing the text (if the label is
+		editable).
+
+		@see Label::addListener, Label::removeListener
+	*/
+	class JUCE_API  Listener
+	{
+	public:
+		/** Destructor. */
+		virtual ~Listener() {}
+
+		/** Called when a Label's text has changed.
+		*/
+		virtual void labelTextChanged (Label* labelThatHasChanged) = 0;
+	};
+
 	/** Registers a listener that will be called when the label's text changes. */
-	void addListener (LabelListener* listener) throw();
+	void addListener (Listener* listener) throw();
 
 	/** Deregisters a previously-registered listener. */
-	void removeListener (LabelListener* listener) throw();
+	void removeListener (Listener* listener) throw();
 
 	/** Makes the label turn into a TextEditor when clicked.
 
@@ -35494,26 +36491,20 @@ public:
 
 protected:
 	/** Creates the TextEditor component that will be used when the user has clicked on the label.
-
 		Subclasses can override this if they need to customise this component in some way.
 	*/
 	virtual TextEditor* createEditorComponent();
 
-	/** Called after the user changes the text.
-	*/
+	/** Called after the user changes the text. */
 	virtual void textWasEdited();
 
-	/** Called when the text has been altered.
-	*/
+	/** Called when the text has been altered. */
 	virtual void textWasChanged();
 
-	/** Called when the text editor has just appeared, due to a user click or other
-		focus change.
-	*/
+	/** Called when the text editor has just appeared, due to a user click or other focus change. */
 	virtual void editorShown (TextEditor* editorComponent);
 
-	/** Called when the text editor is going to be deleted, after editing has finished.
-	*/
+	/** Called when the text editor is going to be deleted, after editing has finished. */
 	virtual void editorAboutToBeHidden (TextEditor* editorComponent);
 
 	/** @internal */
@@ -35557,7 +36548,7 @@ private:
 	Font font;
 	Justification justification;
 	ScopedPointer <TextEditor> editor;
-	ListenerList <LabelListener> listeners;
+	ListenerList <Listener> listeners;
 	Component::SafePointer<Component> ownerComponent;
 	int horizontalBorderSize, verticalBorderSize;
 	float minimumHorizontalScale;
@@ -35573,29 +36564,11 @@ private:
 	Label& operator= (const Label&);
 };
 
+/** This typedef is just for compatibility with old code - newer code should use the Label::Listener class directly. */
+typedef Label::Listener LabelListener;
+
 #endif   // __JUCE_LABEL_JUCEHEADER__
 /*** End of inlined file: juce_Label.h ***/
-
-class ComboBox;
-
-/**
-	A class for receiving events from a ComboBox.
-
-	You can register a ComboBoxListener with a ComboBox using the ComboBox::addListener()
-	method, and it will be called when the selected item in the box changes.
-
-	@see ComboBox::addListener, ComboBox::removeListener
-*/
-class JUCE_API  ComboBoxListener
-{
-public:
-	/** Destructor. */
-	virtual ~ComboBoxListener() {}
-
-	/** Called when a ComboBox has its selected item changed.
-	*/
-	virtual void comboBoxChanged (ComboBox* comboBoxThatHasChanged) = 0;
-};
 
 /**
 	A component that lets the user choose from a drop-down list of choices.
@@ -35607,15 +36580,15 @@ public:
 	either be read-only text, or editable.
 
 	To find out when the user selects a different item or edits the text, you
-	can register a ComboBoxListener to receive callbacks.
+	can register a ComboBox::Listener to receive callbacks.
 
-	@see ComboBoxListener
+	@see ComboBox::Listener
 */
 class JUCE_API  ComboBox  : public Component,
 							public SettableTooltipClient,
-							private LabelListener,
-							private AsyncUpdater,
-							private Value::Listener
+							public LabelListener,  // (can't use Label::Listener due to idiotic VC2005 bug)
+							public Value::Listener,
+							private AsyncUpdater
 {
 public:
 
@@ -35820,11 +36793,32 @@ public:
 	*/
 	void showEditor();
 
+	/** Pops up the combo box's list. */
+	void showPopup();
+
+	/**
+		A class for receiving events from a ComboBox.
+
+		You can register a ComboBox::Listener with a ComboBox using the ComboBox::addListener()
+		method, and it will be called when the selected item in the box changes.
+
+		@see ComboBox::addListener, ComboBox::removeListener
+	*/
+	class JUCE_API  Listener
+	{
+	public:
+		/** Destructor. */
+		virtual ~Listener() {}
+
+		/** Called when a ComboBox has its selected item changed. */
+		virtual void comboBoxChanged (ComboBox* comboBoxThatHasChanged) = 0;
+	};
+
 	/** Registers a listener that will be called when the box's content changes. */
-	void addListener (ComboBoxListener* listener) throw();
+	void addListener (Listener* listener) throw();
 
 	/** Deregisters a previously-registered listener. */
-	void removeListener (ComboBoxListener* listener) throw();
+	void removeListener (Listener* listener) throw();
 
 	/** Sets a message to display when there is no item currently selected.
 
@@ -35918,15 +36912,16 @@ private:
 		bool isRealItem() const throw();
 	};
 
+	class Callback;
+	friend class Callback;
+
 	OwnedArray <ItemInfo> items;
 	Value currentId;
 	int lastCurrentId;
 	bool isButtonDown, separatorPending, menuActive, textIsCustom;
-	ListenerList <ComboBoxListener> listeners;
+	ListenerList <Listener> listeners;
 	ScopedPointer<Label> label;
 	String textWhenNothingSelected, noChoicesMessage;
-
-	void showPopup();
 
 	ItemInfo* getItemForId (int itemId) const throw();
 	ItemInfo* getItemForIndex (int index) const throw();
@@ -35934,6 +36929,9 @@ private:
 	ComboBox (const ComboBox&);
 	ComboBox& operator= (const ComboBox&);
 };
+
+/** This typedef is just for compatibility with old code - newer code should use the ComboBox::Listener class directly. */
+typedef ComboBox::Listener ComboBoxListener;
 
 #endif   // __JUCE_COMBOBOX_JUCEHEADER__
 /*** End of inlined file: juce_ComboBox.h ***/
@@ -35993,38 +36991,53 @@ public:
 	/**
 		This structure holds a set of properties describing the current audio setup.
 
-		@see AudioDeviceManager::setAudioDeviceSetup()
+		An AudioDeviceManager uses this class to save/load its current settings, and to
+		specify your preferred options when opening a device.
+
+		@see AudioDeviceManager::setAudioDeviceSetup(), AudioDeviceManager::initialise()
 	*/
 	struct JUCE_API  AudioDeviceSetup
 	{
+		/** Creates an AudioDeviceSetup object.
+
+			The default constructor sets all the member variables to indicate default values.
+			You can then fill-in any values you want to before passing the object to
+			AudioDeviceManager::initialise().
+		*/
 		AudioDeviceSetup();
+
 		bool operator== (const AudioDeviceSetup& other) const;
 
 		/** The name of the audio device used for output.
 			The name has to be one of the ones listed by the AudioDeviceManager's currently
 			selected device type.
 			This may be the same as the input device.
+			An empty string indicates the default device.
 		*/
 		String outputDeviceName;
 
 		/** The name of the audio device used for input.
 			This may be the same as the output device.
+			An empty string indicates the default device.
 		*/
 		String inputDeviceName;
 
 		/** The current sample rate.
 			This rate is used for both the input and output devices.
+			A value of 0 indicates the default rate.
 		*/
 		double sampleRate;
 
 		/** The buffer size, in samples.
 			This buffer size is used for both the input and output devices.
+			A value of 0 indicates the default buffer size.
 		*/
 		int bufferSize;
 
 		/** The set of active input channels.
 			The bits that are set in this array indicate the channels of the
 			input device that are active.
+			If useDefaultInputChannels is true, this value is ignored.
 		*/
 		BigInteger inputChannels;
 
@@ -36037,6 +37050,7 @@ public:
 		/** The set of active output channels.
 			The bits that are set in this array indicate the channels of the
 			input device that are active.
+			If useDefaultOutputChannels is true, this value is ignored.
 		*/
 		BigInteger outputChannels;
 
@@ -39310,7 +40324,7 @@ public:
 
 		@see Component::createComponentSnapshot
 	*/
-	Image* createSnapshotOfSelectedRows (int& x, int& y);
+	const Image createSnapshotOfSelectedRows (int& x, int& y);
 
 	/** Returns the viewport that this ListBox uses.
 
@@ -39351,8 +40365,8 @@ private:
 	friend class ListViewport;
 	friend class TableListBox;
 	ListBoxModel* model;
-	ListViewport* viewport;
-	Component* headerComponent;
+	ScopedPointer<ListViewport> viewport;
+	ScopedPointer<Component> headerComponent;
 	int totalItems, rowHeight, minimumRowWidth;
 	int outlineThickness;
 	int lastRowSelected;
@@ -39456,7 +40470,7 @@ private:
 class JUCE_API  PluginListComponent   : public Component,
 										public ListBoxModel,
 										public ChangeListener,
-										public ButtonListener,
+										public ButtonListener,  // (can't use Button::Listener due to idiotic VC2005 bug)
 										public Timer
 {
 public:
@@ -40222,7 +41236,7 @@ public:
 	juce_UseDebuggingNewOperator
 
 private:
-	Viewport* viewport;
+	Viewport viewport;
 	class PropertyHolderComponent;
 	PropertyHolderComponent* propertyHolderComponent;
 	String messageWhenEmpty;
@@ -41415,7 +42429,7 @@ public:
 	void deregisterBroadcastListener (ActionListener* listener) throw();
 
 	/** @internal */
-	void deliverMessage (void*);
+	void deliverMessage (Message*);
 	/** @internal */
 	void deliverBroadcastMessage (const String&);
 	/** @internal */
@@ -41844,9 +42858,8 @@ public:
 	/** Creates an absolute position from the parent origin on either the X or Y axis.
 
 		@param absoluteDistanceFromOrigin   the distance from the origin
-		@param isHorizontal		 this must be true if this is an X coordinate, or false if it's on the Y axis.
 	*/
-	RelativeCoordinate (double absoluteDistanceFromOrigin, bool isHorizontal);
+	RelativeCoordinate (double absoluteDistanceFromOrigin);
 
 	/** Creates an absolute position relative to a named coordinate.
 
@@ -41960,7 +42973,8 @@ public:
 		Note that calling this will reset the names of any anchor points, and just make the
 		coordinate relative to the parent origin and parent size.
 	*/
-	void toggleProportionality (const NamedCoordinateFinder* nameFinder, bool isHorizontal);
+	void toggleProportionality (const NamedCoordinateFinder* nameFinder,
+								const String& proportionalAnchor1, const String& proportionalAnchor2);
 
 	/** Returns a value that can be edited to set this coordinate's position.
 		The meaning of this number depends on the coordinate's mode. If the coordinate is
@@ -41980,12 +42994,12 @@ public:
 
 	/** Returns the name of the first anchor point from which this coordinate is relative.
 	*/
-	const String getAnchorName1() const			 { return anchor1; }
+	const String getAnchorName1 (const String& returnValueIfOrigin) const;
 
 	/** Returns the name of the second anchor point from which this coordinate is relative.
 		The second anchor is only valid if the coordinate is in proportional mode.
 	*/
-	const String getAnchorName2() const			 { return anchor2; }
+	const String getAnchorName2 (const String& returnValueIfOrigin) const;
 
 	/** Returns the first anchor point as a coordinate. */
 	const RelativeCoordinate getAnchorCoordinate1() const;
@@ -42063,6 +43077,9 @@ public:
 	/** Creates an absolute point, relative to the origin. */
 	RelativePoint (const Point<float>& absolutePoint);
 
+	/** Creates an absolute point, relative to the origin. */
+	RelativePoint (float absoluteX, float absoluteY);
+
 	/** Creates an absolute point from two coordinates. */
 	RelativePoint (const RelativeCoordinate& x, const RelativeCoordinate& y);
 
@@ -42128,6 +43145,10 @@ public:
 	/** Creates an absolute rectangle, relative to the origin. */
 	explicit RelativeRectangle (const Rectangle<float>& rect, const String& componentName);
 
+	/** Creates a rectangle from four coordinates. */
+	RelativeRectangle (const RelativeCoordinate& left, const RelativeCoordinate& right,
+					   const RelativeCoordinate& top, const RelativeCoordinate& bottom);
+
 	/** Creates a rectangle from a stringified representation.
 		The string must contain a sequence of 4 coordinates, separated by commas, in the order
 		left, top, right, bottom. The syntax for the coordinate strings is explained in the
@@ -42185,7 +43206,8 @@ public:
 
 	RelativePointPath();
 	RelativePointPath (const RelativePointPath& other);
-	RelativePointPath (const String& stringVersion);
+	RelativePointPath (const ValueTree& drawable);
+	RelativePointPath (const Path& path);
 	~RelativePointPath();
 
 	/** Resolves this points in this path and adds them to a normal Path object. */
@@ -42194,11 +43216,8 @@ public:
 	/** Returns true if the path contains any non-fixed points. */
 	bool containsAnyDynamicPoints() const;
 
-	/** Returns a string version of the path.
-		This has the same format as Path::toString(), but since it can contain RelativeCoordinate
-		positions, it can't be parsed by the Path class if any of the points are dynamic.
-	*/
-	const String toString() const;
+	/** Writes the path to this drawable encoding. */
+	void writeTo (ValueTree state, UndoManager* undoManager) const;
 
 	/** Quickly swaps the contents of this path with another. */
 	void swapWith (RelativePointPath& other) throw();
@@ -42223,11 +43242,15 @@ public:
 	public:
 		ElementBase (ElementType type);
 		virtual ~ElementBase() {}
-		virtual void write (OutputStream& out, ElementType lastTypeWritten) const = 0;
+		virtual const ValueTree createTree() const = 0;
 		virtual void addToPath (Path& path, RelativeCoordinate::NamedCoordinateFinder* coordFinder) const = 0;
 		virtual RelativePoint* getControlPoints (int& numPoints) = 0;
 
 		const ElementType type;
+
+	private:
+		ElementBase (const ElementBase&);
+		ElementBase& operator= (const ElementBase&);
 	};
 
 	class JUCE_API  StartSubPath  : public ElementBase
@@ -42235,11 +43258,15 @@ public:
 	public:
 		StartSubPath (const RelativePoint& pos);
 		~StartSubPath() {}
-		void write (OutputStream& out, ElementType lastTypeWritten) const;
+		const ValueTree createTree() const;
 		void addToPath (Path& path, RelativeCoordinate::NamedCoordinateFinder* coordFinder) const;
 		RelativePoint* getControlPoints (int& numPoints);
 
 		RelativePoint startPos;
+
+	private:
+		StartSubPath (const StartSubPath&);
+		StartSubPath& operator= (const StartSubPath&);
 	};
 
 	class JUCE_API  CloseSubPath  : public ElementBase
@@ -42247,9 +43274,13 @@ public:
 	public:
 		CloseSubPath();
 		~CloseSubPath() {}
-		void write (OutputStream& out, ElementType lastTypeWritten) const;
+		const ValueTree createTree() const;
 		void addToPath (Path& path, RelativeCoordinate::NamedCoordinateFinder* coordFinder) const;
 		RelativePoint* getControlPoints (int& numPoints);
+
+	private:
+		CloseSubPath (const CloseSubPath&);
+		CloseSubPath& operator= (const CloseSubPath&);
 	};
 
 	class JUCE_API  LineTo  : public ElementBase
@@ -42257,11 +43288,15 @@ public:
 	public:
 		LineTo (const RelativePoint& endPoint);
 		~LineTo() {}
-		void write (OutputStream& out, ElementType lastTypeWritten) const;
+		const ValueTree createTree() const;
 		void addToPath (Path& path, RelativeCoordinate::NamedCoordinateFinder* coordFinder) const;
 		RelativePoint* getControlPoints (int& numPoints);
 
 		RelativePoint endPoint;
+
+	private:
+		LineTo (const LineTo&);
+		LineTo& operator= (const LineTo&);
 	};
 
 	class JUCE_API  QuadraticTo  : public ElementBase
@@ -42269,11 +43304,15 @@ public:
 	public:
 		QuadraticTo (const RelativePoint& controlPoint, const RelativePoint& endPoint);
 		~QuadraticTo() {}
-		void write (OutputStream& out, ElementType lastTypeWritten) const;
+		const ValueTree createTree() const;
 		void addToPath (Path& path, RelativeCoordinate::NamedCoordinateFinder* coordFinder) const;
 		RelativePoint* getControlPoints (int& numPoints);
 
 		RelativePoint controlPoints[2];
+
+	private:
+		QuadraticTo (const QuadraticTo&);
+		QuadraticTo& operator= (const QuadraticTo&);
 	};
 
 	class JUCE_API  CubicTo  : public ElementBase
@@ -42281,11 +43320,15 @@ public:
 	public:
 		CubicTo (const RelativePoint& controlPoint1, const RelativePoint& controlPoint2, const RelativePoint& endPoint);
 		~CubicTo() {}
-		void write (OutputStream& out, ElementType lastTypeWritten) const;
+		const ValueTree createTree() const;
 		void addToPath (Path& path, RelativeCoordinate::NamedCoordinateFinder* coordFinder) const;
 		RelativePoint* getControlPoints (int& numPoints);
 
 		RelativePoint controlPoints[3];
+
+	private:
+		CubicTo (const CubicTo&);
+		CubicTo& operator= (const CubicTo&);
 	};
 
 	OwnedArray <ElementBase> elements;
@@ -42294,9 +43337,38 @@ public:
 private:
 	bool containsDynamicPoints;
 
-	void parseString (const String& s);
+	void parse (const ValueTree& state);
 
 	RelativePointPath& operator= (const RelativePointPath&);
+};
+
+/**
+	A parallelogram defined by three RelativePoint positions.
+
+	@see RelativePoint, RelativeCoordinate
+*/
+class JUCE_API  RelativeParallelogram
+{
+public:
+
+	RelativeParallelogram();
+	RelativeParallelogram (const RelativePoint& topLeft, const RelativePoint& topRight, const RelativePoint& bottomLeft);
+	RelativeParallelogram (const String& topLeft, const String& topRight, const String& bottomLeft);
+	~RelativeParallelogram();
+
+	void resolveThreePoints (Point<float>* points, RelativeCoordinate::NamedCoordinateFinder* coordFinder) const;
+	void resolveFourCorners (Point<float>* points, RelativeCoordinate::NamedCoordinateFinder* coordFinder) const;
+	const Rectangle<float> getBounds (RelativeCoordinate::NamedCoordinateFinder* coordFinder) const;
+	void getPath (Path& path, RelativeCoordinate::NamedCoordinateFinder* coordFinder) const;
+	const AffineTransform resetToPerpendicular (RelativeCoordinate::NamedCoordinateFinder* coordFinder);
+
+	bool operator== (const RelativeParallelogram& other) const throw();
+	bool operator!= (const RelativeParallelogram& other) const throw();
+
+	static const Point<float> getInternalCoordForPoint (const Point<float>* parallelogramCorners, Point<float> point) throw();
+	static const Point<float> getPointForInternalCoord (const Point<float>* parallelogramCorners, const Point<float>& internalPoint) throw();
+
+	RelativePoint topLeft, topRight, bottomLeft;
 };
 
 #endif   // __JUCE_RELATIVECOORDINATE_JUCEHEADER__
@@ -42463,13 +43535,13 @@ public:
 			The image that is returned will be owned by the caller, but it may come
 			from the ImageCache.
 		*/
-		virtual Image* getImageForIdentifier (const var& imageIdentifier) = 0;
+		virtual const Image getImageForIdentifier (const var& imageIdentifier) = 0;
 
 		/** Returns an identifier to be used to refer to a given image.
 			This is used when converting a drawable into a ValueTree, so if you're
 			only loading drawables, you can just return a var::null here.
 		*/
-		virtual const var getIdentifierForImage (Image* image) = 0;
+		virtual const var getIdentifierForImage (const Image& image) = 0;
 	};
 
 	/** Tries to create a Drawable from a previously-saved ValueTree.
@@ -42509,12 +43581,19 @@ public:
 		void setID (const String& newID, UndoManager* undoManager);
 		static const Identifier idProperty;
 
-	protected:
-		ValueTree state;
-		static const Identifier type, x1, x2, y1, y2, colour, radial, colours;
+		static const FillType readFillType (const ValueTree& v, RelativePoint* gradientPoint1,
+											RelativePoint* gradientPoint2, RelativePoint* gradientPoint3,
+											RelativeCoordinate::NamedCoordinateFinder* nameFinder,
+											ImageProvider* imageProvider);
 
-		static const FillType readFillType (const ValueTree& v);
-		void replaceFillType (const Identifier& tag, const FillType& fillType, UndoManager* undoManager);
+		static void writeFillType (ValueTree& v, const FillType& fillType,
+								   const RelativePoint* gradientPoint1, const RelativePoint* gradientPoint2,
+								   const RelativePoint* gradientPoint3, ImageProvider* imageProvider,
+								   UndoManager* undoManager);
+
+		ValueTree state;
+		static const Identifier type, gradientPoint1, gradientPoint2, gradientPoint3,
+								colour, radial, colours, imageId, imageOpacity;
 	};
 
 	juce_UseDebuggingNewOperator
@@ -42523,6 +43602,8 @@ protected:
 	friend class DrawableComposite;
 	DrawableComposite* parent;
 	virtual void invalidatePoints() = 0;
+
+	static Drawable* createChildFromValueTree (DrawableComposite* parent, const ValueTree& tree, ImageProvider* imageProvider);
 
 private:
 	String name;
@@ -42799,10 +43880,6 @@ public:
 
 	/** Sets up the images to draw in various states.
 
-		Important! Bear in mind that if you pass the same image in for more than one of
-		these parameters, this button will delete it (or release from the ImageCache)
-		multiple times!
-
 		@param resizeButtonNowToFitThisImage	if true, the button will be immediately
 													resized to the same dimensions as the normal image
 		@param rescaleImagesWhenButtonSizeChanges   if true, the image will be rescaled to fit the
@@ -42811,9 +43888,7 @@ public:
 													the button will keep the image's x and y proportions
 													correct - i.e. it won't distort its shape, although
 													this might create gaps around the edges
-		@param normalImage			  the image to use when the button is in its normal state. The
-													image passed in will be deleted (or released if it
-													was created by the ImageCache class) when the
+		@param normalImage			  the image to use when the button is in its normal state.
 													button no longer needs it.
 		@param imageOpacityWhenNormal		   the opacity to use when drawing the normal image.
 		@param overlayColourWhenNormal		  an overlay colour to use to fill the alpha channel of the
@@ -42823,19 +43898,15 @@ public:
 													colour to the image to brighten or darken it
 		@param overImage				the image to use when the mouse is over the button. If
 													you want to use the same image as was set in the normalImage
-													parameter, this value can be 0. As for normalImage, it
-													will be deleted or released by the button when no longer
-													needed
+													parameter, this value can be a null image.
 		@param imageOpacityWhenOver		 the opacity to use when drawing the image when the mouse
 													is over the button
 		@param overlayColourWhenOver		an overlay colour to use to fill the alpha channel of the
 													image when the mouse is over - if this colour is transparent,
 													no overlay will be drawn
 		@param downImage				an image to use when the button is pressed down. If set
-													to zero, the 'over' image will be drawn instead (or the
-													normal image if there isn't an 'over' image either). This
-													image will be deleted or released by the button when no
-													longer needed
+													to a null image, the 'over' image will be drawn instead (or the
+													normal image if there isn't an 'over' image either).
 		@param imageOpacityWhenDown		 the opacity to use when drawing the image when the button
 													is pressed
 		@param overlayColourWhenDown		an overlay colour to use to fill the alpha channel of the
@@ -42851,33 +43922,33 @@ public:
 	void setImages (bool resizeButtonNowToFitThisImage,
 					bool rescaleImagesWhenButtonSizeChanges,
 					bool preserveImageProportions,
-					Image* normalImage,
+					const Image& normalImage,
 					float imageOpacityWhenNormal,
 					const Colour& overlayColourWhenNormal,
-					Image* overImage,
+					const Image& overImage,
 					float imageOpacityWhenOver,
 					const Colour& overlayColourWhenOver,
-					Image* downImage,
+					const Image& downImage,
 					float imageOpacityWhenDown,
 					const Colour& overlayColourWhenDown,
 					float hitTestAlphaThreshold = 0.0f);
 
 	/** Returns the currently set 'normal' image. */
-	Image* getNormalImage() const throw();
+	const Image getNormalImage() const;
 
 	/** Returns the image that's drawn when the mouse is over the button.
 
-		If an 'over' image has been set, this will return it; otherwise it'll
+		If a valid 'over' image has been set, this will return it; otherwise it'll
 		just return the normal image.
 	*/
-	Image* getOverImage() const throw();
+	const Image getOverImage() const;
 
 	/** Returns the image that's drawn when the button is held down.
 
-		If a 'down' image has been set, this will return it; otherwise it'll
+		If a valid 'down' image has been set, this will return it; otherwise it'll
 		return the 'over' image or normal image, depending on what's available.
 	*/
-	Image* getDownImage() const throw();
+	const Image getDownImage() const;
 
 	juce_UseDebuggingNewOperator
 
@@ -42894,14 +43965,11 @@ private:
 	bool scaleImageToFit, preserveProportions;
 	unsigned char alphaThreshold;
 	int imageX, imageY, imageW, imageH;
-	Image* normalImage;
-	Image* overImage;
-	Image* downImage;
+	Image normalImage, overImage, downImage;
 	float normalOpacity, overOpacity, downOpacity;
 	Colour normalOverlay, overOverlay, downOverlay;
 
-	Image* getCurrentImage() const;
-	void deleteImages();
+	const Image getCurrentImage() const;
 
 	ImageButton (const ImageButton&);
 	ImageButton& operator= (const ImageButton&);
@@ -43249,10 +44317,8 @@ public:
 									dropped-onto so they can decide if they want to handle it or
 									not
 		@param sourceComponent	  the component that is being dragged
-		@param dragImage		the image to drag around underneath the mouse. If this is
-									zero, a snapshot of the sourceComponent will be used instead. An
-									image passed-in will be deleted by this object when no longer
-									needed.
+		@param dragImage		the image to drag around underneath the mouse. If this is a null image,
+									a snapshot of the sourceComponent will be used instead.
 		@param allowDraggingToOtherJuceWindows   if true, the dragged component will appear as a desktop
 									window, and can be dragged to DragAndDropTargets that are the
 									children of components other than this one.
@@ -43263,7 +44329,7 @@ public:
 	*/
 	void startDragging (const String& sourceDescription,
 						Component* sourceComponent,
-						Image* dragImage = 0,
+						const Image& dragImage = Image::null,
 						bool allowDraggingToOtherJuceWindows = false,
 						const Point<int>* imageOffsetFromMouse = 0);
 
@@ -43466,7 +44532,6 @@ private:
 
 class ToolbarItemComponent;
 class ToolbarItemFactory;
-class MissingItemsComponent;
 
 /**
 	A toolbar component.
@@ -43487,7 +44552,7 @@ class MissingItemsComponent;
 class JUCE_API  Toolbar   : public Component,
 							public DragAndDropContainer,
 							public DragAndDropTarget,
-							private ButtonListener
+							private ButtonListener  // (can't use Button::Listener due to idiotic VC2005 bug)
 {
 public:
 
@@ -43725,6 +44790,7 @@ private:
 	bool vertical, isEditingActive;
 	ToolbarItemStyle toolbarStyle;
 	ComponentAnimator animator;
+	class MissingItemsComponent;
 	friend class MissingItemsComponent;
 	Array <ToolbarItemComponent*> items;
 
@@ -44406,7 +45472,7 @@ public:
 class JUCE_API  CodeEditorComponent   : public Component,
 										public TextInputTarget,
 										public Timer,
-										public ScrollBarListener,
+										public ScrollBar::Listener,
 										public CodeDocument::Listener,
 										public AsyncUpdater
 {
@@ -44832,59 +45898,6 @@ private:
 #ifndef __JUCE_SLIDER_JUCEHEADER__
 #define __JUCE_SLIDER_JUCEHEADER__
 
-
-/*** Start of inlined file: juce_SliderListener.h ***/
-#ifndef __JUCE_SLIDERLISTENER_JUCEHEADER__
-#define __JUCE_SLIDERLISTENER_JUCEHEADER__
-
-class Slider;
-
-/**
-	A class for receiving callbacks from a Slider.
-
-	To be told when a slider's value changes, you can register a SliderListener
-	object using Slider::addListener().
-
-	@see Slider::addListener, Slider::removeListener
-*/
-class JUCE_API  SliderListener
-{
-public:
-
-	/** Destructor. */
-	virtual ~SliderListener() {}
-
-	/** Called when the slider's value is changed.
-
-		This may be caused by dragging it, or by typing in its text entry box,
-		or by a call to Slider::setValue().
-
-		You can find out the new value using Slider::getValue().
-
-		@see Slider::valueChanged
-	*/
-	virtual void sliderValueChanged (Slider* slider) = 0;
-
-	/** Called when the slider is about to be dragged.
-
-		This is called when a drag begins, then it's followed by multiple calls
-		to sliderValueChanged(), and then sliderDragEnded() is called after the
-		user lets go.
-
-		@see sliderDragEnded, Slider::startedDragging
-	*/
-	virtual void sliderDragStarted (Slider* slider);
-
-	/** Called after a drag operation has finished.
-
-		@see sliderDragStarted, Slider::stoppedDragging
-	*/
-	virtual void sliderDragEnded (Slider* slider);
-};
-
-#endif   // __JUCE_SLIDERLISTENER_JUCEHEADER__
-/*** End of inlined file: juce_SliderListener.h ***/
-
 /**
 	A slider control for changing a value.
 
@@ -44900,15 +45913,15 @@ public:
 	some of the virtual methods, such as changing the scaling, changing the format of
 	the text display, custom ways of limiting the values, etc.
 
-	You can register SliderListeners with a slider, which will be informed when the value
-	changes, or a subclass can override valueChanged() to be informed synchronously.
+	You can register Slider::Listener objects with a slider, and they'll be called when
+	the value changes.
 
-	@see SliderListener
+	@see Slider::Listener
 */
 class JUCE_API  Slider  : public Component,
 						  public SettableTooltipClient,
 						  private AsyncUpdater,
-						  private ButtonListener,
+						  private ButtonListener,  // (can't use Button::Listener due to idiotic VC2005 bug)
 						  private LabelListener,
 						  private Value::Listener
 {
@@ -45176,7 +46189,7 @@ public:
 
 	/** Changes the slider's current value.
 
-		This will trigger a callback to SliderListener::sliderValueChanged() for any listeners
+		This will trigger a callback to Slider::Listener::sliderValueChanged() for any listeners
 		that are registered, and will synchronously call the valueChanged() method in case subclasses
 		want to handle it.
 
@@ -45184,8 +46197,8 @@ public:
 										minimum and maximum range, and will be snapped to the
 										nearest interval if one has been set
 		@param sendUpdateMessage	if false, a change to the value will not trigger a call to
-										any SliderListeners or the valueChanged() method
-		@param sendMessageSynchronously if true, then a call to the SliderListeners will be made
+										any Slider::Listeners or the valueChanged() method
+		@param sendMessageSynchronously if true, then a call to the Slider::Listeners will be made
 										synchronously; if false, it will be asynchronous
 	*/
 	void setValue (double newValue,
@@ -45249,7 +46262,7 @@ public:
 
 	/** For a slider with two or three thumbs, this sets the lower of its values.
 
-		This will trigger a callback to SliderListener::sliderValueChanged() for any listeners
+		This will trigger a callback to Slider::Listener::sliderValueChanged() for any listeners
 		that are registered, and will synchronously call the valueChanged() method in case subclasses
 		want to handle it.
 
@@ -45257,8 +46270,8 @@ public:
 										minimum and maximum range, and will be snapped to the nearest
 										interval if one has been set.
 		@param sendUpdateMessage	if false, a change to the value will not trigger a call to
-										any SliderListeners or the valueChanged() method
-		@param sendMessageSynchronously if true, then a call to the SliderListeners will be made
+										any Slider::Listeners or the valueChanged() method
+		@param sendMessageSynchronously if true, then a call to the Slider::Listeners will be made
 										synchronously; if false, it will be asynchronous
 		@param allowNudgingOfOtherValues  if false, this value will be restricted to being below the
 										max value (in a two-value slider) or the mid value (in a three-value
@@ -45291,7 +46304,7 @@ public:
 
 	/** For a slider with two or three thumbs, this sets the lower of its values.
 
-		This will trigger a callback to SliderListener::sliderValueChanged() for any listeners
+		This will trigger a callback to Slider::Listener::sliderValueChanged() for any listeners
 		that are registered, and will synchronously call the valueChanged() method in case subclasses
 		want to handle it.
 
@@ -45299,8 +46312,8 @@ public:
 										minimum and maximum range, and will be snapped to the nearest
 										interval if one has been set.
 		@param sendUpdateMessage	if false, a change to the value will not trigger a call to
-										any SliderListeners or the valueChanged() method
-		@param sendMessageSynchronously if true, then a call to the SliderListeners will be made
+										any Slider::Listeners or the valueChanged() method
+		@param sendMessageSynchronously if true, then a call to the Slider::Listeners will be made
 										synchronously; if false, it will be asynchronous
 		@param allowNudgingOfOtherValues  if false, this value will be restricted to being above the
 										min value (in a two-value slider) or the mid value (in a three-value
@@ -45313,11 +46326,53 @@ public:
 					  bool sendMessageSynchronously = false,
 					  bool allowNudgingOfOtherValues = false);
 
+	/** A class for receiving callbacks from a Slider.
+
+		To be told when a slider's value changes, you can register a Slider::Listener
+		object using Slider::addListener().
+
+		@see Slider::addListener, Slider::removeListener
+	*/
+	class JUCE_API  Listener
+	{
+	public:
+
+		/** Destructor. */
+		virtual ~Listener() {}
+
+		/** Called when the slider's value is changed.
+
+			This may be caused by dragging it, or by typing in its text entry box,
+			or by a call to Slider::setValue().
+
+			You can find out the new value using Slider::getValue().
+
+			@see Slider::valueChanged
+		*/
+		virtual void sliderValueChanged (Slider* slider) = 0;
+
+		/** Called when the slider is about to be dragged.
+
+			This is called when a drag begins, then it's followed by multiple calls
+			to sliderValueChanged(), and then sliderDragEnded() is called after the
+			user lets go.
+
+			@see sliderDragEnded, Slider::startedDragging
+		*/
+		virtual void sliderDragStarted (Slider* slider);
+
+		/** Called after a drag operation has finished.
+
+			@see sliderDragStarted, Slider::stoppedDragging
+		*/
+		virtual void sliderDragEnded (Slider* slider);
+	};
+
 	/** Adds a listener to be called when this slider's value changes. */
-	void addListener (SliderListener* listener);
+	void addListener (Listener* listener);
 
 	/** Removes a previously-registered listener. */
-	void removeListener (SliderListener* listener);
+	void removeListener (Listener* listener);
 
 	/** This lets you choose whether double-clicking moves the slider to a given position.
 
@@ -45400,19 +46455,19 @@ public:
 
 	/** Callback to indicate that the user is about to start dragging the slider.
 
-		@see SliderListener::sliderDragStarted
+		@see Slider::Listener::sliderDragStarted
 	*/
 	virtual void startedDragging();
 
 	/** Callback to indicate that the user has just stopped dragging the slider.
 
-		@see SliderListener::sliderDragEnded
+		@see Slider::Listener::sliderDragEnded
 	*/
 	virtual void stoppedDragging();
 
 	/** Callback to indicate that the user has just moved the slider.
 
-		@see SliderListener::sliderValueChanged
+		@see Slider::Listener::sliderValueChanged
 	*/
 	virtual void valueChanged();
 
@@ -45578,7 +46633,7 @@ protected:
 	int getNumDecimalPlacesToDisplay() const throw()	{ return numDecimalPlaces; }
 
 private:
-	ListenerList <SliderListener> listeners;
+	ListenerList <Listener> listeners;
 	Value currentValue, valueMin, valueMax;
 	double lastCurrentValue, lastValueMin, lastValueMax;
 	double minimum, maximum, interval, doubleClickReturnValue;
@@ -45622,12 +46677,12 @@ private:
 	Slider& operator= (const Slider&);
 };
 
+/** This typedef is just for compatibility with old code - newer code should use the Slider::Listener class directly. */
+typedef Slider::Listener SliderListener;
+
 #endif   // __JUCE_SLIDER_JUCEHEADER__
 /*** End of inlined file: juce_Slider.h ***/
 
-
-#endif
-#ifndef __JUCE_SLIDERLISTENER_JUCEHEADER__
 
 #endif
 #ifndef __JUCE_TABLEHEADERCOMPONENT_JUCEHEADER__
@@ -45635,47 +46690,6 @@ private:
 /*** Start of inlined file: juce_TableHeaderComponent.h ***/
 #ifndef __JUCE_TABLEHEADERCOMPONENT_JUCEHEADER__
 #define __JUCE_TABLEHEADERCOMPONENT_JUCEHEADER__
-
-class TableHeaderComponent;
-
-/**
-	Receives events from a TableHeaderComponent when columns are resized, moved, etc.
-
-	You can register one of these objects for table events using TableHeaderComponent::addListener()
-	and TableHeaderComponent::removeListener().
-
-	@see TableHeaderComponent
-*/
-class JUCE_API  TableHeaderListener
-{
-public:
-
-	TableHeaderListener() {}
-
-	/** Destructor. */
-	virtual ~TableHeaderListener() {}
-
-	/** This is called when some of the table's columns are added, removed, hidden,
-		or rearranged.
-	*/
-	virtual void tableColumnsChanged (TableHeaderComponent* tableHeader) = 0;
-
-	/** This is called when one or more of the table's columns are resized.
-	*/
-	virtual void tableColumnsResized (TableHeaderComponent* tableHeader) = 0;
-
-	/** This is called when the column by which the table should be sorted is changed.
-	*/
-	virtual void tableSortOrderChanged (TableHeaderComponent* tableHeader) = 0;
-
-	/** This is called when the user begins or ends dragging one of the columns around.
-
-		When the user starts dragging a column, this is called with the ID of that
-		column. When they finish dragging, it is called again with 0 as the ID.
-	*/
-	virtual void tableColumnDraggingChanged (TableHeaderComponent* tableHeader,
-											 int columnIdNowBeingDragged);
-};
 
 /**
 	A component that displays a strip of column headings for a table, and allows these
@@ -45688,7 +46702,7 @@ public:
 	To use one of these, create it and use addColumn() to add all the columns that you need.
 	Each column must be given a unique ID number that's used to refer to it.
 
-	@see TableListBox, TableHeaderListener
+	@see TableListBox, TableHeaderComponent::Listener
 */
 class JUCE_API  TableHeaderComponent   : public Component,
 										 private AsyncUpdater
@@ -45937,11 +46951,50 @@ public:
 	*/
 	void restoreFromString (const String& storedVersion);
 
+	/**
+		Receives events from a TableHeaderComponent when columns are resized, moved, etc.
+
+		You can register one of these objects for table events using TableHeaderComponent::addListener()
+		and TableHeaderComponent::removeListener().
+
+		@see TableHeaderComponent
+	*/
+	class JUCE_API  Listener
+	{
+	public:
+
+		Listener() {}
+
+		/** Destructor. */
+		virtual ~Listener() {}
+
+		/** This is called when some of the table's columns are added, removed, hidden,
+			or rearranged.
+		*/
+		virtual void tableColumnsChanged (TableHeaderComponent* tableHeader) = 0;
+
+		/** This is called when one or more of the table's columns are resized.
+		*/
+		virtual void tableColumnsResized (TableHeaderComponent* tableHeader) = 0;
+
+		/** This is called when the column by which the table should be sorted is changed.
+		*/
+		virtual void tableSortOrderChanged (TableHeaderComponent* tableHeader) = 0;
+
+		/** This is called when the user begins or ends dragging one of the columns around.
+
+			When the user starts dragging a column, this is called with the ID of that
+			column. When they finish dragging, it is called again with 0 as the ID.
+		*/
+		virtual void tableColumnDraggingChanged (TableHeaderComponent* tableHeader,
+												 int columnIdNowBeingDragged);
+	};
+
 	/** Adds a listener to be informed about things that happen to the header. */
-	void addListener (TableHeaderListener* newListener);
+	void addListener (Listener* newListener);
 
 	/** Removes a previously-registered listener. */
-	void removeListener (TableHeaderListener* listenerToRemove);
+	void removeListener (Listener* listenerToRemove);
 
 	/** This can be overridden to handle a mouse-click on one of the column headers.
 
@@ -46007,7 +47060,7 @@ private:
 	};
 
 	OwnedArray <ColumnInfo> columns;
-	Array <TableHeaderListener*> listeners;
+	Array <Listener*> listeners;
 	ScopedPointer <Component> dragOverlayComp;
 
 	bool columnsChanged, columnsResized, sortChanged, menuActive, stretchToFit;
@@ -46027,6 +47080,9 @@ private:
 	TableHeaderComponent (const TableHeaderComponent&);
 	TableHeaderComponent operator= (const TableHeaderComponent&);
 };
+
+/** This typedef is just for compatibility with old code - newer code should use the TableHeaderComponent::Listener class directly. */
+typedef TableHeaderComponent::Listener TableHeaderListener;
 
 #endif   // __JUCE_TABLEHEADERCOMPONENT_JUCEHEADER__
 /*** End of inlined file: juce_TableHeaderComponent.h ***/
@@ -46198,7 +47254,7 @@ public:
 */
 class JUCE_API  TableListBox   : public ListBox,
 								 private ListBoxModel,
-								 private TableHeaderListener
+								 private TableHeaderComponent::Listener
 {
 public:
 
@@ -46265,9 +47321,15 @@ public:
 		If relativeToComponentTopLeft is false, the co-ords are relative to the
 		top-left of the table's top-left cell.
 	*/
-	const Rectangle<int> getCellPosition (int columnId,
-										  int rowNumber,
+	const Rectangle<int> getCellPosition (int columnId, int rowNumber,
 										  bool relativeToComponentTopLeft) const;
+
+	/** Returns the component that currently represents a given cell.
+		If the component for this cell is off-screen or if the position is out-of-range,
+		this may return 0.
+		@see getCellPosition
+	*/
+	Component* getCellComponent (int columnId, int rowNumber) const;
 
 	/** Scrolls horizontally if necessary to make sure that a particular column is visible.
 
@@ -47262,13 +48324,16 @@ private:
 	friend class TreeViewItem;
 	friend class TreeViewContentComponent;
 	class TreeViewport;
-	TreeViewport* viewport;
-	CriticalSection nodeAlterationLock;
-	TreeViewItem* rootItem;
 	class InsertPointHighlight;
 	class TargetGroupHighlight;
-	InsertPointHighlight* dragInsertPointHighlight;
-	TargetGroupHighlight* dragTargetGroupHighlight;
+	friend class ScopedPointer<TreeViewport>;
+	friend class ScopedPointer<InsertPointHighlight>;
+	friend class ScopedPointer<TargetGroupHighlight>;
+	ScopedPointer<TreeViewport> viewport;
+	CriticalSection nodeAlterationLock;
+	TreeViewItem* rootItem;
+	ScopedPointer<InsertPointHighlight> dragInsertPointHighlight;
+	ScopedPointer<TargetGroupHighlight> dragTargetGroupHighlight;
 	int indentSize;
 	bool defaultOpenness : 1;
 	bool needsRecalculating : 1;
@@ -47354,275 +48419,6 @@ protected:
 
 #endif   // __JUCE_FILEFILTER_JUCEHEADER__
 /*** End of inlined file: juce_FileFilter.h ***/
-
-
-/*** Start of inlined file: juce_Image.h ***/
-#ifndef __JUCE_IMAGE_JUCEHEADER__
-#define __JUCE_IMAGE_JUCEHEADER__
-
-/**
-	Holds a fixed-size bitmap.
-
-	The image is stored in either 24-bit RGB or 32-bit premultiplied-ARGB format.
-
-	To draw into an image, create a Graphics object for it.
-	e.g. @code
-
-	// create a transparent 500x500 image..
-	Image myImage (Image::RGB, 500, 500, true);
-
-	Graphics g (myImage);
-	g.setColour (Colours::red);
-	g.fillEllipse (20, 20, 300, 200);  // draws a red ellipse in our image.
-	@endcode
-
-	Other useful ways to create an image are with the ImageCache class, or the
-	ImageFileFormat, which provides a way to load common image files.
-
-	@see Graphics, ImageFileFormat, ImageCache, ImageConvolutionKernel
-*/
-class JUCE_API  Image
-{
-public:
-
-	enum PixelFormat
-	{
-		RGB,		/**<< each pixel is a 3-byte packed RGB colour value. For byte order, see the PixelRGB class. */
-		ARGB,		   /**<< each pixel is a 4-byte ARGB premultiplied colour value. For byte order, see the PixelARGB class. */
-		SingleChannel	   /**<< each pixel is a 1-byte alpha channel value. */
-	};
-
-	/** Creates an in-memory image with a specified size and format.
-
-		To create an image that can use native OS rendering methods, see createNativeImage().
-
-		@param format	   the number of colour channels in the image
-		@param imageWidth	   the desired width of the image, in pixels - this value must be
-								greater than zero (otherwise a width of 1 will be used)
-		@param imageHeight	  the desired width of the image, in pixels - this value must be
-								greater than zero (otherwise a height of 1 will be used)
-		@param clearImage	   if true, the image will initially be cleared to black or transparent
-								black. If false, the image may contain random data, and the
-								user will have to deal with this
-	*/
-	Image (PixelFormat format,
-		   int imageWidth,
-		   int imageHeight,
-		   bool clearImage);
-
-	/** Creates a copy of another image.
-
-		@see createCopy
-	*/
-	Image (const Image& other);
-
-	/** Destructor. */
-	virtual ~Image();
-
-	/** Tries to create an image that is uses native drawing methods when you render
-		onto it.
-
-		On some platforms this will just return a normal software-based image.
-	*/
-	static Image* createNativeImage (PixelFormat format,
-									 int imageWidth,
-									 int imageHeight,
-									 bool clearImage);
-
-	/** Returns the image's width (in pixels). */
-	int getWidth() const throw()			{ return imageWidth; }
-
-	/** Returns the image's height (in pixels). */
-	int getHeight() const throw()		   { return imageHeight; }
-
-	/** Returns a rectangle with the same size as this image.
-		The rectangle is always at position (0, 0).
-	*/
-	const Rectangle<int> getBounds() const throw()  { return Rectangle<int> (0, 0, imageWidth, imageHeight); }
-
-	/** Returns the image's pixel format. */
-	PixelFormat getFormat() const throw()	   { return format; }
-
-	/** True if the image's format is ARGB. */
-	bool isARGB() const throw()			 { return format == ARGB; }
-
-	/** True if the image's format is RGB. */
-	bool isRGB() const throw()			  { return format == RGB; }
-
-	/** True if the image contains an alpha-channel. */
-	bool hasAlphaChannel() const throw()		{ return format != RGB; }
-
-	/** Clears a section of the image with a given colour.
-
-		This won't do any alpha-blending - it just sets all pixels in the image to
-		the given colour (which may be non-opaque if the image has an alpha channel).
-	*/
-	virtual void clear (const Rectangle<int>& area, const Colour& colourToClearTo = Colour (0x00000000));
-
-	/** Returns a new image that's a copy of this one.
-
-		A new size for the copied image can be specified, or values less than
-		zero can be passed-in to use the image's existing dimensions.
-
-		It's up to the caller to delete the image when no longer needed.
-	*/
-	virtual Image* createCopy (int newWidth = -1,
-							   int newHeight = -1,
-							   Graphics::ResamplingQuality quality = Graphics::mediumResamplingQuality) const;
-
-	/** Returns a new single-channel image which is a copy of the alpha-channel of this image.
-	*/
-	virtual Image* createCopyOfAlphaChannel() const;
-
-	/** Returns the colour of one of the pixels in the image.
-
-		If the co-ordinates given are beyond the image's boundaries, this will
-		return Colours::transparentBlack.
-
-		(0, 0) is the image's top-left corner.
-
-		@see getAlphaAt, setPixelAt, blendPixelAt
-	*/
-	virtual const Colour getPixelAt (int x, int y) const;
-
-	/** Sets the colour of one of the image's pixels.
-
-		If the co-ordinates are beyond the image's boundaries, then nothing will
-		happen.
-
-		Note that unlike blendPixelAt(), this won't do any alpha-blending, it'll
-		just replace the existing pixel with the given one. The colour's opacity
-		will be ignored if this image doesn't have an alpha-channel.
-
-		(0, 0) is the image's top-left corner.
-
-		@see blendPixelAt
-	*/
-	virtual void setPixelAt (int x, int y, const Colour& colour);
-
-	/** Changes the opacity of a pixel.
-
-		This only has an effect if the image has an alpha channel and if the
-		given co-ordinates are inside the image's boundary.
-
-		The multiplier must be in the range 0 to 1.0, and the current alpha
-		at the given co-ordinates will be multiplied by this value.
-
-		@see getAlphaAt, setPixelAt
-	*/
-	virtual void multiplyAlphaAt (int x, int y, float multiplier);
-
-	/** Changes the overall opacity of the image.
-
-		This will multiply the alpha value of each pixel in the image by the given
-		amount (limiting the resulting alpha values between 0 and 255). This allows
-		you to make an image more or less transparent.
-
-		If the image doesn't have an alpha channel, this won't have any effect.
-	*/
-	virtual void multiplyAllAlphas (float amountToMultiplyBy);
-
-	/** Changes all the colours to be shades of grey, based on their current luminosity.
-	*/
-	virtual void desaturate();
-
-	/** Retrieves a section of an image as raw pixel data, so it can be read or written to.
-
-		You should only use this class as a last resort - messing about with the internals of
-		an image is only recommended for people who really know what they're doing!
-
-		A BitmapData object should be used as a temporary, stack-based object. Don't keep one
-		hanging around while the image is being used elsewhere.
-
-		Depending on the way the image class is implemented, this may create a temporary buffer
-		which is copied back to the image when the object is deleted, or it may just get a pointer
-		directly into the image's raw data.
-
-		You can use the stride and data values in this class directly, but don't alter them!
-		The actual format of the pixel data depends on the image's format - see Image::getFormat(),
-		and the PixelRGB, PixelARGB and PixelAlpha classes for more info.
-	*/
-	class BitmapData
-	{
-	public:
-		BitmapData (Image& image, int x, int y, int w, int h, bool needsToBeWritable);
-		BitmapData (const Image& image, int x, int y, int w, int h);
-		~BitmapData();
-
-		/** Returns a pointer to the start of a line in the image.
-			The co-ordinate you provide here isn't checked, so it's the caller's responsibility to make
-			sure it's not out-of-range.
-		*/
-		inline uint8* getLinePointer (int y) const			  { return data + y * lineStride; }
-
-		/** Returns a pointer to a pixel in the image.
-			The co-ordinates you give here are not checked, so it's the caller's responsibility to make sure they're
-			not out-of-range.
-		*/
-		inline uint8* getPixelPointer (int x, int y) const		  { return data + y * lineStride + x * pixelStride; }
-
-		uint8* data;
-		const PixelFormat pixelFormat;
-		int lineStride, pixelStride, width, height;
-
-	private:
-		BitmapData (const BitmapData&);
-		BitmapData& operator= (const BitmapData&);
-	};
-
-	/** Copies some pixel values to a rectangle of the image.
-
-		The format of the pixel data must match that of the image itself, and the
-		rectangle supplied must be within the image's bounds.
-	*/
-	virtual void setPixelData (int destX, int destY, int destW, int destH,
-							   const uint8* sourcePixelData, int sourceLineStride);
-
-	/** Copies a section of the image to somewhere else within itself.
-	*/
-	virtual void moveImageSection (int destX, int destY,
-								   int sourceX, int sourceY,
-								   int width, int height);
-
-	/** Creates a RectangleList containing rectangles for all non-transparent pixels
-		of the image.
-
-		@param result	   the list that will have the area added to it
-		@param alphaThreshold   for a semi-transparent image, any pixels whose alpha is
-								above this level will be considered opaque
-	*/
-	void createSolidAreaMask (RectangleList& result,
-							  float alphaThreshold = 0.5f) const;
-
-	juce_UseDebuggingNewOperator
-
-	/** Creates a context suitable for drawing onto this image.
-
-		Don't call this method directly! It's used internally by the Graphics class.
-	*/
-	virtual LowLevelGraphicsContext* createLowLevelContext();
-
-protected:
-	friend class BitmapData;
-	const PixelFormat format;
-	const int imageWidth, imageHeight;
-
-	/** Used internally so that subclasses can call a constructor that doesn't allocate memory */
-	Image (PixelFormat format,
-		   int imageWidth,
-		   int imageHeight);
-
-	int pixelStride, lineStride;
-	HeapBlock <uint8> imageDataAllocated;
-	uint8* imageData;
-
-private:
-
-	Image& operator= (const Image&);
-};
-
-#endif   // __JUCE_IMAGE_JUCEHEADER__
-/*** End of inlined file: juce_Image.h ***/
 
 /**
 	A class to asynchronously scan for details about the files in a directory.
@@ -47978,7 +48774,7 @@ class JUCE_API  FileBrowserComponent  : public Component,
 										private FileBrowserListener,
 										private TextEditorListener,
 										private ButtonListener,
-										private ComboBoxListener,
+										private ComboBoxListener,  // (can't use ComboBox::Listener due to idiotic VC2005 bug)
 										private FileFilter
 {
 public:
@@ -48404,13 +49200,13 @@ private:
 	Component* owner;
 	int numShadows;
 	Component* shadowWindows[4];
-	Image* shadowImageSections[12];
+	Image shadowImageSections[12];
 	const int shadowEdge, xOffset, yOffset;
 	const float alpha, blurRadius;
 	bool inDestructor, reentrant;
 
 	void updateShadows();
-	void setShadowImage (Image* const src,
+	void setShadowImage (const Image& src,
 						 const int num,
 						 const int w, const int h,
 						 const int sx, const int sy);
@@ -49322,7 +50118,7 @@ protected:
 	ScopedPointer <ResizableBorderComponent> resizableBorder;
 
 private:
-	ScopedPointer <Component> contentComponent;
+	Component::SafePointer <Component> contentComponent;
 	bool resizeToFitContent, fullscreen;
 	ComponentDragger dragger;
 	Rectangle<int> lastNonFullScreenPos;
@@ -49361,6 +50157,8 @@ private:
 class JUCE_API  PositionedGlyph
 {
 public:
+
+	PositionedGlyph (const PositionedGlyph& other);
 
 	/** Returns the character the glyph represents. */
 	juce_wchar getCharacter() const		 { return character; }
@@ -49409,7 +50207,6 @@ private:
 	int glyph;
 
 	PositionedGlyph (float x, float y, float w, const Font& font, juce_wchar character, int glyph);
-	PositionedGlyph (const PositionedGlyph& other);
 };
 
 /**
@@ -49647,7 +50444,7 @@ private:
 	@see FileChooser
 */
 class JUCE_API  FileChooserDialogBox : public ResizableWindow,
-									   public ButtonListener,
+									   public ButtonListener,  // (can't use Button::Listener due to idiotic VC2005 bug)
 									   public FileBrowserListener
 {
 public:
@@ -49683,7 +50480,16 @@ public:
 
 		Leave the width or height as 0 to use the default size
 	*/
-	bool show (int width = 0,int height = 0);
+	bool show (int width = 0, int height = 0);
+
+	/** Displays and runs the dialog box modally.
+
+		This will show the box with the specified size at the specified location,
+		returning true if the user pressed 'ok', or false if they cancelled.
+
+		Leave the width or height as 0 to use the default size.
+	*/
+	bool showAt (int x, int y, int width, int height);
 
 	/** A set of colour IDs to use to change the colour of various aspects of the box.
 
@@ -49864,7 +50670,7 @@ class JUCE_API  FilenameComponent  : public Component,
 									 public SettableTooltipClient,
 									 public FileDragAndDropTarget,
 									 private AsyncUpdater,
-									 private ButtonListener,
+									 private ButtonListener,  // (can't use Button::Listener due to idiotic VC2005 bug)
 									 private ComboBoxListener
 {
 public:
@@ -49991,9 +50797,9 @@ public:
 
 private:
 
-	ComboBox* filenameBox;
+	ComboBox filenameBox;
 	String lastFilename;
-	Button* browseButton;
+	ScopedPointer<Button> browseButton;
 	int maxRecentFiles;
 	bool isDir, isSaving, isFileDragOver;
 	String wildcard, enforcedSuffix, browseButtonText;
@@ -50031,7 +50837,7 @@ private:
 class JUCE_API  FileSearchPathListComponent  : public Component,
 											   public SettableTooltipClient,
 											   public FileDragAndDropTarget,
-											   private ButtonListener,
+											   private ButtonListener,  // (can't use Button::Listener due to idiotic VC2005 bug)
 											   private ListBoxModel
 {
 public:
@@ -50222,7 +51028,7 @@ public:
 
 private:
 	File fileToLoad;
-	ScopedPointer <Image> currentThumbnail;
+	Image currentThumbnail;
 	String currentDetails;
 
 	void getThumbSize (int& w, int& h) const;
@@ -50298,6 +51104,9 @@ private:
 
 #endif
 #ifndef __JUCE_DESKTOP_JUCEHEADER__
+
+#endif
+#ifndef __JUCE_MODALCOMPONENTMANAGER_JUCEHEADER__
 
 #endif
 #ifndef __JUCE_KEYBOARDFOCUSTRAVERSER_JUCEHEADER__
@@ -50549,7 +51358,7 @@ private:
 class JUCE_API  KeyMappingEditorComponent  : public Component,
 											 public TreeViewItem,
 											 public ChangeListener,
-											 private ButtonListener
+											 private ButtonListener  // (can't use Button::Listener due to idiotic VC2005 bug)
 {
 public:
 
@@ -50727,8 +51536,8 @@ private:
 	bool reentrant;
 	Rectangle<int> lastBounds;
 
-	void unregister() throw();
-	void registerWithParentComps() throw();
+	void unregister();
+	void registerWithParentComps();
 
 	ComponentMovementWatcher (const ComponentMovementWatcher&);
 	ComponentMovementWatcher& operator= (const ComponentMovementWatcher&);
@@ -50903,7 +51712,7 @@ private:
 */
 class JUCE_API  TabbedButtonBar  : public Component,
 								   public ChangeBroadcaster,
-								   public ButtonListener
+								   public ButtonListener // (can't use Button::Listener due to idiotic VC2005 bug)
 {
 public:
 
@@ -51075,7 +51884,7 @@ private:
 	Array <Colour> tabColours;
 	int currentTabIndex;
 	Component* behindFrontTab;
-	Button* extraTabsButton;
+	ScopedPointer<Button> extraTabsButton;
 
 	TabbedButtonBar (const TabbedButtonBar&);
 	TabbedButtonBar& operator= (const TabbedButtonBar&);
@@ -51306,37 +52115,13 @@ private:
 #ifndef __JUCE_MENUBARMODEL_JUCEHEADER__
 #define __JUCE_MENUBARMODEL_JUCEHEADER__
 
-class MenuBarModel;
-
-/**
-	A class to receive callbacks when a MenuBarModel changes.
-
-	@see MenuBarModel::addListener, MenuBarModel::removeListener, MenuBarModel::menuItemsChanged
-*/
-class JUCE_API  MenuBarModelListener
-{
-public:
-	/** Destructor. */
-	virtual ~MenuBarModelListener() {}
-
-	/** This callback is made when items are changed in the menu bar model.
-	*/
-	virtual void menuBarItemsChanged (MenuBarModel* menuBarModel) = 0;
-
-	/** This callback is made when an application command is invoked that
-		is represented by one of the items in the menu bar model.
-	*/
-	virtual void menuCommandInvoked (MenuBarModel* menuBarModel,
-									 const ApplicationCommandTarget::InvocationInfo& info) = 0;
-};
-
 /**
 	A class for controlling MenuBar components.
 
 	This class is used to tell a MenuBar what menus to show, and to respond
 	to a menu being selected.
 
-	@see MenuBarModelListener, MenuBarComponent, PopupMenu
+	@see MenuBarModel::Listener, MenuBarComponent, PopupMenu
 */
 class JUCE_API  MenuBarModel	  : private AsyncUpdater,
 									private ApplicationCommandManagerListener
@@ -51370,6 +52155,27 @@ public:
 	*/
 	void setApplicationCommandManagerToWatch (ApplicationCommandManager* manager) throw();
 
+	/** A class to receive callbacks when a MenuBarModel changes.
+
+		@see MenuBarModel::addListener, MenuBarModel::removeListener, MenuBarModel::menuItemsChanged
+	*/
+	class JUCE_API  Listener
+	{
+	public:
+		/** Destructor. */
+		virtual ~Listener() {}
+
+		/** This callback is made when items are changed in the menu bar model.
+		*/
+		virtual void menuBarItemsChanged (MenuBarModel* menuBarModel) = 0;
+
+		/** This callback is made when an application command is invoked that
+			is represented by one of the items in the menu bar model.
+		*/
+		virtual void menuCommandInvoked (MenuBarModel* menuBarModel,
+										 const ApplicationCommandTarget::InvocationInfo& info) = 0;
+	};
+
 	/** Registers a listener for callbacks when the menu items in this model change.
 
 		The listener object will get callbacks when this object's menuItemsChanged()
@@ -51377,13 +52183,13 @@ public:
 
 		@see removeListener
 	*/
-	void addListener (MenuBarModelListener* listenerToAdd) throw();
+	void addListener (Listener* listenerToAdd) throw();
 
 	/** Removes a listener.
 
 		@see addListener
 	*/
-	void removeListener (MenuBarModelListener* listenerToRemove) throw();
+	void removeListener (Listener* listenerToRemove) throw();
 
 	/** This method must return a list of the names of the menus. */
 	virtual const StringArray getMenuBarNames() = 0;
@@ -51442,11 +52248,14 @@ public:
 
 private:
 	ApplicationCommandManager* manager;
-	ListenerList <MenuBarModelListener> listeners;
+	ListenerList <Listener> listeners;
 
 	MenuBarModel (const MenuBarModel&);
 	MenuBarModel& operator= (const MenuBarModel&);
 };
+
+/** This typedef is just for compatibility with old code - newer code should use the MenuBarModel::Listener class directly. */
+typedef MenuBarModel::Listener MenuBarModelListener;
 
 #endif   // __JUCE_MENUBARMODEL_JUCEHEADER__
 /*** End of inlined file: juce_MenuBarModel.h ***/
@@ -51457,7 +52266,7 @@ private:
 	@see MenuBarModel
 */
 class JUCE_API  MenuBarComponent  : public Component,
-									private MenuBarModelListener,
+									private MenuBarModel::Listener,
 									private Timer
 {
 public:
@@ -51479,6 +52288,10 @@ public:
 		that is passed-in while it's still being used by this MenuBar.
 	*/
 	void setModel (MenuBarModel* newModel);
+
+	/** Returns the current menu bar model being used.
+	*/
+	MenuBarModel* getModel() const throw();
 
 	/** Pops up one of the menu items.
 
@@ -51504,8 +52317,6 @@ public:
 	/** @internal */
 	void mouseMove (const MouseEvent& e);
 	/** @internal */
-	void inputAttemptWhenModal();
-	/** @internal */
 	void handleCommandMessage (int commandId);
 	/** @internal */
 	bool keyPressed (const KeyPress& key);
@@ -51518,20 +52329,22 @@ public:
 	juce_UseDebuggingNewOperator
 
 private:
+	class AsyncCallback;
+	friend class AsyncCallback;
 	MenuBarModel* model;
 
 	StringArray menuNames;
 	Array <int> xPositions;
-	int itemUnderMouse, currentPopupIndex, topLevelIndexClicked, indexToShowAgain;
+	int itemUnderMouse, currentPopupIndex, topLevelIndexClicked;
 	int lastMouseX, lastMouseY;
-	bool inModalState;
-	ScopedPointer <Component> currentPopup;
 
 	int getItemAt (int x, int y);
+	void setItemUnderMouse (int index);
+	void setOpenItem (int index);
 	void updateItemUnderMouse (int x, int y);
-	void hideCurrentMenu();
 	void timerCallback();
 	void repaintMenuItem (int index);
+	void menuDismissed (int topLevelIndex, int itemId);
 
 	MenuBarComponent (const MenuBarComponent&);
 	MenuBarComponent& operator= (const MenuBarComponent&);
@@ -51621,7 +52434,7 @@ public:
 		image after calling this. If 0 is passed-in, any existing icon will be
 		removed.
 	*/
-	void setIcon (const Image* imageToUse);
+	void setIcon (const Image& imageToUse);
 
 	/** Changes the height of the title-bar. */
 	void setTitleBarHeight (int newHeight);
@@ -51750,7 +52563,7 @@ private:
 	int titleBarHeight, menuBarHeight, requiredButtons;
 	bool positionTitleBarButtonsOnLeft, drawTitleTextCentred;
 	ScopedPointer <Button> titleBarButtons [3];
-	ScopedPointer <Image> titleBarIcon;
+	Image titleBarIcon;
 	ScopedPointer <MenuBarComponent> menuBar;
 	MenuBarModel* menuBarModel;
 
@@ -52583,7 +53396,7 @@ private:
 	@see ThreadWithProgressWindow
 */
 class JUCE_API  AlertWindow  : public TopLevelWindow,
-							   private ButtonListener
+							   private ButtonListener  // (can't use Button::Listener due to idiotic VC2005 bug)
 {
 public:
 
@@ -52925,6 +53738,7 @@ class FileBrowserComponent;
 class DirectoryContentsDisplayComponent;
 class FilePreviewComponent;
 class ImageButton;
+class CallOutBox;
 
 /**
 	LookAndFeel objects define the appearance of all the JUCE widgets, and subclasses
@@ -53146,8 +53960,8 @@ public:
 	virtual void drawTextEditorOutline (Graphics& g, int width, int height, TextEditor& textEditor);
 
 	// these return an image from the ImageCache, so use ImageCache::release() to free it
-	virtual Image* getDefaultFolderImage();
-	virtual Image* getDefaultDocumentFileImage();
+	virtual const Image getDefaultFolderImage();
+	virtual const Image getDefaultDocumentFileImage();
 
 	virtual void createFileChooserHeaderText (const String& title,
 											  const String& instructions,
@@ -53430,6 +54244,8 @@ public:
 											 PropertyComponent& component);
 
 	virtual const Rectangle<int> getPropertyComponentContentPosition (PropertyComponent& component);
+
+	void drawCallOutBoxBackground (CallOutBox& box, Graphics& g, const Path& path);
 
 	virtual void drawLevelMeter (Graphics& g, int width, int height, float level);
 
@@ -53737,6 +54553,7 @@ class JUCE_API  SelectedItemSet   : public ChangeBroadcaster
 public:
 
 	typedef SelectableItemType ItemType;
+	typedef PARAMETER_TYPE (SelectableItemType) ParameterType;
 
 	/** Creates an empty set. */
 	SelectedItemSet()
@@ -53779,7 +54596,7 @@ public:
 
 		@see addToSelection, addToSelectionBasedOnModifiers
 	*/
-	void selectOnly (SelectableItemType item)
+	void selectOnly (ParameterType item)
 	{
 		if (isSelected (item))
 		{
@@ -53808,7 +54625,7 @@ public:
 
 		@see selectOnly, addToSelectionBasedOnModifiers
 	*/
-	void addToSelection (SelectableItemType item)
+	void addToSelection (ParameterType item)
 	{
 		if (! isSelected (item))
 		{
@@ -53840,7 +54657,7 @@ public:
 
 		@see selectOnly, addToSelection, addToSelectionOnMouseDown, addToSelectionOnMouseUp
 	*/
-	void addToSelectionBasedOnModifiers (SelectableItemType item,
+	void addToSelectionBasedOnModifiers (ParameterType item,
 										 const ModifierKeys& modifiers)
 	{
 		if (modifiers.isShiftDown())
@@ -53877,7 +54694,7 @@ public:
 
 		@see addToSelectionOnMouseUp, addToSelectionBasedOnModifiers
 	*/
-	bool addToSelectionOnMouseDown (SelectableItemType item,
+	bool addToSelectionOnMouseDown (ParameterType item,
 									const ModifierKeys& modifiers)
 	{
 		if (isSelected (item))
@@ -53905,7 +54722,7 @@ public:
 								back from the addToSelectionOnMouseDown() call that you
 								should have made during the matching mouseDown event
 	*/
-	void addToSelectionOnMouseUp (SelectableItemType item,
+	void addToSelectionOnMouseUp (ParameterType item,
 								  const ModifierKeys& modifiers,
 								  const bool wasItemDragged,
 								  const bool resultOfMouseDownSelectMethod)
@@ -53915,7 +54732,7 @@ public:
 	}
 
 	/** Deselects an item. */
-	void deselect (SelectableItemType item)
+	void deselect (ParameterType item)
 	{
 		const int i = selectedItems.indexOf (item);
 
@@ -53962,7 +54779,7 @@ public:
 	}
 
 	/** True if this item is currently selected. */
-	bool isSelected (const SelectableItemType item) const throw()
+	bool isSelected (ParameterType item) const throw()
 	{
 		return selectedItems.contains (item);
 	}
@@ -54494,7 +55311,7 @@ private:
 	@see PropertyComponent
 */
 class JUCE_API  BooleanPropertyComponent  : public PropertyComponent,
-											private ButtonListener
+											private ButtonListener // (can't use Button::Listener due to idiotic VC2005 bug)
 {
 protected:
 
@@ -54541,10 +55358,8 @@ public:
 	juce_UseDebuggingNewOperator
 
 private:
-	ToggleButton* button;
+	ToggleButton button;
 	String onText, offText;
-
-	void createButton();
 
 	BooleanPropertyComponent (const BooleanPropertyComponent&);
 	BooleanPropertyComponent& operator= (const BooleanPropertyComponent&);
@@ -54570,7 +55385,7 @@ private:
 	@see PropertyComponent
 */
 class JUCE_API  ButtonPropertyComponent  : public PropertyComponent,
-										   private ButtonListener
+										   private ButtonListener // (can't use Button::Listener due to idiotic VC2005 bug)
 {
 public:
 
@@ -54603,7 +55418,7 @@ public:
 	juce_UseDebuggingNewOperator
 
 private:
-	TextButton* button;
+	TextButton button;
 
 	ButtonPropertyComponent (const ButtonPropertyComponent&);
 	ButtonPropertyComponent& operator= (const ButtonPropertyComponent&);
@@ -54639,7 +55454,7 @@ private:
 	@see PropertyComponent, PropertyPanel
 */
 class JUCE_API  ChoicePropertyComponent	: public PropertyComponent,
-											 private ComboBoxListener
+											 private ComboBoxListener  // (can't use ComboBox::Listener due to idiotic VC2005 bug)
 {
 protected:
 	/** Creates the component.
@@ -54703,7 +55518,7 @@ protected:
 	StringArray choices;
 
 private:
-	ComboBox* comboBox;
+	ComboBox comboBox;
 	bool isCustomClass;
 
 	class RemapperValueSource;
@@ -54736,7 +55551,7 @@ private:
 	@see PropertyComponent, Slider
 */
 class JUCE_API  SliderPropertyComponent   : public PropertyComponent,
-											private SliderListener
+											private SliderListener  // (can't use Slider::Listener due to idiotic VC2005 bug)
 {
 protected:
 
@@ -54797,7 +55612,7 @@ protected:
 
 		Your subclass has access to this in case it needs to customise it in some way.
 	*/
-	Slider* slider;
+	Slider slider;
 
 	SliderPropertyComponent (const SliderPropertyComponent&);
 	SliderPropertyComponent& operator= (const SliderPropertyComponent&);
@@ -55009,7 +55824,7 @@ private:
 	@see AudioDeviceManager
 */
 class JUCE_API  AudioDeviceSelectorComponent  : public Component,
-												public ComboBoxListener,
+												public ComboBoxListener, // (can't use ComboBox::Listener due to idiotic VC2005 bug)
 												public ButtonListener,
 												public ChangeListener
 {
@@ -55061,19 +55876,19 @@ public:
 
 private:
 	AudioDeviceManager& deviceManager;
-	ComboBox* deviceTypeDropDown;
-	Label* deviceTypeDropDownLabel;
-	Component* audioDeviceSettingsComp;
+	ScopedPointer<ComboBox> deviceTypeDropDown;
+	ScopedPointer<Label> deviceTypeDropDownLabel;
+	ScopedPointer<Component> audioDeviceSettingsComp;
 	String audioDeviceSettingsCompType;
 	const int minOutputChannels, maxOutputChannels, minInputChannels, maxInputChannels;
 	const bool showChannelsAsStereoPairs;
 	const bool hideAdvancedOptionsWithButton;
 
 	class MidiInputSelectorComponentListBox;
-	MidiInputSelectorComponentListBox* midiInputsList;
-	Label* midiInputsLabel;
-	ComboBox* midiOutputSelector;
-	Label* midiOutputLabel;
+	friend class ScopedPointer<MidiInputSelectorComponentListBox>;
+	ScopedPointer<MidiInputSelectorComponentListBox> midiInputsList;
+	ScopedPointer<ComboBox> midiOutputSelector;
+	ScopedPointer<Label> midiInputsLabel, midiOutputLabel;
 
 	AudioDeviceSelectorComponent (const AudioDeviceSelectorComponent&);
 	AudioDeviceSelectorComponent& operator= (const AudioDeviceSelectorComponent&);
@@ -55447,7 +56262,8 @@ private:
 	HueSelectorComp* hueSelector;
 	OwnedArray <SwatchComponent> swatchComponents;
 	const int flags;
-	int topSpace, edgeGap;
+	int edgeGap;
+	Rectangle<int> previewArea;
 
 	void setHue (float newH);
 	void setSV (float newS, float newV);
@@ -55939,6 +56755,9 @@ private:
 	int keyMappingOctave;
 	int octaveNumForMiddleC;
 
+	static const uint8 whiteNotes[];
+	static const uint8 blackNotes[];
+
 	void getKeyPos (int midiNoteNumber, int& x, int& w) const;
 	int xyToNote (const Point<int>& pos, float& mousePositionVelocity);
 	int remappedXYToNote (const Point<int>& pos, float& mousePositionVelocity) const;
@@ -56140,6 +56959,16 @@ public:
 	*/
 	virtual void* getRawContext() const throw() = 0;
 
+	/** Deletes the context.
+
+		This must only be called on the message thread, or will deadlock.
+		On background threads, call getCurrentContext()->deleteContext(), but be careful not
+		to call any other OpenGL function afterwards.
+		This doesn't touch other resources, such as window handles, etc.
+		You'll probably never have to call this method directly.
+	*/
+	virtual void deleteContext() = 0;
+
 	/** Returns the context that's currently in active use by the calling thread.
 
 		Returns 0 if there isn't an active context.
@@ -56170,7 +56999,7 @@ public:
 	{
 		openGLDefault = 0,
 
-#if JUCE_IPHONE
+#if JUCE_IOS
 		openGLES1,  /**< On the iPhone, this selects openGL ES 1.0 */
 		openGLES2   /**< On the iPhone, this selects openGL ES 2.0 */
 #endif
@@ -56312,6 +57141,10 @@ public:
 	*/
 	void* getNativeWindowHandle() const;
 
+	/** Delete the context.
+		This can be called back on the same thread that created the context. */
+	void deleteContext();
+
 	juce_UseDebuggingNewOperator
 
 private:
@@ -56329,7 +57162,6 @@ private:
 	bool needToUpdateViewport;
 
 	OpenGLContext* createContext();
-	void deleteContext();
 	void updateContextPosition();
 	void internalRepaint (int x, int y, int w, int h);
 
@@ -56366,7 +57198,7 @@ private:
 	for each of these pages.
 */
 class JUCE_API  PreferencesPanel  : public Component,
-									private ButtonListener
+									private ButtonListener // (can't use Button::Listener due to idiotic VC2005 bug)
 {
 public:
 
@@ -56411,7 +57243,7 @@ public:
 		@param imageDataSize	the size of the image data, in bytes
 	*/
 	void addSettingsPage (const String& pageTitle,
-						  const char* imageData,
+						  const void* imageData,
 						  int imageDataSize);
 
 	/** Utility method to display this panel in a DialogWindow.
@@ -56835,6 +57667,111 @@ private:
 
 #endif
 #ifndef __JUCE_ALERTWINDOW_JUCEHEADER__
+
+#endif
+#ifndef __JUCE_CALLOUTBOX_JUCEHEADER__
+
+/*** Start of inlined file: juce_CallOutBox.h ***/
+#ifndef __JUCE_CALLOUTBOX_JUCEHEADER__
+#define __JUCE_CALLOUTBOX_JUCEHEADER__
+
+/**
+	A box with a small arrow that can be used as a temporary pop-up window to show
+	extra controls when a button or other component is clicked.
+
+	Using one of these is similar to having a popup menu attached to a button or
+	other component - but it looks fancier, and has an arrow that can indicate the
+	object that it applies to.
+
+	Normally, you'd create one of these on the stack and run it modally, e.g.
+
+	@code
+	void mouseUp (const MouseEvent& e)
+	{
+		MyContentComponent content;
+		content.setSize (300, 300);
+
+		CallOutBox callOut (content, *this, 0);
+		callOut.runModalLoop();
+	}
+	@endcode
+
+	The call-out will resize and position itself when the content changes size.
+*/
+class JUCE_API  CallOutBox	: public Component
+{
+public:
+
+	/** Creates a CallOutBox.
+
+		@param contentComponent	 the component to display inside the call-out. This should
+									already have a size set (although the call-out will also
+									update itself when the component's size is changed later).
+									Obviously this component must not be deleted until the
+									call-out box has been deleted.
+		@param componentToPointTo   the component that the call-out's arrow should point towards
+		@param parentComponent	  if non-zero, this is the component to add the call-out to. If
+									this is zero, the call-out will be added to the desktop.
+	*/
+	CallOutBox (Component& contentComponent,
+				Component& componentToPointTo,
+				Component* parentComponent);
+
+	/** Destructor. */
+	~CallOutBox();
+
+	/** Changes the length of the arrow. */
+	void setArrowSize (float newSize);
+
+	/** Updates the position and size of the box.
+
+		You shouldn't normally need to call this, unless you need more precise control over the
+		layout.
+
+		@param newAreaToPointTo	 the rectangle to make the box's arrow point to
+		@param newAreaToFitIn	   the area within which the box's position should be constrained
+	*/
+	void updatePosition (const Rectangle<int>& newAreaToPointTo,
+						 const Rectangle<int>& newAreaToFitIn);
+
+	/** @internal */
+	void paint (Graphics& g);
+	/** @internal */
+	void resized();
+	/** @internal */
+	void moved();
+	/** @internal */
+	void childBoundsChanged (Component*);
+	/** @internal */
+	bool hitTest (int x, int y);
+	/** @internal */
+	void inputAttemptWhenModal();
+	/** @internal */
+	bool keyPressed (const KeyPress& key);
+	/** @internal */
+	void handleCommandMessage (int commandId);
+
+	juce_UseDebuggingNewOperator
+
+private:
+	int borderSpace;
+	float arrowSize;
+	Component& content;
+	Path outline;
+	Point<float> targetPoint;
+	Rectangle<int> availableArea, targetArea;
+	Image background;
+
+	void refreshPath();
+	void drawCallOutBoxBackground (Graphics& g, const Path& outline, int width, int height);
+
+	CallOutBox (const CallOutBox&);
+	CallOutBox& operator= (const CallOutBox&);
+};
+
+#endif   // __JUCE_CALLOUTBOX_JUCEHEADER__
+/*** End of inlined file: juce_CallOutBox.h ***/
+
 
 #endif
 #ifndef __JUCE_COMPONENTPEER_JUCEHEADER__
@@ -57364,7 +58301,7 @@ public:
 								the mouse (anywhere)
 	*/
 	void show (const String& title,
-			   Image* backgroundImage,
+			   const Image& backgroundImage,
 			   int minimumTimeToDisplayFor,
 			   bool useDropShadow,
 			   bool removeOnMouseClick = true);
@@ -57406,7 +58343,7 @@ public:
 	juce_UseDebuggingNewOperator
 
 private:
-	Image* backgroundImage;
+	Image backgroundImage;
 	Time earliestTimeToDelete;
 	int originalClickCounter;
 
@@ -57762,6 +58699,118 @@ private:
 #endif
 #ifndef __JUCE_FILLTYPE_JUCEHEADER__
 
+/*** Start of inlined file: juce_FillType.h ***/
+#ifndef __JUCE_FILLTYPE_JUCEHEADER__
+#define __JUCE_FILLTYPE_JUCEHEADER__
+
+/**
+	Represents a colour or fill pattern to use for rendering paths.
+
+	This is used by the Graphics and DrawablePath classes as a way to encapsulate
+	a brush type. It can either be a solid colour, a gradient, or a tiled image.
+
+	@see Graphics::setFillType, DrawablePath::setFill
+*/
+class JUCE_API  FillType
+{
+public:
+	/** Creates a default fill type, of solid black. */
+	FillType() throw();
+
+	/** Creates a fill type of a solid colour.
+		@see setColour
+	*/
+	FillType (const Colour& colour) throw();
+
+	/** Creates a gradient fill type.
+		@see setGradient
+	*/
+	FillType (const ColourGradient& gradient);
+
+	/** Creates a tiled image fill type. The transform allows you to set the scaling, offset
+		and rotation of the pattern.
+		@see setTiledImage
+	*/
+	FillType (const Image& image, const AffineTransform& transform) throw();
+
+	/** Creates a copy of another FillType. */
+	FillType (const FillType& other);
+
+	/** Makes a copy of another FillType. */
+	FillType& operator= (const FillType& other);
+
+	/** Destructor. */
+	~FillType() throw();
+
+	/** Returns true if this is a solid colour fill, and not a gradient or image. */
+	bool isColour() const throw()	   { return gradient == 0 && image.isNull(); }
+
+	/** Returns true if this is a gradient fill. */
+	bool isGradient() const throw()	 { return gradient != 0; }
+
+	/** Returns true if this is a tiled image pattern fill. */
+	bool isTiledImage() const throw()	   { return image.isValid(); }
+
+	/** Turns this object into a solid colour fill.
+		If the object was an image or gradient, those fields will no longer be valid. */
+	void setColour (const Colour& newColour) throw();
+
+	/** Turns this object into a gradient fill. */
+	void setGradient (const ColourGradient& newGradient);
+
+	/** Turns this object into a tiled image fill type. The transform allows you to set
+		the scaling, offset and rotation of the pattern.
+	*/
+	void setTiledImage (const Image& image, const AffineTransform& transform) throw();
+
+	/** Changes the opacity that should be used.
+		If the fill is a solid colour, this just changes the opacity of that colour. For
+		gradients and image tiles, it changes the opacity that will be used for them.
+	*/
+	void setOpacity (float newOpacity) throw();
+
+	/** Returns the current opacity to be applied to the colour, gradient, or image.
+		@see setOpacity
+	*/
+	float getOpacity() const throw()	{ return colour.getFloatAlpha(); }
+
+	/** Returns true if this fill type is completely transparent. */
+	bool isInvisible() const throw();
+
+	bool operator== (const FillType& other) const;
+	bool operator!= (const FillType& other) const;
+
+	/** The solid colour being used.
+
+		If the fill type is not a solid colour, the alpha channel of this colour indicates
+		the opacity that should be used for the fill, and the RGB channels are ignored.
+	*/
+	Colour colour;
+
+	/** Returns the gradient that should be used for filling.
+		This will be zero if the object is some other type of fill.
+		If a gradient is active, the overall opacity with which it should be applied
+		is indicated by the alpha channel of the colour variable.
+	*/
+	ScopedPointer <ColourGradient> gradient;
+
+	/** The image that should be used for tiling.
+		If an image fill is active, the overall opacity with which it should be applied
+		is indicated by the alpha channel of the colour variable.
+	*/
+	Image image;
+
+	/** The transform that should be applied to the image or gradient that's being drawn.
+	*/
+	AffineTransform transform;
+
+	juce_UseDebuggingNewOperator
+};
+
+#endif   // __JUCE_FILLTYPE_JUCEHEADER__
+/*** End of inlined file: juce_FillType.h ***/
+
+
 #endif
 #ifndef __JUCE_GRAPHICS_JUCEHEADER__
 
@@ -57811,7 +58860,7 @@ public:
 	virtual bool clipToRectangleList (const RectangleList& clipRegion) = 0;
 	virtual void excludeClipRectangle (const Rectangle<int>& r) = 0;
 	virtual void clipToPath (const Path& path, const AffineTransform& transform) = 0;
-	virtual void clipToImageAlpha (const Image& sourceImage, const Rectangle<int>& srcClip, const AffineTransform& transform) = 0;
+	virtual void clipToImageAlpha (const Image& sourceImage, const AffineTransform& transform) = 0;
 
 	virtual bool clipRegionIntersects (const Rectangle<int>& r) = 0;
 	virtual const Rectangle<int> getClipBounds() const = 0;
@@ -57827,8 +58876,7 @@ public:
 	virtual void fillRect (const Rectangle<int>& r, bool replaceExistingContents) = 0;
 	virtual void fillPath (const Path& path, const AffineTransform& transform) = 0;
 
-	virtual void drawImage (const Image& sourceImage, const Rectangle<int>& srcClip,
-							const AffineTransform& transform, bool fillEntireClipAsTiles) = 0;
+	virtual void drawImage (const Image& sourceImage, const AffineTransform& transform, bool fillEntireClipAsTiles) = 0;
 
 	virtual void drawLine (const Line <float>& line) = 0;
 	virtual void drawVerticalLine (int x, float top, float bottom) = 0;
@@ -57873,7 +58921,7 @@ public:
 	bool clipToRectangleList (const RectangleList& clipRegion);
 	void excludeClipRectangle (const Rectangle<int>& r);
 	void clipToPath (const Path& path, const AffineTransform& transform);
-	void clipToImageAlpha (const Image& sourceImage, const Rectangle<int>& srcClip, const AffineTransform& transform);
+	void clipToImageAlpha (const Image& sourceImage, const AffineTransform& transform);
 
 	void saveState();
 	void restoreState();
@@ -57889,8 +58937,7 @@ public:
 	void fillRect (const Rectangle<int>& r, bool replaceExistingContents);
 	void fillPath (const Path& path, const AffineTransform& transform);
 
-	void drawImage (const Image& sourceImage, const Rectangle<int>& srcClip,
-					const AffineTransform& transform, bool fillEntireClipAsTiles);
+	void drawImage (const Image& sourceImage, const AffineTransform& transform, bool fillEntireClipAsTiles);
 
 	void drawLine (const Line <float>& line);
 
@@ -57959,8 +59006,8 @@ class JUCE_API  LowLevelGraphicsSoftwareRenderer	: public LowLevelGraphicsContex
 {
 public:
 
-	LowLevelGraphicsSoftwareRenderer (Image& imageToRenderOn);
-	LowLevelGraphicsSoftwareRenderer (Image& imageToRenderOn, int xOffset, int yOffset, const RectangleList& initialClip);
+	LowLevelGraphicsSoftwareRenderer (const Image& imageToRenderOn);
+	LowLevelGraphicsSoftwareRenderer (const Image& imageToRenderOn, int xOffset, int yOffset, const RectangleList& initialClip);
 	~LowLevelGraphicsSoftwareRenderer();
 
 	bool isVectorDevice() const;
@@ -57971,7 +59018,7 @@ public:
 	bool clipToRectangleList (const RectangleList& clipRegion);
 	void excludeClipRectangle (const Rectangle<int>& r);
 	void clipToPath (const Path& path, const AffineTransform& transform);
-	void clipToImageAlpha (const Image& sourceImage, const Rectangle<int>& srcClip, const AffineTransform& transform);
+	void clipToImageAlpha (const Image& sourceImage, const AffineTransform& transform);
 
 	bool clipRegionIntersects (const Rectangle<int>& r);
 	const Rectangle<int> getClipBounds() const;
@@ -57987,8 +59034,7 @@ public:
 	void fillRect (const Rectangle<int>& r, bool replaceExistingContents);
 	void fillPath (const Path& path, const AffineTransform& transform);
 
-	void drawImage (const Image& sourceImage, const Rectangle<int>& srcClip,
-					const AffineTransform& transform, bool fillEntireClipAsTiles);
+	void drawImage (const Image& sourceImage, const AffineTransform& transform, bool fillEntireClipAsTiles);
 
 	void drawLine (const Line <float>& line);
 
@@ -58004,7 +59050,7 @@ public:
 
 protected:
 
-	Image& image;
+	Image image;
 
 	class GlyphCache;
 	class CachedGlyph;
@@ -58053,7 +59099,7 @@ public:
 	DrawableComposite (const DrawableComposite& other);
 
 	/** Destructor. */
-	virtual ~DrawableComposite();
+	~DrawableComposite();
 
 	/** Adds a new sub-drawable to this one.
 
@@ -58123,53 +59169,66 @@ public:
 	*/
 	void bringToFront (int index);
 
-	/** Sets the transform to be applied to this drawable, by defining the positions
-		where three anchor points should end up in the target rendering space.
-
-		@param targetPositionForOrigin  the position that the local coordinate (0, 0) should be
-										mapped onto when rendering this object.
-		@param targetPositionForX1Y0	the position that the local coordinate (1, 0) should be
-										mapped onto when rendering this object.
-		@param targetPositionForX0Y1	the position that the local coordinate (0, 1) should be
-										mapped onto when rendering this object.
+	/** Changes the main content area.
+		The content area is actually defined by the markers named "left", "right", "top" and
+		"bottom", but this method is a shortcut that sets them all at once.
+		@see contentLeftMarkerName, contentRightMarkerName, contentTopMarkerName, contentBottomMarkerName
 	*/
-	void setTransform (const RelativePoint& targetPositionForOrigin,
-					   const RelativePoint& targetPositionForX1Y0,
-					   const RelativePoint& targetPositionForX0Y1);
+	const RelativeRectangle getContentArea() const;
 
-	/** Returns the position to which the local coordinate (0, 0) should be remapped in the target
-		coordinate space when rendering this object.
-		@see setTransform
+	/** Returns the main content rectangle.
+		The content area is actually defined by the markers named "left", "right", "top" and
+		"bottom", but this method is a shortcut that returns them all at once.
+		@see setBoundingBox, contentLeftMarkerName, contentRightMarkerName, contentTopMarkerName, contentBottomMarkerName
 	*/
-	const RelativePoint& getTargetPositionForOrigin() const throw()	  { return controlPoints[0]; }
+	void setContentArea (const RelativeRectangle& newArea);
 
-	/** Returns the position to which the local coordinate (1, 0) should be remapped in the target
-		coordinate space when rendering this object.
-		@see setTransform
+	/** Sets the parallelogram that defines the target position of the content rectangle when the drawable is rendered.
+		@see setContentArea
 	*/
-	const RelativePoint& getTargetPositionForX1Y0() const throw()		{ return controlPoints[1]; }
+	void setBoundingBox (const RelativeParallelogram& newBoundingBox);
 
-	/** Returns the position to which the local coordinate (0, 1) should be remapped in the target
-		coordinate space when rendering this object.
-		@see setTransform
+	/** Returns the parallelogram that defines the target position of the content rectangle when the drawable is rendered.
+		@see setBoundingBox
 	*/
-	const RelativePoint& getTargetPositionForX0Y1() const throw()		{ return controlPoints[2]; }
+	const RelativeParallelogram& getBoundingBox() const throw()		 { return bounds; }
 
+	/** Changes the bounding box transform to match the content area, so that any sub-items will
+		be drawn at their untransformed positions.
+	*/
+	void resetBoundingBoxToContentArea();
+
+	/** Resets the content area and the bounding transform to fit around the area occupied
+		by the child components (ignoring any markers).
+	*/
+	void resetContentAreaAndBoundingBoxToFitChildren();
+
+	/** Represents a named marker position.
+		@see DrawableComposite::getMarker
+	*/
 	struct Marker
 	{
 		Marker (const Marker&);
-		Marker (const String& name, const RelativeCoordinate& position, bool isOnXAxis);
+		Marker (const String& name, const RelativeCoordinate& position);
 		bool operator!= (const Marker&) const throw();
 
 		String name;
 		RelativeCoordinate position;
-		bool isOnXAxis;
 	};
 
 	int getNumMarkers (bool xAxis) const throw();
-	const Marker* getMarker (int index) const throw();
+	const Marker* getMarker (bool xAxis, int index) const throw();
 	void setMarker (const String& name, bool xAxis, const RelativeCoordinate& position);
-	void removeMarker (int index);
+	void removeMarker (bool xAxis, int index);
+
+	/** The name of the marker that defines the left edge of the content area. */
+	static const char* const contentLeftMarkerName;
+	/** The name of the marker that defines the right edge of the content area. */
+	static const char* const contentRightMarkerName;
+	/** The name of the marker that defines the top edge of the content area. */
+	static const char* const contentTopMarkerName;
+	/** The name of the marker that defines the bottom edge of the content area. */
+	static const char* const contentBottomMarkerName;
 
 	/** @internal */
 	void render (const Drawable::RenderingContext& context) const;
@@ -58201,42 +59260,46 @@ public:
 		int getNumDrawables() const;
 		ValueTree getDrawableState (int index) const;
 		ValueTree getDrawableWithId (const String& objectId, bool recursive) const;
+		int indexOfDrawable (const ValueTree& item) const;
 		void addDrawable (const ValueTree& newDrawableState, int index, UndoManager* undoManager);
 		void moveDrawableOrder (int currentIndex, int newIndex, UndoManager* undoManager);
-		void removeDrawable (int index, UndoManager* undoManager);
+		void removeDrawable (const ValueTree& child, UndoManager* undoManager);
 
-		const RelativePoint getTargetPositionForOrigin() const;
-		void setTargetPositionForOrigin (const RelativePoint& newPoint, UndoManager* undoManager);
+		const RelativeParallelogram getBoundingBox() const;
+		void setBoundingBox (const RelativeParallelogram& newBounds, UndoManager* undoManager);
+		void resetBoundingBoxToContentArea (UndoManager* undoManager);
 
-		const RelativePoint getTargetPositionForX1Y0() const;
-		void setTargetPositionForX1Y0 (const RelativePoint& newPoint, UndoManager* undoManager);
+		const RelativeRectangle getContentArea() const;
+		void setContentArea (const RelativeRectangle& newArea, UndoManager* undoManager);
 
-		const RelativePoint getTargetPositionForX0Y1() const;
-		void setTargetPositionForX0Y1 (const RelativePoint& newPoint, UndoManager* undoManager);
+		int getNumMarkers (bool xAxis) const;
+		const ValueTree getMarkerState (bool xAxis, int index) const;
+		const ValueTree getMarkerState (bool xAxis, const String& name) const;
+		bool containsMarker (bool xAxis, const ValueTree& state) const;
+		const Marker getMarker (bool xAxis, const ValueTree& state) const;
+		void setMarker (bool xAxis, const Marker& marker, UndoManager* undoManager);
+		void removeMarker (bool xAxis, const ValueTree& state, UndoManager* undoManager);
 
-		int getNumMarkers() const;
-		const Marker getMarker (int index) const;
-		void setMarker (const String& name, bool xAxis, const RelativeCoordinate& position, UndoManager* undoManager);
-		void removeMarker (int index, UndoManager* undoManager);
+		static const Identifier nameProperty, posProperty;
 
 	private:
-		static const Identifier topLeft, topRight, bottomLeft, childGroupTag, markerGroupTag,
-								markerTag, nameProperty, xAxisProperty, posProperty;
+		static const Identifier topLeft, topRight, bottomLeft, childGroupTag, markerGroupTagX,
+								markerGroupTagY, markerTag;
 
 		ValueTree getChildList() const;
 		ValueTree getChildListCreating (UndoManager* undoManager);
-		ValueTree getMarkerList() const;
-		ValueTree getMarkerListCreating (UndoManager* undoManager);
+		ValueTree getMarkerList (bool xAxis) const;
+		ValueTree getMarkerListCreating (bool xAxis, UndoManager* undoManager);
 	};
 
 	juce_UseDebuggingNewOperator
 
 private:
 	OwnedArray <Drawable> drawables;
-	RelativePoint controlPoints[3];
-	OwnedArray <Marker> markers;
+	RelativeParallelogram bounds;
+	OwnedArray <Marker> markersX, markersY;
 
-	const Rectangle<float> getUntransformedBounds() const;
+	const Rectangle<float> getUntransformedBounds (bool includeMarkers) const;
 	const AffineTransform calculateTransform() const;
 
 	DrawableComposite& operator= (const DrawableComposite&);
@@ -58266,32 +59329,13 @@ public:
 	DrawableImage (const DrawableImage& other);
 
 	/** Destructor. */
-	virtual ~DrawableImage();
+	~DrawableImage();
 
-	/** Sets the image that this drawable will render.
-
-		An internal copy is made of the image passed-in. If you want to provide an
-		image that this object can take charge of without needing to create a copy,
-		use the other setImage() method.
-	*/
-	void setImage (const Image& imageToCopy);
-
-	/** Sets the image that this drawable will render.
-
-		A good way to use this is with the ImageCache - if you create an image
-		with ImageCache and pass it in here with releaseWhenNotNeeded = true, then
-		it'll be released neatly with its reference count being decreased.
-
-		@param imageToUse		   the image to render (may be a null pointer)
-		@param releaseWhenNotNeeded	 if false, a simple pointer is kept to the image; if true,
-										then the image will be deleted when this object no longer
-										needs it - unless the image was created by the ImageCache,
-										in which case it will be released with ImageCache::release().
-	*/
-	void setImage (Image* imageToUse, bool releaseWhenNotNeeded);
+	/** Sets the image that this drawable will render. */
+	void setImage (const Image& imageToUse);
 
 	/** Returns the current image. */
-	Image* getImage() const throw()				 { return image; }
+	const Image getImage() const				{ return image; }
 
 	/** Sets the opacity to use when drawing the image. */
 	void setOpacity (float newOpacity);
@@ -58313,37 +59357,14 @@ public:
 	/** Returns the overlay colour. */
 	const Colour& getOverlayColour() const throw()		  { return overlayColour; }
 
-	/** Sets the transform to be applied to this image, by defining the positions
-		where three anchor points should end up in the target rendering space.
-
-		@param imageTopLeftPosition	 the position that the image's top-left corner should be mapped to
-										in the target coordinate space.
-		@param imageTopRightPosition	the position that the image's top-right corner should be mapped to
-										in the target coordinate space.
-		@param imageBottomLeftPosition  the position that the image's bottom-left corner should be mapped to
-										in the target coordinate space.
-	*/
-	void setTransform (const RelativePoint& imageTopLeftPosition,
-					   const RelativePoint& imageTopRightPosition,
-					   const RelativePoint& imageBottomLeftPosition);
+	/** Sets the bounding box within which the image should be displayed. */
+	void setBoundingBox (const RelativeParallelogram& newBounds);
 
 	/** Returns the position to which the image's top-left corner should be remapped in the target
 		coordinate space when rendering this object.
 		@see setTransform
 	*/
-	const RelativePoint& getTargetPositionForTopLeft() const throw()	 { return controlPoints[0]; }
-
-	/** Returns the position to which the image's top-right corner should be remapped in the target
-		coordinate space when rendering this object.
-		@see setTransform
-	*/
-	const RelativePoint& getTargetPositionForTopRight() const throw()	{ return controlPoints[1]; }
-
-	/** Returns the position to which the image's bottom-left corner should be remapped in the target
-		coordinate space when rendering this object.
-		@see setTransform
-	*/
-	const RelativePoint& getTargetPositionForBottomLeft() const throw()	  { return controlPoints[2]; }
+	const RelativeParallelogram& getBoundingBox() const throw()	 { return bounds; }
 
 	/** @internal */
 	void render (const Drawable::RenderingContext& context) const;
@@ -58372,34 +59393,29 @@ public:
 
 		const var getImageIdentifier() const;
 		void setImageIdentifier (const var& newIdentifier, UndoManager* undoManager);
+		Value getImageIdentifierValue (UndoManager* undoManager);
 
 		float getOpacity() const;
 		void setOpacity (float newOpacity, UndoManager* undoManager);
+		Value getOpacityValue (UndoManager* undoManager);
 
 		const Colour getOverlayColour() const;
 		void setOverlayColour (const Colour& newColour, UndoManager* undoManager);
+		Value getOverlayColourValue (UndoManager* undoManager);
 
-		const RelativePoint getTargetPositionForTopLeft() const;
-		void setTargetPositionForTopLeft (const RelativePoint& newPoint, UndoManager* undoManager);
+		const RelativeParallelogram getBoundingBox() const;
+		void setBoundingBox (const RelativeParallelogram& newBounds, UndoManager* undoManager);
 
-		const RelativePoint getTargetPositionForTopRight() const;
-		void setTargetPositionForTopRight (const RelativePoint& newPoint, UndoManager* undoManager);
-
-		const RelativePoint getTargetPositionForBottomLeft() const;
-		void setTargetPositionForBottomLeft (const RelativePoint& newPoint, UndoManager* undoManager);
-
-	private:
 		static const Identifier opacity, overlay, image, topLeft, topRight, bottomLeft;
 	};
 
 	juce_UseDebuggingNewOperator
 
 private:
-	Image* image;
-	bool canDeleteImage;
+	Image image;
 	float opacity;
 	Colour overlayColour;
-	RelativePoint controlPoints[3];
+	RelativeParallelogram bounds;
 
 	const AffineTransform calculateTransform() const;
 
@@ -58431,7 +59447,7 @@ public:
 	DrawablePath (const DrawablePath& other);
 
 	/** Destructor. */
-	virtual ~DrawablePath();
+	~DrawablePath();
 
 	/** Changes the path that will be drawn.
 
@@ -58501,7 +59517,7 @@ public:
 	/** @internal */
 	static const Identifier valueTreeType;
 	/** @internal */
-	const Identifier getValueTreeType() const	{ return valueTreeType; }
+	const Identifier getValueTreeType() const	   { return valueTreeType; }
 
 	/** Internally-used class for wrapping a DrawablePath's state into a ValueTree. */
 	class ValueTreeWrapper   : public ValueTreeWrapperBase
@@ -58509,20 +59525,68 @@ public:
 	public:
 		ValueTreeWrapper (const ValueTree& state);
 
-		const FillType getMainFill() const;
-		void setMainFill (const FillType& newFill, UndoManager* undoManager);
+		const FillType getMainFill (RelativeCoordinate::NamedCoordinateFinder* nameFinder,
+									ImageProvider* imageProvider) const;
+		ValueTree getMainFillState();
+		void setMainFill (const FillType& newFill, const RelativePoint* gradientPoint1,
+						  const RelativePoint* gradientPoint2, const RelativePoint* gradientPoint3,
+						  ImageProvider* imageProvider, UndoManager* undoManager);
 
-		const FillType getStrokeFill() const;
-		void setStrokeFill (const FillType& newFill, UndoManager* undoManager);
+		const FillType getStrokeFill (RelativeCoordinate::NamedCoordinateFinder* nameFinder,
+									  ImageProvider* imageProvider) const;
+		ValueTree getStrokeFillState();
+		void setStrokeFill (const FillType& newFill, const RelativePoint* gradientPoint1,
+							const RelativePoint* gradientPoint2, const RelativePoint* gradientPoint3,
+							ImageProvider* imageProvider, UndoManager* undoManager);
 
 		const PathStrokeType getStrokeType() const;
 		void setStrokeType (const PathStrokeType& newStrokeType, UndoManager* undoManager);
 
-		void getPath (RelativePointPath& path) const;
-		void setPath (const String& newPath, UndoManager* undoManager);
+		bool usesNonZeroWinding() const;
+		void setUsesNonZeroWinding (bool b, UndoManager* undoManager);
 
-	private:
-		static const Identifier fill, stroke, jointStyle, capStyle, strokeWidth, path;
+		class Element
+		{
+		public:
+			explicit Element (const ValueTree& state);
+			~Element();
+
+			const Identifier getType() const throw()	{ return state.getType(); }
+			int getNumControlPoints() const throw();
+
+			const RelativePoint getControlPoint (int index) const;
+			Value getControlPointValue (int index, UndoManager* undoManager) const;
+			const RelativePoint getStartPoint() const;
+			const RelativePoint getEndPoint() const;
+			void setControlPoint (int index, const RelativePoint& point, UndoManager* undoManager);
+			float getLength (RelativeCoordinate::NamedCoordinateFinder* nameFinder) const;
+
+			ValueTreeWrapper getParent() const;
+			Element getPreviousElement() const;
+
+			const String getModeOfEndPoint() const;
+			void setModeOfEndPoint (const String& newMode, UndoManager* undoManager);
+
+			void convertToLine (UndoManager* undoManager);
+			void convertToCubic (RelativeCoordinate::NamedCoordinateFinder* nameFinder, UndoManager* undoManager);
+			void convertToPathBreak (UndoManager* undoManager);
+			ValueTree insertPoint (const Point<float>& targetPoint, RelativeCoordinate::NamedCoordinateFinder* nameFinder, UndoManager* undoManager);
+			void removePoint (UndoManager* undoManager);
+			float findProportionAlongLine (const Point<float>& targetPoint, RelativeCoordinate::NamedCoordinateFinder* nameFinder) const;
+
+			static const Identifier mode, startSubPathElement, closeSubPathElement,
+									lineToElement, quadraticToElement, cubicToElement;
+			static const char* cornerMode;
+			static const char* roundedMode;
+			static const char* symmetricMode;
+
+			ValueTree state;
+		};
+
+		ValueTree getPathState();
+
+		static const Identifier fill, stroke, path, jointStyle, capStyle, strokeWidth,
+								nonZeroWinding, point1, point2, point3;
 	};
 
 	juce_UseDebuggingNewOperator
@@ -58566,27 +59630,43 @@ public:
 	DrawableText (const DrawableText& other);
 
 	/** Destructor. */
-	virtual ~DrawableText();
+	~DrawableText();
 
-	/** Sets the block of text to render */
-	void setText (const GlyphArrangement& newText);
-
-	/** Sets a single line of text to render.
-
-		This is a convenient method of adding a single line - for
-		more complex text, use the setText() that takes a
-		GlyphArrangement instead.
-	*/
-	void setText (const String& newText, const Font& fontToUse);
-
-	/** Returns the text arrangement that was set with setText(). */
-	const GlyphArrangement& getText() const throw()	 { return text; }
+	/** Sets the text to display.*/
+	void setText (const String& newText);
 
 	/** Sets the colour of the text. */
 	void setColour (const Colour& newColour);
 
 	/** Returns the current text colour. */
 	const Colour& getColour() const throw()		 { return colour; }
+
+	/** Sets the font to use.
+		Note that the font height and horizontal scale are actually based upon the position
+		of the fontSizeAndScaleAnchor parameter to setBounds(). If applySizeAndScale is true, then
+		the height and scale control point will be moved to match the dimensions of the font supplied;
+		if it is false, then the new font's height and scale are ignored.
+	*/
+	void setFont (const Font& newFont, bool applySizeAndScale);
+
+	/** Changes the justification of the text within the bounding box. */
+	void setJustification (const Justification& newJustification);
+
+	/** Returns the parallelogram that defines the text bounding box. */
+	const RelativeParallelogram& getBoundingBox() const throw()	 { return bounds; }
+
+	/** Sets the bounding box that contains the text. */
+	void setBoundingBox (const RelativeParallelogram& newBounds);
+
+	/** Returns the point within the bounds that defines the font's size and scale. */
+	const RelativePoint& getFontSizeControlPoint() const throw()	{ return fontSizeControlPoint; }
+
+	/** Sets the control point that defines the font's height and horizontal scale.
+		This position is a point within the bounding box parallelogram, whose Y position (relative
+		to the parallelogram's origin and possibly distorted shape) specifies the font's height,
+		and its X defines the font's horizontal scale.
+	*/
+	void setFontSizeControlPoint (const RelativePoint& newPoint);
 
 	/** @internal */
 	void render (const Drawable::RenderingContext& context) const;
@@ -58613,17 +59693,38 @@ public:
 	public:
 		ValueTreeWrapper (const ValueTree& state);
 
-		//xxx todo
+		const String getText() const;
+		void setText (const String& newText, UndoManager* undoManager);
+		Value getTextValue (UndoManager* undoManager);
 
-	private:
-		static const Identifier text;
+		const Colour getColour() const;
+		void setColour (const Colour& newColour, UndoManager* undoManager);
+
+		const Justification getJustification() const;
+		void setJustification (const Justification& newJustification, UndoManager* undoManager);
+
+		const Font getFont() const;
+		void setFont (const Font& newFont, UndoManager* undoManager);
+		Value getFontValue (UndoManager* undoManager);
+
+		const RelativeParallelogram getBoundingBox() const;
+		void setBoundingBox (const RelativeParallelogram& newBounds, UndoManager* undoManager);
+
+		const RelativePoint getFontSizeControlPoint() const;
+		void setFontSizeControlPoint (const RelativePoint& p, UndoManager* undoManager);
+
+		static const Identifier text, colour, font, justification, topLeft, topRight, bottomLeft, fontSizeAnchor;
 	};
 
 	juce_UseDebuggingNewOperator
 
 private:
-	GlyphArrangement text;
+	RelativeParallelogram bounds;
+	RelativePoint fontSizeControlPoint;
+	Font font;
+	String text;
 	Colour colour;
+	Justification justification;
 
 	DrawableText& operator= (const DrawableText&);
 };
@@ -59187,30 +60288,10 @@ private:
 #ifndef __JUCE_CAMERADEVICE_JUCEHEADER__
 #define __JUCE_CAMERADEVICE_JUCEHEADER__
 
-#if JUCE_USE_CAMERA
+#if JUCE_USE_CAMERA || DOXYGEN
 
 /**
-	Receives callbacks with images from a CameraDevice.
-
-	@see CameraDevice::addListener
-*/
-class CameraImageListener
-{
-public:
-	CameraImageListener() {}
-	virtual ~CameraImageListener() {}
-
-	/** This method is called when a new image arrives.
-
-		This may be called by any thread, so be careful about thread-safety,
-		and make sure that you process the data as quickly as possible to
-		avoid glitching!
-	*/
-	virtual void imageReceived (Image& image) = 0;
-};
-
-/**
-	Controls any camera capture devices that might be available.
+	Controls any video capture devices that might be available.
 
 	Use getAvailableDevices() to list the devices that are attached to the
 	system, then call openDevice to open one for use. Once you have a CameraDevice
@@ -59282,16 +60363,36 @@ public:
 	*/
 	const Time getTimeOfFirstRecordedFrame() const;
 
+	/**
+		Receives callbacks with images from a CameraDevice.
+
+		@see CameraDevice::addListener
+	*/
+	class JUCE_API  Listener
+	{
+	public:
+		Listener() {}
+		virtual ~Listener() {}
+
+		/** This method is called when a new image arrives.
+
+			This may be called by any thread, so be careful about thread-safety,
+			and make sure that you process the data as quickly as possible to
+			avoid glitching!
+		*/
+		virtual void imageReceived (const Image& image) = 0;
+	};
+
 	/** Adds a listener to receive images from the camera.
 
 		Be very careful not to delete the listener without first removing it by calling
 		removeListener().
 	*/
-	void addListener (CameraImageListener* listenerToAdd);
+	void addListener (Listener* listenerToAdd);
 
 	/** Removes a listener that was previously added with addListener().
 	*/
-	void removeListener (CameraImageListener* listenerToRemove);
+	void removeListener (Listener* listenerToRemove);
 
 	juce_UseDebuggingNewOperator
 
@@ -59307,6 +60408,9 @@ private:
 	CameraDevice (const CameraDevice&);
 	CameraDevice& operator= (const CameraDevice&);
 };
+
+/** This typedef is just for compatibility with old code - newer code should use the CameraDevice::Listener class directly. */
+typedef CameraDevice::Listener CameraImageListener;
 
 #endif
 #endif   // __JUCE_CAMERADEVICE_JUCEHEADER__
@@ -59337,8 +60441,7 @@ private:
 
 	@see Image, ImageFileFormat
 */
-class JUCE_API  ImageCache  : private DeletedAtShutdown,
-							  private Timer
+class JUCE_API  ImageCache
 {
 public:
 
@@ -59348,17 +60451,15 @@ public:
 		that image will be returned. Otherwise, this method will try to load the
 		file, add it to the cache, and return it.
 
-		It's very important not to delete the image that is returned - instead use
-		the ImageCache::release() method.
-
-		Also, remember that the image returned is shared, so drawing into it might
-		affect other things that are using it!
+		Remember that the image returned is shared, so drawing into it might
+		affect other things that are using it! If you want to draw on it, first
+		call Image::duplicateIfShared()
 
 		@param file	 the file to try to load
 		@returns	the image, or null if it there was an error loading it
-		@see release, getFromMemory, getFromCache, ImageFileFormat::loadFrom
+		@see getFromMemory, getFromCache, ImageFileFormat::loadFrom
 	*/
-	static Image* getFromFile (const File& file);
+	static const Image getFromFile (const File& file);
 
 	/** Loads an image from an in-memory image file, (or just returns the image if it's already cached).
 
@@ -59366,78 +60467,40 @@ public:
 		that image will be returned. Otherwise, this method will try to load the
 		file, add it to the cache, and return it.
 
-		It's very important not to delete the image that is returned - instead use
-		the ImageCache::release() method.
-
-		Also, remember that the image returned is shared, so drawing into it might
-		affect other things that are using it!
+		Remember that the image returned is shared, so drawing into it might
+		affect other things that are using it! If you want to draw on it, first
+		call Image::duplicateIfShared()
 
 		@param imageData	the block of memory containing the image data
 		@param dataSize	 the data size in bytes
-		@returns		the image, or null if it there was an error loading it
-		@see release, getFromMemory, getFromCache, ImageFileFormat::loadFrom
+		@returns		the image, or an invalid image if it there was an error loading it
+		@see getFromMemory, getFromCache, ImageFileFormat::loadFrom
 	*/
-	static Image* getFromMemory (const void* imageData, int dataSize);
-
-	/** Releases an image that was previously created by the ImageCache.
-
-		If an image has been returned by the getFromFile() or getFromMemory() methods,
-		it mustn't be deleted directly, but should be released with this method
-		instead.
-
-		@see getFromFile, getFromMemory
-	*/
-	static void release (Image* imageToRelease);
-
-	/** Releases an image if it's in the cache, or deletes it if it isn't cached.
-
-		This is a handy function to use if you want to delete an image but are afraid that
-		it might be cached.
-	*/
-	static void releaseOrDelete (Image* imageToRelease);
-
-	/** Checks whether an image is in the cache or not.
-
-		@returns true if the image is currently in the cache
-	*/
-	static bool isImageInCache (Image* imageToLookFor);
-
-	/** Increments the reference-count for a cached image.
-
-		If the image isn't in the cache, this method won't do anything.
-	*/
-	static void incReferenceCount (Image* image);
+	static const Image getFromMemory (const void* imageData, int dataSize);
 
 	/** Checks the cache for an image with a particular hashcode.
 
 		If there's an image in the cache with this hashcode, it will be returned,
-		otherwise it will return zero.
+		otherwise it will return an invalid image.
 
-		If an image is returned, it must be released with the release() method
-		when no longer needed, to maintain the correct reference counts.
-
-		@param hashCode the hash code that would have been associated with the
-						image by addImageToCache()
+		@param hashCode the hash code that was associated with the image by addImageToCache()
 		@see addImageToCache
 	*/
-	static Image* getFromHashCode (int64 hashCode);
+	static const Image getFromHashCode (int64 hashCode);
 
 	/** Adds an image to the cache with a user-defined hash-code.
 
-		After calling this, responsibilty for deleting the image will be taken
-		by the ImageCache.
-
-		The image will be initially be given a reference count of 1, so call
-		the release() method to delete it.
+		The image passed-in will be referenced (not copied) by the cache, so it's probably
+		a good idea not to draw into it after adding it, otherwise this will affect all
+		instances of it that may be in use.
 
 		@param image	the image to add
 		@param hashCode the hash-code to associate with it
 		@see getFromHashCode
 	*/
-	static void addImageToCache (Image* image, int64 hashCode);
+	static void addImageToCache (const Image& image, int64 hashCode);
 
 	/** Changes the amount of time before an unused image will be removed from the cache.
-
 		By default this is about 5 seconds.
 	*/
 	static void setCacheTimeout (int millisecs);
@@ -59446,21 +60509,12 @@ public:
 
 private:
 
-	CriticalSection lock;
-	struct Item;
-	friend class ScopedPointer<Item>;
-	friend class OwnedArray<Item>;
-	OwnedArray<Item> images;
-
-	static ImageCache* instance;
-	static int cacheTimeout;
+	class Pimpl;
 
 	ImageCache();
 	ImageCache (const ImageCache&);
 	ImageCache& operator= (const ImageCache&);
 	~ImageCache();
-
-	void timerCallback();
 };
 
 #endif   // __JUCE_IMAGECACHE_JUCEHEADER__
@@ -59534,14 +60588,13 @@ public:
 	/** Applies the kernel to an image.
 
 		@param destImage	the image that will receive the resultant convoluted pixels.
-		@param sourceImage	  an optional source image to read from - if this is 0, then the
-								destination image will be used as the source. If an image is
-								specified, it must be exactly the same size and type as the destination
-								image.
+		@param sourceImage	  the source image to read from - this can be the same image as
+								the destination, but if different, it must be exactly the same
+								size and format.
 		@param destinationArea  the region of the image to apply the filter to
 	*/
 	void applyToImage (Image& destImage,
-					   const Image* sourceImage,
+					   const Image& sourceImage,
 					   const Rectangle<int>& destinationArea) const;
 
 	juce_UseDebuggingNewOperator
@@ -59610,11 +60663,10 @@ public:
 		@param input	the stream to read the data from. The stream will be positioned
 						at the start of the image data (but this may not necessarily
 						be position 0)
-		@returns	the image that was decoded, or 0 if it fails. It's the
-						caller's responsibility to delete this image when no longer needed.
+		@returns	the image that was decoded, or an invalid image if it fails.
 		@see loadFrom
 	*/
-	virtual Image* decodeImage (InputStream& input) = 0;
+	virtual const Image decodeImage (InputStream& input) = 0;
 
 	/** Attempts to write an image to a stream.
 
@@ -59641,31 +60693,28 @@ public:
 		This will use the findImageFormatForStream() method to locate a suitable
 		codec, and use that to load the image.
 
-		@returns  the image that was decoded, or 0 if it fails to load one. It's the
-				  caller's responsibility to delete this image when no longer needed.
+		@returns	the image that was decoded, or an invalid image if it fails.
 	*/
-	static Image* loadFrom (InputStream& input);
+	static const Image loadFrom (InputStream& input);
 
 	/** Tries to load an image from a file.
 
 		This will use the findImageFormatForStream() method to locate a suitable
 		codec, and use that to load the image.
 
-		@returns  the image that was decoded, or 0 if it fails to load one. It's the
-				  caller's responsibility to delete this image when no longer needed.
+		@returns	the image that was decoded, or an invalid image if it fails.
 	*/
-	static Image* loadFrom (const File& file);
+	static const Image loadFrom (const File& file);
 
 	/** Tries to load an image from a block of raw image data.
 
 		This will use the findImageFormatForStream() method to locate a suitable
 		codec, and use that to load the image.
 
-		@returns  the image that was decoded, or 0 if it fails to load one. It's the
-				  caller's responsibility to delete this image when no longer needed.
+		@returns	the image that was decoded, or an invalid image if it fails.
 	*/
-	static Image* loadFrom (const void* rawData,
-							const int numBytesOfData);
+	static const Image loadFrom (const void* rawData,
+								 const int numBytesOfData);
 
 };
 
@@ -59684,7 +60733,7 @@ public:
 	const String getFormatName();
 	bool canUnderstand (InputStream& input);
 
-	Image* decodeImage (InputStream& input);
+	const Image decodeImage (InputStream& input);
 
 	bool writeImageToStream (const Image& sourceImage, OutputStream& destStream);
 };
@@ -59712,7 +60761,7 @@ public:
 
 	bool canUnderstand (InputStream& input);
 
-	Image* decodeImage (InputStream& input);
+	const Image decodeImage (InputStream& input);
 
 	bool writeImageToStream (const Image& sourceImage, OutputStream& destStream);
 
@@ -60195,7 +61244,7 @@ END_JUCE_NAMESPACE
 	 of 3rd party header files, you may need to use the juce_WithoutMacros.h file - see
 	 the comments in that file for more information.
   */
-  #if (JUCE_MAC || JUCE_IPHONE) && ! JUCE_DONT_DEFINE_MACROS
+  #if (JUCE_MAC || JUCE_IOS) && ! JUCE_DONT_DEFINE_MACROS
 	#define Component	   JUCE_NAMESPACE::Component
 	#define MemoryBlock	 JUCE_NAMESPACE::MemoryBlock
 	#define Point	   JUCE_NAMESPACE::Point
@@ -60294,50 +61343,6 @@ END_JUCE_NAMESPACE
 
 	#endif
 
-  #endif
-
-#endif
-
-/*
-	To start a JUCE app, use this macro: START_JUCE_APPLICATION (AppSubClass) where
-	AppSubClass is the name of a class derived from JUCEApplication.
-
-	See the JUCEApplication class documentation (juce_Application.h) for more details.
-
-*/
-#if defined (JUCE_GCC) || defined (__MWERKS__)
-
-  #define START_JUCE_APPLICATION(AppClass) \
-	int main (int argc, char* argv[]) \
-	{ \
-		return JUCE_NAMESPACE::JUCEApplication::main (argc, (const char**) argv, new AppClass()); \
-	}
-
-#elif JUCE_WINDOWS
-
-  #ifdef _CONSOLE
-	#define START_JUCE_APPLICATION(AppClass) \
-		int main (int, char* argv[]) \
-		{ \
-			JUCE_NAMESPACE::String commandLineString (JUCE_NAMESPACE::PlatformUtilities::getCurrentCommandLineParams()); \
-			return JUCE_NAMESPACE::JUCEApplication::main (commandLineString, new AppClass()); \
-		}
-  #elif ! defined (_AFXDLL)
-	#ifdef _WINDOWS_
-	  #define START_JUCE_APPLICATION(AppClass) \
-		  int WINAPI WinMain (HINSTANCE, HINSTANCE, LPSTR, int) \
-		  { \
-			  JUCE_NAMESPACE::String commandLineString (JUCE_NAMESPACE::PlatformUtilities::getCurrentCommandLineParams()); \
-			  return JUCE_NAMESPACE::JUCEApplication::main (commandLineString, new AppClass()); \
-		  }
-	#else
-	  #define START_JUCE_APPLICATION(AppClass) \
-		  int __stdcall WinMain (int, int, const char*, int) \
-		  { \
-			  JUCE_NAMESPACE::String commandLineString (JUCE_NAMESPACE::PlatformUtilities::getCurrentCommandLineParams()); \
-			  return JUCE_NAMESPACE::JUCEApplication::main (commandLineString, new AppClass()); \
-		  }
-	#endif
   #endif
 
 #endif

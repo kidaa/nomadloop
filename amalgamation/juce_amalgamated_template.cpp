@@ -102,6 +102,7 @@
  #include "../src/core/juce_RelativeTime.cpp"
  #include "../src/core/juce_SystemStats.cpp"
  #include "../src/core/juce_Time.cpp"
+ #include "../src/core/juce_Initialisation.cpp"
  #include "../src/containers/juce_BigInteger.cpp"
  #include "../src/containers/juce_MemoryBlock.cpp"
  #include "../src/containers/juce_PropertySet.cpp"
@@ -144,6 +145,7 @@
  #include "../src/threads/juce_Thread.cpp"
  #include "../src/threads/juce_ThreadPool.cpp"
  #include "../src/threads/juce_TimeSliceThread.cpp"
+ #include "../src/utilities/juce_DeletedAtShutdown.cpp"
 #endif
 
 #if JUCE_BUILD_MISC
@@ -154,7 +156,6 @@
  #include "../src/application/juce_ApplicationCommandManager.cpp"
  #include "../src/application/juce_ApplicationCommandTarget.cpp"
  #include "../src/application/juce_ApplicationProperties.cpp"
- #include "../src/utilities/juce_DeletedAtShutdown.cpp"
  #include "../src/utilities/juce_PropertiesFile.cpp"
  #include "../src/utilities/juce_FileBasedDocument.cpp"
  #include "../src/utilities/juce_RecentlyOpenedFilesList.cpp"
@@ -167,6 +168,7 @@
  #include "../src/audio/audio_file_formats/juce_AudioThumbnailCache.cpp"
  #include "../src/audio/audio_file_formats/juce_QuickTimeAudioFormat.cpp"
  #include "../src/audio/audio_file_formats/juce_WavAudioFormat.cpp"
+ #include "../src/audio/audio_file_formats/juce_AudioCDReader.cpp"
  #include "../src/audio/audio_sources/juce_AudioFormatReaderSource.cpp"
  #include "../src/audio/audio_sources/juce_AudioSourcePlayer.cpp"
  #include "../src/audio/audio_sources/juce_AudioTransportSource.cpp"
@@ -223,6 +225,7 @@
  #include "../src/gui/components/juce_Component.cpp"
  #include "../src/gui/components/juce_ComponentListener.cpp"
  #include "../src/gui/components/juce_Desktop.cpp"
+ #include "../src/gui/components/juce_ModalComponentManager.cpp"
  #include "../src/gui/components/buttons/juce_ArrowButton.cpp"
  #include "../src/gui/components/buttons/juce_Button.cpp"
  #include "../src/gui/components/buttons/juce_DrawableButton.cpp"
@@ -309,6 +312,7 @@
  #include "../src/gui/components/special/juce_PreferencesPanel.cpp"
  #include "../src/gui/components/special/juce_SystemTrayIconComponent.cpp"
  #include "../src/gui/components/windows/juce_AlertWindow.cpp"
+ #include "../src/gui/components/windows/juce_CallOutBox.cpp"
  #include "../src/gui/components/windows/juce_ComponentPeer.cpp"
  #include "../src/gui/components/windows/juce_DialogWindow.cpp"
  #include "../src/gui/components/windows/juce_DocumentWindow.cpp"
@@ -317,6 +321,7 @@
  #include "../src/gui/components/windows/juce_ThreadWithProgressWindow.cpp"
  #include "../src/gui/components/windows/juce_TooltipWindow.cpp"
  #include "../src/gui/components/windows/juce_TopLevelWindow.cpp"
+ #include "../src/gui/graphics/geometry/juce_RelativeCoordinate.cpp"
 #endif
 
 #if JUCE_BUILD_MISC  // (put these in misc to balance the file sizes and avoid problems in iphone build)
@@ -350,7 +355,6 @@
  #include "../src/gui/graphics/geometry/juce_PathStrokeType.cpp"
  #include "../src/gui/graphics/geometry/juce_PositionedRectangle.cpp"
  #include "../src/gui/graphics/geometry/juce_RectangleList.cpp"
- #include "../src/gui/graphics/geometry/juce_RelativeCoordinate.cpp"
  #include "../src/gui/graphics/imaging/juce_Image.cpp"
  #include "../src/gui/graphics/imaging/juce_ImageCache.cpp"
  #include "../src/gui/graphics/imaging/juce_ImageConvolutionKernel.cpp"

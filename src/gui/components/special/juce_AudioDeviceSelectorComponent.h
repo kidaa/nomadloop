@@ -40,7 +40,7 @@
     @see AudioDeviceManager
 */
 class JUCE_API  AudioDeviceSelectorComponent  : public Component,
-                                                public ComboBoxListener,
+                                                public ComboBoxListener, // (can't use ComboBox::Listener due to idiotic VC2005 bug)
                                                 public ButtonListener,
                                                 public ChangeListener
 {
@@ -95,19 +95,19 @@ public:
 
 private:
     AudioDeviceManager& deviceManager;
-    ComboBox* deviceTypeDropDown;
-    Label* deviceTypeDropDownLabel;
-    Component* audioDeviceSettingsComp;
+    ScopedPointer<ComboBox> deviceTypeDropDown;
+    ScopedPointer<Label> deviceTypeDropDownLabel;
+    ScopedPointer<Component> audioDeviceSettingsComp;
     String audioDeviceSettingsCompType;
     const int minOutputChannels, maxOutputChannels, minInputChannels, maxInputChannels;
     const bool showChannelsAsStereoPairs;
     const bool hideAdvancedOptionsWithButton;
 
     class MidiInputSelectorComponentListBox;
-    MidiInputSelectorComponentListBox* midiInputsList;
-    Label* midiInputsLabel;
-    ComboBox* midiOutputSelector;
-    Label* midiOutputLabel;
+    friend class ScopedPointer<MidiInputSelectorComponentListBox>;
+    ScopedPointer<MidiInputSelectorComponentListBox> midiInputsList;
+    ScopedPointer<ComboBox> midiOutputSelector;
+    ScopedPointer<Label> midiInputsLabel, midiOutputLabel;
 
     AudioDeviceSelectorComponent (const AudioDeviceSelectorComponent&);
     AudioDeviceSelectorComponent& operator= (const AudioDeviceSelectorComponent&);

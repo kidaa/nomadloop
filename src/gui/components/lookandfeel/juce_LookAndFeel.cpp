@@ -39,6 +39,7 @@ BEGIN_JUCE_NAMESPACE
 #include "../windows/juce_AlertWindow.h"
 #include "../windows/juce_DocumentWindow.h"
 #include "../windows/juce_ResizableWindow.h"
+#include "../windows/juce_CallOutBox.h"
 #include "../menus/juce_MenuBarComponent.h"
 #include "../menus/juce_PopupMenu.h"
 #include "../layout/juce_ScrollBar.h"
@@ -1084,7 +1085,7 @@ void LookAndFeel::drawPopupMenuItem (Graphics& g,
 
         if (image != 0)
         {
-            g.drawImageWithin (image,
+            g.drawImageWithin (*image,
                                2, 1, leftBorder - 4, height - 2,
                                RectanglePlacement::centred | RectanglePlacement::onlyReduceInSize, false);
         }
@@ -1577,7 +1578,7 @@ void LookAndFeel::drawRotarySlider (Graphics& g,
         p.addEllipse (-0.4f * rw, -0.4f * rw, rw * 0.8f, rw * 0.8f);
         PathStrokeType (rw * 0.1f).createStrokedPath (p, p);
 
-        p.addLineSegment (0.0f, 0.0f, 0.0f, -radius, rw * 0.2f);
+        p.addLineSegment (Line<float> (0.0f, 0.0f, 0.0f, -radius), rw * 0.2f);
 
         g.fillPath (p, AffineTransform::rotation (angle).translated (centreX, centreY));
     }
@@ -1701,7 +1702,7 @@ void LookAndFeel::drawImageButton (Graphics& g, Image* image,
     {
         g.setOpacity (imageOpacity);
 
-        g.drawImage (image, imageX, imageY, imageW, imageH,
+        g.drawImage (*image, imageX, imageY, imageW, imageH,
                      0, 0, image->getWidth(), image->getHeight(), false);
     }
 
@@ -1709,7 +1710,7 @@ void LookAndFeel::drawImageButton (Graphics& g, Image* image,
     {
         g.setColour (overlayColour);
 
-        g.drawImage (image, imageX, imageY, imageW, imageH,
+        g.drawImage (*image, imageX, imageY, imageW, imageH,
                      0, 0, image->getWidth(), image->getHeight(), true);
     }
 }
@@ -1804,7 +1805,7 @@ void LookAndFeel::drawDocumentWindowTitleBar (DocumentWindow& window,
     if (icon != 0)
     {
         g.setOpacity (isActive ? 1.0f : 0.6f);
-        g.drawImageWithin (icon, textX, (h - iconH) / 2, iconW, iconH,
+        g.drawImageWithin (*icon, textX, (h - iconH) / 2, iconW, iconH,
                            RectanglePlacement::centred, false);
         textX += iconW;
         textW -= iconW;
@@ -1899,21 +1900,21 @@ Button* LookAndFeel::createDocumentWindowButton (int buttonType)
 
     if (buttonType == DocumentWindow::closeButton)
     {
-        shape.addLineSegment (0.0f, 0.0f, 1.0f, 1.0f, crossThickness * 1.4f);
-        shape.addLineSegment (1.0f, 0.0f, 0.0f, 1.0f, crossThickness * 1.4f);
+        shape.addLineSegment (Line<float> (0.0f, 0.0f, 1.0f, 1.0f), crossThickness * 1.4f);
+        shape.addLineSegment (Line<float> (1.0f, 0.0f, 0.0f, 1.0f), crossThickness * 1.4f);
 
         return new GlassWindowButton ("close", Colour (0xffdd1100), shape, shape);
     }
     else if (buttonType == DocumentWindow::minimiseButton)
     {
-        shape.addLineSegment (0.0f, 0.5f, 1.0f, 0.5f, crossThickness);
+        shape.addLineSegment (Line<float> (0.0f, 0.5f, 1.0f, 0.5f), crossThickness);
 
         return new GlassWindowButton ("minimise", Colour (0xffaa8811), shape, shape);
     }
     else if (buttonType == DocumentWindow::maximiseButton)
     {
-        shape.addLineSegment (0.5f, 0.0f, 0.5f, 1.0f, crossThickness);
-        shape.addLineSegment (0.0f, 0.5f, 1.0f, 0.5f, crossThickness);
+        shape.addLineSegment (Line<float> (0.5f, 0.0f, 0.5f, 1.0f), crossThickness);
+        shape.addLineSegment (Line<float> (0.0f, 0.5f, 1.0f, 0.5f), crossThickness);
 
         Path fullscreenShape;
         fullscreenShape.startNewSubPath (45.0f, 100.0f);
@@ -2529,6 +2530,27 @@ const Rectangle<int> LookAndFeel::getPropertyComponentContentPosition (PropertyC
 }
 
 //==============================================================================
+void LookAndFeel::drawCallOutBoxBackground (CallOutBox& box, Graphics& g, const Path& path)
+{
+    Image content (Image::ARGB, box.getWidth(), box.getHeight(), true);
+
+    {
+        Graphics g2 (content);
+
+        g2.setColour (Colour::greyLevel (0.23f).withAlpha (0.9f));
+        g2.fillPath (path);
+
+        g2.setColour (Colours::white.withAlpha (0.8f));
+        g2.strokePath (path, PathStrokeType (2.0f));
+    }
+
+    DropShadowEffect shadow;
+    shadow.setShadowProperties (5.0f, 0.4f, 0, 2);
+    shadow.applyEffect (content, g);
+}
+
+
+//==============================================================================
 void LookAndFeel::createFileChooserHeaderText (const String& title,
                                                const String& instructions,
                                                GlyphArrangement& text,
@@ -2559,24 +2581,21 @@ void LookAndFeel::drawFileBrowserRow (Graphics& g, int width, int height,
     g.setColour (findColour (DirectoryContentsDisplayComponent::textColourId));
     g.setFont (height * 0.7f);
 
-    Image* im = icon;
-    Image* toRelease = 0;
+    Image im;
+    if (icon != 0)
+        im = *icon;
 
-    if (im == 0)
-    {
-        toRelease = im = (isDirectory ? getDefaultFolderImage()
-                                      : getDefaultDocumentFileImage());
-    }
+    if (im.isNull())
+        im = isDirectory ? getDefaultFolderImage()
+                         : getDefaultDocumentFileImage();
 
     const int x = 32;
 
-    if (im != 0)
+    if (im.isValid())
     {
         g.drawImageWithin (im, 2, 2, x - 4, height - 4,
                            RectanglePlacement::centred | RectanglePlacement::onlyReduceInSize,
                            false);
-
-        ImageCache::release (toRelease);
     }
 
     if (width > 450 && ! isDirectory)
@@ -2616,7 +2635,7 @@ Button* LookAndFeel::createFileBrowserGoUpButton()
     DrawableButton* goUpButton = new DrawableButton ("up", DrawableButton::ImageOnButtonBackground);
 
     Path arrowPath;
-    arrowPath.addArrow (50.0f, 100.0f, 50.0f, 0.0f, 40.0f, 100.0f, 50.0f);
+    arrowPath.addArrow (Line<float> (50.0f, 100.0f, 50.0f, 0.0f), 40.0f, 100.0f, 50.0f);
 
     DrawablePath arrowImage;
     arrowImage.setFill (Colours::black.withAlpha (0.4f));
@@ -2663,7 +2682,7 @@ void LookAndFeel::layoutFileBrowserComponent (FileBrowserComponent& browserComp,
     filenameBox->setBounds (x + 50, y, w - 50, controlsHeight);
 }
 
-Image* LookAndFeel::getDefaultFolderImage()
+const Image LookAndFeel::getDefaultFolderImage()
 {
     static const unsigned char foldericon_png[] = { 137,80,78,71,13,10,26,10,0,0,0,13,73,72,68,82,0,0,0,32,0,0,0,28,8,6,0,0,0,0,194,189,34,0,0,0,4,103,65,77,65,0,0,175,200,55,5,
         138,233,0,0,0,25,116,69,88,116,83,111,102,116,119,97,114,101,0,65,100,111,98,101,32,73,109,97,103,101,82,101,97,100,121,113,201,101,60,0,0,9,46,73,68,65,84,120,218,98,252,255,255,63,3,50,240,41,95,192,
@@ -2713,7 +2732,7 @@ Image* LookAndFeel::getDefaultFolderImage()
     return ImageCache::getFromMemory (foldericon_png, sizeof (foldericon_png));
 }
 
-Image* LookAndFeel::getDefaultDocumentFileImage()
+const Image LookAndFeel::getDefaultDocumentFileImage()
 {
     static const unsigned char fileicon_png[] = { 137,80,78,71,13,10,26,10,0,0,0,13,73,72,68,82,0,0,0,32,0,0,0,32,8,6,0,0,0,115,122,122,244,0,0,0,4,103,65,77,65,0,0,175,200,55,5,
         138,233,0,0,0,25,116,69,88,116,83,111,102,116,119,97,114,101,0,65,100,111,98,101,32,73,109,97,103,101,82,101,97,100,121,113,201,101,60,0,0,4,99,73,68,65,84,120,218,98,252,255,255,63,3,12,48,50,50,50,1,

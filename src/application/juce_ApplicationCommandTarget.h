@@ -232,7 +232,6 @@ public:
     */
     ApplicationCommandTarget* findFirstTargetParentComponent();
 
-
     //==============================================================================
     juce_UseDebuggingNewOperator
 

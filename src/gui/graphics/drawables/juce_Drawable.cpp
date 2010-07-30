@@ -35,6 +35,7 @@ BEGIN_JUCE_NAMESPACE
 #include "../imaging/juce_ImageFileFormat.h"
 #include "../../../text/juce_XmlDocument.h"
 #include "../../../io/files/juce_FileInputStream.h"
+#include "../../../io/streams/juce_MemoryOutputStream.h"
 
 
 //==============================================================================
@@ -91,12 +92,12 @@ Drawable* Drawable::createFromImageData (const void* data, const size_t numBytes
 {
     Drawable* result = 0;
 
-    Image* const image = ImageFileFormat::loadFrom (data, (int) numBytes);
+    Image image (ImageFileFormat::loadFrom (data, (int) numBytes));
 
-    if (image != 0)
+    if (image.isValid())
     {
         DrawableImage* const di = new DrawableImage();
-        di->setImage (image, true);
+        di->setImage (image);
         result = di;
     }
     else
@@ -120,10 +121,10 @@ Drawable* Drawable::createFromImageData (const void* data, const size_t numBytes
 
 Drawable* Drawable::createFromImageDataStream (InputStream& dataSource)
 {
-    MemoryBlock mb;
-    dataSource.readIntoMemoryBlock (mb);
+    MemoryOutputStream mo;
+    mo.writeFromInputStream (dataSource, -1);
 
-    return createFromImageData (mb.getData(), mb.getSize());
+    return createFromImageData (mo.getData(), mo.getDataSize());
 }
 
 Drawable* Drawable::createFromImageFile (const File& file)
@@ -135,6 +136,11 @@ Drawable* Drawable::createFromImageFile (const File& file)
 
 //==============================================================================
 Drawable* Drawable::createFromValueTree (const ValueTree& tree, ImageProvider* imageProvider)
+{
+    return createChildFromValueTree (0, tree, imageProvider);
+}
+
+Drawable* Drawable::createChildFromValueTree (DrawableComposite* parent, const ValueTree& tree, ImageProvider* imageProvider)
 {
     const Identifier type (tree.getType());
 
@@ -149,7 +155,10 @@ Drawable* Drawable::createFromValueTree (const ValueTree& tree, ImageProvider* i
         d = new DrawableText();
 
     if (d != 0)
+    {
+        d->parent = parent;
         d->refreshFromValueTree (tree, imageProvider);
+    }
 
     return d;
 }
@@ -158,13 +167,14 @@ Drawable* Drawable::createFromValueTree (const ValueTree& tree, ImageProvider* i
 //==============================================================================
 const Identifier Drawable::ValueTreeWrapperBase::idProperty ("id");
 const Identifier Drawable::ValueTreeWrapperBase::type ("type");
-const Identifier Drawable::ValueTreeWrapperBase::x1 ("x1");
-const Identifier Drawable::ValueTreeWrapperBase::x2 ("x2");
-const Identifier Drawable::ValueTreeWrapperBase::y1 ("y1");
-const Identifier Drawable::ValueTreeWrapperBase::y2 ("y2");
+const Identifier Drawable::ValueTreeWrapperBase::gradientPoint1 ("point1");
+const Identifier Drawable::ValueTreeWrapperBase::gradientPoint2 ("point2");
+const Identifier Drawable::ValueTreeWrapperBase::gradientPoint3 ("point3");
 const Identifier Drawable::ValueTreeWrapperBase::colour ("colour");
 const Identifier Drawable::ValueTreeWrapperBase::radial ("radial");
 const Identifier Drawable::ValueTreeWrapperBase::colours ("colours");
+const Identifier Drawable::ValueTreeWrapperBase::imageId ("imageId");
+const Identifier Drawable::ValueTreeWrapperBase::imageOpacity ("imageOpacity");
 
 Drawable::ValueTreeWrapperBase::ValueTreeWrapperBase (const ValueTree& state_)
     : state (state_)
@@ -180,7 +190,7 @@ const String Drawable::ValueTreeWrapperBase::getID() const
     return state [idProperty];
 }
 
-void Drawable::ValueTreeWrapperBase::setID (const String& newID, UndoManager* undoManager)
+void Drawable::ValueTreeWrapperBase::setID (const String& newID, UndoManager* const undoManager)
 {
     if (newID.isEmpty())
         state.removeProperty (idProperty, undoManager);
@@ -188,7 +198,8 @@ void Drawable::ValueTreeWrapperBase::setID (const String& newID, UndoManager* un
         state.setProperty (idProperty, newID, undoManager);
 }
 
-const FillType Drawable::ValueTreeWrapperBase::readFillType (const ValueTree& v)
+const FillType Drawable::ValueTreeWrapperBase::readFillType (const ValueTree& v, RelativePoint* const gp1, RelativePoint* const gp2, RelativePoint* const gp3,
+                                                             RelativeCoordinate::NamedCoordinateFinder* const nameFinder, ImageProvider* imageProvider)
 {
     const String newType (v[type].toString());
 
@@ -200,9 +211,16 @@ const FillType Drawable::ValueTreeWrapperBase::readFillType (const ValueTree& v)
     }
     else if (newType == "gradient")
     {
+        RelativePoint p1 (v [gradientPoint1]), p2 (v [gradientPoint2]), p3 (v [gradientPoint3]);
+
         ColourGradient g;
-        g.point1.setXY (v[x1], v[y1]);
-        g.point2.setXY (v[x2], v[y2]);
+
+        if (gp1 != 0)  *gp1 = p1;
+        if (gp2 != 0)  *gp2 = p2;
+        if (gp3 != 0)  *gp3 = p3;
+
+        g.point1 = p1.resolve (nameFinder);
+        g.point2 = p2.resolve (nameFinder);
         g.isRadial = v[radial];
 
         StringArray colourSteps;
@@ -212,68 +230,81 @@ const FillType Drawable::ValueTreeWrapperBase::readFillType (const ValueTree& v)
             g.addColour (colourSteps[i * 2].getDoubleValue(),
                          Colour ((uint32)  colourSteps[i * 2 + 1].getHexValue32()));
 
-        return FillType (g);
+        FillType fillType (g);
+
+        if (g.isRadial)
+        {
+            const Point<float> point3 (p3.resolve (nameFinder));
+            const Point<float> point3Source (g.point1.getX() + g.point2.getY() - g.point1.getY(),
+                                             g.point1.getY() + g.point1.getX() - g.point2.getX());
+
+            fillType.transform = AffineTransform::fromTargetPoints (g.point1.getX(), g.point1.getY(), g.point1.getX(), g.point1.getY(),
+                                                                    g.point2.getX(), g.point2.getY(), g.point2.getX(), g.point2.getY(),
+                                                                    point3Source.getX(), point3Source.getY(), point3.getX(), point3.getY());
+        }
+
+        return fillType;
     }
     else if (newType == "image")
     {
-        jassertfalse; //xxx todo
+        Image im;
+        if (imageProvider != 0)
+            im = imageProvider->getImageForIdentifier (v[imageId]);
+
+        FillType f (im, AffineTransform::identity);
+        f.setOpacity ((float) v.getProperty (imageOpacity, 1.0f));
+        return f;
     }
 
     jassertfalse;
     return FillType();
 }
 
-void Drawable::ValueTreeWrapperBase::replaceFillType (const Identifier& tag, const FillType& fillType, UndoManager* undoManager)
+static const Point<float> calcThirdGradientPoint (const FillType& fillType)
 {
-    ValueTree v (state.getChildWithName (tag));
+    const ColourGradient& g = *fillType.gradient;
+    const Point<float> point3Source (g.point1.getX() + g.point2.getY() - g.point1.getY(),
+                                     g.point1.getY() + g.point1.getX() - g.point2.getX());
 
-    if (! v.isValid())
-    {
-        state.addChild (ValueTree (tag), -1, undoManager);
-        v = state.getChildWithName (tag);
-    }
+    return point3Source.transformedBy (fillType.transform);
+}
 
+void Drawable::ValueTreeWrapperBase::writeFillType (ValueTree& v, const FillType& fillType,
+                                                    const RelativePoint* const gp1, const RelativePoint* const gp2, const RelativePoint* gp3,
+                                                    ImageProvider* imageProvider, UndoManager* const undoManager)
+{
     if (fillType.isColour())
     {
         v.setProperty (type, "solid", undoManager);
         v.setProperty (colour, String::toHexString ((int) fillType.colour.getARGB()), undoManager);
-        v.removeProperty (x1, undoManager);
-        v.removeProperty (x2, undoManager);
-        v.removeProperty (y1, undoManager);
-        v.removeProperty (y2, undoManager);
-        v.removeProperty (radial, undoManager);
-        v.removeProperty (colours, undoManager);
     }
     else if (fillType.isGradient())
     {
         v.setProperty (type, "gradient", undoManager);
-        v.setProperty (x1, fillType.gradient->point1.getX(), undoManager);
-        v.setProperty (y1, fillType.gradient->point1.getY(), undoManager);
-        v.setProperty (x2, fillType.gradient->point2.getX(), undoManager);
-        v.setProperty (y2, fillType.gradient->point2.getY(), undoManager);
+        v.setProperty (gradientPoint1, gp1 != 0 ? gp1->toString() : fillType.gradient->point1.toString(), undoManager);
+        v.setProperty (gradientPoint2, gp2 != 0 ? gp2->toString() : fillType.gradient->point2.toString(), undoManager);
+        v.setProperty (gradientPoint3, gp3 != 0 ? gp3->toString() : calcThirdGradientPoint (fillType).toString(), undoManager);
+
         v.setProperty (radial, fillType.gradient->isRadial, undoManager);
 
         String s;
         for (int i = 0; i < fillType.gradient->getNumColours(); ++i)
-            s << " " << fillType.gradient->getColourPosition (i)
-              << " " << String::toHexString ((int) fillType.gradient->getColour(i).getARGB());
+            s << ' ' << fillType.gradient->getColourPosition (i)
+              << ' ' << String::toHexString ((int) fillType.gradient->getColour(i).getARGB());
 
         v.setProperty (colours, s.trimStart(), undoManager);
-        v.removeProperty (colour, undoManager);
     }
     else if (fillType.isTiledImage())
     {
         v.setProperty (type, "image", undoManager);
 
-        jassertfalse; //xxx todo
+        if (imageProvider != 0)
+            v.setProperty (imageId, imageProvider->getIdentifierForImage (fillType.image), undoManager);
 
-        v.removeProperty (x1, undoManager);
-        v.removeProperty (x2, undoManager);
-        v.removeProperty (y1, undoManager);
-        v.removeProperty (y2, undoManager);
-        v.removeProperty (radial, undoManager);
-        v.removeProperty (colours, undoManager);
-        v.removeProperty (colour, undoManager);
+        if (fillType.getOpacity() < 1.0f)
+            v.setProperty (imageOpacity, fillType.getOpacity(), undoManager);
+        else
+            v.removeProperty (imageOpacity, undoManager);
     }
     else
     {

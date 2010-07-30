@@ -96,8 +96,19 @@ public:
 
             embeddedView = attachView (wrapperWindow, HIViewGetRoot (wrapperWindow));
 
-            EventTypeSpec  windowEventTypes[] = { { kEventClassWindow, kEventWindowGetClickActivation },
-                                                  { kEventClassWindow, kEventWindowHandleDeactivate } };
+            EventTypeSpec windowEventTypes[] =
+            {
+                { kEventClassWindow, kEventWindowGetClickActivation },
+                { kEventClassWindow, kEventWindowHandleDeactivate },
+                { kEventClassWindow, kEventWindowBoundsChanging },
+                { kEventClassMouse, kEventMouseDown },
+                { kEventClassMouse, kEventMouseMoved },
+                { kEventClassMouse, kEventMouseDragged },
+                { kEventClassMouse, kEventMouseUp},
+                { kEventClassWindow, kEventWindowDrawContent },
+                { kEventClassWindow, kEventWindowShown },
+                { kEventClassWindow, kEventWindowHidden }
+            };
 
             EventHandlerUPP upp = NewEventHandlerUPP (carbonEventCallback);
             InstallWindowEventHandler (wrapperWindow, upp,
@@ -231,7 +242,7 @@ public:
         {
             case kEventWindowHandleDeactivate:
                 ActivateWindow (wrapperWindow, TRUE);
-                break;
+                return noErr;
 
             case kEventWindowGetClickActivation:
             {
@@ -243,11 +254,11 @@ public:
                                    sizeof (ClickActivationResult), &howToHandleClick);
 
                 HIViewSetNeedsDisplay (embeddedView, true);
+                return noErr;
             }
-            break;
         }
 
-        return noErr;
+        return eventNotHandledErr;
     }
 
     static pascal OSStatus carbonEventCallback (EventHandlerCallRef nextHandlerRef,

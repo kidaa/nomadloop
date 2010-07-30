@@ -154,8 +154,8 @@ public:
                 }
 
                 Path p;
-                p.addArrow (x1, y1, x2, y2, 1.5f, hw, hl);
-                p.addArrow (x3, y3, x4, y4, 1.5f, hw, hl);
+                p.addArrow (Line<float> (x1, y1, x2, y2), 1.5f, hw, hl);
+                p.addArrow (Line<float> (x3, y3, x4, y4), 1.5f, hw, hl);
                 g.fillPath (p);
             }
         }
@@ -172,7 +172,7 @@ private:
 };
 
 //==============================================================================
-class MissingItemsComponent  : public PopupMenuCustomComponent
+class Toolbar::MissingItemsComponent  : public PopupMenuCustomComponent
 {
 public:
     MissingItemsComponent (Toolbar& owner_, const int height_)
@@ -782,7 +782,7 @@ private:
     Toolbar* const toolbar;
 
     class CustomiserPanel  : public Component,
-                             private ComboBoxListener,
+                             private ComboBoxListener, // (can't use ComboBox::Listener due to idiotic VC2005 bug)
                              private ButtonListener
     {
     public:

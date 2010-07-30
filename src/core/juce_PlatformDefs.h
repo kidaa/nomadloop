@@ -68,7 +68,7 @@
 
     @see Logger::outputDebugString
   */
-  #define DBG(dbgtext)                  Logger::outputDebugString (dbgtext);
+  #define DBG(dbgtext)                  JUCE_NAMESPACE::Logger::outputDebugString (dbgtext);
 
   //==============================================================================
   // Assertions..
@@ -96,7 +96,7 @@
     #endif
   #elif JUCE_MAC
     #define juce_breakDebugger              Debugger();
-  #elif JUCE_IPHONE
+  #elif JUCE_IOS
     #define juce_breakDebugger              kill (0, SIGTRAP);
   #elif JUCE_LINUX
     #define juce_breakDebugger              kill (0, SIGTRAP);
@@ -159,21 +159,25 @@
 
   #define JUCE_TRY try
 
-  /** Used in try-catch blocks, this macro will send exceptions to the JUCEApplication
-      object so they can be logged by the application if it wants to.
-  */
-  #define JUCE_CATCH_EXCEPTION \
-    catch (const std::exception& e)  \
-    { \
-        JUCEApplication::sendUnhandledException (&e, __FILE__, __LINE__); \
-    } \
-    catch (...) \
-    { \
-        JUCEApplication::sendUnhandledException (0, __FILE__, __LINE__); \
-    }
-
   #define JUCE_CATCH_ALL            catch (...) {}
   #define JUCE_CATCH_ALL_ASSERT     catch (...) { jassertfalse; }
+
+  #if JUCE_ONLY_BUILD_CORE_LIBRARY
+    #define JUCE_CATCH_EXCEPTION    JUCE_CATCH_ALL
+  #else
+    /** Used in try-catch blocks, this macro will send exceptions to the JUCEApplication
+        object so they can be logged by the application if it wants to.
+    */
+    #define JUCE_CATCH_EXCEPTION \
+      catch (const std::exception& e)  \
+      { \
+          JUCEApplication::sendUnhandledException (&e, __FILE__, __LINE__); \
+      } \
+      catch (...) \
+      { \
+          JUCEApplication::sendUnhandledException (0, __FILE__, __LINE__); \
+      }
+  #endif
 
 #else
 

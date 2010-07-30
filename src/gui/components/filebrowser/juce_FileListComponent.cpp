@@ -32,7 +32,7 @@ BEGIN_JUCE_NAMESPACE
 #include "../../graphics/imaging/juce_ImageCache.h"
 #include "../../../events/juce_AsyncUpdater.h"
 
-Image* juce_createIconForFile (const File& file);
+const Image juce_createIconForFile (const File& file);
 
 
 //==============================================================================
@@ -47,7 +47,6 @@ FileListComponent::FileListComponent (DirectoryContentsList& listToShow)
 FileListComponent::~FileListComponent()
 {
     fileList.removeChangeListener (this);
-    deleteAllChildren();
 }
 
 int FileListComponent::getNumSelectedFiles() const
@@ -107,7 +106,7 @@ public:
     {
         getLookAndFeel().drawFileBrowserRow (g, getWidth(), getHeight(),
                                              file.getFileName(),
-                                             icon,
+                                             &icon,
                                              fileSize, modTime,
                                              isDirectory, highlighted,
                                              index);
@@ -164,12 +163,11 @@ public:
             clearIcon();
         }
 
-        if (file != File::nonexistent
-            && icon == 0 && ! isDirectory)
+        if (file != File::nonexistent && icon.isNull() && ! isDirectory)
         {
             updateIcon (true);
 
-            if (icon == 0)
+            if (! icon.isValid())
                 thread.addTimeSliceClient (this);
         }
     }
@@ -196,31 +194,30 @@ private:
     File file;
     String fileSize;
     String modTime;
-    Image* icon;
+    Image icon;
     bool isDirectory;
 
     void clearIcon()
     {
-        ImageCache::release (icon);
-        icon = 0;
+        icon = Image::null;
     }
 
     void updateIcon (const bool onlyUpdateIfCached)
     {
-        if (icon == 0)
+        if (icon.isNull())
         {
             const int hashCode = (file.getFullPathName() + "_iconCacheSalt").hashCode();
-            Image* im = ImageCache::getFromHashCode (hashCode);
+            Image im (ImageCache::getFromHashCode (hashCode));
 
-            if (im == 0 && ! onlyUpdateIfCached)
+            if (im.isNull() && ! onlyUpdateIfCached)
             {
                 im = juce_createIconForFile (file);
 
-                if (im != 0)
+                if (im.isValid())
                     ImageCache::addImageToCache (im, hashCode);
             }
 
-            if (im != 0)
+            if (im.isValid())
             {
                 icon = im;
                 triggerAsyncUpdate();

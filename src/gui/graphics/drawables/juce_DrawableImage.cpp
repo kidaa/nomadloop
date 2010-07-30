@@ -35,62 +35,35 @@ BEGIN_JUCE_NAMESPACE
 //==============================================================================
 DrawableImage::DrawableImage()
     : image (0),
-      canDeleteImage (false),
       opacity (1.0f),
       overlayColour (0x00000000)
 {
-    controlPoints[1] = RelativePoint (Point<float> (1.0f, 0.0f));
-    controlPoints[2] = RelativePoint (Point<float> (0.0f, 1.0f));
+    bounds.topRight = RelativePoint (Point<float> (1.0f, 0.0f));
+    bounds.bottomLeft = RelativePoint (Point<float> (0.0f, 1.0f));
 }
 
 DrawableImage::DrawableImage (const DrawableImage& other)
-    : image (0),
-      canDeleteImage (false),
+    : image (other.image),
       opacity (other.opacity),
-      overlayColour (other.overlayColour)
+      overlayColour (other.overlayColour),
+      bounds (other.bounds)
 {
-    for (int i = 0; i < numElementsInArray (controlPoints); ++i)
-        controlPoints[i] = other.controlPoints[i];
-
-    if (other.image != 0)
-    {
-        if ((! other.canDeleteImage) || ! ImageCache::isImageInCache (other.image))
-        {
-            setImage (*other.image);
-        }
-        else
-        {
-            ImageCache::incReferenceCount (other.image);
-            setImage (other.image, true);
-        }
-    }
 }
 
 DrawableImage::~DrawableImage()
 {
-    setImage (0, false);
 }
 
 //==============================================================================
-void DrawableImage::setImage (const Image& imageToCopy)
+void DrawableImage::setImage (const Image& imageToUse)
 {
-    setImage (new Image (imageToCopy), true);
-}
-
-void DrawableImage::setImage (Image* imageToUse,
-                              const bool releaseWhenNotNeeded)
-{
-    if (canDeleteImage)
-        ImageCache::releaseOrDelete (image);
-
     image = imageToUse;
-    canDeleteImage = releaseWhenNotNeeded;
 
-    if (image != 0)
+    if (image.isValid())
     {
-        controlPoints[0] = RelativePoint (Point<float> (0.0f, 0.0f));
-        controlPoints[1] = RelativePoint (Point<float> ((float) image->getWidth(), 0.0f));
-        controlPoints[2] = RelativePoint (Point<float> (0.0f, (float) image->getHeight()));
+        bounds.topLeft = RelativePoint (Point<float> (0.0f, 0.0f));
+        bounds.topRight = RelativePoint (Point<float> ((float) image.getWidth(), 0.0f));
+        bounds.bottomLeft = RelativePoint (Point<float> (0.0f, (float) image.getHeight()));
     }
 }
 
@@ -104,27 +77,22 @@ void DrawableImage::setOverlayColour (const Colour& newOverlayColour)
     overlayColour = newOverlayColour;
 }
 
-void DrawableImage::setTransform (const RelativePoint& imageTopLeftPosition,
-                                  const RelativePoint& imageTopRightPosition,
-                                  const RelativePoint& imageBottomLeftPosition)
+void DrawableImage::setBoundingBox (const RelativeParallelogram& newBounds)
 {
-    controlPoints[0] = imageTopLeftPosition;
-    controlPoints[1] = imageTopRightPosition;
-    controlPoints[2] = imageBottomLeftPosition;
+    bounds = newBounds;
 }
 
 //==============================================================================
 const AffineTransform DrawableImage::calculateTransform() const
 {
-    if (image == 0)
+    if (image.isNull())
         return AffineTransform::identity;
 
     Point<float> resolved[3];
-    for (int i = 0; i < 3; ++i)
-        resolved[i] = controlPoints[i].resolve (parent);
+    bounds.resolveThreePoints (resolved, parent);
 
-    const Point<float> tr (resolved[0] + (resolved[1] - resolved[0]) / (float) image->getWidth());
-    const Point<float> bl (resolved[0] + (resolved[2] - resolved[0]) / (float) image->getHeight());
+    const Point<float> tr (resolved[0] + (resolved[1] - resolved[0]) / (float) image.getWidth());
+    const Point<float> bl (resolved[0] + (resolved[2] - resolved[0]) / (float) image.getHeight());
 
     return AffineTransform::fromTargetPoints (resolved[0].getX(), resolved[0].getY(),
                                               tr.getX(), tr.getY(),
@@ -133,53 +101,35 @@ const AffineTransform DrawableImage::calculateTransform() const
 
 void DrawableImage::render (const Drawable::RenderingContext& context) const
 {
-    if (image != 0)
+    if (image.isValid())
     {
         const AffineTransform t (calculateTransform().followedBy (context.transform));
 
         if (opacity > 0.0f && ! overlayColour.isOpaque())
         {
             context.g.setOpacity (context.opacity * opacity);
-            context.g.drawImageTransformed (image, image->getBounds(), t, false);
+            context.g.drawImageTransformed (image, t, false);
         }
 
         if (! overlayColour.isTransparent())
         {
             context.g.setColour (overlayColour.withMultipliedAlpha (context.opacity));
-            context.g.drawImageTransformed (image, image->getBounds(), t, true);
+            context.g.drawImageTransformed (image, t, true);
         }
     }
 }
 
 const Rectangle<float> DrawableImage::getBounds() const
 {
-    if (image == 0)
+    if (image.isNull())
         return Rectangle<float>();
 
-    Point<float> resolved[3];
-    for (int i = 0; i < 3; ++i)
-        resolved[i] = controlPoints[i].resolve (parent);
-
-    const Point<float> bottomRight (resolved[1] + (resolved[2] - resolved[0]));
-    float minX = bottomRight.getX();
-    float maxX = minX;
-    float minY = bottomRight.getY();
-    float maxY = minY;
-
-    for (int i = 0; i < 3; ++i)
-    {
-        minX = jmin (minX, resolved[i].getX());
-        maxX = jmax (maxX, resolved[i].getX());
-        minY = jmin (minY, resolved[i].getY());
-        maxY = jmax (maxY, resolved[i].getY());
-    }
-
-    return Rectangle<float> (minX, minY, maxX - minX, maxY - minY);
+    return bounds.getBounds (parent);
 }
 
 bool DrawableImage::hitTest (float x, float y) const
 {
-    if (image == 0)
+    if (image.isNull())
         return false;
 
     calculateTransform().inverted().transformPoint (x, y);
@@ -189,9 +139,9 @@ bool DrawableImage::hitTest (float x, float y) const
 
     return ix >= 0
             && iy >= 0
-            && ix < image->getWidth()
-            && iy < image->getHeight()
-            && image->getPixelAt (ix, iy).getAlpha() >= 127;
+            && ix < image.getWidth()
+            && iy < image.getHeight()
+            && image.getPixelAt (ix, iy).getAlpha() >= 127;
 }
 
 Drawable* DrawableImage::createCopy() const
@@ -225,6 +175,11 @@ const var DrawableImage::ValueTreeWrapper::getImageIdentifier() const
     return state [image];
 }
 
+Value DrawableImage::ValueTreeWrapper::getImageIdentifierValue (UndoManager* undoManager)
+{
+    return state.getPropertyAsValue (image, undoManager);
+}
+
 void DrawableImage::ValueTreeWrapper::setImageIdentifier (const var& newIdentifier, UndoManager* undoManager)
 {
     state.setProperty (image, newIdentifier, undoManager);
@@ -233,6 +188,14 @@ void DrawableImage::ValueTreeWrapper::setImageIdentifier (const var& newIdentifi
 float DrawableImage::ValueTreeWrapper::getOpacity() const
 {
     return (float) state.getProperty (opacity, 1.0);
+}
+
+Value DrawableImage::ValueTreeWrapper::getOpacityValue (UndoManager* undoManager)
+{
+    if (! state.hasProperty (opacity))
+        state.setProperty (opacity, 1.0, undoManager);
+
+    return state.getPropertyAsValue (opacity, undoManager);
 }
 
 void DrawableImage::ValueTreeWrapper::setOpacity (float newOpacity, UndoManager* undoManager)
@@ -253,37 +216,23 @@ void DrawableImage::ValueTreeWrapper::setOverlayColour (const Colour& newColour,
         state.setProperty (overlay, String::toHexString ((int) newColour.getARGB()), undoManager);
 }
 
-const RelativePoint DrawableImage::ValueTreeWrapper::getTargetPositionForTopLeft() const
+Value DrawableImage::ValueTreeWrapper::getOverlayColourValue (UndoManager* undoManager)
 {
-    const String pos (state [topLeft].toString());
-    return pos.isNotEmpty() ? RelativePoint (pos) : RelativePoint();
+    return state.getPropertyAsValue (overlay, undoManager);
 }
 
-void DrawableImage::ValueTreeWrapper::setTargetPositionForTopLeft (const RelativePoint& newPoint, UndoManager* undoManager)
+const RelativeParallelogram DrawableImage::ValueTreeWrapper::getBoundingBox() const
 {
-    state.setProperty (topLeft, newPoint.toString(), undoManager);
+    return RelativeParallelogram (state.getProperty (topLeft, "0, 0"),
+                                  state.getProperty (topRight, "100, 0"),
+                                  state.getProperty (bottomLeft, "0, 100"));
 }
 
-const RelativePoint DrawableImage::ValueTreeWrapper::getTargetPositionForTopRight() const
+void DrawableImage::ValueTreeWrapper::setBoundingBox (const RelativeParallelogram& newBounds, UndoManager* undoManager)
 {
-    const String pos (state [topRight].toString());
-    return pos.isNotEmpty() ? RelativePoint (pos) : RelativePoint (Point<float> (100.0f, 0.0f));
-}
-
-void DrawableImage::ValueTreeWrapper::setTargetPositionForTopRight (const RelativePoint& newPoint, UndoManager* undoManager)
-{
-    state.setProperty (topRight, newPoint.toString(), undoManager);
-}
-
-const RelativePoint DrawableImage::ValueTreeWrapper::getTargetPositionForBottomLeft() const
-{
-    const String pos (state [bottomLeft].toString());
-    return pos.isNotEmpty() ? RelativePoint (pos) : RelativePoint (Point<float> (0.0f, 100.0f));
-}
-
-void DrawableImage::ValueTreeWrapper::setTargetPositionForBottomLeft (const RelativePoint& newPoint, UndoManager* undoManager)
-{
-    state.setProperty (bottomLeft, newPoint.toString(), undoManager);
+    state.setProperty (topLeft, newBounds.topLeft.toString(), undoManager);
+    state.setProperty (topRight, newBounds.topRight.toString(), undoManager);
+    state.setProperty (bottomLeft, newBounds.bottomLeft.toString(), undoManager);
 }
 
 
@@ -296,7 +245,7 @@ const Rectangle<float> DrawableImage::refreshFromValueTree (const ValueTree& tre
     const float newOpacity = controller.getOpacity();
     const Colour newOverlayColour (controller.getOverlayColour());
 
-    Image* newImage = 0;
+    Image newImage;
     const var imageIdentifier (controller.getImageIdentifier());
 
     jassert (imageProvider != 0 || imageIdentifier.isVoid()); // if you're using images, you need to provide something that can load and save them!
@@ -304,34 +253,20 @@ const Rectangle<float> DrawableImage::refreshFromValueTree (const ValueTree& tre
     if (imageProvider != 0)
         newImage = imageProvider->getImageForIdentifier (imageIdentifier);
 
-    RelativePoint newControlPoint[3] = { controller.getTargetPositionForTopLeft(),
-                                         controller.getTargetPositionForTopRight(),
-                                         controller.getTargetPositionForBottomLeft() };
+    const RelativeParallelogram newBounds (controller.getBoundingBox());
 
-    if (newOpacity != opacity || overlayColour != newOverlayColour || image != newImage
-         || controlPoints[0] != newControlPoint[0]
-         || controlPoints[1] != newControlPoint[1]
-         || controlPoints[2] != newControlPoint[2])
+    if (newOpacity != opacity || overlayColour != newOverlayColour || image != newImage || bounds != newBounds)
     {
+        const Rectangle<float> damage (getBounds());
+
         opacity = newOpacity;
         overlayColour = newOverlayColour;
-        controlPoints[0] = newControlPoint[0];
-        controlPoints[1] = newControlPoint[1];
-        controlPoints[2] = newControlPoint[2];
+        bounds = newBounds;
+        image = newImage;
 
-        if (image != newImage)
-        {
-            if (canDeleteImage)
-                ImageCache::releaseOrDelete (image);
-
-            canDeleteImage = true;
-            image = newImage;
-        }
-
-        return getBounds();
+        return damage.getUnion (getBounds());
     }
 
-    ImageCache::release (newImage);
     return Rectangle<float>();
 }
 
@@ -343,11 +278,9 @@ const ValueTree DrawableImage::createValueTree (ImageProvider* imageProvider) co
     v.setID (getName(), 0);
     v.setOpacity (opacity, 0);
     v.setOverlayColour (overlayColour, 0);
-    v.setTargetPositionForTopLeft (controlPoints[0], 0);
-    v.setTargetPositionForTopRight (controlPoints[1], 0);
-    v.setTargetPositionForBottomLeft (controlPoints[2], 0);
+    v.setBoundingBox (bounds, 0);
 
-    if (image != 0)
+    if (image.isValid())
     {
         jassert (imageProvider != 0); // if you're using images, you need to provide something that can load and save them!
 

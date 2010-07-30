@@ -169,7 +169,7 @@ void* juce_openInternetFile (const String& url,
                 {
                     const TCHAR* mimeTypes[] = { _T("*/*"), 0 };
 
-                    DWORD flags = INTERNET_FLAG_RELOAD | INTERNET_FLAG_NO_CACHE_WRITE;
+                    DWORD flags = INTERNET_FLAG_RELOAD | INTERNET_FLAG_NO_CACHE_WRITE | INTERNET_FLAG_NO_COOKIES;
 
                     if (url.startsWithIgnoreCase ("https:"))
                         flags |= INTERNET_FLAG_SECURE;  // (this flag only seems necessary if the OS is running IE6 -
@@ -214,7 +214,9 @@ void* juce_openInternetFile (const String& url,
                                     result->connection = connection;
                                     result->request = request;
 
-                                    HttpEndRequest (request, 0, 0, 0);
+                                    if (! HttpEndRequest (request, 0, 0, 0))
+                                        break;
+
                                     return result;
                                 }
 
@@ -269,14 +271,47 @@ int64 juce_getInternetFileContentLength (void* handle)
     {
         DWORD index = 0, result = 0, size = sizeof (result);
 
-        if (HttpQueryInfo (crs->request, HTTP_QUERY_CONTENT_LENGTH | HTTP_QUERY_FLAG_NUMBER,
-                           &result, &size, &index))
-        {
+        if (HttpQueryInfo (crs->request, HTTP_QUERY_CONTENT_LENGTH | HTTP_QUERY_FLAG_NUMBER, &result, &size, &index))
             return (int64) result;
-        }
     }
 
     return -1;
+}
+
+void juce_getInternetFileHeaders (void* handle, StringPairArray& headers)
+{
+    const ConnectionAndRequestStruct* const crs = static_cast <ConnectionAndRequestStruct*> (handle);
+
+    if (crs != 0)
+    {
+        DWORD bufferSizeBytes = 4096;
+
+        for (;;)
+        {
+            HeapBlock<char> buffer ((size_t) bufferSizeBytes);
+
+            if (HttpQueryInfo (crs->request, HTTP_QUERY_RAW_HEADERS_CRLF, buffer.getData(), &bufferSizeBytes, 0))
+            {
+                StringArray headersArray;
+                headersArray.addLines (reinterpret_cast <const WCHAR*> (buffer.getData()));
+
+                for (int i = 0; i < headersArray.size(); ++i)
+                {
+                    const String& header = headersArray[i];
+                    const String key (header.upToFirstOccurrenceOf (": ", false, false));
+                    const String value (header.fromFirstOccurrenceOf (": ", false, false));
+                    const String previousValue (headers [key]);
+
+                    headers.set (key, previousValue.isEmpty() ? value : (previousValue + "," + value));
+                }
+
+                break;
+            }
+
+            if (GetLastError() != ERROR_INSUFFICIENT_BUFFER)
+                break;
+        }
+    }
 }
 
 void juce_closeInternetFile (void* handle)

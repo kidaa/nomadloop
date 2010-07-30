@@ -160,7 +160,7 @@ public:
         }
     }
 
-    void addListener (CameraImageListener* listenerToAdd)
+    void addListener (CameraDevice::Listener* listenerToAdd)
     {
         const ScopedLock sl (listenerLock);
 
@@ -170,7 +170,7 @@ public:
         listeners.addIfNotAlreadyThere (listenerToAdd);
     }
 
-    void removeListener (CameraImageListener* listenerToRemove)
+    void removeListener (CameraDevice::Listener* listenerToRemove)
     {
         const ScopedLock sl (listenerLock);
         listeners.removeValue (listenerToRemove);
@@ -181,16 +181,18 @@ public:
 
     void callListeners (CIImage* frame, int w, int h)
     {
-        CoreGraphicsImage image (Image::ARGB, w, h, false);
-        CIContext* cic = [CIContext contextWithCGContext: image.context options: nil];
+        CoreGraphicsImage* cgImage = new CoreGraphicsImage (Image::ARGB, w, h, false);
+        Image image (cgImage);
+
+        CIContext* cic = [CIContext contextWithCGContext: cgImage->context options: nil];
         [cic drawImage: frame inRect: CGRectMake (0, 0, w, h) fromRect: CGRectMake (0, 0, w, h)];
-        CGContextFlush (image.context);
+        CGContextFlush (cgImage->context);
 
         const ScopedLock sl (listenerLock);
 
         for (int i = listeners.size(); --i >= 0;)
         {
-            CameraImageListener* const l = listeners[i];
+            CameraDevice::Listener* const l = listeners[i];
 
             if (l != 0)
                 l->imageReceived (image);
@@ -207,7 +209,7 @@ public:
     QTCaptureCallbackDelegate* callbackDelegate;
     String openingError;
 
-    Array<CameraImageListener*> listeners;
+    Array<CameraDevice::Listener*> listeners;
     CriticalSection listenerLock;
 };
 
@@ -383,13 +385,13 @@ void CameraDevice::stopRecording()
     }
 }
 
-void CameraDevice::addListener (CameraImageListener* listenerToAdd)
+void CameraDevice::addListener (Listener* listenerToAdd)
 {
     if (listenerToAdd != 0)
         static_cast <QTCameraDeviceInteral*> (internal)->addListener (listenerToAdd);
 }
 
-void CameraDevice::removeListener (CameraImageListener* listenerToRemove)
+void CameraDevice::removeListener (Listener* listenerToRemove)
 {
     if (listenerToRemove != 0)
         static_cast <QTCameraDeviceInteral*> (internal)->removeListener (listenerToRemove);

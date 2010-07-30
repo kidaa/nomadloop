@@ -27,6 +27,8 @@
 // compiled on its own).
 #if JUCE_INCLUDED_FILE
 
+
+//==============================================================================
 /* When you use multiple DLLs which share similarly-named obj-c classes - like
    for example having more than one juce plugin loaded into a host, then when a
    method is called, the actual code that runs might actually be in a different module
@@ -60,9 +62,6 @@ public:
         CFRunLoopRemoveSource (runLoop, runLoopSource, kCFRunLoopCommonModes);
         CFRunLoopSourceInvalidate (runLoopSource);
         CFRelease (runLoopSource);
-
-        while (messages.size() > 0)
-            delete static_cast <Message*> (messages.remove(0));
     }
 
     virtual NSApplicationTerminateReply shouldTerminate()
@@ -129,7 +128,7 @@ public:
         delete this;
     }
 
-    void postMessage (void* m)
+    void postMessage (Message* const m)
     {
         messages.add (m);
         CFRunLoopSourceSignal (runLoopSource);
@@ -139,7 +138,7 @@ public:
 private:
     CFRunLoopRef runLoop;
     CFRunLoopSourceRef runLoopSource;
-    Array <void*, CriticalSection> messages;
+    OwnedArray <Message, CriticalSection> messages;
 
     void runLoopCallback()
     {
@@ -147,7 +146,7 @@ private:
 
         do
         {
-            void* const nextMessage = messages.remove (0);
+            Message* const nextMessage = messages.removeAndReturn (0);
 
             if (nextMessage == 0)
                 return;
@@ -173,6 +172,7 @@ using namespace JUCE_NAMESPACE;
 
 #define JuceAppDelegate MakeObjCClassName(JuceAppDelegate)
 
+//==============================================================================
 @interface JuceAppDelegate   : NSObject
 {
 @private
@@ -204,7 +204,7 @@ using namespace JUCE_NAMESPACE;
 
     NSNotificationCenter* center = [NSNotificationCenter defaultCenter];
 
-    if (JUCEApplication::getInstance() != 0)
+    if (JUCEApplication::isStandaloneApp())
     {
         oldDelegate = [NSApp delegate];
         [NSApp setDelegate: self];
@@ -290,6 +290,7 @@ using namespace JUCE_NAMESPACE;
 
 @end
 
+//==============================================================================
 BEGIN_JUCE_NAMESPACE
 
 static JuceAppDelegate* juceAppDelegate = 0;
@@ -414,14 +415,13 @@ static bool isEventBlockedByModalComps (NSEvent* e)
 
 bool MessageManager::runDispatchLoopUntil (int millisecondsToRunFor)
 {
-    const ScopedAutoReleasePool pool;
     jassert (isThisTheMessageThread()); // must only be called by the message thread
 
     uint32 endTime = Time::getMillisecondCounter() + millisecondsToRunFor;
 
     while (! quitMessagePosted)
     {
-        const ScopedAutoReleasePool pool2;
+        const ScopedAutoReleasePool pool;
 
         CFRunLoopRunInMode (kCFRunLoopDefaultMode, 0.001, true);
 
@@ -452,8 +452,6 @@ void MessageManager::doPlatformSpecificInitialisation()
         [NSThread detachNewThreadSelector: @selector (dummyMethod)
                                  toTarget: juceAppDelegate
                                withObject: nil];
-
-    initialiseMainMenu();
 }
 
 void MessageManager::doPlatformSpecificShutdown()
@@ -467,7 +465,7 @@ void MessageManager::doPlatformSpecificShutdown()
     }
 }
 
-bool juce_postMessageToSystemQueue (void* message)
+bool juce_postMessageToSystemQueue (Message* message)
 {
     juceAppDelegate->redirector->postMessage (message);
     return true;
@@ -477,8 +475,7 @@ void MessageManager::broadcastMessage (const String& value) throw()
 {
 }
 
-void* MessageManager::callFunctionOnMessageThread (MessageCallbackFunction* callback,
-                                                   void* data)
+void* MessageManager::callFunctionOnMessageThread (MessageCallbackFunction* callback, void* data)
 {
     if (isThisTheMessageThread())
     {

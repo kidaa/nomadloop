@@ -45,10 +45,10 @@ public:
     GIFLoader (InputStream& in);
     ~GIFLoader();
 
-    Image* getImage() const             { return image; }
+    const Image& getImage() const             { return image; }
 
 private:
-    Image* image;
+    Image image;
     InputStream& input;
     uint8 buffer [300];
     uint8 palette [256][4];
@@ -69,7 +69,7 @@ private:
     int processExtension (int type, int& transparent);
     int readLZWByte (bool initialise, int input_code_size);
     int getCode (int code_size, bool initialise);
-    bool readImage (int width, int height, int interlace, int transparent);
+    bool readImage (int interlace, int transparent);
     static inline int makeWord (const uint8 a, const uint8 b)    { return (b << 8) | a; }
 
     GIFLoader (const GIFLoader&);

@@ -27,7 +27,6 @@
 
 BEGIN_JUCE_NAMESPACE
 
-
 #include "juce_DocumentWindow.h"
 #include "juce_ComponentPeer.h"
 #include "../lookandfeel/juce_LookAndFeel.h"
@@ -35,7 +34,7 @@ BEGIN_JUCE_NAMESPACE
 
 
 //==============================================================================
-class DocumentWindow::ButtonListenerProxy  : public ButtonListener
+class DocumentWindow::ButtonListenerProxy  : public ButtonListener // (can't use Button::Listener due to idiotic VC2005 bug)
 {
 public:
     ButtonListenerProxy (DocumentWindow& owner_)
@@ -107,9 +106,9 @@ void DocumentWindow::setName (const String& newName)
     }
 }
 
-void DocumentWindow::setIcon (const Image* imageToUse)
+void DocumentWindow::setIcon (const Image& imageToUse)
 {
-    titleBarIcon = imageToUse != 0 ? imageToUse->createCopy() : 0;
+    titleBarIcon = imageToUse;
     repaintTitleBar();
 }
 
@@ -227,7 +226,7 @@ void DocumentWindow::paint (Graphics& g)
                                                  titleBarArea.getHeight(),
                                                  titleSpaceX1,
                                                  jmax (1, titleSpaceX2 - titleSpaceX1),
-                                                 titleBarIcon,
+                                                 titleBarIcon.isValid() ? &titleBarIcon : 0,
                                                  ! drawTitleTextCentred);
 }
 

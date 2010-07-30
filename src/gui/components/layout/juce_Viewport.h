@@ -44,7 +44,7 @@
 */
 class JUCE_API  Viewport  : public Component,
                             private ComponentListener,
-                            private ScrollBarListener
+                            private ScrollBar::Listener
 {
 public:
     //==============================================================================
@@ -92,6 +92,18 @@ public:
         @see getViewPositionX, getViewPositionY, setViewPositionProportionately
     */
     void setViewPosition (int xPixelsOffset, int yPixelsOffset);
+
+    /** Changes the position of the viewed component.
+
+        The inner component will be moved so that the pixel at the top left of
+        the viewport will be the pixel at the specified coordinates within the
+        inner component.
+
+        This will update the scrollbars and might cause a call to visibleAreaChanged().
+
+        @see getViewPositionX, getViewPositionY, setViewPositionProportionately
+    */
+    void setViewPosition (const Point<int>& newPosition);
 
     /** Changes the view position as a proportion of the distance it can move.
 
@@ -215,16 +227,14 @@ public:
     void setScrollBarButtonVisibility (bool buttonsVisible);
 
     /** Returns a pointer to the scrollbar component being used.
-
         Handy if you need to customise the bar somehow.
     */
-    ScrollBar* getVerticalScrollBar() const throw()             { return verticalScrollBar; }
+    ScrollBar* getVerticalScrollBar() throw()                   { return &verticalScrollBar; }
 
     /** Returns a pointer to the scrollbar component being used.
-
         Handy if you need to customise the bar somehow.
     */
-    ScrollBar* getHorizontalScrollBar() const throw()           { return horizontalScrollBar; }
+    ScrollBar* getHorizontalScrollBar() throw()                 { return &horizontalScrollBar; }
 
 
     //==============================================================================
@@ -249,9 +259,9 @@ private:
     int scrollBarThickness;
     int singleStepX, singleStepY;
     bool showHScrollbar, showVScrollbar;
-    Component* contentHolder;
-    ScrollBar* verticalScrollBar;
-    ScrollBar* horizontalScrollBar;
+    Component contentHolder;
+    ScrollBar verticalScrollBar;
+    ScrollBar horizontalScrollBar;
 
     void updateVisibleArea();
 

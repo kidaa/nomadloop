@@ -27,7 +27,6 @@
 
 BEGIN_JUCE_NAMESPACE
 
-
 #include "juce_ThreadPool.h"
 #include "../core/juce_Time.h"
 
@@ -239,6 +238,7 @@ bool ThreadPool::removeJob (ThreadPoolJob* const job,
             else
             {
                 jobs.removeValue (job);
+                job->pool = 0;
             }
         }
     }
@@ -275,6 +275,8 @@ bool ThreadPool::removeAllJobs (const bool interruptRunningJobs,
 
                     if (deleteInactiveJobs)
                         delete job;
+                    else
+                        job->pool = 0;
                 }
             }
         }

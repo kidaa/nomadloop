@@ -27,7 +27,6 @@
 
 BEGIN_JUCE_NAMESPACE
 
-
 #include "juce_TooltipWindow.h"
 #include "../windows/juce_ComponentPeer.h"
 #include "../../../core/juce_Time.h"
@@ -80,6 +79,9 @@ void TooltipWindow::mouseEnter (const MouseEvent&)
 void TooltipWindow::showFor (const String& tip)
 {
     jassert (tip.isNotEmpty());
+    if (tipShowing != tip)
+        repaint();
+
     tipShowing = tip;
 
     Point<int> mousePos (Desktop::getMousePosition());

@@ -37,7 +37,7 @@
 
 #define USE_COREGRAPHICS_RENDERING 1
 
-#if JUCE_IPHONE
+#if JUCE_IOS
  #import <Foundation/Foundation.h>
  #import <UIKit/UIKit.h>
  #import <AudioToolbox/AudioToolbox.h>
@@ -78,6 +78,7 @@
 #include <ifaddrs.h>
 #include <net/if_dl.h>
 #include <mach/mach_time.h>
+#include <mach-o/dyld.h>
 
 #if MACOS_10_4_OR_EARLIER
  #include <GLUT/glut.h>

@@ -68,11 +68,6 @@ static const String juce_getCpuInfo (const char* const key)
     return String::empty;
 }
 
-bool SystemStats::hasMMX()      { return juce_getCpuInfo ("flags").contains ("mmx"); }
-bool SystemStats::hasSSE()      { return juce_getCpuInfo ("flags").contains ("sse"); }
-bool SystemStats::hasSSE2()     { return juce_getCpuInfo ("flags").contains ("sse2"); }
-bool SystemStats::has3DNow()    { return juce_getCpuInfo ("flags").contains ("3dnow"); }
-
 const String SystemStats::getCpuVendor()
 {
     return juce_getCpuInfo ("vendor_id");
@@ -98,11 +93,6 @@ int SystemStats::getPageSize()
     return sysconf (_SC_PAGESIZE);
 }
 
-int SystemStats::getNumCpus()
-{
-    return juce_getCpuInfo ("processor").getIntValue() + 1;
-}
-
 //==============================================================================
 const String SystemStats::getLogonName()
 {
@@ -126,6 +116,13 @@ const String SystemStats::getFullUserName()
 //==============================================================================
 void SystemStats::initialiseStats()
 {
+    const String flags (juce_getCpuInfo ("flags"));
+    cpuFlags.hasMMX = flags.contains ("mmx");
+    cpuFlags.hasSSE = flags.contains ("sse");
+    cpuFlags.hasSSE2 = flags.contains ("sse2");
+    cpuFlags.has3DNow = flags.contains ("3dnow");
+
+    cpuFlags.numCpus = juce_getCpuInfo ("processor").getIntValue() + 1;
 }
 
 void PlatformUtilities::fpuReset()
@@ -133,49 +130,53 @@ void PlatformUtilities::fpuReset()
 }
 
 //==============================================================================
-uint32 juce_millisecondsSinceStartup() throw()
+static bool juce_getTimeSinceStartup (timeval* const t) throw()
 {
+    if (gettimeofday (t, 0) != 0)
+        return false;
+
     static unsigned int calibrate = 0;
     static bool calibrated = false;
-    timeval t;
-    unsigned int ret = 0;
 
-    if (! gettimeofday (&t, 0))
+    if (! calibrated)
     {
-        if (! calibrated)
-        {
-            struct sysinfo sysi;
+        calibrated = true;
 
-            if (sysinfo (&sysi) == 0)
-                // Safe to assume system was not brought up earlier than 1970!
-                calibrate = t.tv_sec - sysi.uptime;
-
-            calibrated = true;
-        }
-
-        ret = 1000 * (t.tv_sec - calibrate) + (t.tv_usec / 1000);
+        struct sysinfo sysi;
+        if (sysinfo (&sysi) == 0)
+            calibrate = t->tv_sec - sysi.uptime;  // Safe to assume system was not brought up earlier than 1970!
     }
 
-    return ret;
+    t->tv_sec -= calibrate;
+    return true;
 }
 
-double Time::getMillisecondCounterHiRes() throw()
+uint32 juce_millisecondsSinceStartup() throw()
 {
-    return getHighResolutionTicks() * 0.001;
+    timeval t;
+    if (juce_getTimeSinceStartup (&t))
+        return (uint32) (t.tv_sec * 1000 + (t.tv_usec / 1000));
+
+    return 0;
 }
 
 int64 Time::getHighResolutionTicks() throw()
 {
     timeval t;
-    if (gettimeofday (&t, 0))
-        return 0;
+    if (juce_getTimeSinceStartup (&t))
+        return ((int64) t.tv_sec * (int64) 1000000) + (int64) t.tv_usec;
 
-    return ((int64) t.tv_sec * (int64) 1000000) + (int64) t.tv_usec;
+    return 0;
 }
 
 int64 Time::getHighResolutionTicksPerSecond() throw()
 {
     return 1000000;  // (microseconds)
+}
+
+double Time::getMillisecondCounterHiRes() throw()
+{
+    return getHighResolutionTicks() * 0.001;
 }
 
 bool Time::setSystemTimeToThisTime() const

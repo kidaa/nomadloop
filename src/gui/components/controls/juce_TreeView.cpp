@@ -139,10 +139,10 @@ public:
                     if (dragContainer != 0)
                     {
                         pos.setSize (pos.getWidth(), item->itemHeight);
-                        Image* dragImage = Component::createComponentSnapshot (pos, true);
-                        dragImage->multiplyAllAlphas (0.6f);
+                        Image dragImage (Component::createComponentSnapshot (pos, true));
+                        dragImage.multiplyAllAlphas (0.6f);
 
-                        Point<int> imageOffset (pos.getX() - e.x, pos.getY() - e.y);
+                        Point<int> imageOffset (pos.getPosition() - e.getPosition());
                         dragContainer->startDragging (dragDescription, &owner, dragImage, true, &imageOffset);
                     }
                     else
@@ -451,8 +451,6 @@ private:
 TreeView::TreeView (const String& componentName)
     : Component (componentName),
       rootItem (0),
-      dragInsertPointHighlight (0),
-      dragTargetGroupHighlight (0),
       indentSize (24),
       defaultOpenness (false),
       needsRecalculating (true),
@@ -470,8 +468,6 @@ TreeView::~TreeView()
 {
     if (rootItem != 0)
         rootItem->setOwnerView (0);
-
-    deleteAllChildren();
 }
 
 void TreeView::setRootItem (TreeViewItem* const newRootItem)
@@ -654,7 +650,7 @@ void TreeView::paint (Graphics& g)
 
 void TreeView::resized()
 {
-    viewport->setBounds (0, 0, getWidth(), getHeight());
+    viewport->setBounds (getLocalBounds());
 
     itemsChanged();
     handleAsyncUpdate();
@@ -923,7 +919,7 @@ private:
 //==============================================================================
 void TreeView::showDragHighlight (TreeViewItem* item, int insertIndex, int x, int y) throw()
 {
-    beginDragAutoRepeat (1000 / 30);
+    beginDragAutoRepeat (100);
 
     if (dragInsertPointHighlight == 0)
     {
@@ -937,8 +933,8 @@ void TreeView::showDragHighlight (TreeViewItem* item, int insertIndex, int x, in
 
 void TreeView::hideDragHighlight() throw()
 {
-    deleteAndZero (dragInsertPointHighlight);
-    deleteAndZero (dragTargetGroupHighlight);
+    dragInsertPointHighlight = 0;
+    dragTargetGroupHighlight = 0;
 }
 
 TreeViewItem* TreeView::getInsertPosition (int& x, int& y, int& insertIndex,

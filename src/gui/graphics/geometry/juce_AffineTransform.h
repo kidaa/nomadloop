@@ -81,12 +81,48 @@ public:
 
     //==============================================================================
     /** Transforms a 2D co-ordinate using this matrix. */
-    void transformPoint (float& x,
-                         float& y) const throw();
+    template <typename ValueType>
+    void transformPoint (ValueType& x, ValueType& y) const throw()
+    {
+        const ValueType oldX = x;
+        x = static_cast <ValueType> (mat00 * oldX + mat01 * y + mat02);
+        y = static_cast <ValueType> (mat10 * oldX + mat11 * y + mat12);
+    }
 
-    /** Transforms a 2D co-ordinate using this matrix. */
-    void transformPoint (double& x,
-                         double& y) const throw();
+    /** Transforms two 2D co-ordinates using this matrix.
+        This is just a shortcut for calling transformPoint() on each of these pairs of
+        coordinates in turn. (And putting all the calculations into one function hopefully
+        also gives the compiler a bit more scope for pipelining it).
+    */
+    template <typename ValueType>
+    void transformPoints (ValueType& x1, ValueType& y1,
+                          ValueType& x2, ValueType& y2) const throw()
+    {
+        const ValueType oldX1 = x1, oldX2 = x2;
+        x1 = static_cast <ValueType> (mat00 * oldX1 + mat01 * y1 + mat02);
+        y1 = static_cast <ValueType> (mat10 * oldX1 + mat11 * y1 + mat12);
+        x2 = static_cast <ValueType> (mat00 * oldX2 + mat01 * y2 + mat02);
+        y2 = static_cast <ValueType> (mat10 * oldX2 + mat11 * y2 + mat12);
+    }
+
+    /** Transforms three 2D co-ordinates using this matrix.
+        This is just a shortcut for calling transformPoint() on each of these pairs of
+        coordinates in turn. (And putting all the calculations into one function hopefully
+        also gives the compiler a bit more scope for pipelining it).
+    */
+    template <typename ValueType>
+    void transformPoints (ValueType& x1, ValueType& y1,
+                          ValueType& x2, ValueType& y2,
+                          ValueType& x3, ValueType& y3) const throw()
+    {
+        const ValueType oldX1 = x1, oldX2 = x2, oldX3 = x3;
+        x1 = static_cast <ValueType> (mat00 * oldX1 + mat01 * y1 + mat02);
+        y1 = static_cast <ValueType> (mat10 * oldX1 + mat11 * y1 + mat12);
+        x2 = static_cast <ValueType> (mat00 * oldX2 + mat01 * y2 + mat02);
+        y2 = static_cast <ValueType> (mat10 * oldX2 + mat11 * y2 + mat12);
+        x3 = static_cast <ValueType> (mat00 * oldX3 + mat01 * y3 + mat02);
+        y3 = static_cast <ValueType> (mat10 * oldX3 + mat11 * y3 + mat12);
+    }
 
     //==============================================================================
     /** Returns a new transform which is the same as this one followed by a translation. */
@@ -155,6 +191,12 @@ public:
     static const AffineTransform fromTargetPoints (float x00, float y00,
                                                    float x10, float y10,
                                                    float x01, float y01) throw();
+
+    /** Returns the transform that will map three specified points onto three target points.
+    */
+    static const AffineTransform fromTargetPoints (float sourceX1, float sourceY1, float targetX1, float targetY1,
+                                                   float sourceX2, float sourceY2, float targetX2, float targetY2,
+                                                   float sourceX3, float sourceY3, float targetX3, float targetY3) throw();
 
     //==============================================================================
     /** Returns the result of concatenating another transformation after this one. */

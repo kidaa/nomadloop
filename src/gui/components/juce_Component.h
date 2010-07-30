@@ -33,6 +33,7 @@
 #include "keyboard/juce_KeyListener.h"
 #include "keyboard/juce_KeyboardFocusTraverser.h"
 #include "../graphics/effects/juce_ImageEffectFilter.h"
+#include "../graphics/imaging/juce_Image.h"
 #include "../graphics/geometry/juce_RectangleList.h"
 #include "../graphics/geometry/juce_BorderSize.h"
 #include "../../events/juce_MessageListener.h"
@@ -40,6 +41,8 @@
 #include "../../text/juce_StringArray.h"
 #include "../../containers/juce_Array.h"
 #include "../../containers/juce_NamedValueSet.h"
+#include "juce_ModalComponentManager.h"
+
 class LookAndFeel;
 class MouseInputSource;
 class MouseInputSourceInternal;
@@ -72,8 +75,15 @@ public:
 
     /** Destructor.
 
-        Note that when a component is deleted, any child components it might
-        contain are NOT deleted unless you explicitly call deleteAllChildren() first.
+        Note that when a component is deleted, any child components it contain are NOT
+        automatically deleted. It's your responsibilty to manage their lifespan - you
+        may want to use helper methods like deleteAllChildren(), or less haphazard
+        approaches like using ScopedPointers or normal object aggregation to manage them.
+
+        If the component being deleted is currently the child of another one, then during
+        deletion, it will be removed from its parent, and the parent will receive a childrenChanged()
+        callback. Any ComponentListener objects that have registered with it will also have their
+        ComponentListener::componentBeingDeleted() methods called.
     */
     virtual ~Component();
 
@@ -478,7 +488,8 @@ public:
     /** Changes the component's size and centres it within its parent.
 
         After changing the size, the component will be moved so that it's
-        centred within its parent.
+        centred within its parent. If the component is on the desktop (or has no
+        parent component), then it'll be centred within the main monitor area.
     */
     void centreWithSize (int width, int height);
 
@@ -548,29 +559,37 @@ public:
 
     /** Adds a child component to this one.
 
-        @param child    the new component to add. If the component passed-in is already
-                        the child of another component, it'll first be removed from that.
+        Adding a child component does not mean that the component will own or delete the child - it's
+        your responsibility to delete the component. Note that it's safe to delete a component
+        without first removing it from its parent - doing so will automatically remove it and
+        send out the appropriate notifications before the deletion completes.
 
+        If the child is already a child of this component, then no action will be taken, and its
+        z-order will be left unchanged.
+
+        @param child    the new component to add. If the component passed-in is already
+                        the child of another component, it'll first be removed from it current parent.
         @param zOrder   The index in the child-list at which this component should be inserted.
                         A value of -1 will insert it in front of the others, 0 is the back.
-        @see removeChildComponent, addAndMakeVisible, getChild,
-             ComponentListener::componentChildrenChanged
+        @see removeChildComponent, addAndMakeVisible, getChild, ComponentListener::componentChildrenChanged
     */
     void addChildComponent (Component* child, int zOrder = -1);
 
     /** Adds a child component to this one, and also makes the child visible if it isn't.
 
         Quite a useful function, this is just the same as calling addChildComponent()
-        followed by setVisible (true) on the child.
+        followed by setVisible (true) on the child. See addChildComponent() for more details.
     */
     void addAndMakeVisible (Component* child, int zOrder = -1);
 
     /** Removes one of this component's child-components.
 
         If the child passed-in isn't actually a child of this component (either because
-        it's invalid or is the child of a different parent), then nothing is done.
+        it's invalid or is the child of a different parent), then no action is taken.
 
-        Note that removing a child will not delete it!
+        Note that removing a child will not delete it! But it's ok to delete a component
+        without first removing it - doing so will automatically remove it and send out the
+        appropriate notifications before the deletion completes.
 
         @see addChildComponent, ComponentListener::componentChildrenChanged
     */
@@ -581,7 +600,9 @@ public:
         This will return a pointer to the component that was removed, or null if
         the index was out-of-range.
 
-        Note that removing a child will not delete it!
+        Note that removing a child will not delete it! But it's ok to delete a component
+        without first removing it - doing so will automatically remove it and send out the
+        appropriate notifications before the deletion completes.
 
         @see addChildComponent, ComponentListener::componentChildrenChanged
     */
@@ -641,7 +662,7 @@ public:
 
     /** Checks whether a component is anywhere inside this component or its children.
 
-        This will recursively check through this components children to see if the
+        This will recursively check through this component's children to see if the
         given component is anywhere inside.
     */
     bool isParentOf (const Component* possibleChild) const throw();
@@ -867,12 +888,10 @@ public:
         the size of the component, it'll be clipped. If clipImageToComponentBounds is false
         then parts of the component beyond its bounds can be drawn.
 
-        The caller is responsible for deleting the image that is returned.
-
         @see paintEntireComponent
     */
-    Image* createComponentSnapshot (const Rectangle<int>& areaToGrab,
-                                    bool clipImageToComponentBounds = true);
+    const Image createComponentSnapshot (const Rectangle<int>& areaToGrab,
+                                         bool clipImageToComponentBounds = true);
 
     /** Draws this component and all its subcomponents onto the specified graphics
         context.
@@ -1729,7 +1748,7 @@ public:
         passed into exitModalState().
 
         @see enterModalState, exitModalState, isCurrentlyModal, getCurrentlyModalComponent,
-             isCurrentlyBlockedByAnotherModalComponent, MessageManager::dispatchNextMessage
+             isCurrentlyBlockedByAnotherModalComponent, ModalComponentManager
     */
     int runModalLoop();
 
@@ -1743,9 +1762,15 @@ public:
         get the focus, which is usually what you'll want it to do. If not, it will leave
         the focus unchanged.
 
-        @see exitModalState, runModalLoop
+        The callback is an optional object which will receive a callback when the modal
+        component loses its modal status, either by being hidden or when exitModalState()
+        is called. If you pass an object in here, the system will take care of deleting it
+        later, after making the callback
+
+        @see exitModalState, runModalLoop, ModalComponentManager::attachCallback
     */
-    void enterModalState (bool takeKeyboardFocus = true);
+    void enterModalState (bool takeKeyboardFocus = true,
+                          ModalComponentManager::Callback* callback = 0);
 
     /** Ends a component's modal state.
 
@@ -2016,7 +2041,7 @@ private:
     LookAndFeel* lookAndFeel_;
     MouseCursor cursor_;
     ImageEffectFilter* effect_;
-    Image* bufferedImage_;
+    Image bufferedImage_;
     Array <MouseListener*>* mouseListeners_;
     Array <KeyListener*>* keyListeners_;
     ListenerList <ComponentListener> componentListeners;
@@ -2088,6 +2113,7 @@ private:
     // how much of the component is not off the edges of its parents
     const Rectangle<int> getUnclippedArea() const;
     void sendVisibilityChangeMessage();
+    const Rectangle<int> getParentOrMainMonitorBounds() const;
 
     //==============================================================================
     // This is included here just to cause a compile error if your code is still handling

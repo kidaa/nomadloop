@@ -525,7 +525,7 @@ public:
 
         @see Component::createComponentSnapshot
     */
-    Image* createSnapshotOfSelectedRows (int& x, int& y);
+    const Image createSnapshotOfSelectedRows (int& x, int& y);
 
     /** Returns the viewport that this ListBox uses.
 
@@ -568,8 +568,8 @@ private:
     friend class ListViewport;
     friend class TableListBox;
     ListBoxModel* model;
-    ListViewport* viewport;
-    Component* headerComponent;
+    ScopedPointer<ListViewport> viewport;
+    ScopedPointer<Component> headerComponent;
     int totalItems, rowHeight, minimumRowWidth;
     int outlineThickness;
     int lastRowSelected;

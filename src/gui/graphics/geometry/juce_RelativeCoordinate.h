@@ -29,6 +29,7 @@
 #include "juce_Path.h"
 #include "juce_Rectangle.h"
 #include "../../../containers/juce_OwnedArray.h"
+#include "../../../containers/juce_ValueTree.h"
 
 
 //==============================================================================
@@ -61,9 +62,8 @@ public:
     /** Creates an absolute position from the parent origin on either the X or Y axis.
 
         @param absoluteDistanceFromOrigin   the distance from the origin
-        @param isHorizontal                 this must be true if this is an X coordinate, or false if it's on the Y axis.
     */
-    RelativeCoordinate (double absoluteDistanceFromOrigin, bool isHorizontal);
+    RelativeCoordinate (double absoluteDistanceFromOrigin);
 
     /** Creates an absolute position relative to a named coordinate.
 
@@ -181,7 +181,8 @@ public:
         Note that calling this will reset the names of any anchor points, and just make the
         coordinate relative to the parent origin and parent size.
     */
-    void toggleProportionality (const NamedCoordinateFinder* nameFinder, bool isHorizontal);
+    void toggleProportionality (const NamedCoordinateFinder* nameFinder,
+                                const String& proportionalAnchor1, const String& proportionalAnchor2);
 
     /** Returns a value that can be edited to set this coordinate's position.
         The meaning of this number depends on the coordinate's mode. If the coordinate is
@@ -202,12 +203,12 @@ public:
     //==============================================================================
     /** Returns the name of the first anchor point from which this coordinate is relative.
     */
-    const String getAnchorName1() const                     { return anchor1; }
+    const String getAnchorName1 (const String& returnValueIfOrigin) const;
 
     /** Returns the name of the second anchor point from which this coordinate is relative.
         The second anchor is only valid if the coordinate is in proportional mode.
     */
-    const String getAnchorName2() const                     { return anchor2; }
+    const String getAnchorName2 (const String& returnValueIfOrigin) const;
 
     /** Returns the first anchor point as a coordinate. */
     const RelativeCoordinate getAnchorCoordinate1() const;
@@ -289,6 +290,9 @@ public:
     /** Creates an absolute point, relative to the origin. */
     RelativePoint (const Point<float>& absolutePoint);
 
+    /** Creates an absolute point, relative to the origin. */
+    RelativePoint (float absoluteX, float absoluteY);
+
     /** Creates an absolute point from two coordinates. */
     RelativePoint (const RelativeCoordinate& x, const RelativeCoordinate& y);
 
@@ -356,6 +360,10 @@ public:
     /** Creates an absolute rectangle, relative to the origin. */
     explicit RelativeRectangle (const Rectangle<float>& rect, const String& componentName);
 
+    /** Creates a rectangle from four coordinates. */
+    RelativeRectangle (const RelativeCoordinate& left, const RelativeCoordinate& right,
+                       const RelativeCoordinate& top, const RelativeCoordinate& bottom);
+
     /** Creates a rectangle from a stringified representation.
         The string must contain a sequence of 4 coordinates, separated by commas, in the order
         left, top, right, bottom. The syntax for the coordinate strings is explained in the
@@ -416,7 +424,8 @@ public:
     //==============================================================================
     RelativePointPath();
     RelativePointPath (const RelativePointPath& other);
-    RelativePointPath (const String& stringVersion);
+    RelativePointPath (const ValueTree& drawable);
+    RelativePointPath (const Path& path);
     ~RelativePointPath();
 
     //==============================================================================
@@ -426,11 +435,8 @@ public:
     /** Returns true if the path contains any non-fixed points. */
     bool containsAnyDynamicPoints() const;
 
-    /** Returns a string version of the path.
-        This has the same format as Path::toString(), but since it can contain RelativeCoordinate
-        positions, it can't be parsed by the Path class if any of the points are dynamic.
-    */
-    const String toString() const;
+    /** Writes the path to this drawable encoding. */
+    void writeTo (ValueTree state, UndoManager* undoManager) const;
 
     /** Quickly swaps the contents of this path with another. */
     void swapWith (RelativePointPath& other) throw();
@@ -457,11 +463,15 @@ public:
     public:
         ElementBase (ElementType type);
         virtual ~ElementBase() {}
-        virtual void write (OutputStream& out, ElementType lastTypeWritten) const = 0;
+        virtual const ValueTree createTree() const = 0;
         virtual void addToPath (Path& path, RelativeCoordinate::NamedCoordinateFinder* coordFinder) const = 0;
         virtual RelativePoint* getControlPoints (int& numPoints) = 0;
 
         const ElementType type;
+
+    private:
+        ElementBase (const ElementBase&);
+        ElementBase& operator= (const ElementBase&);
     };
 
     class JUCE_API  StartSubPath  : public ElementBase
@@ -469,11 +479,15 @@ public:
     public:
         StartSubPath (const RelativePoint& pos);
         ~StartSubPath() {}
-        void write (OutputStream& out, ElementType lastTypeWritten) const;
+        const ValueTree createTree() const;
         void addToPath (Path& path, RelativeCoordinate::NamedCoordinateFinder* coordFinder) const;
         RelativePoint* getControlPoints (int& numPoints);
 
         RelativePoint startPos;
+
+    private:
+        StartSubPath (const StartSubPath&);
+        StartSubPath& operator= (const StartSubPath&);
     };
 
     class JUCE_API  CloseSubPath  : public ElementBase
@@ -481,9 +495,13 @@ public:
     public:
         CloseSubPath();
         ~CloseSubPath() {}
-        void write (OutputStream& out, ElementType lastTypeWritten) const;
+        const ValueTree createTree() const;
         void addToPath (Path& path, RelativeCoordinate::NamedCoordinateFinder* coordFinder) const;
         RelativePoint* getControlPoints (int& numPoints);
+
+    private:
+        CloseSubPath (const CloseSubPath&);
+        CloseSubPath& operator= (const CloseSubPath&);
     };
 
     class JUCE_API  LineTo  : public ElementBase
@@ -491,11 +509,15 @@ public:
     public:
         LineTo (const RelativePoint& endPoint);
         ~LineTo() {}
-        void write (OutputStream& out, ElementType lastTypeWritten) const;
+        const ValueTree createTree() const;
         void addToPath (Path& path, RelativeCoordinate::NamedCoordinateFinder* coordFinder) const;
         RelativePoint* getControlPoints (int& numPoints);
 
         RelativePoint endPoint;
+
+    private:
+        LineTo (const LineTo&);
+        LineTo& operator= (const LineTo&);
     };
 
     class JUCE_API  QuadraticTo  : public ElementBase
@@ -503,11 +525,15 @@ public:
     public:
         QuadraticTo (const RelativePoint& controlPoint, const RelativePoint& endPoint);
         ~QuadraticTo() {}
-        void write (OutputStream& out, ElementType lastTypeWritten) const;
+        const ValueTree createTree() const;
         void addToPath (Path& path, RelativeCoordinate::NamedCoordinateFinder* coordFinder) const;
         RelativePoint* getControlPoints (int& numPoints);
 
         RelativePoint controlPoints[2];
+
+    private:
+        QuadraticTo (const QuadraticTo&);
+        QuadraticTo& operator= (const QuadraticTo&);
     };
 
     class JUCE_API  CubicTo  : public ElementBase
@@ -515,11 +541,15 @@ public:
     public:
         CubicTo (const RelativePoint& controlPoint1, const RelativePoint& controlPoint2, const RelativePoint& endPoint);
         ~CubicTo() {}
-        void write (OutputStream& out, ElementType lastTypeWritten) const;
+        const ValueTree createTree() const;
         void addToPath (Path& path, RelativeCoordinate::NamedCoordinateFinder* coordFinder) const;
         RelativePoint* getControlPoints (int& numPoints);
 
         RelativePoint controlPoints[3];
+
+    private:
+        CubicTo (const CubicTo&);
+        CubicTo& operator= (const CubicTo&);
     };
 
     //==============================================================================
@@ -529,9 +559,41 @@ public:
 private:
     bool containsDynamicPoints;
 
-    void parseString (const String& s);
+    void parse (const ValueTree& state);
 
     RelativePointPath& operator= (const RelativePointPath&);
+};
+
+//==============================================================================
+/**
+    A parallelogram defined by three RelativePoint positions.
+
+    @see RelativePoint, RelativeCoordinate
+*/
+class JUCE_API  RelativeParallelogram
+{
+public:
+    //==============================================================================
+    RelativeParallelogram();
+    RelativeParallelogram (const RelativePoint& topLeft, const RelativePoint& topRight, const RelativePoint& bottomLeft);
+    RelativeParallelogram (const String& topLeft, const String& topRight, const String& bottomLeft);
+    ~RelativeParallelogram();
+
+    //==============================================================================
+    void resolveThreePoints (Point<float>* points, RelativeCoordinate::NamedCoordinateFinder* coordFinder) const;
+    void resolveFourCorners (Point<float>* points, RelativeCoordinate::NamedCoordinateFinder* coordFinder) const;
+    const Rectangle<float> getBounds (RelativeCoordinate::NamedCoordinateFinder* coordFinder) const;
+    void getPath (Path& path, RelativeCoordinate::NamedCoordinateFinder* coordFinder) const;
+    const AffineTransform resetToPerpendicular (RelativeCoordinate::NamedCoordinateFinder* coordFinder);
+
+    bool operator== (const RelativeParallelogram& other) const throw();
+    bool operator!= (const RelativeParallelogram& other) const throw();
+
+    static const Point<float> getInternalCoordForPoint (const Point<float>* parallelogramCorners, Point<float> point) throw();
+    static const Point<float> getPointForInternalCoord (const Point<float>* parallelogramCorners, const Point<float>& internalPoint) throw();
+
+    //==============================================================================
+    RelativePoint topLeft, topRight, bottomLeft;
 };
 
 

@@ -27,7 +27,6 @@
 
 BEGIN_JUCE_NAMESPACE
 
-
 #include "juce_ZipFile.h"
 #include "../streams/juce_GZIPDecompressorInputStream.h"
 #include "../streams/juce_BufferedInputStream.h"
@@ -35,6 +34,7 @@ BEGIN_JUCE_NAMESPACE
 #include "juce_FileInputStream.h"
 #include "juce_FileOutputStream.h"
 #include "../../threads/juce_ScopedLock.h"
+
 
 //==============================================================================
 class ZipFile::ZipEntryInfo
@@ -83,7 +83,7 @@ public:
         }
     }
 
-    ~ZipInputStream() throw()
+    ~ZipInputStream()
     {
 #if JUCE_DEBUG
         if (inputStream != 0 && inputStream == file.inputStream)
@@ -94,12 +94,12 @@ public:
             delete inputStream;
     }
 
-    int64 getTotalLength() throw()
+    int64 getTotalLength()
     {
         return zipEntryInfo.compressedSize;
     }
 
-    int read (void* buffer, int howMany) throw()
+    int read (void* buffer, int howMany)
     {
         if (headerSize <= 0)
             return 0;
@@ -127,17 +127,17 @@ public:
         return num;
     }
 
-    bool isExhausted() throw()
+    bool isExhausted()
     {
         return headerSize <= 0 || pos >= zipEntryInfo.compressedSize;
     }
 
-    int64 getPosition() throw()
+    int64 getPosition()
     {
         return pos;
     }
 
-    bool setPosition (int64 newPos) throw()
+    bool setPosition (int64 newPos)
     {
         pos = jlimit ((int64) 0, (int64) zipEntryInfo.compressedSize, newPos);
         return true;
@@ -158,8 +158,7 @@ private:
 
 
 //==============================================================================
-ZipFile::ZipFile (InputStream* const source_,
-                  const bool deleteStreamWhenDestroyed) throw()
+ZipFile::ZipFile (InputStream* const source_, const bool deleteStreamWhenDestroyed)
    : inputStream (source_)
 #if JUCE_DEBUG
      , numOpenStreams (0)
@@ -191,7 +190,7 @@ ZipFile::ZipFile (InputSource* const inputSource_)
     init();
 }
 
-ZipFile::~ZipFile() throw()
+ZipFile::~ZipFile()
 {
 #if JUCE_DEBUG
     entries.clear();
@@ -214,7 +213,6 @@ int ZipFile::getNumEntries() const throw()
 const ZipFile::ZipEntry* ZipFile::getEntry (const int index) const throw()
 {
     ZipEntryInfo* const zei = entries [index];
-
     return zei != 0 ? &(zei->entry) : 0;
 }
 

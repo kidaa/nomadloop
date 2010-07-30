@@ -201,13 +201,13 @@ public:
             The image that is returned will be owned by the caller, but it may come
             from the ImageCache.
         */
-        virtual Image* getImageForIdentifier (const var& imageIdentifier) = 0;
+        virtual const Image getImageForIdentifier (const var& imageIdentifier) = 0;
 
         /** Returns an identifier to be used to refer to a given image.
             This is used when converting a drawable into a ValueTree, so if you're
             only loading drawables, you can just return a var::null here.
         */
-        virtual const var getIdentifierForImage (Image* image) = 0;
+        virtual const var getIdentifierForImage (const Image& image) = 0;
     };
 
     /** Tries to create a Drawable from a previously-saved ValueTree.
@@ -248,12 +248,19 @@ public:
         void setID (const String& newID, UndoManager* undoManager);
         static const Identifier idProperty;
 
-    protected:
-        ValueTree state;
-        static const Identifier type, x1, x2, y1, y2, colour, radial, colours;
+        static const FillType readFillType (const ValueTree& v, RelativePoint* gradientPoint1,
+                                            RelativePoint* gradientPoint2, RelativePoint* gradientPoint3,
+                                            RelativeCoordinate::NamedCoordinateFinder* nameFinder,
+                                            ImageProvider* imageProvider);
 
-        static const FillType readFillType (const ValueTree& v);
-        void replaceFillType (const Identifier& tag, const FillType& fillType, UndoManager* undoManager);
+        static void writeFillType (ValueTree& v, const FillType& fillType,
+                                   const RelativePoint* gradientPoint1, const RelativePoint* gradientPoint2,
+                                   const RelativePoint* gradientPoint3, ImageProvider* imageProvider,
+                                   UndoManager* undoManager);
+
+        ValueTree state;
+        static const Identifier type, gradientPoint1, gradientPoint2, gradientPoint3,
+                                colour, radial, colours, imageId, imageOpacity;
     };
 
     //==============================================================================
@@ -263,6 +270,8 @@ protected:
     friend class DrawableComposite;
     DrawableComposite* parent;
     virtual void invalidatePoints() = 0;
+
+    static Drawable* createChildFromValueTree (DrawableComposite* parent, const ValueTree& tree, ImageProvider* imageProvider);
 
 private:
     String name;

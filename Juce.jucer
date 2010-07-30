@@ -24,6 +24,10 @@
             rtasFolder="c:\SDKs\PT_80_SDK" libraryType="2" juceFolder="."
             extraDefs="JUCE_DLL_BUILD=1 JUCE_DLL=1" libraryName_Debug="JUCE_debug.dll"
             libraryName_Release="JUCE.dll"/>
+    <VS2010 targetFolder="Builds/VisualStudio2010" vstFolder="c:\SDKs\vstsdk2.4"
+            rtasFolder="c:\SDKs\PT_80_SDK" libraryType="1" juceFolder="."
+            extraDefs="" libraryName_Debug="jucelib_static_Win32_debug.lib"
+            libraryName_Release="jucelib_static_Win32.lib"/>
   </EXPORTFORMATS>
   <CONFIGURATIONS>
     <CONFIGURATION name="Debug" isDebug="1" optimisation="1" targetName="jucedebug"
@@ -65,6 +69,8 @@
                 file="src/audio/audio_file_formats/juce_AiffAudioFormat.h"/>
           <FILE id="iaSLTdAgX" name="juce_AudioCDBurner.h" compile="0" resource="0"
                 file="src/audio/audio_file_formats/juce_AudioCDBurner.h"/>
+          <FILE id="0iwk53E" name="juce_AudioCDReader.cpp" compile="1" resource="0"
+                file="src/audio/audio_file_formats/juce_AudioCDReader.cpp"/>
           <FILE id="RV1XmJohc" name="juce_AudioCDReader.h" compile="0" resource="0"
                 file="src/audio/audio_file_formats/juce_AudioCDReader.h"/>
           <FILE id="7bdvMw9hr" name="juce_AudioFormat.cpp" compile="1" resource="0"
@@ -211,6 +217,50 @@
                 resource="0" file="src/audio/midi/juce_MidiMessageSequence.h"/>
         </GROUP>
         <GROUP id="rWnJUOyOY" name="plugins">
+          <GROUP id="2KbZnNZ" name="wrapper code">
+            <GROUP id="XD6F6id" name="AU">
+              <FILE id="g8u7Ehw" name="juce_AU_Wrapper.mm" compile="0" resource="0"
+                    file="extras/audio plugins/wrapper/AU/juce_AU_Wrapper.mm"/>
+            </GROUP>
+            <GROUP id="3smzJJ1" name="RTAS">
+              <FILE id="Oi5d14V" name="juce_RTAS_DigiCode_Header.h" compile="0" resource="0"
+                    file="extras/audio plugins/wrapper/RTAS/juce_RTAS_DigiCode_Header.h"/>
+              <FILE id="cEggbzN" name="juce_RTAS_DigiCode1.cpp" compile="0" resource="0"
+                    file="extras/audio plugins/wrapper/RTAS/juce_RTAS_DigiCode1.cpp"/>
+              <FILE id="dVVlniW" name="juce_RTAS_DigiCode2.cpp" compile="0" resource="0"
+                    file="extras/audio plugins/wrapper/RTAS/juce_RTAS_DigiCode2.cpp"/>
+              <FILE id="ydwdTzy" name="juce_RTAS_DigiCode3.cpp" compile="0" resource="0"
+                    file="extras/audio plugins/wrapper/RTAS/juce_RTAS_DigiCode3.cpp"/>
+              <FILE id="ehXpXBw" name="juce_RTAS_MacUtilities.mm" compile="0" resource="0"
+                    file="extras/audio plugins/wrapper/RTAS/juce_RTAS_MacUtilities.mm"/>
+              <FILE id="0mzLwTq" name="juce_RTAS_WinUtilities.cpp" compile="0" resource="0"
+                    file="extras/audio plugins/wrapper/RTAS/juce_RTAS_WinUtilities.cpp"/>
+              <FILE id="z4sBC3E" name="juce_RTAS_Wrapper.cpp" compile="0" resource="0"
+                    file="extras/audio plugins/wrapper/RTAS/juce_RTAS_Wrapper.cpp"/>
+            </GROUP>
+            <GROUP id="YuP52Pz" name="VST">
+              <FILE id="VDMcLoB" name="juce_VST_Wrapper.cpp" compile="0" resource="0"
+                    file="extras/audio plugins/wrapper/VST/juce_VST_Wrapper.cpp"/>
+              <FILE id="XhNhfUW" name="juce_VST_Wrapper.mm" compile="0" resource="0"
+                    file="extras/audio plugins/wrapper/VST/juce_VST_Wrapper.mm"/>
+            </GROUP>
+            <GROUP id="hhHHjJZ" name="Standalone">
+              <FILE id="0aPHUJq" name="juce_AudioFilterStreamer.cpp" compile="0"
+                    resource="0" file="extras/audio plugins/wrapper/Standalone/juce_AudioFilterStreamer.cpp"/>
+              <FILE id="6ml8N6N" name="juce_AudioFilterStreamer.h" compile="0" resource="0"
+                    file="extras/audio plugins/wrapper/Standalone/juce_AudioFilterStreamer.h"/>
+              <FILE id="l0R8qQC" name="juce_StandaloneFilterWindow.cpp" compile="0"
+                    resource="0" file="extras/audio plugins/wrapper/Standalone/juce_StandaloneFilterWindow.cpp"/>
+              <FILE id="OZmMutP" name="juce_StandaloneFilterWindow.h" compile="0"
+                    resource="0" file="extras/audio plugins/wrapper/Standalone/juce_StandaloneFilterWindow.h"/>
+            </GROUP>
+            <FILE id="oIRLyr" name="juce_IncludeCharacteristics.h" compile="0"
+                  resource="0" file="extras/audio plugins/wrapper/juce_IncludeCharacteristics.h"/>
+            <FILE id="UXGF34T" name="juce_PluginHeaders.h" compile="0" resource="0"
+                  file="extras/audio plugins/wrapper/juce_PluginHeaders.h"/>
+            <FILE id="FYLoUYQ" name="juce_PluginHostType.h" compile="0" resource="0"
+                  file="extras/audio plugins/wrapper/juce_PluginHostType.h"/>
+          </GROUP>
           <GROUP id="8kNdYQE9H" name="formats">
             <FILE id="rzrBqySg9" name="juce_AudioUnitPluginFormat.h" compile="0"
                   resource="0" file="src/audio/plugins/formats/juce_AudioUnitPluginFormat.h"/>
@@ -361,6 +411,8 @@
               file="src/core/juce_FileLogger.cpp"/>
         <FILE id="7nItXGiB" name="juce_FileLogger.h" compile="0" resource="0"
               file="src/core/juce_FileLogger.h"/>
+        <FILE id="eux3SL3" name="juce_Initialisation.cpp" compile="1" resource="0"
+              file="src/core/juce_Initialisation.cpp"/>
         <FILE id="nsfdNZAs" name="juce_Initialisation.h" compile="0" resource="0"
               file="src/core/juce_Initialisation.h"/>
         <FILE id="43AWfo8b2" name="juce_Logger.cpp" compile="1" resource="0"
@@ -491,6 +543,10 @@
                 file="src/gui/components/juce_Desktop.cpp"/>
           <FILE id="kteq7JUyy" name="juce_Desktop.h" compile="0" resource="0"
                 file="src/gui/components/juce_Desktop.h"/>
+          <FILE id="OSpcyIq" name="juce_ModalComponentManager.cpp" compile="1"
+                resource="0" file="src/gui/components/juce_ModalComponentManager.cpp"/>
+          <FILE id="hHLSn88" name="juce_ModalComponentManager.h" compile="0"
+                resource="0" file="src/gui/components/juce_ModalComponentManager.h"/>
           <GROUP id="bZKiEBSYn" name="buttons">
             <FILE id="XWJvOnuh3" name="juce_ArrowButton.cpp" compile="1" resource="0"
                   file="src/gui/components/buttons/juce_ArrowButton.cpp"/>
@@ -565,8 +621,6 @@
                   file="src/gui/components/controls/juce_Slider.cpp"/>
             <FILE id="dvlZ7M2B1" name="juce_Slider.h" compile="0" resource="0"
                   file="src/gui/components/controls/juce_Slider.h"/>
-            <FILE id="HpGigit7h" name="juce_SliderListener.h" compile="0" resource="0"
-                  file="src/gui/components/controls/juce_SliderListener.h"/>
             <FILE id="dkEQwSTAl" name="juce_TableHeaderComponent.cpp" compile="1"
                   resource="0" file="src/gui/components/controls/juce_TableHeaderComponent.cpp"/>
             <FILE id="EJ1tYAzIS" name="juce_TableHeaderComponent.h" compile="0"
@@ -887,6 +941,10 @@
                   file="src/gui/components/windows/juce_AlertWindow.cpp"/>
             <FILE id="q2qARl9MO" name="juce_AlertWindow.h" compile="0" resource="0"
                   file="src/gui/components/windows/juce_AlertWindow.h"/>
+            <FILE id="831V8C" name="juce_CallOutBox.cpp" compile="1" resource="0"
+                  file="src/gui/components/windows/juce_CallOutBox.cpp"/>
+            <FILE id="EbIvE5" name="juce_CallOutBox.h" compile="0" resource="0"
+                  file="src/gui/components/windows/juce_CallOutBox.h"/>
             <FILE id="wriH2opIu" name="juce_ComponentPeer.cpp" compile="1" resource="0"
                   file="src/gui/components/windows/juce_ComponentPeer.cpp"/>
             <FILE id="hlmMSNcRL" name="juce_ComponentPeer.h" compile="0" resource="0"

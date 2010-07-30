@@ -82,7 +82,7 @@ public:
         setTopLeftPosition ((int) x, (int) y);
     }
 
-    bool hitTest (int x, int y)
+    bool hitTest (int /*x*/, int /*y*/)
     {
         return false;
     }
@@ -110,7 +110,7 @@ public:
         deleteAllChildren();
     }
 
-    void mouseDown (const MouseEvent& e)
+    void mouseDown (const MouseEvent&)
     {
         dragger.startDraggingComponent (this, 0);
     }
@@ -256,28 +256,15 @@ public:
     {
         // create two colour selector components for our background and
         // text colour..
-        ColourSelector colourSelector1;
-        colourSelector1.setName ("background");
-        colourSelector1.setCurrentColour (findColour (TextButton::buttonColourId));
-        colourSelector1.addChangeListener (this);
+        ColourSelector colourSelector;
+        colourSelector.setName ("background");
+        colourSelector.setCurrentColour (findColour (TextButton::buttonColourId));
+        colourSelector.addChangeListener (this);
+        colourSelector.setColour (ColourSelector::backgroundColourId, Colours::transparentBlack);
+        colourSelector.setSize (300, 400);
 
-        ColourSelector colourSelector2;
-        colourSelector2.setName ("text");
-        colourSelector2.setCurrentColour (findColour (TextButton::textColourOffId));
-        colourSelector2.addChangeListener (this);
-
-        // and add the selectors as custom menu items to a PopupMenu, putting
-        // them in two different sub-menus..
-        PopupMenu m, sub1, sub2;
-
-        sub1.addCustomItem (1234, &colourSelector1, 300, 300, false);
-        m.addSubMenu ("background colour", sub1);
-
-        sub2.addCustomItem (1234, &colourSelector2, 300, 300, false);
-        m.addSubMenu ("text colour", sub2);
-
-        // and show the menu (modally)..
-        m.showAt (this);
+        CallOutBox callOut (colourSelector, *this, 0);
+        callOut.runModalLoop();
     }
 
     void changeListenerCallback (void* source)
@@ -442,7 +429,7 @@ static Component* createRadioButtonPage()
         DrawablePath normal, over;
 
         Path p;
-        p.addStar (0.0f, 0.0f, i + 5, 20.0f, 50.0f, -0.2f);
+        p.addStar (Point<float>(), i + 5, 20.0f, 50.0f, -0.2f);
         normal.setPath (p);
         normal.setFill (Colours::lightblue);
         normal.setStrokeFill (Colours::black);
@@ -500,19 +487,19 @@ public:
         DrawablePath normal, over;
 
         Path p;
-        p.addStar (0.0f, 0.0f, 5, 20.0f, 50.0f, 0.2f);
+        p.addStar (Point<float>(), 5, 20.0f, 50.0f, 0.2f);
         normal.setPath (p);
         normal.setFill (Colours::red);
 
         p.clear();
-        p.addStar (0.0f, 0.0f, 7, 30.0f, 50.0f, 0.0f);
+        p.addStar (Point<float>(), 7, 30.0f, 50.0f, 0.0f);
         over.setPath (p);
         over.setFill (Colours::pink);
         over.setStrokeFill (Colours::black);
         over.setStrokeThickness (5.0f);
 
         DrawableImage down;
-        down.setImage (ImageCache::getFromMemory (BinaryData::juce_png, BinaryData::juce_pngSize), true);
+        down.setImage (ImageCache::getFromMemory (BinaryData::juce_png, BinaryData::juce_pngSize));
         down.setOverlayColour (Colours::black.withAlpha (0.3f));
 
         //==============================================================================
@@ -526,7 +513,7 @@ public:
 
         //==============================================================================
         // create an image-only button from these drawables..
-        db = new DrawableButton (T("Button 2"), DrawableButton::ImageFitted);
+        db = new DrawableButton ("Button 2", DrawableButton::ImageFitted);
         db->setImages (&normal, &over, &down);
         db->setClickingTogglesState (true);
 
@@ -537,7 +524,7 @@ public:
 
         //==============================================================================
         // create an image-on-button-shape button from the same drawables..
-        db = new DrawableButton (T("Button 3"), DrawableButton::ImageOnButtonBackground);
+        db = new DrawableButton ("Button 3", DrawableButton::ImageOnButtonBackground);
         db->setImages (&normal, 0, 0);
 
         addAndMakeVisible (db);
@@ -545,7 +532,7 @@ public:
         db->setTooltip ("this is a DrawableButton on a standard button background");
 
         //==============================================================================
-        db = new DrawableButton (T("Button 4"), DrawableButton::ImageOnButtonBackground);
+        db = new DrawableButton ("Button 4", DrawableButton::ImageOnButtonBackground);
         db->setImages (&normal, &over, &down);
         db->setClickingTogglesState (true);
         db->setBackgroundColours (Colours::white, Colours::yellow);
@@ -567,10 +554,7 @@ public:
         ImageButton* imageButton = new ImageButton ("imagebutton");
         addAndMakeVisible (imageButton);
 
-        Image* juceImage = ImageCache::getFromMemory (BinaryData::juce_png, BinaryData::juce_pngSize);
-        ImageCache::incReferenceCount (juceImage);
-        ImageCache::incReferenceCount (juceImage);
-
+        Image juceImage = ImageCache::getFromMemory (BinaryData::juce_png, BinaryData::juce_pngSize);
         imageButton->setImages (true, true, true,
                                 juceImage, 0.7f, Colours::transparentBlack,
                                 juceImage, 1.0f, Colours::transparentBlack,
@@ -663,7 +647,7 @@ class ToolbarDemoComp   : public Component,
                           public ButtonListener
 {
 public:
-    ToolbarDemoComp (ApplicationCommandManager* commandManager)
+    ToolbarDemoComp()
     {
         // Create and add the toolbar...
         addAndMakeVisible (toolbar = new Toolbar());
@@ -717,7 +701,7 @@ public:
             toolbar->setBounds (0, 0, getWidth(), (int) depthSlider->getValue());
     }
 
-    void sliderValueChanged (Slider* slider)
+    void sliderValueChanged (Slider*)
     {
         resized();
     }
@@ -863,14 +847,12 @@ private:
 
                 for (int i = 0; i < icons.getNumEntries(); ++i)
                 {
-                    InputStream* svgFileStream = icons.createStreamForEntry (i);
+                    ScopedPointer<InputStream> svgFileStream (icons.createStreamForEntry (i));
 
                     if (svgFileStream != 0)
                     {
                         iconNames.add (icons.getEntry(i)->filename);
                         iconsFromZipFile.add (Drawable::createFromImageDataStream (*svgFileStream));
-
-                        delete svgFileStream;
                     }
                 }
             }
@@ -901,8 +883,7 @@ private:
                 delete comboBox;
             }
 
-            bool getToolbarItemSizes (int toolbarDepth,
-                                      bool isToolbarVertical,
+            bool getToolbarItemSizes (int /*toolbarDepth*/, bool isToolbarVertical,
                                       int& preferredSize, int& minSize, int& maxSize)
             {
                 if (isToolbarVertical)
@@ -939,11 +920,11 @@ class DemoTabbedComponent  : public TabbedComponent,
                              public ButtonListener
 {
 public:
-    DemoTabbedComponent (ApplicationCommandManager* commandManager)
+    DemoTabbedComponent()
         : TabbedComponent (TabbedButtonBar::TabsAtTop)
     {
         addTab ("sliders",       getRandomBrightColour(), createSlidersPage(),      true);
-        addTab ("toolbars",      getRandomBrightColour(), new ToolbarDemoComp (commandManager),    true);
+        addTab ("toolbars",      getRandomBrightColour(), new ToolbarDemoComp(),    true);
         addTab ("buttons",       getRandomBrightColour(), new ButtonsPage (this),   true);
         addTab ("radio buttons", getRandomBrightColour(), createRadioButtonPage(),  true);
         addTab ("misc widgets",  getRandomBrightColour(), createMiscPage(),         true);
@@ -1143,11 +1124,11 @@ class WidgetsDemo  : public Component,
 
 public:
     //==============================================================================
-    WidgetsDemo (ApplicationCommandManager* commandManager)
+    WidgetsDemo()
     {
         setName ("Widgets");
 
-        addAndMakeVisible (tabs = new DemoTabbedComponent (commandManager));
+        addAndMakeVisible (tabs = new DemoTabbedComponent());
 
         //==============================================================================
         menuButton = new TextButton ("click for a popup menu..",
@@ -1163,7 +1144,7 @@ public:
         enableButton = new ToggleButton ("enable/disable components");
         addAndMakeVisible (enableButton);
         enableButton->setBounds (230, 10, 180, 24);
-        enableButton->setTooltip (T("toggle button"));
+        enableButton->setTooltip ("toggle button");
         enableButton->setToggleState (true, false);
         enableButton->addButtonListener (this);
     }
@@ -1450,7 +1431,7 @@ public:
 
 
 //==============================================================================
-Component* createWidgetsDemo (ApplicationCommandManager* commandManager)
+Component* createWidgetsDemo()
 {
-    return new WidgetsDemo (commandManager);
+    return new WidgetsDemo();
 }

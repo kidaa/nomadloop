@@ -142,6 +142,18 @@ public:
     /** Returns a rectangle with the same size as this one, but a new position. */
     const Rectangle withPosition (const Point<ValueType>& newPos) const throw()                     { return Rectangle (newPos.getX(), newPos.getY(), w, h); }
 
+    /** Returns the rectangle's top-left position as a Point. */
+    const Point<ValueType> getTopLeft() const throw()                                               { return getPosition(); }
+
+    /** Returns the rectangle's top-right position as a Point. */
+    const Point<ValueType> getTopRight() const throw()                                              { return Point<ValueType> (x + w, y); }
+
+    /** Returns the rectangle's bottom-left position as a Point. */
+    const Point<ValueType> getBottomLeft() const throw()                                            { return Point<ValueType> (x, y + h); }
+
+    /** Returns the rectangle's bottom-right position as a Point. */
+    const Point<ValueType> getBottomRight() const throw()                                           { return Point<ValueType> (x + w, y + h); }
+
     /** Changes the rectangle's size, leaving the position of its top-left corner unchanged. */
     void setSize (const ValueType newWidth, const ValueType newHeight) throw()                      { w = newWidth; h = newHeight; }
 
@@ -154,6 +166,12 @@ public:
     {
         x = newX; y = newY; w = newWidth; h = newHeight;
     }
+
+    /** Changes the rectangle's X coordinate */
+    void setX (const ValueType newX) throw()                        { x = newX; }
+
+    /** Changes the rectangle's Y coordinate */
+    void setY (const ValueType newY) throw()                        { y = newY; }
 
     /** Changes the rectangle's width */
     void setWidth (const ValueType newWidth) throw()                { w = newWidth; }
@@ -299,6 +317,72 @@ public:
                              const ValueType deltaY) const throw()
     {
         return expanded (-deltaX, -deltaY);
+    }
+
+    /** Removes a strip from the top of this rectangle, reducing this rectangle
+        by the specified amount and returning the section that was removed.
+
+        E.g. if this rectangle is (100, 100, 300, 300) and amountToRemove is 50, this will
+        return (100, 100, 300, 50) and leave this rectangle as (100, 150, 300, 250).
+
+        If amountToRemove is greater than the height of this rectangle, it'll be clipped to
+        that value.
+    */
+    const Rectangle removeFromTop (const ValueType amountToRemove) throw()
+    {
+        const Rectangle r (x, y, w, jmin (amountToRemove, h));
+        y += r.h; h -= r.h;
+        return r;
+    }
+
+    /** Removes a strip from the left-hand edge of this rectangle, reducing this rectangle
+        by the specified amount and returning the section that was removed.
+
+        E.g. if this rectangle is (100, 100, 300, 300) and amountToRemove is 50, this will
+        return (100, 100, 50, 300) and leave this rectangle as (150, 100, 250, 300).
+
+        If amountToRemove is greater than the width of this rectangle, it'll be clipped to
+        that value.
+    */
+    const Rectangle removeFromLeft (const ValueType amountToRemove) throw()
+    {
+        const Rectangle r (x, y, jmin (amountToRemove, w), h);
+        x += r.w; w -= r.w;
+        return r;
+    }
+
+    /** Removes a strip from the right-hand edge of this rectangle, reducing this rectangle
+        by the specified amount and returning the section that was removed.
+
+        E.g. if this rectangle is (100, 100, 300, 300) and amountToRemove is 50, this will
+        return (250, 100, 50, 300) and leave this rectangle as (100, 100, 250, 300).
+
+        If amountToRemove is greater than the width of this rectangle, it'll be clipped to
+        that value.
+    */
+    const Rectangle removeFromRight (ValueType amountToRemove) throw()
+    {
+        amountToRemove = jmin (amountToRemove, w);
+        const Rectangle r (x + w - amountToRemove, y, amountToRemove, h);
+        w -= amountToRemove;
+        return r;
+    }
+
+    /** Removes a strip from the bottom of this rectangle, reducing this rectangle
+        by the specified amount and returning the section that was removed.
+
+        E.g. if this rectangle is (100, 100, 300, 300) and amountToRemove is 50, this will
+        return (100, 250, 300, 50) and leave this rectangle as (100, 100, 300, 250).
+
+        If amountToRemove is greater than the height of this rectangle, it'll be clipped to
+        that value.
+    */
+    const Rectangle removeFromBottom (ValueType amountToRemove) throw()
+    {
+        amountToRemove = jmin (amountToRemove, h);
+        const Rectangle r (x, y + h - amountToRemove, w, amountToRemove);
+        h -= amountToRemove;
+        return r;
     }
 
     //==============================================================================
@@ -482,10 +566,8 @@ public:
         float x3 = x,     y3 = y + h;
         float x4 = x2,    y4 = y3;
 
-        transform.transformPoint (x1, y1);
-        transform.transformPoint (x2, y2);
-        transform.transformPoint (x3, y3);
-        transform.transformPoint (x4, y4);
+        transform.transformPoints (x1, y1, x2, y2);
+        transform.transformPoints (x3, y3, x4, y4);
 
         const float rx = jmin (x1, x2, x3, x4);
         const float ry = jmin (y1, y2, y3, y4);
@@ -507,6 +589,28 @@ public:
         const int y2 = (int) std::floor (static_cast<float> (y + h + 0.9999f));
 
         return Rectangle<int> (x1, y1, x2 - x1, y2 - y1);
+    }
+
+    /** Returns the smallest Rectangle that can contain a set of points. */
+    static const Rectangle findAreaContainingPoints (const Point<ValueType>* const points, const int numPoints) throw()
+    {
+        if (numPoints == 0)
+            return Rectangle();
+
+        ValueType minX (points[0].getX());
+        ValueType maxX (minX);
+        ValueType minY (points[0].getY());
+        ValueType maxY (minY);
+
+        for (int i = 1; i < numPoints; ++i)
+        {
+            minX = jmin (minX, points[i].getX());
+            maxX = jmax (maxX, points[i].getX());
+            minY = jmin (minY, points[i].getY());
+            maxY = jmax (maxY, points[i].getY());
+        }
+
+        return Rectangle (minX, minY, maxX - minX, maxY - minY);
     }
 
     /** Casts this rectangle to a Rectangle<float>.

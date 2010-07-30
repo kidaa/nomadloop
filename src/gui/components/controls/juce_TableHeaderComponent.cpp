@@ -38,10 +38,11 @@ BEGIN_JUCE_NAMESPACE
 class DragOverlayComp   : public Component
 {
 public:
-    DragOverlayComp (Image* const image_)
+    DragOverlayComp (const Image& image_)
         : image (image_)
     {
-        image->multiplyAllAlphas (0.8f);
+        image.duplicateIfShared();
+        image.multiplyAllAlphas (0.8f);
         setAlwaysOnTop (true);
     }
 
@@ -55,7 +56,7 @@ public:
     }
 
 private:
-    ScopedPointer <Image> image;
+    Image image;
 
     DragOverlayComp (const DragOverlayComp&);
     DragOverlayComp& operator= (const DragOverlayComp&);
@@ -491,12 +492,12 @@ void TableHeaderComponent::restoreFromString (const String& storedVersion)
 }
 
 //==============================================================================
-void TableHeaderComponent::addListener (TableHeaderListener* const newListener)
+void TableHeaderComponent::addListener (Listener* const newListener)
 {
     listeners.addIfNotAlreadyThere (newListener);
 }
 
-void TableHeaderComponent::removeListener (TableHeaderListener* const listenerToRemove)
+void TableHeaderComponent::removeListener (Listener* const listenerToRemove)
 {
     listeners.removeValue (listenerToRemove);
 }
@@ -936,7 +937,7 @@ void TableHeaderComponent::showColumnChooserMenu (const int columnIdClicked)
     }
 }
 
-void TableHeaderListener::tableColumnDraggingChanged (TableHeaderComponent*, int)
+void TableHeaderComponent::Listener::tableColumnDraggingChanged (TableHeaderComponent*, int)
 {
 }
 

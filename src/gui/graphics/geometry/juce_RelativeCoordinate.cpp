@@ -28,6 +28,7 @@
 BEGIN_JUCE_NAMESPACE
 
 #include "juce_RelativeCoordinate.h"
+#include "../drawables/juce_DrawablePath.h"
 #include "../../../io/streams/juce_MemoryOutputStream.h"
 
 
@@ -39,12 +40,6 @@ namespace RelativeCoordinateHelpers
         return name.isEmpty()
                 || name == RelativeCoordinate::Strings::parentLeft
                 || name == RelativeCoordinate::Strings::parentTop;
-    }
-
-    static const String getOriginAnchorName (const bool isHorizontal) throw()
-    {
-        return isHorizontal ? RelativeCoordinate::Strings::parentLeft
-                            : RelativeCoordinate::Strings::parentTop;
     }
 
     static const String getExtentAnchorName (const bool isHorizontal) throw()
@@ -78,20 +73,20 @@ namespace RelativeCoordinateHelpers
     };
 
     //==============================================================================
-    static void skipWhitespace (const String& s, int& i)
+    static void skipWhitespace (const juce_wchar* const s, int& i)
     {
         while (CharacterFunctions::isWhitespace (s[i]))
             ++i;
     }
 
-    static void skipComma (const String& s, int& i)
+    static void skipComma (const juce_wchar* const s, int& i)
     {
         skipWhitespace (s, i);
         if (s[i] == ',')
             ++i;
     }
 
-    static const String readAnchorName (const String& s, int& i)
+    static const String readAnchorName (const juce_wchar* const s, int& i)
     {
         skipWhitespace (s, i);
 
@@ -101,13 +96,13 @@ namespace RelativeCoordinateHelpers
             while (CharacterFunctions::isLetterOrDigit (s[i]) || s[i] == '_' || s[i] == '.')
                 ++i;
 
-            return s.substring (start, i);
+            return String (s + start, i - start);
         }
 
         return String::empty;
     }
 
-    static double readNumber (const String& s, int& i)
+    static double readNumber (const juce_wchar* const s, int& i)
     {
         skipWhitespace (s, i);
 
@@ -129,14 +124,14 @@ namespace RelativeCoordinateHelpers
                 ++i;
         }
 
-        const double value = s.substring (start, i).getDoubleValue();
+        const double value = String (s + start, i - start).getDoubleValue();
         while (CharacterFunctions::isWhitespace (s[i]) || s[i] == ',')
             ++i;
 
         return value;
     }
 
-    static const RelativeCoordinate readNextCoordinate (const String& s, int& i, const bool isHorizontal)
+    static const RelativeCoordinate readNextCoordinate (const juce_wchar* const s, int& i, const bool isHorizontal)
     {
         String anchor1 (readAnchorName (s, i));
         double value = 0;
@@ -167,9 +162,6 @@ namespace RelativeCoordinateHelpers
                 {
                     anchor1 = readAnchorName (s, ++i);
 
-                    if (anchor1.isEmpty())
-                        anchor1 = getOriginAnchorName (isHorizontal);
-
                     skipWhitespace (s, i);
 
                     if (s[i] == '-' && s[i + 1] == '>')
@@ -180,19 +172,19 @@ namespace RelativeCoordinateHelpers
                     else
                     {
                         anchor2 = anchor1;
-                        anchor1 = getOriginAnchorName (isHorizontal);
+                        anchor1 = String::empty;
                     }
                 }
                 else
                 {
-                    anchor1 = getOriginAnchorName (isHorizontal);
+                    anchor1 = String::empty;
                     anchor2 = getExtentAnchorName (isHorizontal);
                 }
 
                 return RelativeCoordinate (value, anchor1, anchor2);
             }
 
-            return RelativeCoordinate (value, isHorizontal);
+            return RelativeCoordinate (value);
         }
     }
 
@@ -202,25 +194,6 @@ namespace RelativeCoordinateHelpers
             return "0";
 
         return String (n, 3).trimCharactersAtEnd ("0").trimCharactersAtEnd (".");
-    }
-
-    static bool couldBeMistakenForPathCommand (const String& s)
-    {
-        switch (s[0])
-        {
-        case 'a':
-        case 'm':
-        case 'l':
-        case 'z':
-        case 'q':
-        case 'c':
-            return s[1] == 0 || CharacterFunctions::isWhitespace (s[1]);
-
-        default:
-            break;
-        }
-
-        return false;
     }
 }
 
@@ -241,9 +214,8 @@ RelativeCoordinate::RelativeCoordinate()
 {
 }
 
-RelativeCoordinate::RelativeCoordinate (const double absoluteDistanceFromOrigin, const bool horizontal_)
-    : anchor1 (RelativeCoordinateHelpers::getOriginAnchorName (horizontal_)),
-      value (absoluteDistanceFromOrigin)
+RelativeCoordinate::RelativeCoordinate (const double absoluteDistanceFromOrigin)
+    : value (absoluteDistanceFromOrigin)
 {
 }
 
@@ -251,7 +223,6 @@ RelativeCoordinate::RelativeCoordinate (const double absoluteDistance, const Str
     : anchor1 (source.trim()),
       value (absoluteDistance)
 {
-    jassert (anchor1.isNotEmpty());
 }
 
 RelativeCoordinate::RelativeCoordinate (const double relativeProportion, const String& pos1, const String& pos2)
@@ -259,8 +230,6 @@ RelativeCoordinate::RelativeCoordinate (const double relativeProportion, const S
       anchor2 (pos2.trim()),
       value (relativeProportion)
 {
-    jassert (anchor1.isNotEmpty());
-    jassert (anchor2.isNotEmpty());
 }
 
 RelativeCoordinate::RelativeCoordinate (const String& s, const bool isHorizontal)
@@ -365,13 +334,13 @@ void RelativeCoordinate::moveToAbsolute (double newPos, const NamedCoordinateFin
     {}
 }
 
-void RelativeCoordinate::toggleProportionality (const NamedCoordinateFinder* nameFinder, bool isHorizontal)
+void RelativeCoordinate::toggleProportionality (const NamedCoordinateFinder* nameFinder,
+                                                const String& proportionalAnchor1, const String& proportionalAnchor2)
 {
     const double oldValue = resolve (nameFinder);
 
-    anchor1 = RelativeCoordinateHelpers::getOriginAnchorName (isHorizontal);
-    anchor2 = isProportional() ? String::empty
-                               : RelativeCoordinateHelpers::getExtentAnchorName (isHorizontal);
+    anchor1 = proportionalAnchor1;
+    anchor2 = isProportional() ? String::empty : proportionalAnchor2;
 
     moveToAbsolute (oldValue, nameFinder);
 }
@@ -405,7 +374,7 @@ const String RelativeCoordinate::toString() const
 
         if (isOrigin (anchor1))
         {
-            if (anchor2 == "parent.right" || anchor2 == "parent.bottom")
+            if (anchor2 == Strings::parentRight || anchor2 == Strings::parentBottom)
                 return percent + "%";
             else
                 return percent + "% * " + anchor2;
@@ -438,12 +407,22 @@ void RelativeCoordinate::setEditableNumber (const double newValue)
 }
 
 //==============================================================================
+const String RelativeCoordinate::getAnchorName1 (const String& returnValueIfOrigin) const
+{
+    return RelativeCoordinateHelpers::isOrigin (anchor1) ? returnValueIfOrigin : anchor1;
+}
+
+const String RelativeCoordinate::getAnchorName2 (const String& returnValueIfOrigin) const
+{
+    return RelativeCoordinateHelpers::isOrigin (anchor2) ? returnValueIfOrigin : anchor2;
+}
+
 void RelativeCoordinate::changeAnchor1 (const String& newAnchorName, const NamedCoordinateFinder* nameFinder)
 {
     jassert (newAnchorName.toLowerCase().containsOnly ("abcdefghijklmnopqrstuvwxyz0123456789_."));
 
     const double oldValue = resolve (nameFinder);
-    anchor1 = newAnchorName;
+    anchor1 = RelativeCoordinateHelpers::isOrigin (newAnchorName) ? String::empty : newAnchorName;
     moveToAbsolute (oldValue, nameFinder);
 }
 
@@ -453,7 +432,7 @@ void RelativeCoordinate::changeAnchor2 (const String& newAnchorName, const Named
     jassert (newAnchorName.toLowerCase().containsOnly ("abcdefghijklmnopqrstuvwxyz0123456789_."));
 
     const double oldValue = resolve (nameFinder);
-    anchor2 = newAnchorName;
+    anchor2 = RelativeCoordinateHelpers::isOrigin (newAnchorName) ? String::empty : newAnchorName;
     moveToAbsolute (oldValue, nameFinder);
 }
 
@@ -485,12 +464,16 @@ void RelativeCoordinate::renameAnchorIfUsed (const String& oldName, const String
 
 //==============================================================================
 RelativePoint::RelativePoint()
-    : x (0, true), y (0, false)
 {
 }
 
 RelativePoint::RelativePoint (const Point<float>& absolutePoint)
-    : x (absolutePoint.getX(), true), y (absolutePoint.getY(), false)
+    : x (absolutePoint.getX()), y (absolutePoint.getY())
+{
+}
+
+RelativePoint::RelativePoint (const float x_, const float y_)
+    : x (x_), y (y_)
 {
 }
 
@@ -551,10 +534,16 @@ RelativeRectangle::RelativeRectangle()
 {
 }
 
+RelativeRectangle::RelativeRectangle (const RelativeCoordinate& left_, const RelativeCoordinate& right_,
+                                      const RelativeCoordinate& top_, const RelativeCoordinate& bottom_)
+    : left (left_), right (right_), top (top_), bottom (bottom_)
+{
+}
+
 RelativeRectangle::RelativeRectangle (const Rectangle<float>& rect, const String& componentName)
-    : left (rect.getX(), true),
+    : left (rect.getX()),
       right (rect.getWidth(), componentName + "." + RelativeCoordinate::Strings::left),
-      top (rect.getY(), false),
+      top (rect.getY()),
       bottom (rect.getHeight(), componentName + "." + RelativeCoordinate::Strings::top)
 {
 }
@@ -625,88 +614,83 @@ RelativePointPath::RelativePointPath (const RelativePointPath& other)
     : usesNonZeroWinding (true),
       containsDynamicPoints (false)
 {
-    parseString (other.toString());
+    ValueTree state (DrawablePath::valueTreeType);
+    other.writeTo (state, 0);
+    parse (state);
 }
 
-RelativePointPath::RelativePointPath (const String& s)
+RelativePointPath::RelativePointPath (const ValueTree& drawable)
     : usesNonZeroWinding (true),
       containsDynamicPoints (false)
 {
-    parseString (s);
+    parse (drawable);
 }
 
-void RelativePointPath::parseString (const String& s)
+RelativePointPath::RelativePointPath (const Path& path)
 {
-    int i = 0;
-    juce_wchar marker = 'm';
-    int numValues = 2;
-    RelativePoint points [3];
+    usesNonZeroWinding = path.isUsingNonZeroWinding();
 
-    for (;;)
+    Path::Iterator i (path);
+
+    while (i.next())
     {
-        RelativeCoordinateHelpers::skipWhitespace (s, i);
-        const juce_wchar firstChar = s[i];
-
-        if (firstChar == 0)
-            break;
-
-        const juce_wchar secondChar = s[i + 1];
-
-        if (secondChar == 0 || CharacterFunctions::isWhitespace (secondChar))
+        switch (i.elementType)
         {
-            if (firstChar == 'm' || firstChar == 'l')
-            {
-                ++i;
-                marker = firstChar;
-                numValues = 1;
-            }
-            else if (firstChar == 'q')
-            {
-                ++i;
-                marker = firstChar;
-                numValues = 2;
-            }
-            else if (firstChar == 'c')
-            {
-                ++i;
-                marker = firstChar;
-                numValues = 3;
-            }
-            else if (firstChar == 'z')
-            {
-                ++i;
-                marker = 'm';
-                numValues = 2;
-                elements.add (new CloseSubPath());
-                continue;
-            }
-            else if (firstChar == 'a')
-            {
-                ++i;
-                usesNonZeroWinding = false;
-                continue;
-            }
+            case Path::Iterator::startNewSubPath:   elements.add (new StartSubPath (RelativePoint (i.x1, i.y1))); break;
+            case Path::Iterator::lineTo:            elements.add (new LineTo (RelativePoint (i.x1, i.y1))); break;
+            case Path::Iterator::quadraticTo:       elements.add (new QuadraticTo (RelativePoint (i.x1, i.y1), RelativePoint (i.x2, i.y2))); break;
+            case Path::Iterator::cubicTo:           elements.add (new CubicTo (RelativePoint (i.x1, i.y1), RelativePoint (i.x2, i.y2), RelativePoint (i.x3, i.y3))); break;
+            case Path::Iterator::closePath:         elements.add (new CloseSubPath()); break;
+            default:                                jassertfalse; break;
         }
+    }
+}
 
-        if (firstChar == '#')
-            ++i;
+void RelativePointPath::writeTo (ValueTree state, UndoManager* undoManager) const
+{
+    DrawablePath::ValueTreeWrapper wrapper (state);
+    wrapper.setUsesNonZeroWinding (usesNonZeroWinding, undoManager);
 
-        for (int j = 0; j < numValues; ++j)
+    ValueTree pathTree (wrapper.getPathState());
+    pathTree.removeAllChildren (undoManager);
+
+    for (int i = 0; i < elements.size(); ++i)
+        pathTree.addChild (elements.getUnchecked(i)->createTree(), -1, undoManager);
+}
+
+void RelativePointPath::parse (const ValueTree& state)
+{
+    DrawablePath::ValueTreeWrapper wrapper (state);
+    usesNonZeroWinding = wrapper.usesNonZeroWinding();
+    RelativePoint points[3];
+
+    const ValueTree pathTree (wrapper.getPathState());
+    const int num = pathTree.getNumChildren();
+    for (int i = 0; i < num; ++i)
+    {
+        const DrawablePath::ValueTreeWrapper::Element e (pathTree.getChild(i));
+
+        const int numCps = e.getNumControlPoints();
+        for (int j = 0; j < numCps; ++j)
         {
-            const RelativeCoordinate x (RelativeCoordinateHelpers::readNextCoordinate (s, i, true));
-            const RelativeCoordinate y (RelativeCoordinateHelpers::readNextCoordinate (s, i, false));
-            points[j] = RelativePoint (x, y);
+            points[j] = e.getControlPoint (j);
             containsDynamicPoints = containsDynamicPoints || points[j].isDynamic();
         }
 
-        switch (marker)
-        {
-            case 'm':   elements.add (new StartSubPath (points[0])); break;
-            case 'l':   elements.add (new LineTo (points[0])); break;
-            case 'q':   elements.add (new QuadraticTo (points[0], points[1])); break;
-            case 'c':   elements.add (new CubicTo (points[0], points[1], points[2])); break;
-            default: jassertfalse; break;  // illegal string format?
-        }
+        const Identifier type (e.getType());
+
+        if (type == DrawablePath::ValueTreeWrapper::Element::startSubPathElement)
+            elements.add (new StartSubPath (points[0]));
+        else if (type == DrawablePath::ValueTreeWrapper::Element::closeSubPathElement)
+            elements.add (new CloseSubPath());
+        else if (type == DrawablePath::ValueTreeWrapper::Element::lineToElement)
+            elements.add (new LineTo (points[0]));
+        else if (type == DrawablePath::ValueTreeWrapper::Element::quadraticToElement)
+            elements.add (new QuadraticTo (points[0], points[1]));
+        else if (type == DrawablePath::ValueTreeWrapper::Element::cubicToElement)
+            elements.add (new CubicTo (points[0], points[1], points[2]));
+        else
+            jassertfalse;
     }
 }
 
@@ -731,27 +715,6 @@ bool RelativePointPath::containsAnyDynamicPoints() const
     return containsDynamicPoints;
 }
 
-const String RelativePointPath::toString() const
-{
-    ElementType lastType = nullElement;
-    MemoryOutputStream out;
-
-    if (! usesNonZeroWinding)
-        out << 'a';
-
-    for (int i = 0; i < elements.size(); ++i)
-    {
-        if (out.getDataSize() > 0)
-            out << ' ';
-
-        const ElementBase* const e = elements.getUnchecked(i);
-        e->write (out, lastType);
-        lastType = e->type;
-    }
-
-    return out.toUTF8();
-}
-
 //==============================================================================
 RelativePointPath::ElementBase::ElementBase (const ElementType type_) : type (type_)
 {
@@ -763,22 +726,16 @@ RelativePointPath::StartSubPath::StartSubPath (const RelativePoint& pos)
 {
 }
 
-void RelativePointPath::StartSubPath::write (OutputStream& out, ElementType lastTypeWritten) const
+const ValueTree RelativePointPath::StartSubPath::createTree() const
 {
-    const String p (startPos.toString());
-
-    if (lastTypeWritten != startSubPathElement)
-        out << "m ";
-    else if (RelativeCoordinateHelpers::couldBeMistakenForPathCommand (p))
-        out << '#';
-
-    out << p;
+    ValueTree v (DrawablePath::ValueTreeWrapper::Element::startSubPathElement);
+    v.setProperty (DrawablePath::ValueTreeWrapper::point1, startPos.toString(), 0);
+    return v;
 }
 
 void RelativePointPath::StartSubPath::addToPath (Path& path, RelativeCoordinate::NamedCoordinateFinder* coordFinder) const
 {
-    const Point<float> p (startPos.resolve (coordFinder));
-    path.startNewSubPath (p.getX(), p.getY());
+    path.startNewSubPath (startPos.resolve (coordFinder));
 }
 
 RelativePoint* RelativePointPath::StartSubPath::getControlPoints (int& numPoints)
@@ -793,10 +750,9 @@ RelativePointPath::CloseSubPath::CloseSubPath()
 {
 }
 
-void RelativePointPath::CloseSubPath::write (OutputStream& out, ElementType lastTypeWritten) const
+const ValueTree RelativePointPath::CloseSubPath::createTree() const
 {
-    if (lastTypeWritten != closeSubPathElement)
-        out << 'z';
+    return ValueTree (DrawablePath::ValueTreeWrapper::Element::closeSubPathElement);
 }
 
 void RelativePointPath::CloseSubPath::addToPath (Path& path, RelativeCoordinate::NamedCoordinateFinder*) const
@@ -816,22 +772,16 @@ RelativePointPath::LineTo::LineTo (const RelativePoint& endPoint_)
 {
 }
 
-void RelativePointPath::LineTo::write (OutputStream& out, ElementType lastTypeWritten) const
+const ValueTree RelativePointPath::LineTo::createTree() const
 {
-    const String p (endPoint.toString());
-
-    if (lastTypeWritten != lineToElement)
-        out << "l ";
-    else if (RelativeCoordinateHelpers::couldBeMistakenForPathCommand (p))
-        out << '#';
-
-    out << p;
+    ValueTree v (DrawablePath::ValueTreeWrapper::Element::lineToElement);
+    v.setProperty (DrawablePath::ValueTreeWrapper::point1, endPoint.toString(), 0);
+    return v;
 }
 
 void RelativePointPath::LineTo::addToPath (Path& path, RelativeCoordinate::NamedCoordinateFinder* coordFinder) const
 {
-    const Point<float> p (endPoint.resolve (coordFinder));
-    path.lineTo (p.getX(), p.getY());
+    path.lineTo (endPoint.resolve (coordFinder));
 }
 
 RelativePoint* RelativePointPath::LineTo::getControlPoints (int& numPoints)
@@ -848,23 +798,18 @@ RelativePointPath::QuadraticTo::QuadraticTo (const RelativePoint& controlPoint, 
     controlPoints[1] = endPoint;
 }
 
-void RelativePointPath::QuadraticTo::write (OutputStream& out, ElementType lastTypeWritten) const
+const ValueTree RelativePointPath::QuadraticTo::createTree() const
 {
-    const String p1 (controlPoints[0].toString());
-
-    if (lastTypeWritten != quadraticToElement)
-        out << "q ";
-    else if (RelativeCoordinateHelpers::couldBeMistakenForPathCommand (p1))
-        out << '#';
-
-    out << p1 << ' ' << controlPoints[1].toString();
+    ValueTree v (DrawablePath::ValueTreeWrapper::Element::quadraticToElement);
+    v.setProperty (DrawablePath::ValueTreeWrapper::point1, controlPoints[0].toString(), 0);
+    v.setProperty (DrawablePath::ValueTreeWrapper::point2, controlPoints[1].toString(), 0);
+    return v;
 }
 
 void RelativePointPath::QuadraticTo::addToPath (Path& path, RelativeCoordinate::NamedCoordinateFinder* coordFinder) const
 {
-    const Point<float> p1 (controlPoints[0].resolve (coordFinder));
-    const Point<float> p2 (controlPoints[1].resolve (coordFinder));
-    path.quadraticTo (p1.getX(), p1.getY(), p2.getX(), p2.getY());
+    path.quadraticTo (controlPoints[0].resolve (coordFinder),
+                      controlPoints[1].resolve (coordFinder));
 }
 
 RelativePoint* RelativePointPath::QuadraticTo::getControlPoints (int& numPoints)
@@ -882,30 +827,123 @@ RelativePointPath::CubicTo::CubicTo (const RelativePoint& controlPoint1, const R
     controlPoints[2] = endPoint;
 }
 
-void RelativePointPath::CubicTo::write (OutputStream& out, ElementType lastTypeWritten) const
+const ValueTree RelativePointPath::CubicTo::createTree() const
 {
-    const String p1 (controlPoints[0].toString());
-
-    if (lastTypeWritten != cubicToElement)
-        out << "c ";
-    else if (RelativeCoordinateHelpers::couldBeMistakenForPathCommand (p1))
-        out << '#';
-
-    out << p1 << ' ' << controlPoints[1].toString() << ' ' << controlPoints[2].toString();
+    ValueTree v (DrawablePath::ValueTreeWrapper::Element::cubicToElement);
+    v.setProperty (DrawablePath::ValueTreeWrapper::point1, controlPoints[0].toString(), 0);
+    v.setProperty (DrawablePath::ValueTreeWrapper::point2, controlPoints[1].toString(), 0);
+    v.setProperty (DrawablePath::ValueTreeWrapper::point3, controlPoints[2].toString(), 0);
+    return v;
 }
 
 void RelativePointPath::CubicTo::addToPath (Path& path, RelativeCoordinate::NamedCoordinateFinder* coordFinder) const
 {
-    const Point<float> p1 (controlPoints[0].resolve (coordFinder));
-    const Point<float> p2 (controlPoints[1].resolve (coordFinder));
-    const Point<float> p3 (controlPoints[2].resolve (coordFinder));
-    path.cubicTo (p1.getX(), p1.getY(), p2.getX(), p2.getY(), p3.getX(), p3.getY());
+    path.cubicTo (controlPoints[0].resolve (coordFinder),
+                  controlPoints[1].resolve (coordFinder),
+                  controlPoints[2].resolve (coordFinder));
 }
 
 RelativePoint* RelativePointPath::CubicTo::getControlPoints (int& numPoints)
 {
     numPoints = 3;
     return controlPoints;
+}
+
+
+//==============================================================================
+RelativeParallelogram::RelativeParallelogram()
+{
+}
+
+RelativeParallelogram::RelativeParallelogram (const RelativePoint& topLeft_, const RelativePoint& topRight_, const RelativePoint& bottomLeft_)
+    : topLeft (topLeft_), topRight (topRight_), bottomLeft (bottomLeft_)
+{
+}
+
+RelativeParallelogram::RelativeParallelogram (const String& topLeft_, const String& topRight_, const String& bottomLeft_)
+    : topLeft (topLeft_), topRight (topRight_), bottomLeft (bottomLeft_)
+{
+}
+
+RelativeParallelogram::~RelativeParallelogram()
+{
+}
+
+void RelativeParallelogram::resolveThreePoints (Point<float>* points, RelativeCoordinate::NamedCoordinateFinder* const coordFinder) const
+{
+    points[0] = topLeft.resolve (coordFinder);
+    points[1] = topRight.resolve (coordFinder);
+    points[2] = bottomLeft.resolve (coordFinder);
+}
+
+void RelativeParallelogram::resolveFourCorners (Point<float>* points, RelativeCoordinate::NamedCoordinateFinder* const coordFinder) const
+{
+    resolveThreePoints (points, coordFinder);
+    points[3] = points[1] + (points[2] - points[0]);
+}
+
+const Rectangle<float> RelativeParallelogram::getBounds (RelativeCoordinate::NamedCoordinateFinder* const coordFinder) const
+{
+    Point<float> points[4];
+    resolveFourCorners (points, coordFinder);
+    return Rectangle<float>::findAreaContainingPoints (points, 4);
+}
+
+void RelativeParallelogram::getPath (Path& path, RelativeCoordinate::NamedCoordinateFinder* const coordFinder) const
+{
+    Point<float> points[4];
+    resolveFourCorners (points, coordFinder);
+
+    path.startNewSubPath (points[0]);
+    path.lineTo (points[1]);
+    path.lineTo (points[3]);
+    path.lineTo (points[2]);
+    path.closeSubPath();
+}
+
+const AffineTransform RelativeParallelogram::resetToPerpendicular (RelativeCoordinate::NamedCoordinateFinder* const coordFinder)
+{
+    Point<float> corners[3];
+    resolveThreePoints (corners, coordFinder);
+
+    const Line<float> top (corners[0], corners[1]);
+    const Line<float> left (corners[0], corners[2]);
+    const Point<float> newTopRight (corners[0] + Point<float> (top.getLength(), 0.0f));
+    const Point<float> newBottomLeft (corners[0] + Point<float> (0.0f, left.getLength()));
+
+    topRight.moveToAbsolute (newTopRight, coordFinder);
+    bottomLeft.moveToAbsolute (newBottomLeft, coordFinder);
+
+    return AffineTransform::fromTargetPoints (corners[0].getX(), corners[0].getY(), corners[0].getX(), corners[0].getY(),
+                                              corners[1].getX(), corners[1].getY(), newTopRight.getX(), newTopRight.getY(),
+                                              corners[2].getX(), corners[2].getY(), newBottomLeft.getX(), newBottomLeft.getY());
+}
+
+bool RelativeParallelogram::operator== (const RelativeParallelogram& other) const throw()
+{
+    return topLeft == other.topLeft && topRight == other.topRight && bottomLeft == other.bottomLeft;
+}
+
+bool RelativeParallelogram::operator!= (const RelativeParallelogram& other) const throw()
+{
+    return ! operator== (other);
+}
+
+const Point<float> RelativeParallelogram::getInternalCoordForPoint (const Point<float>* const corners, Point<float> target) throw()
+{
+    const Point<float> tr (corners[1] - corners[0]);
+    const Point<float> bl (corners[2] - corners[0]);
+    target -= corners[0];
+
+    return Point<float> (Line<float> (Point<float>(), tr).getIntersection (Line<float> (target, target - bl)).getDistanceFromOrigin(),
+                         Line<float> (Point<float>(), bl).getIntersection (Line<float> (target, target - tr)).getDistanceFromOrigin());
+}
+
+const Point<float> RelativeParallelogram::getPointForInternalCoord (const Point<float>* const corners, const Point<float>& point) throw()
+{
+    return corners[0]
+            + Line<float> (Point<float>(), corners[1] - corners[0]).getPointAlongLine (point.getX())
+            + Line<float> (Point<float>(), corners[2] - corners[0]).getPointAlongLine (point.getY());
 }
 
 

@@ -39,15 +39,12 @@ BEGIN_JUCE_NAMESPACE
 #include "../../events/juce_MessageManager.h"
 #include "../../events/juce_Timer.h"
 #include "../../core/juce_Time.h"
-#include "../../core/juce_Singleton.h"
 #include "../../core/juce_PlatformUtilities.h"
 #include "mouse/juce_MouseInputSource.h"
 
-//==============================================================================
-Component* Component::currentlyFocusedComponent = 0;
 
-static Array <Component*> modalComponentStack, modalComponentReturnValueKeys;
-static Array <int> modalReturnValues;
+//==============================================================================
+#define checkMessageManagerIsLocked     jassert (MessageManager::getInstance()->currentThreadHasLockedMessageManager());
 
 enum ComponentMessageNumbers
 {
@@ -55,10 +52,8 @@ enum ComponentMessageNumbers
     exitModalStateMessage  = 0x7fff0002
 };
 
-//==============================================================================
-#define checkMessageManagerIsLocked     jassert (MessageManager::getInstance()->currentThreadHasLockedMessageManager());
-
 static uint32 nextComponentUID = 0;
+Component* Component::currentlyFocusedComponent = 0;
 
 
 //==============================================================================
@@ -106,12 +101,9 @@ Component::~Component()
     if (flags.hasHeavyweightPeerFlag)
         removeFromDesktop();
 
-    modalComponentStack.removeValue (this);
-
     for (int i = childComponentList_.size(); --i >= 0;)
         childComponentList_.getUnchecked(i)->parentComponent_ = 0;
 
-    delete bufferedImage_;
     delete mouseListeners_;
     delete keyListeners_;
 }
@@ -258,7 +250,6 @@ public:
 
     ~FadeOutProxyComponent()
     {
-        delete image;
     }
 
     void paint (Graphics& g)
@@ -267,7 +258,7 @@ public:
 
         g.drawImage (image,
                      0, 0, getWidth(), getHeight(),
-                     0, 0, image->getWidth(), image->getHeight());
+                     0, 0, image.getWidth(), image.getHeight());
     }
 
     void timerCallback()
@@ -290,8 +281,8 @@ public:
                 centreY += yChangePerMs * msPassed;
                 scale += scaleChangePerMs * msPassed;
 
-                const int w = roundToInt (image->getWidth() * scale);
-                const int h = roundToInt (image->getHeight() * scale);
+                const int w = roundToInt (image.getWidth() * scale);
+                const int h = roundToInt (image.getHeight() * scale);
 
                 setBounds (roundToInt (centreX) - w / 2,
                            roundToInt (centreY) - h / 2,
@@ -309,7 +300,7 @@ public:
     juce_UseDebuggingNewOperator
 
 private:
-    Image* image;
+    Image image;
     uint32 lastTime;
     float alpha, alphaChangePerMs;
     float centreX, xChangePerMs;
@@ -511,7 +502,7 @@ void Component::setBufferedToImage (const bool shouldBeBuffered)
 {
     if (shouldBeBuffered != flags.bufferToImageFlag)
     {
-        deleteAndZero (bufferedImage_);
+        bufferedImage_ = Image::null;
         flags.bufferToImageFlag = shouldBeBuffered;
     }
 }
@@ -800,7 +791,7 @@ const Point<int> Component::relativePositionToOtherComponent (const Component* c
 }
 
 //==============================================================================
-void Component::setBounds (int x, int y, int w, int h)
+void Component::setBounds (const int x, const int y, int w, int h)
 {
     // if component methods are being called from threads other than the message
     // thread, you'll need to use a MessageManagerLock object to make sure it's thread-safe.
@@ -934,18 +925,16 @@ void Component::setCentreRelative (const float x, const float y)
 
 void Component::centreWithSize (const int width, const int height)
 {
-    setBounds ((getParentWidth() - width) / 2,
-               (getParentHeight() - height) / 2,
-               width,
-               height);
+    const Rectangle<int> parentArea (getParentOrMainMonitorBounds());
+
+    setBounds (parentArea.getCentreX() - width / 2,
+               parentArea.getCentreY() - height / 2,
+               width, height);
 }
 
 void Component::setBoundsInset (const BorderSize& borders)
 {
-    setBounds (borders.getLeft(),
-               borders.getTop(),
-               getParentWidth() - (borders.getLeftAndRight()),
-               getParentHeight() - (borders.getTopAndBottom()));
+    setBounds (borders.subtractedFrom (getParentOrMainMonitorBounds()));
 }
 
 void Component::setBoundsToFit (int x, int y, int width, int height,
@@ -1332,59 +1321,17 @@ int Component::runModalLoop()
     if (! MessageManager::getInstance()->isThisTheMessageThread())
     {
         // use a callback so this can be called from non-gui threads
-        return (int) (pointer_sized_int)
-                    MessageManager::getInstance()
-                       ->callFunctionOnMessageThread (&runModalLoopCallback, this);
+        return (int) (pointer_sized_int) MessageManager::getInstance()
+                                           ->callFunctionOnMessageThread (&runModalLoopCallback, this);
     }
-
-    SafePointer<Component> prevFocused (getCurrentlyFocusedComponent());
 
     if (! isCurrentlyModal())
-        enterModalState();
+        enterModalState (true);
 
-    JUCE_TRY
-    {
-        while (flags.currentlyModalFlag && flags.visibleFlag)
-        {
-            if  (! MessageManager::getInstance()->runDispatchLoopUntil (20))
-                break;
-
-            // check whether this component was deleted during the last message
-            if (! isValidMessageListener())
-                break;
-        }
-    }
-#if JUCE_CATCH_UNHANDLED_EXCEPTIONS
-    catch (const std::exception& e)
-    {
-        JUCEApplication::sendUnhandledException (&e, __FILE__, __LINE__);
-        return 0;
-    }
-    catch (...)
-    {
-        JUCEApplication::sendUnhandledException (0, __FILE__, __LINE__);
-        return 0;
-    }
-#endif
-
-    const int modalIndex = modalComponentReturnValueKeys.indexOf (this);
-    int returnValue = 0;
-
-    if (modalIndex >= 0)
-    {
-        modalComponentReturnValueKeys.remove (modalIndex);
-        returnValue = modalReturnValues.remove (modalIndex);
-    }
-
-    modalComponentStack.removeValue (this);
-
-    if (prevFocused != 0)
-        prevFocused->grabKeyboardFocus();
-
-    return returnValue;
+    return ModalComponentManager::getInstance()->runEventLoopForCurrentComponent();
 }
 
-void Component::enterModalState (const bool takeKeyboardFocus_)
+void Component::enterModalState (const bool takeKeyboardFocus_, ModalComponentManager::Callback* const callback)
 {
     // if component methods are being called from threads other than the message
     // thread, you'll need to use a MessageManagerLock object to make sure it's thread-safe.
@@ -1396,10 +1343,7 @@ void Component::enterModalState (const bool takeKeyboardFocus_)
 
     if (! isCurrentlyModal())
     {
-        modalComponentStack.add (this);
-        modalComponentReturnValueKeys.add (this);
-        modalReturnValues.add (0);
-
+        ModalComponentManager::getInstance()->startModal (this, callback);
         flags.currentlyModalFlag = true;
         setVisible (true);
 
@@ -1414,20 +1358,7 @@ void Component::exitModalState (const int returnValue)
     {
         if (MessageManager::getInstance()->isThisTheMessageThread())
         {
-            const int modalIndex = modalComponentReturnValueKeys.indexOf (this);
-
-            if (modalIndex >= 0)
-            {
-                modalReturnValues.set (modalIndex, returnValue);
-            }
-            else
-            {
-                modalComponentReturnValueKeys.add (this);
-                modalReturnValues.add (returnValue);
-            }
-
-            modalComponentStack.removeValue (this);
-
+            ModalComponentManager::getInstance()->endModal (this, returnValue);
             flags.currentlyModalFlag = false;
 
             bringModalComponentToFront();
@@ -1457,14 +1388,12 @@ bool Component::isCurrentlyBlockedByAnotherModalComponent() const
 
 int JUCE_CALLTYPE Component::getNumCurrentlyModalComponents() throw()
 {
-    return modalComponentStack.size();
+    return ModalComponentManager::getInstance()->getNumModalComponents();
 }
 
 Component* JUCE_CALLTYPE Component::getCurrentlyModalComponent (int index) throw()
 {
-    Component* const c = static_cast <Component*> (modalComponentStack [modalComponentStack.size() - index - 1]);
-
-    return c->isValidComponent() ? c : 0;
+    return ModalComponentManager::getInstance()->getModalComponent (index);
 }
 
 void Component::bringModalComponentToFront()
@@ -1549,7 +1478,7 @@ void Component::repaint()
 void Component::repaint (const int x, const int y,
                          const int w, const int h)
 {
-    deleteAndZero (bufferedImage_);
+    bufferedImage_ = Image::null;
 
     if (flags.visibleFlag)
         internalRepaint (x, y, w, h);
@@ -1619,12 +1548,12 @@ void Component::renderComponent (Graphics& g)
     {
         if (flags.bufferToImageFlag)
         {
-            if (bufferedImage_ == 0)
+            if (bufferedImage_.isNull())
             {
-                bufferedImage_ = Image::createNativeImage (flags.opaqueFlag ? Image::RGB : Image::ARGB,
-                                                           getWidth(), getHeight(), ! flags.opaqueFlag);
+                bufferedImage_ = Image (flags.opaqueFlag ? Image::RGB : Image::ARGB,
+                                        getWidth(), getHeight(), ! flags.opaqueFlag, Image::NativeImage);
 
-                Graphics imG (*bufferedImage_);
+                Graphics imG (bufferedImage_);
                 paint (imG);
             }
 
@@ -1684,15 +1613,15 @@ void Component::paintEntireComponent (Graphics& g)
 
     if (effect_ != 0)
     {
-        ScopedPointer<Image> effectImage (Image::createNativeImage (flags.opaqueFlag ? Image::RGB : Image::ARGB,
-                                                                    getWidth(), getHeight(),
-                                                                    ! flags.opaqueFlag));
+        Image effectImage (flags.opaqueFlag ? Image::RGB : Image::ARGB,
+                           getWidth(), getHeight(),
+                           ! flags.opaqueFlag, Image::NativeImage);
         {
-            Graphics g2 (*effectImage);
+            Graphics g2 (effectImage);
             renderComponent (g2);
         }
 
-        effect_->applyEffect (*effectImage, g);
+        effect_->applyEffect (effectImage, g);
     }
     else
     {
@@ -1705,24 +1634,24 @@ void Component::paintEntireComponent (Graphics& g)
 }
 
 //==============================================================================
-Image* Component::createComponentSnapshot (const Rectangle<int>& areaToGrab,
-                                           const bool clipImageToComponentBounds)
+const Image Component::createComponentSnapshot (const Rectangle<int>& areaToGrab,
+                                                const bool clipImageToComponentBounds)
 {
     Rectangle<int> r (areaToGrab);
 
     if (clipImageToComponentBounds)
         r = r.getIntersection (getLocalBounds());
 
-    ScopedPointer<Image> componentImage (Image::createNativeImage (flags.opaqueFlag ? Image::RGB : Image::ARGB,
-                                                                   jmax (1, r.getWidth()),
-                                                                   jmax (1, r.getHeight()),
-                                                                   true));
+    Image componentImage (flags.opaqueFlag ? Image::RGB : Image::ARGB,
+                          jmax (1, r.getWidth()),
+                          jmax (1, r.getHeight()),
+                          true);
 
-    Graphics imageContext (*componentImage);
+    Graphics imageContext (componentImage);
     imageContext.setOrigin (-r.getX(), -r.getY());
     paintEntireComponent (imageContext);
 
-    return componentImage.release();
+    return componentImage;
 }
 
 void Component::setComponentEffect (ImageEffectFilter* const effect)
@@ -1850,7 +1779,13 @@ void Component::colourChanged()
 //==============================================================================
 const Rectangle<int> Component::getLocalBounds() const throw()
 {
-    return Rectangle<int> (0, 0, getWidth(), getHeight());
+    return Rectangle<int> (getWidth(), getHeight());
+}
+
+const Rectangle<int> Component::getParentOrMainMonitorBounds() const
+{
+    return parentComponent_ != 0 ? parentComponent_->getLocalBounds()
+                                 : Desktop::getInstance().getMainMonitorArea();
 }
 
 const Rectangle<int> Component::getUnclippedArea() const
@@ -2158,7 +2093,7 @@ void Component::internalMouseEnter (MouseInputSource& source, const Point<int>& 
             repaint();
 
         const MouseEvent me (source, relativePos, source.getCurrentModifiers(),
-                             this, time, relativePos,
+                             this, this, time, relativePos,
                              time, 0, false);
 
         mouseEnter (me);
@@ -2231,7 +2166,7 @@ void Component::internalMouseExit (MouseInputSource& source, const Point<int>& r
             repaint();
 
         const MouseEvent me (source, relativePos, source.getCurrentModifiers(),
-                             this, time, relativePos,
+                             this, this, time, relativePos,
                              time, 0, false);
         mouseExit (me);
 
@@ -2357,7 +2292,7 @@ void Component::internalMouseDown (MouseInputSource& source, const Point<int>& r
         {
             // allow blocked mouse-events to go to global listeners..
             const MouseEvent me (source, relativePos, source.getCurrentModifiers(),
-                                 this, time, relativePos, time,
+                                 this, this, time, relativePos, time,
                                  source.getNumberOfMultipleClicks(), false);
 
             desktop.resetTimer();
@@ -2398,7 +2333,7 @@ void Component::internalMouseDown (MouseInputSource& source, const Point<int>& r
         repaint();
 
     const MouseEvent me (source, relativePos, source.getCurrentModifiers(),
-                         this, time, relativePos, time,
+                         this, this, time, relativePos, time,
                          source.getNumberOfMultipleClicks(), false);
     mouseDown (me);
 
@@ -2462,7 +2397,7 @@ void Component::internalMouseUp (MouseInputSource& source, const Point<int>& rel
             repaint();
 
         const MouseEvent me (source, relativePos,
-                             oldModifiers, this, time,
+                             oldModifiers, this, this, time,
                              globalPositionToRelative (source.getLastMouseDownPosition()),
                              source.getLastMouseDownTime(),
                              source.getNumberOfMultipleClicks(),
@@ -2580,7 +2515,7 @@ void Component::internalMouseDrag (MouseInputSource& source, const Point<int>& r
         BailOutChecker checker (this);
 
         const MouseEvent me (source, relativePos,
-                             source.getCurrentModifiers(), this, time,
+                             source.getCurrentModifiers(), this, this, time,
                              globalPositionToRelative (source.getLastMouseDownPosition()),
                              source.getLastMouseDownTime(),
                              source.getNumberOfMultipleClicks(),
@@ -2640,7 +2575,7 @@ void Component::internalMouseMove (MouseInputSource& source, const Point<int>& r
     BailOutChecker checker (this);
 
     const MouseEvent me (source, relativePos, source.getCurrentModifiers(),
-                         this, time, relativePos,
+                         this, this, time, relativePos,
                          time, 0, false);
 
     if (isCurrentlyBlockedByAnotherModalComponent())
@@ -2706,11 +2641,11 @@ void Component::internalMouseWheel (MouseInputSource& source, const Point<int>& 
     Desktop& desktop = Desktop::getInstance();
     BailOutChecker checker (this);
 
-    const float wheelIncrementX = amountX * (1.0f / 256.0f);
-    const float wheelIncrementY = amountY * (1.0f / 256.0f);
+    const float wheelIncrementX = amountX / 256.0f;
+    const float wheelIncrementY = amountY / 256.0f;
 
     const MouseEvent me (source, relativePos, source.getCurrentModifiers(),
-                         this, time, relativePos, time, 0, false);
+                         this, this, time, relativePos, time, 0, false);
 
     if (isCurrentlyBlockedByAnotherModalComponent())
     {
@@ -2972,7 +2907,7 @@ void Component::takeKeyboardFocus (const FocusChangeType cause)
 
                 if (peer->isFocused() && currentlyFocusedComponent != this)
                 {
-                    Component* const componentLosingFocus = currentlyFocusedComponent;
+                    SafePointer<Component> componentLosingFocus (currentlyFocusedComponent);
 
                     currentlyFocusedComponent = this;
 
@@ -2980,7 +2915,7 @@ void Component::takeKeyboardFocus (const FocusChangeType cause)
 
                     // call this after setting currentlyFocusedComponent so that the one that's
                     // losing it has a chance to see where focus is going
-                    if (componentLosingFocus->isValidComponent())
+                    if (componentLosingFocus != 0)
                         componentLosingFocus->internalFocusLoss (cause);
 
                     if (currentlyFocusedComponent == this)
@@ -3112,11 +3047,12 @@ Component* JUCE_CALLTYPE Component::getCurrentlyFocusedComponent() throw()
 void Component::giveAwayFocus()
 {
     // use a copy so we can clear the value before the call
-    Component* const componentLosingFocus = currentlyFocusedComponent;
+    SafePointer<Component> componentLosingFocus (currentlyFocusedComponent);
+
     currentlyFocusedComponent = 0;
     Desktop::getInstance().triggerFocusCallback();
 
-    if (componentLosingFocus->isValidComponent())
+    if (componentLosingFocus != 0)
         componentLosingFocus->internalFocusLoss (focusChangedDirectly);
 }
 
@@ -3150,8 +3086,7 @@ const Point<int> Component::getMouseXYRelative() const
 const Rectangle<int> Component::getParentMonitorArea() const
 {
     return Desktop::getInstance()
-            .getMonitorAreaContaining (relativePositionToGlobal (Point<int> (getWidth() / 2,
-                                                                             getHeight() / 2)));
+            .getMonitorAreaContaining (relativePositionToGlobal (getLocalBounds().getCentre()));
 }
 
 //==============================================================================

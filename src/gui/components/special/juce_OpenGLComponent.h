@@ -146,6 +146,16 @@ public:
     */
     virtual void* getRawContext() const throw() = 0;
 
+    /** Deletes the context.
+
+        This must only be called on the message thread, or will deadlock.
+        On background threads, call getCurrentContext()->deleteContext(), but be careful not
+        to call any other OpenGL function afterwards.
+        This doesn't touch other resources, such as window handles, etc.
+        You'll probably never have to call this method directly.
+    */
+    virtual void deleteContext() = 0;
+
     //==============================================================================
     /** Returns the context that's currently in active use by the calling thread.
 
@@ -180,7 +190,7 @@ public:
     {
         openGLDefault = 0,
 
-#if JUCE_IPHONE
+#if JUCE_IOS
         openGLES1,  /**< On the iPhone, this selects openGL ES 1.0 */
         openGLES2   /**< On the iPhone, this selects openGL ES 2.0 */
 #endif
@@ -330,6 +340,10 @@ public:
     */
     void* getNativeWindowHandle() const;
 
+    /** Delete the context.
+        This can be called back on the same thread that created the context. */
+    void deleteContext();
+
     juce_UseDebuggingNewOperator
 
 private:
@@ -347,7 +361,6 @@ private:
     bool needToUpdateViewport;
 
     OpenGLContext* createContext();
-    void deleteContext();
     void updateContextPosition();
     void internalRepaint (int x, int y, int w, int h);
 

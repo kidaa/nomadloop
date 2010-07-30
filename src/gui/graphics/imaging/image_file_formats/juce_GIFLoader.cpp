@@ -27,15 +27,13 @@
 
 BEGIN_JUCE_NAMESPACE
 
-
 #include "juce_GIFLoader.h"
 #include "../../colour/juce_PixelFormats.h"
 
 
 //==============================================================================
 GIFLoader::GIFLoader (InputStream& in)
-    : image (0),
-      input (in),
+    : input (in),
       dataBlockIsZero (false),
       fresh (false),
       finished (false)
@@ -97,12 +95,10 @@ GIFLoader::GIFLoader (InputStream& in)
             if (! readPalette (numColours))
                 break;
 
-        image = Image::createNativeImage ((transparent >= 0) ? Image::ARGB : Image::RGB,
-                                          imageWidth, imageHeight, (transparent >= 0));
+        image = Image ((transparent >= 0) ? Image::ARGB : Image::RGB,
+                       imageWidth, imageHeight, (transparent >= 0));
 
-        readImage (imageWidth, imageHeight,
-                   (buf[8] & 0x40) != 0,
-                   transparent);
+        readImage ((buf[8] & 0x40) != 0, transparent);
 
         break;
     }
@@ -362,8 +358,7 @@ int GIFLoader::readLZWByte (const bool initialise, const int inputCodeSize)
     return code;
 }
 
-bool GIFLoader::readImage (const int width, const int height,
-                           const int interlace, const int transparent)
+bool GIFLoader::readImage (const int interlace, const int transparent)
 {
     unsigned char c;
 
@@ -382,9 +377,9 @@ bool GIFLoader::readImage (const int width, const int height,
     int index;
     int xpos = 0, ypos = 0, pass = 0;
 
-    const Image::BitmapData destData (*image, 0, 0, width, height, true);
+    const Image::BitmapData destData (image, true);
     uint8* p = destData.data;
-    const bool hasAlpha = image->hasAlphaChannel();
+    const bool hasAlpha = image.hasAlphaChannel();
 
     while ((index = readLZWByte (false, c)) >= 0)
     {
@@ -410,7 +405,7 @@ bool GIFLoader::readImage (const int width, const int height,
         p += destData.pixelStride;
         ++xpos;
 
-        if (xpos == width)
+        if (xpos == destData.width)
         {
             xpos = 0;
 
@@ -424,7 +419,7 @@ bool GIFLoader::readImage (const int width, const int height,
                     case 3:     ypos += 2; break;
                 }
 
-                while (ypos >= height)
+                while (ypos >= destData.height)
                 {
                     ++pass;
 
@@ -445,7 +440,7 @@ bool GIFLoader::readImage (const int width, const int height,
             p = destData.getPixelPointer (xpos, ypos);
         }
 
-        if (ypos >= height)
+        if (ypos >= destData.height)
             break;
     }
 
