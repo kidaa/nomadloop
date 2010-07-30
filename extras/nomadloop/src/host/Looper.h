@@ -32,11 +32,29 @@ public:
 
 class MidiLoopProcessor : public LoopProcessor
 {
+	// Contains a series of MIDI events
+	// corresponding to the beginning and end
+	// of a voice containing a start and end pitch,
+	// which may or may not be the same, and the
+	// envelope between them
+	struct VoiceFragment
+	{
+		int StartPitch;
+		int EndPitch;
+		
+	};
+
 	bool recordingCued;
 	bool recording;
 	int sampleLength;
 	int sampleScrub;
 	MidiBuffer sequence;
+
+	bool activePitchClass[12];
+
+	// sequence converted to a certain subset of notes
+	MidiBuffer alteredSequence;
+	void regenerateAlteredSequence();
 
 	Key estimatedKey;
 
