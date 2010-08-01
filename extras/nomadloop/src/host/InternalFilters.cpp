@@ -29,6 +29,7 @@
 #include "Looper.h"
 #include "../filters/UtilityFilters.h"
 #include "../filters/ChordSetter.h"
+#include "../filters/MidiUtilityFilter.h"
 
 #if NOMAD_STATIC_LINK_PLUGINS
 #include "../../plugins/groovegrid/src/GrooveGridFilter.h"
@@ -83,6 +84,11 @@ InternalPluginFormat::InternalPluginFormat()
 		ChordSetter p;
 		p.fillInPluginDescription (chordSetterDesc);
 	}
+	
+	{
+		MidiUtilityFilter p;
+		p.fillInPluginDescription(midiUtilityDesc);
+	}
 
 
 #ifdef NOMAD_STATIC_LINK_PLUGINS
@@ -132,6 +138,10 @@ AudioPluginInstance* InternalPluginFormat::createInstanceFromDescription (const 
 	{
 		return new ChordSetter();
 	}
+	else if (desc.name == midiUtilityDesc.name)
+	{
+		return new MidiUtilityFilter();
+	}
 #ifdef NOMAD_STATIC_LINK_PLUGINS
 	else if (desc.name == grooveGridDesc.name)
 	{
@@ -164,6 +174,8 @@ const PluginDescription* InternalPluginFormat::getDescriptionFor (const Internal
 		return &arpeggiatorDesc;
 	case chordSetterFilter:
 		return &chordSetterDesc;
+	case midiUtilityFilter:
+		return &midiUtilityDesc;
 #ifdef NOMAD_STATIC_LINK_PLUGINS
 	case grooveGridFilter:
 		return &grooveGridDesc;

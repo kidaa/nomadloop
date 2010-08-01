@@ -29,7 +29,9 @@
 #include "FilterGraph.h"
 #include "../filters/UtilityFilters.h"
 #include "../filters/Arpeggiator.h"
+#include "../filters/MidiUtilityFilter.h"
 
+#undef NOMAD_STATIC_LINK_PLUGINS
 
 //==============================================================================
 /**
@@ -55,6 +57,7 @@ public:
 		gainCutFilter,
 		arpeggiatorFilter,
 		chordSetterFilter,
+		midiUtilityFilter,
 
 #ifdef NOMAD_STATIC_LINK_PLUGINS
 		grooveGridFilter,
@@ -90,6 +93,7 @@ private:
 	PluginDescription gainCutDesc;
 	PluginDescription arpeggiatorDesc;
 	PluginDescription chordSetterDesc;
+	PluginDescription midiUtilityDesc;
 
 #ifdef NOMAD_STATIC_LINK_PLUGINS
 	PluginDescription grooveGridDesc;

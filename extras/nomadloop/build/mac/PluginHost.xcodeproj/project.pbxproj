@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		589D65DA120540D800DF6B0D /* MidiUtilityFilter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 589D65D9120540D800DF6B0D /* MidiUtilityFilter.cpp */; };
 		8108F01D113D790C00AEFD8E /* Analysis.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 8108F016113D790C00AEFD8E /* Analysis.cpp */; };
 		8108F01E113D790C00AEFD8E /* LoopControls.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 8108F019113D790C00AEFD8E /* LoopControls.cpp */; };
 		8182278311B0118E00476061 /* ChordSetter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 8182278111B0118E00476061 /* ChordSetter.cpp */; };
@@ -59,6 +60,8 @@
 
 /* Begin PBXFileReference section */
 		508344B209E5C41E0093A071 /* PluginHost.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PluginHost.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		589D65B81205343000DF6B0D /* MidiUtilityFilter.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = MidiUtilityFilter.h; path = ../../src/filters/MidiUtilityFilter.h; sourceTree = SOURCE_ROOT; };
+		589D65D9120540D800DF6B0D /* MidiUtilityFilter.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = MidiUtilityFilter.cpp; path = ../../src/filters/MidiUtilityFilter.cpp; sourceTree = SOURCE_ROOT; };
 		8108F016113D790C00AEFD8E /* Analysis.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Analysis.cpp; path = ../../src/host/Analysis.cpp; sourceTree = SOURCE_ROOT; };
 		8108F017113D790C00AEFD8E /* Analysis.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Analysis.h; path = ../../src/host/Analysis.h; sourceTree = SOURCE_ROOT; };
 		8108F018113D790C00AEFD8E /* ControlSurface.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ControlSurface.h; path = ../../src/host/ControlSurface.h; sourceTree = SOURCE_ROOT; };
@@ -69,7 +72,6 @@
 		8182278111B0118E00476061 /* ChordSetter.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = ChordSetter.cpp; path = ../../src/filters/ChordSetter.cpp; sourceTree = SOURCE_ROOT; };
 		8182278211B0118E00476061 /* ChordSetter.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ChordSetter.h; path = ../../src/filters/ChordSetter.h; sourceTree = SOURCE_ROOT; };
 		8182278911B0427900476061 /* iPhone.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = iPhone.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		8182278B11B0427900476061 /* iPhone-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "iPhone-Info.plist"; sourceTree = "<group>"; };
 		81B4C4AD1145428C009697EC /* Dashboard.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Dashboard.cpp; path = ../../src/host/Dashboard.cpp; sourceTree = SOURCE_ROOT; };
 		81B4C4AE1145428C009697EC /* Dashboard.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Dashboard.h; path = ../../src/host/Dashboard.h; sourceTree = SOURCE_ROOT; };
 		81B4C4B01145429A009697EC /* UtilityFilters.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = UtilityFilters.cpp; path = ../../src/filters/UtilityFilters.cpp; sourceTree = SOURCE_ROOT; };
@@ -158,7 +160,6 @@
 				20286C2CFDCF999611CA2CEA /* Resources */,
 				20286C32FDCF999611CA2CEA /* External Frameworks and Libraries */,
 				195DF8CFFE9D517E11CA2CBB /* Products */,
-				8182278B11B0427900476061 /* iPhone-Info.plist */,
 			);
 			name = PluginHost;
 			sourceTree = "<group>";
@@ -166,6 +167,7 @@
 		20286C2AFDCF999611CA2CEA /* Sources */ = {
 			isa = PBXGroup;
 			children = (
+				589D65D9120540D800DF6B0D /* MidiUtilityFilter.cpp */,
 				8182278111B0118E00476061 /* ChordSetter.cpp */,
 				8182278211B0118E00476061 /* ChordSetter.h */,
 				81B4C523114E907E009697EC /* Arpeggiator.cpp */,
@@ -202,6 +204,7 @@
 				84B59D6A0DE34F530041FA3D /* includes.h */,
 				84B59D6C0DE34F530041FA3D /* juce_LibrarySource.mm */,
 				84FC4CD80CD8894600850651 /* juce.xcconfig */,
+				589D65B81205343000DF6B0D /* MidiUtilityFilter.h */,
 			);
 			name = Sources;
 			sourceTree = "<group>";
@@ -277,7 +280,7 @@
 		20286C28FDCF999611CA2CEA /* Project object */ = {
 			isa = PBXProject;
 			buildConfigurationList = C0E91AC908A95435008D54AB /* Build configuration list for PBXProject "PluginHost" */;
-			compatibilityVersion = "Xcode 2.4";
+			compatibilityVersion = "Xcode 3.1";
 			hasScannedForEncodings = 1;
 			mainGroup = 20286C29FDCF999611CA2CEA /* PluginHost */;
 			projectDirPath = "";
@@ -354,6 +357,7 @@
 				81B4C4D8114AA549009697EC /* SettingsSnapshot.cpp in Sources */,
 				81B4C525114E907E009697EC /* Arpeggiator.cpp in Sources */,
 				8182278311B0118E00476061 /* ChordSetter.cpp in Sources */,
+				589D65DA120540D800DF6B0D /* MidiUtilityFilter.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
