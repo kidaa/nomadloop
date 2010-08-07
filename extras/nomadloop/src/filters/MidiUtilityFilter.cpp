@@ -2,7 +2,7 @@
 #include <cmath>
 
 MidiUtilityFilter::MidiUtilityFilter()
-: pitchBendRange(1), triggerSend(false)
+: pitchBendRange(1), octaveShift(0), triggerSend(false)
 {
 	setPlayConfigDetails (1, 1, 0, 0);
 }
@@ -42,13 +42,21 @@ void MidiUtilityFilter::processBlock(AudioSampleBuffer &sampleBuffer, MidiBuffer
 	MidiBuffer::Iterator itor(midiBuffer);
 	MidiMessage message(0x80, 1, 1);
 	int samplePos;
+	
+	MidiBuffer outputBuffer;
+	outputBuffer.ensureSize(midiBuffer.getNumEvents());
 
 	while (itor.getNextEvent(message, samplePos))
 	{
-		
+		if (message.isNoteOnOrOff())
+		{
+			message.setNoteNumber(message.getNoteNumber() + 12*octaveShift);
+		}
+		outputBuffer.addEvent(message, samplePos);
 	}
 	
-	midiBuffer.clear();
+	midiBuffer.swapWith(outputBuffer);
+	
 	if (triggerSend)
 	{
 		// Update pitch bend range
@@ -103,13 +111,15 @@ AudioProcessorEditor* MidiUtilityFilter::createEditor()
 
 int MidiUtilityFilter::getNumParameters()
 {
-	return 1;
+	return 2;
 }
 
 const String MidiUtilityFilter::getParameterName(int i)
 {
 	if (i == 0)
 		return T("Pitch Bend Range");
+	else if (i == 1)
+		return T("Octave shift");
 	return String::empty;
 }
 
@@ -117,6 +127,8 @@ float MidiUtilityFilter::getParameter(int i)
 {
 	if (i == 0)
 		return pitchBendRange;
+	if (i == 1)
+		return (octaveShift+2.5f)/5.0f;
 	return 0.f;
 }
 
@@ -124,6 +136,8 @@ const String MidiUtilityFilter::getParameterText(int i)
 {
 	if (i == 0)
 		return (T("+/-") + String((int)(pitchBendRange * 12.5)));
+	else if (i == 1)
+		return (String(octaveShift));
 	return String::empty;
 }
 
@@ -133,6 +147,10 @@ void MidiUtilityFilter::setParameter(int index, float value)
 	{
 		pitchBendRange = value;
 		triggerSend = true;
+	}
+	else if (index == 1)
+	{
+		octaveShift = static_cast<int>(value*5.0f-2.5f);
 	}
 }
 
