@@ -2,7 +2,7 @@
 #include <cmath>
 
 MidiUtilityFilter::MidiUtilityFilter()
-: pitchBendRange(1), octaveShift(0), triggerSend(false)
+: pitchBendRange(1), octaveShift(0), triggerSend(true)
 {
 	setPlayConfigDetails (1, 1, 0, 0);
 }
