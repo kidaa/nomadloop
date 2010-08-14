@@ -13,8 +13,9 @@
 
 class MidiUtilityFilter : public AudioPluginInstance
 	{
-		float pitchBendRange;
+		float pitchBendRange;		
 		int octaveShift;
+		int currentProgram;
 		bool triggerSend;
 		
 	public:

@@ -59,15 +59,21 @@ void MidiUtilityFilter::processBlock(AudioSampleBuffer &sampleBuffer, MidiBuffer
 	
 	if (triggerSend)
 	{
-		// Update pitch bend range
 		for (int c=0; c<15; ++c)
 		{
+			// program change
+			midiBuffer.addEvent(MidiMessage::programChange(c, currentProgram), 0);
+			
+			// Update pitch bend range
 			midiBuffer.addEvent(MidiMessage::controllerEvent(c, 101, 0), 0);
 			midiBuffer.addEvent(MidiMessage::controllerEvent(c, 100, 0), 0);
 			midiBuffer.addEvent(MidiMessage::controllerEvent(c, 6, (int)(pitchBendRange*12.5)), 0);
 			midiBuffer.addEvent(MidiMessage::controllerEvent(c, 38, 0), 0);
 			midiBuffer.addEvent(MidiMessage::controllerEvent(c, 101, 127), 0);
 			midiBuffer.addEvent(MidiMessage::controllerEvent(c, 100, 127), 0);
+			
+			// turn off any older notes
+			midiBuffer.addEvent(MidiMessage::allNotesOff(c), 0);
 		}
 		
 		triggerSend = false;
@@ -111,7 +117,7 @@ AudioProcessorEditor* MidiUtilityFilter::createEditor()
 
 int MidiUtilityFilter::getNumParameters()
 {
-	return 2;
+	return 3;
 }
 
 const String MidiUtilityFilter::getParameterName(int i)
@@ -120,6 +126,8 @@ const String MidiUtilityFilter::getParameterName(int i)
 		return T("Pitch Bend Range");
 	else if (i == 1)
 		return T("Octave shift");
+	else if (i == 2)
+		return T("Immediate Program Change");
 	return String::empty;
 }
 
@@ -129,6 +137,8 @@ float MidiUtilityFilter::getParameter(int i)
 		return pitchBendRange;
 	if (i == 1)
 		return (octaveShift+2.5f)/5.0f;
+	if (i == 2)
+		return currentProgram/127.0f;
 	return 0.f;
 }
 
@@ -138,6 +148,8 @@ const String MidiUtilityFilter::getParameterText(int i)
 		return (T("+/-") + String((int)(pitchBendRange * 12.5)));
 	else if (i == 1)
 		return (String(octaveShift));
+	else if (i == 2)
+		return (String(currentProgram));
 	return String::empty;
 }
 
@@ -151,6 +163,12 @@ void MidiUtilityFilter::setParameter(int index, float value)
 	else if (index == 1)
 	{
 		octaveShift = static_cast<int>(value*5.0f-2.5f);
+		triggerSend = true;
+	}
+	else if (index == 2)
+	{
+		currentProgram = static_cast<int>(value * 127.0f);
+		triggerSend = true;
 	}
 }
 
