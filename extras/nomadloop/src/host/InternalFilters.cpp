@@ -52,6 +52,11 @@ InternalPluginFormat::InternalPluginFormat()
         AudioProcessorGraph::AudioGraphIOProcessor p (AudioProcessorGraph::AudioGraphIOProcessor::midiInputNode);
         p.fillInPluginDescription (midiInDesc);
     }
+	
+	{
+		SelectableMidiInputFilter p;
+		p.fillInPluginDescription(selectableMidiInputDesc);
+	}
 
 	{
 		/*AudioProcessorGraph::AudioGraphIOProcessor p (AudioProcessorGraph::AudioGraphIOProcessor::midiOutputNode);
@@ -113,6 +118,10 @@ AudioPluginInstance* InternalPluginFormat::createInstanceFromDescription (const 
     {
         return new AudioProcessorGraph::AudioGraphIOProcessor (AudioProcessorGraph::AudioGraphIOProcessor::midiInputNode);
     }
+	else if (desc.name == selectableMidiInputDesc.name)
+	{
+		return new SelectableMidiInputFilter();
+	}
 	else if (desc.name == midiOutDesc.name)
 	{
 		//return new AudioProcessorGraph::AudioGraphIOProcessor (AudioProcessorGraph::AudioGraphIOProcessor::midiOutputNode);
@@ -162,6 +171,8 @@ const PluginDescription* InternalPluginFormat::getDescriptionFor (const Internal
         return &audioOutDesc;
     case midiInputFilter:
         return &midiInDesc;
+	case selectableMidiInputFilter:
+		return &selectableMidiInputDesc;
 	case midiOutputFilter:
 		return &midiOutDesc;
 	case looperFilter:

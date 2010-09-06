@@ -1,4 +1,6 @@
 #include "UtilityFilters.h"
+#include "MidiDeviceManager.h"
+#include "MainHostWindow.h"
 
 GainCut::GainCut() : gain(0), gainToRampTo(0)
 {
@@ -123,6 +125,151 @@ void GainCut::getStateInformation(MemoryBlock&)
 {
 }
 void GainCut::setStateInformation(const void *, int)
+{
+}
+
+// ==============================================
+
+SelectableMidiInputFilter::SelectableMidiInputFilter() : input(0), sampleRate(0)
+{
+	setPlayConfigDetails (0, 0, 0, 0);
+}
+
+void SelectableMidiInputFilter::fillInPluginDescription(PluginDescription &desc) const
+{
+	desc.name = "Selectable Midi Input";
+	desc.pluginFormatName = "Internal";
+	desc.category = "Mixing";
+	desc.manufacturerName = "Monkey Fairness Productions";
+	desc.version = "0.1";
+	desc.fileOrIdentifier = "";
+	desc.lastFileModTime = 0;
+	desc.uid = 4;
+	desc.isInstrument = false;
+	desc.numInputChannels = 0;
+	desc.numOutputChannels = 0;
+}
+
+const String SelectableMidiInputFilter::getName() const
+{
+	return T("Selectable Midi Input");
+}
+
+void SelectableMidiInputFilter::prepareToPlay(double sampleRate, int estimatedSamplesPerBlock)
+{
+	this->sampleRate = sampleRate;
+	//input = MidiOutput::openDevice(MidiInput);
+	//input->startBackgroundThread();
+	messageCollector.reset(sampleRate);
+	Logger::outputDebugString(T("Prepare to play to default MIDI output: "));
+	
+	MidiDeviceManager::getInstance()->addCallback(this);
+}
+
+void SelectableMidiInputFilter::releaseResources()
+{
+	//output->stopBackgroundThread();
+	//output->reset();
+	//delete output;
+	MidiDeviceManager::getInstance()->removeCallback(this);
+}
+
+void SelectableMidiInputFilter::processBlock(AudioSampleBuffer &audioBuffer, MidiBuffer &buffer)
+{
+	buffer.clear();
+    messageCollector.removeNextBlockOfMessages (buffer, audioBuffer.getNumSamples());
+}
+
+const String SelectableMidiInputFilter::getInputChannelName(const int) const
+{
+	return String::empty;
+}
+
+const String SelectableMidiInputFilter::getOutputChannelName(const int) const
+{
+	return String::empty;
+}
+
+bool SelectableMidiInputFilter::isInputChannelStereoPair(int) const
+{
+	return false;
+}
+
+bool SelectableMidiInputFilter::isOutputChannelStereoPair(int) const
+{
+	return false;
+}
+
+bool SelectableMidiInputFilter::acceptsMidi() const
+{
+	return false;
+}
+
+bool SelectableMidiInputFilter::producesMidi() const
+{
+	return true;
+}
+
+AudioProcessorEditor* SelectableMidiInputFilter::createEditor()
+{
+	return 0;
+}
+
+int SelectableMidiInputFilter::getNumParameters()
+{
+	return 1;
+}
+
+const String SelectableMidiInputFilter::getParameterName(int)
+{
+	return T("Input");
+}
+
+float SelectableMidiInputFilter::getParameter(int)
+{
+	return 0.f;
+}
+
+const String SelectableMidiInputFilter::getParameterText(int)
+{
+	return selectedInputName;
+}
+
+void SelectableMidiInputFilter::setParameter(int index, float value)
+{
+	// the value selects one of the active MIDI devices
+	StringArray midiInputDevices = MidiInput::getDevices();
+	
+	int selectedIndex = value*midiInputDevices.size();
+	
+	selectedInputName = midiInputDevices[selectedIndex];
+	dirty = true;
+}
+
+int SelectableMidiInputFilter::getNumPrograms()
+{
+	return 0;
+}
+
+int SelectableMidiInputFilter::getCurrentProgram()
+{
+	return 0;
+}
+
+void SelectableMidiInputFilter::setCurrentProgram(int)
+{
+}
+const String SelectableMidiInputFilter::getProgramName(int)
+{
+	return String::empty;
+}
+void SelectableMidiInputFilter::changeProgramName(int, const String&)
+{
+}
+void SelectableMidiInputFilter::getStateInformation(MemoryBlock&)
+{
+}
+void SelectableMidiInputFilter::setStateInformation(const void *, int)
 {
 }
 

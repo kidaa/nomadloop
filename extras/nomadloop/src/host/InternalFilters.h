@@ -50,6 +50,7 @@ public:
         audioInputFilter = 0,
         audioOutputFilter,
         midiInputFilter,
+		selectableMidiInputFilter,
 		midiOutputFilter,
 		looperFilter,
 		midiLooperFilter,
@@ -87,6 +88,7 @@ private:
     PluginDescription audioInDesc;
     PluginDescription audioOutDesc;
     PluginDescription midiInDesc;
+	PluginDescription selectableMidiInputDesc;
 	PluginDescription midiOutDesc;
 	PluginDescription looperDesc;
 	PluginDescription midiLooperDesc;

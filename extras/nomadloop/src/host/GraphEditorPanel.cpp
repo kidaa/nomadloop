@@ -28,6 +28,7 @@
 #include "InternalFilters.h"
 #include "MainHostWindow.h"
 #include "ControlActions.h"
+#include "MidiDeviceManager.h"
 
 //==============================================================================
 class PluginWindow;
@@ -1057,7 +1058,8 @@ GraphDocumentComponent::GraphDocumentComponent (AudioDeviceManager* deviceManage
 			//deviceManager->addMidiInputCallback (midiInDevices[i], &graphPlayer);
 			deviceManager->addMidiInputCallback (midiInDevices[i], MidiRemoteControlDispatcher::getInstance());
 		}
-		MidiRemoteControlDispatcher::getInstance()->setPassThrough(&graphPlayer);
+		MidiRemoteControlDispatcher::getInstance()->setPassThrough(MidiDeviceManager::getInstance());
+		MidiDeviceManager::getInstance()->addCallback(&graphPlayer);
 	}
 
     graphPanel->updateComponents();
