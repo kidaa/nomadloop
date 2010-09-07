@@ -266,11 +266,16 @@ const String SelectableMidiInputFilter::getProgramName(int)
 void SelectableMidiInputFilter::changeProgramName(int, const String&)
 {
 }
-void SelectableMidiInputFilter::getStateInformation(MemoryBlock&)
+void SelectableMidiInputFilter::getStateInformation(MemoryBlock& memBlock)
 {
+	memBlock.ensureSize(selectedInputName.getNumBytesAsUTF8(), false);
+	memBlock.copyFrom(selectedInputName.toUTF8(), 0, selectedInputName.getNumBytesAsUTF8());
 }
-void SelectableMidiInputFilter::setStateInformation(const void *, int)
+void SelectableMidiInputFilter::setStateInformation(const void *block, int size)
 {
+	selectedInputName = String::fromUTF8((const char*)block, size);
+	dirty = true;
+	updateHostDisplay();
 }
 
 // ==============================================
