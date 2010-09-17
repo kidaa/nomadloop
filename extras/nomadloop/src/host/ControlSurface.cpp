@@ -1074,7 +1074,10 @@ void ControlSurfaceComponent::restoreFromXml(const XmlElement& xml)
 	overlayComponent->toBack();*/
 
 	SubviewComponent* currentView = view;
-	restoreSubviewFromXml (currentView, xml);
+	forEachXmlChildElement (xml, el)
+	{
+		restoreSubviewFromXml (currentView, *el);
+	}
 }
 
 XmlElement* ControlSurfaceComponent::createSubviewXml(SubviewComponent* subviewComp) const
