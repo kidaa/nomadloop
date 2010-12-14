@@ -66,6 +66,7 @@ public:
         of (0, 0).
     */
     virtual void setOrigin (int x, int y) = 0;
+    virtual void addTransform (const AffineTransform& transform) = 0;
 
     virtual bool clipToRectangle (const Rectangle<int>& r) = 0;
     virtual bool clipToRectangleList (const RectangleList& clipRegion) = 0;
@@ -79,6 +80,9 @@ public:
 
     virtual void saveState() = 0;
     virtual void restoreState() = 0;
+
+    virtual void beginTransparencyLayer (float opacity) = 0;
+    virtual void endTransparencyLayer() = 0;
 
     //==============================================================================
     virtual void setFill (const FillType& fillType) = 0;

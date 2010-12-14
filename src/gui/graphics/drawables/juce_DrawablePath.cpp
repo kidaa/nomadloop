@@ -29,150 +29,24 @@ BEGIN_JUCE_NAMESPACE
 
 #include "juce_DrawablePath.h"
 #include "juce_DrawableComposite.h"
-#include "../../../io/streams/juce_MemoryOutputStream.h"
 
 
 //==============================================================================
 DrawablePath::DrawablePath()
-    : mainFill (Colours::black),
-      strokeFill (Colours::black),
-      strokeType (0.0f),
-      pathNeedsUpdating (true),
-      strokeNeedsUpdating (true)
 {
 }
 
 DrawablePath::DrawablePath (const DrawablePath& other)
-    : mainFill (other.mainFill),
-      strokeFill (other.strokeFill),
-      strokeType (other.strokeType),
-      pathNeedsUpdating (true),
-      strokeNeedsUpdating (true)
+    : DrawableShape (other)
 {
     if (other.relativePath != 0)
         relativePath = new RelativePointPath (*other.relativePath);
     else
-        path = other.path;
+        setPath (other.path);
 }
 
 DrawablePath::~DrawablePath()
 {
-}
-
-//==============================================================================
-void DrawablePath::setPath (const Path& newPath)
-{
-    path = newPath;
-    strokeNeedsUpdating = true;
-}
-
-void DrawablePath::setFill (const FillType& newFill)
-{
-    mainFill = newFill;
-}
-
-void DrawablePath::setStrokeFill (const FillType& newFill)
-{
-    strokeFill = newFill;
-}
-
-void DrawablePath::setStrokeType (const PathStrokeType& newStrokeType)
-{
-    strokeType = newStrokeType;
-    strokeNeedsUpdating = true;
-}
-
-void DrawablePath::setStrokeThickness (const float newThickness)
-{
-    setStrokeType (PathStrokeType (newThickness, strokeType.getJointStyle(), strokeType.getEndStyle()));
-}
-
-void DrawablePath::updatePath() const
-{
-    if (pathNeedsUpdating)
-    {
-        pathNeedsUpdating = false;
-
-        if (relativePath != 0)
-        {
-            path.clear();
-            relativePath->createPath (path, parent);
-            strokeNeedsUpdating = true;
-        }
-    }
-}
-
-void DrawablePath::updateStroke() const
-{
-    if (strokeNeedsUpdating)
-    {
-        strokeNeedsUpdating = false;
-        updatePath();
-        stroke.clear();
-        strokeType.createStrokedPath (stroke, path, AffineTransform::identity, 4.0f);
-    }
-}
-
-const Path& DrawablePath::getPath() const
-{
-    updatePath();
-    return path;
-}
-
-const Path& DrawablePath::getStrokePath() const
-{
-    updateStroke();
-    return stroke;
-}
-
-bool DrawablePath::isStrokeVisible() const throw()
-{
-    return strokeType.getStrokeThickness() > 0.0f && ! strokeFill.isInvisible();
-}
-
-void DrawablePath::invalidatePoints()
-{
-    pathNeedsUpdating = true;
-    strokeNeedsUpdating = true;
-}
-
-//==============================================================================
-void DrawablePath::render (const Drawable::RenderingContext& context) const
-{
-    {
-        FillType f (mainFill);
-        if (f.isGradient())
-            f.gradient->multiplyOpacity (context.opacity);
-
-        f.transform = f.transform.followedBy (context.transform);
-        context.g.setFillType (f);
-        context.g.fillPath (getPath(), context.transform);
-    }
-
-    if (isStrokeVisible())
-    {
-        FillType f (strokeFill);
-        if (f.isGradient())
-            f.gradient->multiplyOpacity (context.opacity);
-
-        f.transform = f.transform.followedBy (context.transform);
-        context.g.setFillType (f);
-        context.g.fillPath (getStrokePath(), context.transform);
-    }
-}
-
-const Rectangle<float> DrawablePath::getBounds() const
-{
-    if (isStrokeVisible())
-        return getStrokePath().getBounds();
-    else
-        return getPath().getBounds();
-}
-
-bool DrawablePath::hitTest (float x, float y) const
-{
-    return getPath().contains (x, y)
-            || (isStrokeVisible() && getStrokePath().contains (x, y));
 }
 
 Drawable* DrawablePath::createCopy() const
@@ -181,14 +55,37 @@ Drawable* DrawablePath::createCopy() const
 }
 
 //==============================================================================
+void DrawablePath::setPath (const Path& newPath)
+{
+    path = newPath;
+    pathChanged();
+}
+
+const Path& DrawablePath::getPath() const
+{
+    return path;
+}
+
+const Path& DrawablePath::getStrokePath() const
+{
+    return strokePath;
+}
+
+bool DrawablePath::rebuildPath (Path& path) const
+{
+    if (relativePath != 0)
+    {
+        path.clear();
+        relativePath->createPath (path, getParent());
+        return true;
+    }
+
+    return false;
+}
+
+//==============================================================================
 const Identifier DrawablePath::valueTreeType ("Path");
 
-const Identifier DrawablePath::ValueTreeWrapper::fill ("Fill");
-const Identifier DrawablePath::ValueTreeWrapper::stroke ("Stroke");
-const Identifier DrawablePath::ValueTreeWrapper::path ("Path");
-const Identifier DrawablePath::ValueTreeWrapper::jointStyle ("jointStyle");
-const Identifier DrawablePath::ValueTreeWrapper::capStyle ("capStyle");
-const Identifier DrawablePath::ValueTreeWrapper::strokeWidth ("strokeWidth");
 const Identifier DrawablePath::ValueTreeWrapper::nonZeroWinding ("nonZeroWinding");
 const Identifier DrawablePath::ValueTreeWrapper::point1 ("p1");
 const Identifier DrawablePath::ValueTreeWrapper::point2 ("p2");
@@ -196,7 +93,7 @@ const Identifier DrawablePath::ValueTreeWrapper::point3 ("p3");
 
 //==============================================================================
 DrawablePath::ValueTreeWrapper::ValueTreeWrapper (const ValueTree& state_)
-    : ValueTreeWrapperBase (state_)
+    : FillAndStrokeState (state_)
 {
     jassert (state.hasType (valueTreeType));
 }
@@ -204,77 +101,6 @@ DrawablePath::ValueTreeWrapper::ValueTreeWrapper (const ValueTree& state_)
 ValueTree DrawablePath::ValueTreeWrapper::getPathState()
 {
     return state.getOrCreateChildWithName (path, 0);
-}
-
-ValueTree DrawablePath::ValueTreeWrapper::getMainFillState()
-{
-    ValueTree v (state.getChildWithName (fill));
-    if (v.isValid())
-        return v;
-
-    setMainFill (Colours::black, 0, 0, 0, 0, 0);
-    return getMainFillState();
-}
-
-ValueTree DrawablePath::ValueTreeWrapper::getStrokeFillState()
-{
-    ValueTree v (state.getChildWithName (stroke));
-    if (v.isValid())
-        return v;
-
-    setStrokeFill (Colours::black, 0, 0, 0, 0, 0);
-    return getStrokeFillState();
-}
-
-const FillType DrawablePath::ValueTreeWrapper::getMainFill (RelativeCoordinate::NamedCoordinateFinder* nameFinder,
-                                                            ImageProvider* imageProvider) const
-{
-    return readFillType (state.getChildWithName (fill), 0, 0, 0, nameFinder, imageProvider);
-}
-
-void DrawablePath::ValueTreeWrapper::setMainFill (const FillType& newFill, const RelativePoint* gp1,
-                                                  const RelativePoint* gp2, const RelativePoint* gp3,
-                                                  ImageProvider* imageProvider, UndoManager* undoManager)
-{
-    ValueTree v (state.getOrCreateChildWithName (fill, undoManager));
-    writeFillType (v, newFill, gp1, gp2, gp3, imageProvider, undoManager);
-}
-
-const FillType DrawablePath::ValueTreeWrapper::getStrokeFill (RelativeCoordinate::NamedCoordinateFinder* nameFinder,
-                                                              ImageProvider* imageProvider) const
-{
-    return readFillType (state.getChildWithName (stroke), 0, 0, 0, nameFinder, imageProvider);
-}
-
-void DrawablePath::ValueTreeWrapper::setStrokeFill (const FillType& newFill, const RelativePoint* gp1,
-                                                    const RelativePoint* gp2, const RelativePoint* gp3,
-                                                    ImageProvider* imageProvider, UndoManager* undoManager)
-{
-    ValueTree v (state.getOrCreateChildWithName (stroke, undoManager));
-    writeFillType (v, newFill, gp1, gp2, gp3, imageProvider, undoManager);
-}
-
-const PathStrokeType DrawablePath::ValueTreeWrapper::getStrokeType() const
-{
-    const String jointStyleString (state [jointStyle].toString());
-    const String capStyleString (state [capStyle].toString());
-
-    return PathStrokeType (state [strokeWidth],
-                           jointStyleString == "curved" ? PathStrokeType::curved
-                                                        : (jointStyleString == "bevel" ? PathStrokeType::beveled
-                                                                                       : PathStrokeType::mitered),
-                           capStyleString == "square" ? PathStrokeType::square
-                                                      : (capStyleString == "round" ? PathStrokeType::rounded
-                                                                                   : PathStrokeType::butt));
-}
-
-void DrawablePath::ValueTreeWrapper::setStrokeType (const PathStrokeType& newStrokeType, UndoManager* undoManager)
-{
-    state.setProperty (strokeWidth, (double) newStrokeType.getStrokeThickness(), undoManager);
-    state.setProperty (jointStyle, newStrokeType.getJointStyle() == PathStrokeType::mitered
-                                     ? "miter" : (newStrokeType.getJointStyle() == PathStrokeType::curved ? "curved" : "bevel"), undoManager);
-    state.setProperty (capStyle, newStrokeType.getEndStyle() == PathStrokeType::butt
-                                   ? "butt" : (newStrokeType.getEndStyle() == PathStrokeType::square ? "square" : "round"), undoManager);
 }
 
 bool DrawablePath::ValueTreeWrapper::usesNonZeroWinding() const
@@ -342,7 +168,7 @@ Value DrawablePath::ValueTreeWrapper::Element::getControlPointValue (int index, 
 void DrawablePath::ValueTreeWrapper::Element::setControlPoint (const int index, const RelativePoint& point, UndoManager* undoManager)
 {
     jassert (index >= 0 && index < getNumControlPoints());
-    return state.setProperty (index == 0 ? point1 : (index == 1 ? point2 : point3), point.toString(), undoManager);
+    state.setProperty (index == 0 ? point1 : (index == 1 ? point2 : point3), point.toString(), undoManager);
 }
 
 const RelativePoint DrawablePath::ValueTreeWrapper::Element::getStartPoint() const
@@ -368,7 +194,7 @@ const RelativePoint DrawablePath::ValueTreeWrapper::Element::getEndPoint() const
     return RelativePoint();
 }
 
-float DrawablePath::ValueTreeWrapper::Element::getLength (RelativeCoordinate::NamedCoordinateFinder* nameFinder) const
+float DrawablePath::ValueTreeWrapper::Element::getLength (Expression::EvaluationContext* nameFinder) const
 {
     const Identifier i (state.getType());
 
@@ -419,7 +245,7 @@ void DrawablePath::ValueTreeWrapper::Element::convertToLine (UndoManager* undoMa
     }
 }
 
-void DrawablePath::ValueTreeWrapper::Element::convertToCubic (RelativeCoordinate::NamedCoordinateFinder* nameFinder, UndoManager* undoManager)
+void DrawablePath::ValueTreeWrapper::Element::convertToCubic (Expression::EvaluationContext* nameFinder, UndoManager* undoManager)
 {
     const Identifier i (state.getType());
 
@@ -453,28 +279,32 @@ void DrawablePath::ValueTreeWrapper::Element::convertToPathBreak (UndoManager* u
     }
 }
 
-static const Point<float> findCubicSubdivisionPoint (float proportion, const Point<float> points[4])
+namespace DrawablePathHelpers
 {
-    const Point<float> mid1 (points[0] + (points[1] - points[0]) * proportion),
-                       mid2 (points[1] + (points[2] - points[1]) * proportion),
-                       mid3 (points[2] + (points[3] - points[2]) * proportion);
+    const Point<float> findCubicSubdivisionPoint (float proportion, const Point<float> points[4])
+    {
+        const Point<float> mid1 (points[0] + (points[1] - points[0]) * proportion),
+                           mid2 (points[1] + (points[2] - points[1]) * proportion),
+                           mid3 (points[2] + (points[3] - points[2]) * proportion);
 
-    const Point<float> newCp1 (mid1 + (mid2 - mid1) * proportion),
-                       newCp2 (mid2 + (mid3 - mid2) * proportion);
+        const Point<float> newCp1 (mid1 + (mid2 - mid1) * proportion),
+                           newCp2 (mid2 + (mid3 - mid2) * proportion);
 
-    return newCp1 + (newCp2 - newCp1) * proportion;
+        return newCp1 + (newCp2 - newCp1) * proportion;
+    }
+
+    const Point<float> findQuadraticSubdivisionPoint (float proportion, const Point<float> points[3])
+    {
+        const Point<float> mid1 (points[0] + (points[1] - points[0]) * proportion),
+                           mid2 (points[1] + (points[2] - points[1]) * proportion);
+
+        return mid1 + (mid2 - mid1) * proportion;
+    }
 }
 
-static const Point<float> findQuadraticSubdivisionPoint (float proportion, const Point<float> points[3])
+float DrawablePath::ValueTreeWrapper::Element::findProportionAlongLine (const Point<float>& targetPoint, Expression::EvaluationContext* nameFinder) const
 {
-    const Point<float> mid1 (points[0] + (points[1] - points[0]) * proportion),
-                       mid2 (points[1] + (points[2] - points[1]) * proportion);
-
-    return mid1 + (mid2 - mid1) * proportion;
-}
-
-float DrawablePath::ValueTreeWrapper::Element::findProportionAlongLine (const Point<float>& targetPoint, RelativeCoordinate::NamedCoordinateFinder* nameFinder) const
-{
+    using namespace DrawablePathHelpers;
     const Identifier i (state.getType());
     float bestProp = 0;
 
@@ -529,7 +359,7 @@ float DrawablePath::ValueTreeWrapper::Element::findProportionAlongLine (const Po
     return bestProp;
 }
 
-ValueTree DrawablePath::ValueTreeWrapper::Element::insertPoint (const Point<float>& targetPoint, RelativeCoordinate::NamedCoordinateFinder* nameFinder, UndoManager* undoManager)
+ValueTree DrawablePath::ValueTreeWrapper::Element::insertPoint (const Point<float>& targetPoint, Expression::EvaluationContext* nameFinder, UndoManager* undoManager)
 {
     ValueTree newTree;
     const Identifier i (state.getType());
@@ -610,54 +440,31 @@ void DrawablePath::ValueTreeWrapper::Element::removePoint (UndoManager* undoMana
 }
 
 //==============================================================================
-const Rectangle<float> DrawablePath::refreshFromValueTree (const ValueTree& tree, ImageProvider* imageProvider)
+void DrawablePath::refreshFromValueTree (const ValueTree& tree, ImageProvider* imageProvider)
 {
-    Rectangle<float> damageRect;
     ValueTreeWrapper v (tree);
     setName (v.getID());
 
-    bool needsRedraw = false;
-    const FillType newFill (v.getMainFill (parent, imageProvider));
-
-    if (mainFill != newFill)
-    {
-        needsRedraw = true;
-        mainFill = newFill;
-    }
-
-    const FillType newStrokeFill (v.getStrokeFill (parent, imageProvider));
-
-    if (strokeFill != newStrokeFill)
-    {
-        needsRedraw = true;
-        strokeFill = newStrokeFill;
-    }
-
-    const PathStrokeType newStroke (v.getStrokeType());
+    if (refreshFillTypes (v, getParent(), imageProvider))
+        repaint();
 
     ScopedPointer<RelativePointPath> newRelativePath (new RelativePointPath (tree));
 
     Path newPath;
-    newRelativePath->createPath (newPath, parent);
+    newRelativePath->createPath (newPath, getParent());
 
     if (! newRelativePath->containsAnyDynamicPoints())
         newRelativePath = 0;
 
+    const PathStrokeType newStroke (v.getStrokeType());
     if (strokeType != newStroke || path != newPath)
     {
-        damageRect = getBounds();
         path.swapWithPath (newPath);
-        strokeNeedsUpdating = true;
         strokeType = newStroke;
-        needsRedraw = true;
+        pathChanged();
     }
 
     relativePath = newRelativePath;
-
-    if (needsRedraw)
-        damageRect = damageRect.getUnion (getBounds());
-
-    return damageRect;
 }
 
 const ValueTree DrawablePath::createValueTree (ImageProvider* imageProvider) const
@@ -666,9 +473,7 @@ const ValueTree DrawablePath::createValueTree (ImageProvider* imageProvider) con
     ValueTreeWrapper v (tree);
 
     v.setID (getName(), 0);
-    v.setMainFill (mainFill, 0, 0, 0, imageProvider, 0);
-    v.setStrokeFill (strokeFill, 0, 0, 0, imageProvider, 0);
-    v.setStrokeType (strokeType, 0);
+    writeTo (v, imageProvider, 0);
 
     if (relativePath != 0)
     {

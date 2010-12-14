@@ -27,7 +27,8 @@
 
 //[MiscUserDefs] You can add your own user definitions and misc code here...
 class DemoThumbnailComp  : public Component,
-                           public ChangeListener
+                           public ChangeListener,
+                           public FileDragAndDropTarget
 {
 public:
     DemoThumbnailComp()
@@ -81,27 +82,34 @@ public:
 
         if (thumbnail.getTotalLength() > 0)
         {
-            int heightPerChannel = (getHeight() - 4) / thumbnail.getNumChannels();
-
-            for (int i = 0; i < thumbnail.getNumChannels(); ++i)
-            {
-                thumbnail.drawChannel (g, 2, 2 + heightPerChannel * i,
-                                       getWidth() - 4, heightPerChannel,
-                                       startTime, endTime,
-                                       i, 1.0f);
-            }
+            thumbnail.drawChannels (g, getLocalBounds().reduced (2, 2),
+                                    startTime, endTime, 1.0f);
         }
         else
         {
             g.setFont (14.0f);
-            g.drawFittedText ("(No audio file selected)", 0, 0, getWidth(), getHeight(), Justification::centred, 2);
+            g.drawFittedText ("(No audio file selected)", 0, 0, getWidth(), getHeight(),
+                              Justification::centred, 2);
         }
     }
 
-    void changeListenerCallback (void*)
+    void changeListenerCallback (ChangeBroadcaster*)
     {
         // this method is called by the thumbnail when it has changed, so we should repaint it..
         repaint();
+    }
+
+    bool isInterestedInFileDrag (const StringArray& /*files*/)
+    {
+        return true;
+    }
+
+    void filesDropped (const StringArray& files, int /*x*/, int /*y*/)
+    {
+        AudioDemoPlaybackPage* demoPage = findParentComponentOfClass ((AudioDemoPlaybackPage*) 0);
+
+        if (demoPage != 0)
+            demoPage->showFile (File (files[0]));
     }
 
     AudioFormatManager formatManager;
@@ -171,7 +179,6 @@ AudioDemoPlaybackPage::AudioDemoPlaybackPage (AudioDeviceManager& deviceManager_
 
     deviceManager.addAudioCallback (&audioSourcePlayer);
     audioSourcePlayer.setSource (&transportSource);
-    currentAudioFileSource = 0;
     //[/Constructor]
 }
 
@@ -183,8 +190,6 @@ AudioDemoPlaybackPage::~AudioDemoPlaybackPage()
 
     deviceManager.removeAudioCallback (&audioSourcePlayer);
     fileTreeComp->removeListener (this);
-
-    deleteAndZero (currentAudioFileSource);
     //[/Destructor_pre]
 
     deleteAndZero (zoomLabel);
@@ -266,12 +271,20 @@ void AudioDemoPlaybackPage::sliderValueChanged (Slider* sliderThatWasMoved)
 
 //[MiscUserCode] You can add your own definitions of your custom methods or any other code here...
 
+void AudioDemoPlaybackPage::showFile (const File& file)
+{
+    loadFileIntoTransport (file);
+
+    zoomSlider->setValue (0, false, false);
+    thumbnail->setFile (file);
+}
+
 void AudioDemoPlaybackPage::loadFileIntoTransport (const File& audioFile)
 {
     // unload the previous file source and delete it..
     transportSource.stop();
     transportSource.setSource (0);
-    deleteAndZero (currentAudioFileSource);
+    currentAudioFileSource = 0;
 
     // get a format manager and set it up with the basic types (wav and aiff).
     AudioFormatManager formatManager;
@@ -292,10 +305,7 @@ void AudioDemoPlaybackPage::loadFileIntoTransport (const File& audioFile)
 
 void AudioDemoPlaybackPage::selectionChanged()
 {
-    loadFileIntoTransport (fileTreeComp->getSelectedFile());
-
-    zoomSlider->setValue (0, false, false);
-    thumbnail->setFile (fileTreeComp->getSelectedFile());
+    showFile (fileTreeComp->getSelectedFile());
 }
 
 void AudioDemoPlaybackPage::fileClicked (const File&, const MouseEvent&)

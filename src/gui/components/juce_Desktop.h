@@ -33,6 +33,7 @@
 #include "../../events/juce_AsyncUpdater.h"
 #include "../../containers/juce_OwnedArray.h"
 #include "../graphics/geometry/juce_RectangleList.h"
+#include "layout/juce_ComponentAnimator.h"
 class MouseInputSource;
 class MouseInputSourceInternal;
 class MouseListener;
@@ -103,6 +104,10 @@ public:
     /** Returns the mouse position.
 
         The co-ordinates are relative to the top-left of the main monitor.
+
+        Note that this is just a shortcut for calling getMainMouseSource().getScreenPosition(), and
+        you should only resort to grabbing the global mouse position if there's really no
+        way to get the coordinates via a mouse event callback instead.
     */
     static const Point<int> getMousePosition();
 
@@ -113,15 +118,20 @@ public:
     static void setMousePosition (const Point<int>& newPosition);
 
     /** Returns the last position at which a mouse button was pressed.
+
+        Note that this is just a shortcut for calling getMainMouseSource().getLastMouseDownPosition(),
+        and in a multi-touch environment, it doesn't make much sense. ALWAYS prefer to
+        get this information via other means, such as MouseEvent::getMouseDownScreenPosition()
+        if possible, and only ever call this as a last resort.
     */
-    static const Point<int> getLastMouseDownPosition() throw();
+    static const Point<int> getLastMouseDownPosition();
 
     /** Returns the number of times the mouse button has been clicked since the
         app started.
 
         Each mouse-down event increments this number by 1.
     */
-    static int getMouseButtonClickCounter() throw();
+    static int getMouseButtonClickCounter();
 
     //==============================================================================
     /** This lets you prevent the screensaver from becoming active.
@@ -225,6 +235,16 @@ public:
     */
     Component* findComponentAt (const Point<int>& screenPosition) const;
 
+    /** The Desktop object has a ComponentAnimator instance which can be used for performing
+        your animations.
+
+        Having a single shared ComponentAnimator object makes it more efficient when multiple
+        components are being moved around simultaneously. It's also more convenient than having
+        to manage your own instance of one.
+
+        @see ComponentAnimator
+    */
+    ComponentAnimator& getAnimator() throw()                        { return animator; }
 
     //==============================================================================
     /** Returns the number of MouseInputSource objects the system has at its disposal.
@@ -261,9 +281,37 @@ public:
     */
     MouseInputSource* getDraggingMouseSource (int index) const throw();
 
-    //==============================================================================
-    juce_UseDebuggingNewOperator
 
+    //==============================================================================
+    /** In a tablet device which can be turned around, this is used to inidicate the orientation. */
+    enum DisplayOrientation
+    {
+        upright                 = 1,  /**< Indicates that the display is the normal way up. */
+        upsideDown              = 2,  /**< Indicates that the display is upside-down. */
+        rotatedClockwise        = 4,  /**< Indicates that the display is turned 90 degrees clockwise from its upright position. */
+        rotatedAntiClockwise    = 8,  /**< Indicates that the display is turned 90 degrees anti-clockwise from its upright position. */
+
+        allOrientations         = 1 + 2 + 4 + 8   /**< A combination of all the orientation values */
+    };
+
+    /** In a tablet device which can be turned around, this returns the current orientation. */
+    DisplayOrientation getCurrentOrientation() const;
+
+    /** Sets which orientations the display is allowed to auto-rotate to.
+
+        For devices that support rotating desktops, this lets you specify which of the orientations your app can use.
+
+        The parameter is a bitwise or-ed combination of the values in DisplayOrientation, and must contain at least one
+        set bit.
+    */
+    void setOrientationsEnabled (int allowedOrientations);
+
+    /** Returns whether the display is allowed to auto-rotate to the given orientation.
+        Each orientation can be enabled using setOrientationEnabled(). By default, all orientations are allowed.
+    */
+    bool isOrientationEnabled (DisplayOrientation orientation) const throw();
+
+    //==============================================================================
     /** Tells this object to refresh its idea of what the screen resolution is.
 
         (Called internally by the native code).
@@ -302,6 +350,10 @@ private:
     Component* kioskModeComponent;
     Rectangle<int> kioskComponentOriginalBounds;
 
+    int allowedOrientations;
+
+    ComponentAnimator animator;
+
     void timerCallback();
     void resetTimer();
 
@@ -318,8 +370,7 @@ private:
     Desktop();
     ~Desktop();
 
-    Desktop (const Desktop&);
-    Desktop& operator= (const Desktop&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Desktop);
 };
 
 

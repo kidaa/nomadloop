@@ -88,6 +88,9 @@ public:
     void setText (const String& newText,
                   const Font& fontToUse);
 
+    /** Returns true if the layout has not had any text added yet. */
+    bool isEmpty() const;
+
     //==============================================================================
     /** Breaks the text up to form a paragraph with the given width.
 
@@ -137,14 +140,14 @@ public:
                      const Justification& layoutFlags) const;
 
 
-    //==============================================================================
-    juce_UseDebuggingNewOperator
-
 private:
+    //==============================================================================
     class Token;
     friend class OwnedArray <Token>;
     OwnedArray <Token> tokens;
     int totalLines;
+
+    JUCE_LEAK_DETECTOR (TextLayout);
 };
 
 

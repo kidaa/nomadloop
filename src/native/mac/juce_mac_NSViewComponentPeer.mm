@@ -158,8 +158,9 @@ public:
     const Rectangle<int> getBounds (const bool global) const;
     const Rectangle<int> getBounds() const;
     const Point<int> getScreenPosition() const;
-    const Point<int> relativePositionToGlobal (const Point<int>& relativePosition);
-    const Point<int> globalPositionToRelative (const Point<int>& screenPosition);
+    const Point<int> localToGlobal (const Point<int>& relativePosition);
+    const Point<int> globalToLocal (const Point<int>& screenPosition);
+    void setAlpha (float newAlpha);
     void setMinimised (bool shouldBeMinimised);
     bool isMinimised() const;
     void setFullScreen (bool shouldBeFullScreen);
@@ -170,9 +171,9 @@ public:
     void toFront (bool makeActiveWindow);
     void toBehind (ComponentPeer* other);
     void setIcon (const Image& newIcon);
-    const StringArray getAvailableRenderingEngines() throw();
+    const StringArray getAvailableRenderingEngines();
     int getCurrentRenderingEngine() throw();
-    void setCurrentRenderingEngine (int index) throw();
+    void setCurrentRenderingEngine (int index);
 
     /* When you use multiple DLLs which share similarly-named obj-c classes - like
        for example having more than one juce plugin loaded into a host, then when a
@@ -227,6 +228,24 @@ public:
             keyCode = '\t';
         else if (keyCode == 0x03) // (enter)
             keyCode = '\r';
+        else
+            keyCode = (int) CharacterFunctions::toUpperCase ((juce_wchar) keyCode);
+
+        if (([ev modifierFlags] & NSNumericPadKeyMask) != 0)
+        {
+            const int numPadConversions[] = { '0', KeyPress::numberPad0, '1', KeyPress::numberPad1,
+                                              '2', KeyPress::numberPad2, '3', KeyPress::numberPad3,
+                                              '4', KeyPress::numberPad4, '5', KeyPress::numberPad5,
+                                              '6', KeyPress::numberPad6, '7', KeyPress::numberPad7,
+                                              '8', KeyPress::numberPad8, '9', KeyPress::numberPad9,
+                                              '+', KeyPress::numberPadAdd,  '-', KeyPress::numberPadSubtract,
+                                              '*', KeyPress::numberPadMultiply, '/', KeyPress::numberPadDivide,
+                                              '.', KeyPress::numberPadDecimalPoint, '=', KeyPress::numberPadEquals };
+
+            for (int i = 0; i < numElementsInArray (numPadConversions); i += 2)
+                if (keyCode == numPadConversions [i])
+                    keyCode = numPadConversions [i + 1];
+        }
 
         return keyCode;
     }
@@ -262,8 +281,6 @@ public:
     void performAnyPendingRepaintsNow();
 
     //==============================================================================
-    juce_UseDebuggingNewOperator
-
     NSWindow* window;
     JuceNSView* view;
     bool isSharedWindow, fullScreen, insideDrawRect, usingCoreGraphics, recursiveToFrontCall;
@@ -271,6 +288,9 @@ public:
     static ModifierKeys currentModifiers;
     static ComponentPeer* currentlyFocusedPeer;
     static Array<int> keysCurrentlyDown;
+
+private:
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (NSViewComponentPeer);
 };
 
 //==============================================================================
@@ -790,11 +810,11 @@ bool KeyPress::isKeyCurrentlyDown (const int keyCode)
         return true;
 
     if (keyCode >= 'A' && keyCode <= 'Z'
-        && NSViewComponentPeer::keysCurrentlyDown.contains ((int) CharacterFunctions::toLowerCase ((juce_wchar) keyCode)))
+         && NSViewComponentPeer::keysCurrentlyDown.contains ((int) CharacterFunctions::toLowerCase ((juce_wchar) keyCode)))
         return true;
 
     if (keyCode >= 'a' && keyCode <= 'z'
-        && NSViewComponentPeer::keysCurrentlyDown.contains ((int) CharacterFunctions::toUpperCase ((juce_wchar) keyCode)))
+         && NSViewComponentPeer::keysCurrentlyDown.contains ((int) CharacterFunctions::toUpperCase ((juce_wchar) keyCode)))
         return true;
 
     return false;
@@ -853,11 +873,7 @@ NSViewComponentPeer::NSViewComponentPeer (Component* const component_,
 #endif
       recursiveToFrontCall (false)
 {
-    NSRect r;
-    r.origin.x = 0;
-    r.origin.y = 0;
-    r.size.width = (float) component->getWidth();
-    r.size.height = (float) component->getHeight();
+    NSRect r = NSMakeRect (0, 0, (float) component->getWidth(),(float) component->getHeight());
 
     view = [[JuceNSView alloc] initWithOwner: this withFrame: r];
     [view setPostsFrameChangedNotifications: YES];
@@ -866,8 +882,6 @@ NSViewComponentPeer::NSViewComponentPeer (Component* const component_,
     {
         window = [viewToAttachTo window];
         [viewToAttachTo addSubview: view];
-
-        setVisible (component->isVisible());
     }
     else
     {
@@ -916,6 +930,10 @@ NSViewComponentPeer::NSViewComponentPeer (Component* const component_,
         [window setExcludedFromWindowsMenu: (windowStyleFlags & windowIsTemporary) != 0];
         [window setIgnoresMouseEvents: (windowStyleFlags & windowIgnoresMouseClicks) != 0];
     }
+
+    const float alpha = component->getAlpha();
+    if (alpha < 1.0f)
+        setAlpha (alpha);
 
     setTitle (component->getName());
 }
@@ -981,14 +999,8 @@ void NSViewComponentPeer::setSize (int w, int h)
 void NSViewComponentPeer::setBounds (int x, int y, int w, int h, bool isNowFullScreen)
 {
     fullScreen = isNowFullScreen;
-    w = jmax (0, w);
-    h = jmax (0, h);
 
-    NSRect r;
-    r.origin.x = (float) x;
-    r.origin.y = (float) y;
-    r.size.width = (float) w;
-    r.size.height = (float) h;
+    NSRect r = NSMakeRect ((float) x, (float) y, (float) jmax (0, w), (float) jmax (0, h));
 
     if (isSharedWindow)
     {
@@ -1026,7 +1038,7 @@ const Rectangle<int> NSViewComponentPeer::getBounds (const bool global) const
         r.origin.y = [[view superview] frame].size.height - r.origin.y - r.size.height;
     }
 
-    return Rectangle<int> ((int) r.origin.x, (int) r.origin.y, (int) r.size.width, (int) r.size.height);
+    return Rectangle<int> (convertToRectInt (r));
 }
 
 const Rectangle<int> NSViewComponentPeer::getBounds() const
@@ -1039,12 +1051,12 @@ const Point<int> NSViewComponentPeer::getScreenPosition() const
     return getBounds (true).getPosition();
 }
 
-const Point<int> NSViewComponentPeer::relativePositionToGlobal (const Point<int>& relativePosition)
+const Point<int> NSViewComponentPeer::localToGlobal (const Point<int>& relativePosition)
 {
     return relativePosition + getScreenPosition();
 }
 
-const Point<int> NSViewComponentPeer::globalPositionToRelative (const Point<int>& screenPosition)
+const Point<int> NSViewComponentPeer::globalToLocal (const Point<int>& screenPosition)
 {
     return screenPosition - getScreenPosition();
 }
@@ -1058,18 +1070,29 @@ NSRect NSViewComponentPeer::constrainRect (NSRect r)
 
         r.origin.y = [[[NSScreen screens] objectAtIndex: 0] frame].size.height - r.origin.y - r.size.height;
 
-        Rectangle<int> pos ((int) r.origin.x, (int) r.origin.y,
-                            (int) r.size.width, (int) r.size.height);
+        Rectangle<int> pos (convertToRectInt (r));
+        Rectangle<int> original (convertToRectInt (current));
 
-        Rectangle<int> original ((int) current.origin.x, (int) current.origin.y,
-                                 (int) current.size.width, (int) current.size.height);
-
-        constrainer->checkBounds (pos, original,
-                                  Desktop::getInstance().getAllMonitorDisplayAreas().getBounds(),
-                                  pos.getY() != original.getY() && pos.getBottom() == original.getBottom(),
-                                  pos.getX() != original.getX() && pos.getRight() == original.getRight(),
-                                  pos.getY() == original.getY() && pos.getBottom() != original.getBottom(),
-                                  pos.getX() == original.getX() && pos.getRight() != original.getRight());
+      #if defined (MAC_OS_X_VERSION_10_6) && MAC_OS_X_VERSION_MIN_ALLOWED >= MAC_OS_X_VERSION_10_6
+        if ([window inLiveResize])
+      #else
+        if ([window respondsToSelector: @selector (inLiveResize)]
+             && [window performSelector: @selector (inLiveResize)])
+      #endif
+        {
+            constrainer->checkBounds (pos, original,
+                                      Desktop::getInstance().getAllMonitorDisplayAreas().getBounds(),
+                                      false, false, true, true);
+        }
+        else
+        {
+            constrainer->checkBounds (pos, original,
+                                      Desktop::getInstance().getAllMonitorDisplayAreas().getBounds(),
+                                      pos.getY() != original.getY() && pos.getBottom() == original.getBottom(),
+                                      pos.getX() != original.getX() && pos.getRight() == original.getRight(),
+                                      pos.getY() == original.getY() && pos.getBottom() != original.getBottom(),
+                                      pos.getX() == original.getX() && pos.getRight() != original.getRight());
+        }
 
         r.origin.x = pos.getX();
         r.origin.y = [[[NSScreen screens] objectAtIndex: 0] frame].size.height - r.size.height - pos.getY();
@@ -1078,6 +1101,14 @@ NSRect NSViewComponentPeer::constrainRect (NSRect r)
     }
 
     return r;
+}
+
+void NSViewComponentPeer::setAlpha (float newAlpha)
+{
+    if (! isSharedWindow)
+        [window setAlphaValue: (CGFloat) newAlpha];
+    else
+        [view setAlphaValue: (CGFloat) newAlpha];
 }
 
 void NSViewComponentPeer::setMinimised (bool shouldBeMinimised)
@@ -1131,8 +1162,8 @@ bool NSViewComponentPeer::isFullScreen() const
 
 bool NSViewComponentPeer::contains (const Point<int>& position, bool trueIfInAChildWindow) const
 {
-    if (((unsigned int) position.getX()) >= (unsigned int) component->getWidth()
-        || ((unsigned int) position.getY()) >= (unsigned int) component->getHeight())
+    if (! (isPositiveAndBelow (position.getX(), component->getWidth())
+            && isPositiveAndBelow (position.getY(), component->getHeight())))
         return false;
 
     NSPoint p;
@@ -1261,7 +1292,7 @@ void juce_HandleProcessFocusChange()
         {
             NSViewComponentPeer::currentlyFocusedPeer->handleFocusGain();
 
-            ComponentPeer::bringModalComponentToFront();
+            ModalComponentManager::getInstance()->bringModalComponentsToFront();
         }
         else
         {
@@ -1473,11 +1504,11 @@ BOOL NSViewComponentPeer::sendDragCallback (int type, id <NSDraggingInfo> sender
     NSPoint p = [view convertPoint: [sender draggingLocation] fromView: nil];
     const Point<int> pos ((int) p.x, (int) ([view frame].size.height - p.y));
 
-    StringArray files;
-
     id list = [[sender draggingPasteboard] propertyListForType: bestType];
     if (list == nil)
         return false;
+
+    StringArray files;
 
     if ([list isKindOfClass: [NSArray class]])
     {
@@ -1567,10 +1598,9 @@ void NSViewComponentPeer::drawRect (NSRect r)
     }
 }
 
-const StringArray NSViewComponentPeer::getAvailableRenderingEngines() throw()
+const StringArray NSViewComponentPeer::getAvailableRenderingEngines()
 {
-    StringArray s;
-    s.add ("Software Renderer");
+    StringArray s (ComponentPeer::getAvailableRenderingEngines());
 
 #if USE_COREGRAPHICS_RENDERING
     s.add ("CoreGraphics Renderer");
@@ -1584,7 +1614,7 @@ int NSViewComponentPeer::getCurrentRenderingEngine() throw()
     return usingCoreGraphics ? 1 : 0;
 }
 
-void NSViewComponentPeer::setCurrentRenderingEngine (int index) throw()
+void NSViewComponentPeer::setCurrentRenderingEngine (int index)
 {
 #if USE_COREGRAPHICS_RENDERING
     if (usingCoreGraphics != (index > 0))
@@ -1644,28 +1674,29 @@ void juce_setKioskComponent (Component* kioskModeComponent, bool enableOrDisable
 }
 
 //==============================================================================
-class AsyncRepaintMessage  : public CallbackMessage
-{
-public:
-    NSViewComponentPeer* const peer;
-    const Rectangle<int> rect;
-
-    AsyncRepaintMessage (NSViewComponentPeer* const peer_, const Rectangle<int>& rect_)
-        : peer (peer_), rect (rect_)
-    {
-    }
-
-    void messageCallback()
-    {
-        if (ComponentPeer::isValidPeer (peer))
-            peer->repaint (rect);
-    }
-};
-
 void NSViewComponentPeer::repaint (const Rectangle<int>& area)
 {
     if (insideDrawRect)
     {
+        class AsyncRepaintMessage  : public CallbackMessage
+        {
+        public:
+            AsyncRepaintMessage (NSViewComponentPeer* const peer_, const Rectangle<int>& rect_)
+                : peer (peer_), rect (rect_)
+            {
+            }
+
+            void messageCallback()
+            {
+                if (ComponentPeer::isValidPeer (peer))
+                    peer->repaint (rect);
+            }
+
+        private:
+            NSViewComponentPeer* const peer;
+            const Rectangle<int> rect;
+        };
+
         (new AsyncRepaintMessage (this, area))->post();
     }
     else

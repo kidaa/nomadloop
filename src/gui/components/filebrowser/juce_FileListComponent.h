@@ -78,7 +78,7 @@ public:
 
     //==============================================================================
     /** @internal */
-    void changeListenerCallback (void*);
+    void changeListenerCallback (ChangeBroadcaster*);
     /** @internal */
     int getNumRows();
     /** @internal */
@@ -92,14 +92,11 @@ public:
     /** @internal */
     void returnKeyPressed (int currentSelectedRow);
 
-    //==============================================================================
-    juce_UseDebuggingNewOperator
-
 private:
-    FileListComponent (const FileListComponent&);
-    FileListComponent& operator= (const FileListComponent&);
-
+    //==============================================================================
     File lastDirectory;
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FileListComponent);
 };
 
 

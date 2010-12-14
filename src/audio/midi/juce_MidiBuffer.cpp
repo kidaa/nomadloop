@@ -56,13 +56,13 @@ MidiBuffer& MidiBuffer::operator= (const MidiBuffer& other) throw()
     return *this;
 }
 
-void MidiBuffer::swapWith (MidiBuffer& other)
+void MidiBuffer::swapWith (MidiBuffer& other) throw()
 {
     data.swapWith (other.data);
     swapVariables <int> (bytesUsed, other.bytesUsed);
 }
 
-MidiBuffer::~MidiBuffer() throw()
+MidiBuffer::~MidiBuffer()
 {
 }
 
@@ -91,8 +91,7 @@ void MidiBuffer::clear() throw()
     bytesUsed = 0;
 }
 
-void MidiBuffer::clear (const int startSample,
-                        const int numSamples) throw()
+void MidiBuffer::clear (const int startSample, const int numSamples)
 {
     uint8* const start = findEventAfter (getData(), startSample - 1);
     uint8* const end   = findEventAfter (start, startSample + numSamples - 1);
@@ -108,48 +107,46 @@ void MidiBuffer::clear (const int startSample,
     }
 }
 
-void MidiBuffer::addEvent (const MidiMessage& m,
-                           const int sampleNumber) throw()
+void MidiBuffer::addEvent (const MidiMessage& m, const int sampleNumber)
 {
     addEvent (m.getRawData(), m.getRawDataSize(), sampleNumber);
 }
 
-static int findActualEventLength (const uint8* const data,
-                                  const int maxBytes) throw()
+namespace MidiBufferHelpers
 {
-    unsigned int byte = (unsigned int) *data;
-
-    int size = 0;
-
-    if (byte == 0xf0 || byte == 0xf7)
+    int findActualEventLength (const uint8* const data, const int maxBytes) throw()
     {
-        const uint8* d = data + 1;
+        unsigned int byte = (unsigned int) *data;
+        int size = 0;
 
-        while (d < data + maxBytes)
-            if (*d++ == 0xf7)
-                break;
+        if (byte == 0xf0 || byte == 0xf7)
+        {
+            const uint8* d = data + 1;
 
-        size = (int) (d - data);
-    }
-    else if (byte == 0xff)
-    {
-        int n;
-        const int bytesLeft = MidiMessage::readVariableLengthVal (data + 1, n);
-        size = jmin (maxBytes, n + 2 + bytesLeft);
-    }
-    else if (byte >= 0x80)
-    {
-        size = jmin (maxBytes, MidiMessage::getMessageLengthFromFirstByte ((uint8) byte));
-    }
+            while (d < data + maxBytes)
+                if (*d++ == 0xf7)
+                    break;
 
-    return size;
+            size = (int) (d - data);
+        }
+        else if (byte == 0xff)
+        {
+            int n;
+            const int bytesLeft = MidiMessage::readVariableLengthVal (data + 1, n);
+            size = jmin (maxBytes, n + 2 + bytesLeft);
+        }
+        else if (byte >= 0x80)
+        {
+            size = jmin (maxBytes, MidiMessage::getMessageLengthFromFirstByte ((uint8) byte));
+        }
+
+        return size;
+    }
 }
 
-void MidiBuffer::addEvent (const uint8* const newData,
-                           const int maxBytes,
-                           const int sampleNumber) throw()
+void MidiBuffer::addEvent (const void* const newData, const int maxBytes, const int sampleNumber)
 {
-    const int numBytes = findActualEventLength (newData, maxBytes);
+    const int numBytes = MidiBufferHelpers::findActualEventLength (static_cast <const uint8*> (newData), maxBytes);
 
     if (numBytes > 0)
     {
@@ -176,7 +173,7 @@ void MidiBuffer::addEvent (const uint8* const newData,
 void MidiBuffer::addEvents (const MidiBuffer& otherBuffer,
                             const int startSample,
                             const int numSamples,
-                            const int sampleDeltaToAdd) throw()
+                            const int sampleDeltaToAdd)
 {
     Iterator i (otherBuffer);
     i.setNextSamplePosition (startSample);

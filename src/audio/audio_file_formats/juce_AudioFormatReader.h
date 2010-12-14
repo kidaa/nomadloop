@@ -28,6 +28,7 @@
 
 #include "../../io/streams/juce_InputStream.h"
 #include "../../text/juce_StringPairArray.h"
+#include "../dsp/juce_AudioDataConverters.h"
 class AudioFormat;
 
 
@@ -106,7 +107,7 @@ public:
                                     error - the reader should just return zeros for these regions
         @see readMaxLevels
     */
-    bool read (int** destSamples,
+    bool read (int* const* destSamples,
                int numDestChannels,
                int64 startSampleInSource,
                int numSamplesToRead,
@@ -215,14 +216,37 @@ public:
                               int numSamples) = 0;
 
 
+protected:
     //==============================================================================
-    juce_UseDebuggingNewOperator
+    /** Used by AudioFormatReader subclasses to copy data to different formats. */
+    template <class DestSampleType, class SourceSampleType, class SourceEndianness>
+    struct ReadHelper
+    {
+        typedef AudioData::Pointer <DestSampleType, AudioData::NativeEndian, AudioData::NonInterleaved, AudioData::NonConst>    DestType;
+        typedef AudioData::Pointer <SourceSampleType, SourceEndianness, AudioData::Interleaved, AudioData::Const>               SourceType;
+
+        static void read (int** destData, int destOffset, int numDestChannels, const void* sourceData, int numSourceChannels, int numSamples) throw()
+        {
+            for (int i = 0; i < numDestChannels; ++i)
+            {
+                if (destData[i] != 0)
+                {
+                    DestType dest (destData[i]);
+                    dest += destOffset;
+
+                    if (i < numSourceChannels)
+                        dest.convertSamples (SourceType (addBytesToPointer (sourceData, i * SourceType::getBytesPerSample()), numSourceChannels), numSamples);
+                    else
+                        dest.clearSamples (numSamples);
+                }
+            }
+        }
+    };
 
 private:
     String formatName;
 
-    AudioFormatReader (const AudioFormatReader&);
-    AudioFormatReader& operator= (const AudioFormatReader&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioFormatReader);
 };
 
 

@@ -76,13 +76,9 @@ public:
 
         if (topComp->getPeer() != 0)
         {
-            const Point<int> pos (owner->relativePositionToOtherComponent (topComp, Point<int>()));
+            const Point<int> pos (topComp->getLocalPoint (owner, Point<int>()));
 
-            NSRect r;
-            r.origin.x = (float) pos.getX();
-            r.origin.y = (float) pos.getY();
-            r.size.width = (float) owner->getWidth();
-            r.size.height = (float) owner->getHeight();
+            NSRect r = NSMakeRect ((float) pos.getX(), (float) pos.getY(), (float) owner->getWidth(), (float) owner->getHeight());
             r.origin.y = [[view superview] frame].size.height - (r.origin.y + r.size.height);
 
             [view setFrame: r];
@@ -95,7 +91,10 @@ public:
 
         if (currentPeer != peer)
         {
-            [view removeFromSuperview];
+            if ([view superview] != nil)
+                [view removeFromSuperview]; // Must be careful not to call this unless it's required - e.g. some Apple AU views
+                                            // override the call and use it as a sign that they're being deleted, which breaks everything..
+
             currentPeer = peer;
 
             if (peer != 0)
@@ -113,11 +112,14 @@ public:
         componentPeerChanged();
     }
 
-    juce_UseDebuggingNewOperator
+    const Rectangle<int> getViewBounds() const
+    {
+        NSRect r = [view frame];
+        return Rectangle<int> (0, 0, (int) r.size.width, (int) r.size.height);
+    }
 
 private:
-    NSViewComponentInternal (const NSViewComponentInternal&);
-    NSViewComponentInternal& operator= (const NSViewComponentInternal&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (NSViewComponentInternal);
 };
 
 //==============================================================================
@@ -143,6 +145,12 @@ void NSViewComponent::setView (void* view)
 void* NSViewComponent::getView() const
 {
     return info == 0 ? 0 : info->view;
+}
+
+void NSViewComponent::resizeToFitView()
+{
+    if (info != 0)
+        setBounds (info->getViewBounds());
 }
 
 void NSViewComponent::paint (Graphics&)

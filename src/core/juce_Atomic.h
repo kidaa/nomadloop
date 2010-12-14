@@ -150,6 +150,9 @@ private:
     static inline Type castFrom64Bit (int64 value) throw()    { return *(Type*) &value; }
     static inline int32 castTo32Bit (Type value) throw()      { return *(int32*) &value; }
     static inline int64 castTo64Bit (Type value) throw()      { return *(int64*) &value; }
+
+    Type operator++ (int); // better to just use pre-increment with atomics..
+    Type operator-- (int);
 };
 
 
@@ -207,7 +210,7 @@ private:
     long juce_InterlockedExchangeAdd (volatile long* a, long b) throw();
     long juce_InterlockedCompareExchange (volatile long* a, long b, long c) throw();
     __int64 juce_InterlockedCompareExchange64 (volatile __int64* a, __int64 b, __int64 c) throw();
-    static void juce_MemoryBarrier() throw()   { long x = 0; juce_InterlockedIncrement (&x); }
+    inline void juce_MemoryBarrier() throw()   { long x = 0; juce_InterlockedIncrement (&x); }
   #endif
 
   #if JUCE_64BIT

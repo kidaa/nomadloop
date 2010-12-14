@@ -110,7 +110,7 @@ public:
     */
     float* getSampleData (const int channelNumber) const throw()
     {
-        jassert (((unsigned int) channelNumber) < (unsigned int) numChannels);
+        jassert (isPositiveAndBelow (channelNumber, numChannels));
         return channels [channelNumber];
     }
 
@@ -122,8 +122,8 @@ public:
     float* getSampleData (const int channelNumber,
                           const int sampleOffset) const throw()
     {
-        jassert (((unsigned int) channelNumber) < (unsigned int) numChannels);
-        jassert (((unsigned int) sampleOffset) < (unsigned int) size);
+        jassert (isPositiveAndBelow (channelNumber, numChannels));
+        jassert (isPositiveAndBelow (sampleOffset, size));
         return channels [channelNumber] + sampleOffset;
     }
 
@@ -135,7 +135,7 @@ public:
     float** getArrayOfChannels() const throw()          { return channels; }
 
     //==============================================================================
-    /** Chages the buffer's size or number of channels.
+    /** Changes the buffer's size or number of channels.
 
         This can expand or contract the buffer's length, and add or remove channels.
 
@@ -420,10 +420,8 @@ public:
                              int startSample,
                              int numSamples) const;
 
-    //==============================================================================
-    juce_UseDebuggingNewOperator
-
 private:
+    //==============================================================================
     int numChannels, size;
     size_t allocatedBytes;
     float** channels;
@@ -432,6 +430,8 @@ private:
 
     void allocateData();
     void allocateChannels (float** dataToReferTo);
+
+    JUCE_LEAK_DETECTOR (AudioSampleBuffer);
 };
 
 

@@ -57,6 +57,16 @@
 
     @endcode
 
+    Or you can use the static helper methods for quick parsing..
+
+    @code
+    XmlElement* xml = XmlDocument::parse (myXmlFile);
+
+    if (xml != 0 && xml->hasTagName ("foobar"))
+    {
+        ...etc
+    @endcode
+
     @see XmlElement
 */
 class JUCE_API  XmlDocument
@@ -64,27 +74,27 @@ class JUCE_API  XmlDocument
 public:
     //==============================================================================
     /** Creates an XmlDocument from the xml text.
-
-        The text doesn't actually get parsed until the getDocumentElement() method is
-        called.
+        The text doesn't actually get parsed until the getDocumentElement() method is called.
     */
     XmlDocument (const String& documentText);
 
     /** Creates an XmlDocument from a file.
-
-        The text doesn't actually get parsed until the getDocumentElement() method is
-        called.
+        The text doesn't actually get parsed until the getDocumentElement() method is called.
     */
     XmlDocument (const File& file);
 
     /** Destructor. */
     ~XmlDocument();
 
+    //==============================================================================
     /** Creates an XmlElement object to represent the main document node.
 
         This method will do the actual parsing of the text, and if there's a
         parse error, it may returns 0 (and you can find out the error using
         the getLastParseError() method).
+
+        See also the parse() methods, which provide a shorthand way to quickly
+        parse a file or string.
 
         @param onlyReadOuterDocumentElement     if true, the parser will only read the
                                                 first section of the file, and will only
@@ -96,7 +106,7 @@ public:
                     there was an error.
         @see getLastParseError
     */
-    XmlElement* getDocumentElement (const bool onlyReadOuterDocumentElement = false);
+    XmlElement* getDocumentElement (bool onlyReadOuterDocumentElement = false);
 
     /** Returns the parsing error that occurred the last time getDocumentElement was called.
 
@@ -115,7 +125,7 @@ public:
 
         @see InputSource
     */
-    void setInputSource (InputSource* const newSource) throw();
+    void setInputSource (InputSource* newSource) throw();
 
     /** Sets a flag to change the treatment of empty text elements.
 
@@ -124,41 +134,49 @@ public:
         whitespace-only text, then you should set this to false before calling the
         getDocumentElement() method.
     */
-    void setEmptyTextElementsIgnored (const bool shouldBeIgnored) throw();
+    void setEmptyTextElementsIgnored (bool shouldBeIgnored) throw();
 
     //==============================================================================
-    juce_UseDebuggingNewOperator
+    /** A handy static method that parses a file.
+        This is a shortcut for creating an XmlDocument object and calling getDocumentElement() on it.
+        @returns    a new XmlElement which the caller will need to delete, or null if there was an error.
+    */
+    static XmlElement* parse (const File& file);
 
+    /** A handy static method that parses some XML data.
+        This is a shortcut for creating an XmlDocument object and calling getDocumentElement() on it.
+        @returns    a new XmlElement which the caller will need to delete, or null if there was an error.
+    */
+    static XmlElement* parse (const String& xmlData);
+
+
+    //==============================================================================
 private:
     String originalText;
     const juce_wchar* input;
     bool outOfData, errorOccurred;
 
-    bool identifierLookupTable [128];
     String lastError, dtdText;
     StringArray tokenisedDTD;
     bool needToLoadDTD, ignoreEmptyTextElements;
     ScopedPointer <InputSource> inputSource;
 
-    void setLastError (const String& desc, const bool carryOn);
+    void setLastError (const String& desc, bool carryOn);
     void skipHeader();
     void skipNextWhiteSpace();
     juce_wchar readNextChar() throw();
-    XmlElement* readNextElement (const bool alsoParseSubElements);
+    XmlElement* readNextElement (bool alsoParseSubElements);
     void readChildElements (XmlElement* parent);
     int findNextTokenLength() throw();
     void readQuotedString (String& result);
     void readEntity (String& result);
-    static bool isXmlIdentifierCharSlow (juce_wchar c) throw();
-    bool isXmlIdentifierChar (juce_wchar c) const throw();
 
     const String getFileContents (const String& filename) const;
     const String expandEntity (const String& entity);
     const String expandExternalEntity (const String& entity);
     const String getParameterEntity (const String& entity);
 
-    XmlDocument (const XmlDocument&);
-    XmlDocument& operator= (const XmlDocument&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (XmlDocument);
 };
 
 

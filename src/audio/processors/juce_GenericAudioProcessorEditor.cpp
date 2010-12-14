@@ -35,29 +35,30 @@ BEGIN_JUCE_NAMESPACE
 //==============================================================================
 class ProcessorParameterPropertyComp   : public PropertyComponent,
                                          public AudioProcessorListener,
-                                         public AsyncUpdater
+                                         public Timer
 {
 public:
-    ProcessorParameterPropertyComp (const String& name,
-                                    AudioProcessor* const owner_,
-                                    const int index_)
+    ProcessorParameterPropertyComp (const String& name, AudioProcessor& owner_, const int index_)
         : PropertyComponent (name),
           owner (owner_),
-          index (index_)
+          index (index_),
+          paramHasChanged (false),
+          slider (owner_, index_)
     {
-        addAndMakeVisible (slider = new ParamSlider (owner_, index_));
-        owner_->addListener (this);
+        startTimer (100);
+        addAndMakeVisible (&slider);
+        owner_.addListener (this);
     }
 
     ~ProcessorParameterPropertyComp()
     {
-        owner->removeListener (this);
-        deleteAllChildren();
+        owner.removeListener (this);
     }
 
     void refresh()
     {
-        slider->setValue (owner->getParameter (index), false);
+        paramHasChanged = false;
+        slider.setValue (owner.getParameter (index), false);
     }
 
     void audioProcessorChanged (AudioProcessor*)  {}
@@ -65,29 +66,29 @@ public:
     void audioProcessorParameterChanged (AudioProcessor*, int parameterIndex, float)
     {
         if (parameterIndex == index)
-            triggerAsyncUpdate();
+            paramHasChanged = true;
     }
 
-    void handleAsyncUpdate()
+    void timerCallback()
     {
-        refresh();
+        if (paramHasChanged)
+        {
+            refresh();
+            startTimer (1000 / 50);
+        }
+        else
+        {
+            startTimer (jmin (1000 / 4, getTimerInterval() + 10));
+        }
     }
-
-    //==============================================================================
-    juce_UseDebuggingNewOperator
 
 private:
-    AudioProcessor* const owner;
-    const int index;
-    Slider* slider;
-
     //==============================================================================
     class ParamSlider  : public Slider
     {
     public:
-        ParamSlider (AudioProcessor* const owner_, const int index_)
-            : Slider (String::empty),
-              owner (owner_),
+        ParamSlider (AudioProcessor& owner_, const int index_)
+            : owner (owner_),
               index (index_)
         {
             setRange (0.0, 1.0, 0.0);
@@ -96,36 +97,33 @@ private:
             setScrollWheelEnabled (false);
         }
 
-        ~ParamSlider()
-        {
-        }
-
         void valueChanged()
         {
             const float newVal = (float) getValue();
 
-            if (owner->getParameter (index) != newVal)
-                owner->setParameter (index, newVal);
+            if (owner.getParameter (index) != newVal)
+                owner.setParameter (index, newVal);
         }
 
         const String getTextFromValue (double /*value*/)
         {
-            return owner->getParameterText (index);
+            return owner.getParameterText (index);
         }
 
-        //==============================================================================
-        juce_UseDebuggingNewOperator
-
     private:
-        AudioProcessor* const owner;
+        //==============================================================================
+        AudioProcessor& owner;
         const int index;
 
-        ParamSlider (const ParamSlider&);
-        ParamSlider& operator= (const ParamSlider&);
+        JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ParamSlider);
     };
 
-    ProcessorParameterPropertyComp (const ProcessorParameterPropertyComp&);
-    ProcessorParameterPropertyComp& operator= (const ProcessorParameterPropertyComp&);
+    AudioProcessor& owner;
+    const int index;
+    bool volatile paramHasChanged;
+    ParamSlider slider;
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ProcessorParameterPropertyComp);
 };
 
 
@@ -133,9 +131,10 @@ private:
 GenericAudioProcessorEditor::GenericAudioProcessorEditor (AudioProcessor* const owner_)
     : AudioProcessorEditor (owner_)
 {
+    jassert (owner_ != 0);
     setOpaque (true);
 
-    addAndMakeVisible (panel = new PropertyPanel());
+    addAndMakeVisible (&panel);
 
     Array <PropertyComponent*> params;
 
@@ -148,19 +147,18 @@ GenericAudioProcessorEditor::GenericAudioProcessorEditor (AudioProcessor* const 
         if (name.trim().isEmpty())
             name = "Unnamed";
 
-        ProcessorParameterPropertyComp* const pc = new ProcessorParameterPropertyComp (name, owner_, i);
+        ProcessorParameterPropertyComp* const pc = new ProcessorParameterPropertyComp (name, *owner_, i);
         params.add (pc);
         totalHeight += pc->getPreferredHeight();
     }
 
-    panel->addProperties (params);
+    panel.addProperties (params);
 
     setSize (400, jlimit (25, 400, totalHeight));
 }
 
 GenericAudioProcessorEditor::~GenericAudioProcessorEditor()
 {
-    deleteAllChildren();
 }
 
 void GenericAudioProcessorEditor::paint (Graphics& g)
@@ -170,7 +168,7 @@ void GenericAudioProcessorEditor::paint (Graphics& g)
 
 void GenericAudioProcessorEditor::resized()
 {
-    panel->setSize (getWidth(), getHeight());
+    panel.setBounds (getLocalBounds());
 }
 
 

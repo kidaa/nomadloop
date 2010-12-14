@@ -44,7 +44,6 @@ AudioProcessorGraph::Node::Node (const uint32 id_, AudioProcessor* const process
 
 AudioProcessorGraph::Node::~Node()
 {
-    delete processor;
 }
 
 void AudioProcessorGraph::Node::prepare (const double sampleRate, const int blockSize,
@@ -55,7 +54,7 @@ void AudioProcessorGraph::Node::prepare (const double sampleRate, const int bloc
         isPrepared = true;
 
         AudioProcessorGraph::AudioGraphIOProcessor* const ioProc
-            = dynamic_cast <AudioProcessorGraph::AudioGraphIOProcessor*> (processor);
+            = dynamic_cast <AudioProcessorGraph::AudioGraphIOProcessor*> (static_cast<AudioProcessor*> (processor));
 
         if (ioProc != 0)
             ioProc->setParentGraph (graph);
@@ -140,7 +139,7 @@ AudioProcessorGraph::Node* AudioProcessorGraph::addNode (AudioProcessor* const n
     triggerAsyncUpdate();
 
     AudioProcessorGraph::AudioGraphIOProcessor* const ioProc
-        = dynamic_cast <AudioProcessorGraph::AudioGraphIOProcessor*> (n->processor);
+        = dynamic_cast <AudioProcessorGraph::AudioGraphIOProcessor*> (static_cast<AudioProcessor*> (n->processor));
 
     if (ioProc != 0)
         ioProc->setParentGraph (this);
@@ -157,7 +156,7 @@ bool AudioProcessorGraph::removeNode (const uint32 nodeId)
         if (nodes.getUnchecked(i)->id == nodeId)
         {
             AudioProcessorGraph::AudioGraphIOProcessor* const ioProc
-                = dynamic_cast <AudioProcessorGraph::AudioGraphIOProcessor*> (nodes.getUnchecked(i)->processor);
+                = dynamic_cast <AudioProcessorGraph::AudioGraphIOProcessor*> (static_cast<AudioProcessor*> (nodes.getUnchecked(i)->processor));
 
             if (ioProc != 0)
                 ioProc->setParentGraph (0);
@@ -321,11 +320,11 @@ bool AudioProcessorGraph::removeIllegalConnections()
 
         if (source == 0 || dest == 0
              || (c->sourceChannelIndex != midiChannelIndex
-                  && (((unsigned int) c->sourceChannelIndex) >= (unsigned int) source->processor->getNumOutputChannels()))
+                  && ! isPositiveAndBelow (c->sourceChannelIndex, source->processor->getNumOutputChannels()))
              || (c->sourceChannelIndex == midiChannelIndex
                   && ! source->processor->producesMidi())
              || (c->destChannelIndex != midiChannelIndex
-                   && (((unsigned int) c->destChannelIndex) >= (unsigned int) dest->processor->getNumInputChannels()))
+                   && ! isPositiveAndBelow (c->destChannelIndex, dest->processor->getNumInputChannels()))
              || (c->destChannelIndex == midiChannelIndex
                    && ! dest->processor->acceptsMidi()))
         {
@@ -353,7 +352,7 @@ public:
                           const OwnedArray <MidiBuffer>& sharedMidiBuffers,
                           const int numSamples) = 0;
 
-    juce_UseDebuggingNewOperator
+    JUCE_LEAK_DETECTOR (AudioGraphRenderingOp);
 };
 
 //==============================================================================
@@ -374,8 +373,7 @@ public:
 private:
     const int channelNum;
 
-    ClearChannelOp (const ClearChannelOp&);
-    ClearChannelOp& operator= (const ClearChannelOp&);
+    JUCE_DECLARE_NON_COPYABLE (ClearChannelOp);
 };
 
 //==============================================================================
@@ -397,8 +395,7 @@ public:
 private:
     const int srcChannelNum, dstChannelNum;
 
-    CopyChannelOp (const CopyChannelOp&);
-    CopyChannelOp& operator= (const CopyChannelOp&);
+    JUCE_DECLARE_NON_COPYABLE (CopyChannelOp);
 };
 
 //==============================================================================
@@ -420,8 +417,7 @@ public:
 private:
     const int srcChannelNum, dstChannelNum;
 
-    AddChannelOp (const AddChannelOp&);
-    AddChannelOp& operator= (const AddChannelOp&);
+    JUCE_DECLARE_NON_COPYABLE (AddChannelOp);
 };
 
 //==============================================================================
@@ -442,8 +438,7 @@ public:
 private:
     const int bufferNum;
 
-    ClearMidiBufferOp (const ClearMidiBufferOp&);
-    ClearMidiBufferOp& operator= (const ClearMidiBufferOp&);
+    JUCE_DECLARE_NON_COPYABLE (ClearMidiBufferOp);
 };
 
 //==============================================================================
@@ -465,8 +460,7 @@ public:
 private:
     const int srcBufferNum, dstBufferNum;
 
-    CopyMidiBufferOp (const CopyMidiBufferOp&);
-    CopyMidiBufferOp& operator= (const CopyMidiBufferOp&);
+    JUCE_DECLARE_NON_COPYABLE (CopyMidiBufferOp);
 };
 
 //==============================================================================
@@ -489,8 +483,7 @@ public:
 private:
     const int srcBufferNum, dstBufferNum;
 
-    AddMidiBufferOp (const AddMidiBufferOp&);
-    AddMidiBufferOp& operator= (const AddMidiBufferOp&);
+    JUCE_DECLARE_NON_COPYABLE (AddMidiBufferOp);
 };
 
 //==============================================================================
@@ -502,7 +495,7 @@ public:
                      const int totalChans_,
                      const int midiBufferToUse_)
         : node (node_),
-          processor (node_->processor),
+          processor (node_->getProcessor()),
           audioChannelsToUse (audioChannelsToUse_),
           totalChans (jmax (1, totalChans_)),
           midiBufferToUse (midiBufferToUse_)
@@ -536,8 +529,7 @@ private:
     int totalChans;
     int midiBufferToUse;
 
-    ProcessBufferOp (const ProcessBufferOp&);
-    ProcessBufferOp& operator= (const ProcessBufferOp&);
+    JUCE_DECLARE_NON_COPYABLE (ProcessBufferOp);
 };
 
 //==============================================================================
@@ -569,25 +561,22 @@ public:
     }
 
     int getNumBuffersNeeded() const         { return nodeIds.size(); }
-
     int getNumMidiBuffersNeeded() const     { return midiNodeIds.size(); }
 
-
-    //==============================================================================
-    juce_UseDebuggingNewOperator
-
 private:
+    //==============================================================================
     AudioProcessorGraph& graph;
     const Array<void*>& orderedNodes;
-    Array <int> nodeIds, channels, midiNodeIds;
+    Array <int> channels;
+    Array <uint32> nodeIds, midiNodeIds;
 
     //==============================================================================
     void createRenderingOpsForNode (AudioProcessorGraph::Node* const node,
                                     Array<void*>& renderingOps,
                                     const int ourRenderingIndex)
     {
-        const int numIns = node->processor->getNumInputChannels();
-        const int numOuts = node->processor->getNumOutputChannels();
+        const int numIns = node->getProcessor()->getNumInputChannels();
+        const int numOuts = node->getProcessor()->getNumOutputChannels();
         const int totalChans = jmax (numIns, numOuts);
 
         Array <int> audioChannelsToUse;
@@ -745,7 +734,7 @@ private:
             // No midi inputs..
             midiBufferToUse = getFreeBuffer (true); // need to pick a buffer even if the processor doesn't use midi
 
-            if (node->processor->acceptsMidi() || node->processor->producesMidi())
+            if (node->getProcessor()->acceptsMidi() || node->getProcessor()->producesMidi())
                 renderingOps.add (new ClearMidiBufferOp (midiBufferToUse));
         }
         else if (midiSourceNodes.size() == 1)
@@ -825,7 +814,7 @@ private:
             }
         }
 
-        if (node->processor->producesMidi())
+        if (node->getProcessor()->producesMidi())
             markBufferAsContaining (midiBufferToUse, node->id,
                                     AudioProcessorGraph::midiChannelIndex);
 
@@ -862,7 +851,7 @@ private:
         return 0;
     }
 
-    int getBufferContaining (const int nodeId, const int outputChannel) const
+    int getBufferContaining (const uint32 nodeId, const int outputChannel) const
     {
         if (outputChannel == AudioProcessorGraph::midiChannelIndex)
         {
@@ -909,7 +898,7 @@ private:
 
     bool isBufferNeededLater (int stepIndexToSearchFrom,
                               int inputChannelOfIndexToIgnore,
-                              const int nodeId,
+                              const uint32 nodeId,
                               const int outputChanIndex) const
     {
         while (stepIndexToSearchFrom < orderedNodes.size())
@@ -925,7 +914,7 @@ private:
             }
             else
             {
-                for (int i = 0; i < node->processor->getNumInputChannels(); ++i)
+                for (int i = 0; i < node->getProcessor()->getNumInputChannels(); ++i)
                     if (i != inputChannelOfIndexToIgnore
                          && graph.getConnectionBetween (nodeId, outputChanIndex,
                                                         node->id, i) != 0)
@@ -939,7 +928,7 @@ private:
         return false;
     }
 
-    void markBufferAsContaining (int bufferNum, int nodeId, int outputIndex)
+    void markBufferAsContaining (int bufferNum, uint32 nodeId, int outputIndex)
     {
         if (outputIndex == AudioProcessorGraph::midiChannelIndex)
         {
@@ -956,8 +945,7 @@ private:
         }
     }
 
-    RenderingOpSequenceCalculator (const RenderingOpSequenceCalculator&);
-    RenderingOpSequenceCalculator& operator= (const RenderingOpSequenceCalculator&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (RenderingOpSequenceCalculator);
 };
 
 }
@@ -1112,43 +1100,22 @@ void AudioProcessorGraph::processBlock (AudioSampleBuffer& buffer, MidiBuffer& m
     midiMessages.addEvents (currentMidiOutputBuffer, 0, buffer.getNumSamples(), 0);
 }
 
-const String AudioProcessorGraph::getInputChannelName (const int channelIndex) const
+const String AudioProcessorGraph::getInputChannelName (int channelIndex) const
 {
     return "Input " + String (channelIndex + 1);
 }
 
-const String AudioProcessorGraph::getOutputChannelName (const int channelIndex) const
+const String AudioProcessorGraph::getOutputChannelName (int channelIndex) const
 {
     return "Output " + String (channelIndex + 1);
 }
 
-bool AudioProcessorGraph::isInputChannelStereoPair (int /*index*/) const
-{
-    return true;
-}
-
-bool AudioProcessorGraph::isOutputChannelStereoPair (int /*index*/) const
-{
-    return true;
-}
-
-bool AudioProcessorGraph::acceptsMidi() const
-{
-    return true;
-}
-
-bool AudioProcessorGraph::producesMidi() const
-{
-    return true;
-}
-
-void AudioProcessorGraph::getStateInformation (JUCE_NAMESPACE::MemoryBlock& /*destData*/)
-{
-}
-
-void AudioProcessorGraph::setStateInformation (const void* /*data*/, int /*sizeInBytes*/)
-{
-}
+bool AudioProcessorGraph::isInputChannelStereoPair (int /*index*/) const    { return true; }
+bool AudioProcessorGraph::isOutputChannelStereoPair (int /*index*/) const   { return true; }
+bool AudioProcessorGraph::acceptsMidi() const   { return true; }
+bool AudioProcessorGraph::producesMidi() const  { return true; }
+void AudioProcessorGraph::getStateInformation (JUCE_NAMESPACE::MemoryBlock& /*destData*/)   {}
+void AudioProcessorGraph::setStateInformation (const void* /*data*/, int /*sizeInBytes*/)   {}
 
 
 //==============================================================================
@@ -1166,16 +1133,11 @@ const String AudioProcessorGraph::AudioGraphIOProcessor::getName() const
 {
     switch (type)
     {
-    case audioOutputNode:
-        return "Audio Output";
-    case audioInputNode:
-        return "Audio Input";
-    case midiOutputNode:
-        return "Midi Output";
-    case midiInputNode:
-        return "Midi Input";
-    default:
-        break;
+        case audioOutputNode:   return "Audio Output";
+        case audioInputNode:    return "Audio Input";
+        case midiOutputNode:    return "Midi Output";
+        case midiInputNode:     return "Midi Input";
+        default:                break;
     }
 
     return String::empty;
@@ -1261,31 +1223,25 @@ bool AudioProcessorGraph::AudioGraphIOProcessor::producesMidi() const
     return type == midiInputNode;
 }
 
-const String AudioProcessorGraph::AudioGraphIOProcessor::getInputChannelName (const int channelIndex) const
+const String AudioProcessorGraph::AudioGraphIOProcessor::getInputChannelName (int channelIndex) const
 {
     switch (type)
     {
-    case audioOutputNode:
-        return "Output " + String (channelIndex + 1);
-    case midiOutputNode:
-        return "Midi Output";
-    default:
-        break;
+        case audioOutputNode:   return "Output " + String (channelIndex + 1);
+        case midiOutputNode:    return "Midi Output";
+        default:                break;
     }
 
     return String::empty;
 }
 
-const String AudioProcessorGraph::AudioGraphIOProcessor::getOutputChannelName (const int channelIndex) const
+const String AudioProcessorGraph::AudioGraphIOProcessor::getOutputChannelName (int channelIndex) const
 {
     switch (type)
     {
-    case audioInputNode:
-        return "Input " + String (channelIndex + 1);
-    case midiInputNode:
-        return "Midi Input";
-    default:
-        break;
+        case audioInputNode:    return "Input " + String (channelIndex + 1);
+        case midiInputNode:     return "Midi Input";
+        default:                break;
     }
 
     return String::empty;
@@ -1311,10 +1267,8 @@ bool AudioProcessorGraph::AudioGraphIOProcessor::isOutput() const
     return type == audioOutputNode || type == midiOutputNode;
 }
 
-AudioProcessorEditor* AudioProcessorGraph::AudioGraphIOProcessor::createEditor()
-{
-    return 0;
-}
+bool AudioProcessorGraph::AudioGraphIOProcessor::hasEditor() const                  { return false; }
+AudioProcessorEditor* AudioProcessorGraph::AudioGraphIOProcessor::createEditor()    { return 0; }
 
 int AudioProcessorGraph::AudioGraphIOProcessor::getNumParameters()                  { return 0; }
 const String AudioProcessorGraph::AudioGraphIOProcessor::getParameterName (int)     { return String::empty; }

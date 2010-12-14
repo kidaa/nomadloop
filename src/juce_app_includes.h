@@ -140,6 +140,9 @@
 #ifndef __JUCE_AUDIOSAMPLEBUFFER_JUCEHEADER__
  #include "audio/dsp/juce_AudioSampleBuffer.h"
 #endif
+#ifndef __JUCE_DECIBELS_JUCEHEADER__
+ #include "audio/dsp/juce_Decibels.h"
+#endif
 #ifndef __JUCE_IIRFILTER_JUCEHEADER__
  #include "audio/dsp/juce_IIRFilter.h"
 #endif
@@ -230,9 +233,6 @@
 #ifndef __JUCE_ACTIONLISTENER_JUCEHEADER__
  #include "events/juce_ActionListener.h"
 #endif
-#ifndef __JUCE_ACTIONLISTENERLIST_JUCEHEADER__
- #include "events/juce_ActionListenerList.h"
-#endif
 #ifndef __JUCE_ASYNCUPDATER_JUCEHEADER__
  #include "events/juce_AsyncUpdater.h"
 #endif
@@ -244,9 +244,6 @@
 #endif
 #ifndef __JUCE_CHANGELISTENER_JUCEHEADER__
  #include "events/juce_ChangeListener.h"
-#endif
-#ifndef __JUCE_CHANGELISTENERLIST_JUCEHEADER__
- #include "events/juce_ChangeListenerList.h"
 #endif
 #ifndef __JUCE_INTERPROCESSCONNECTION_JUCEHEADER__
  #include "events/juce_InterprocessConnection.h"
@@ -659,6 +656,12 @@
 #ifndef __JUCE_DRAWABLEPATH_JUCEHEADER__
  #include "gui/graphics/drawables/juce_DrawablePath.h"
 #endif
+#ifndef __JUCE_DRAWABLERECTANGLE_JUCEHEADER__
+ #include "gui/graphics/drawables/juce_DrawableRectangle.h"
+#endif
+#ifndef __JUCE_DRAWABLESHAPE_JUCEHEADER__
+ #include "gui/graphics/drawables/juce_DrawableShape.h"
+#endif
 #ifndef __JUCE_DRAWABLETEXT_JUCEHEADER__
  #include "gui/graphics/drawables/juce_DrawableText.h"
 #endif
@@ -670,9 +673,6 @@
 #endif
 #ifndef __JUCE_IMAGEEFFECTFILTER_JUCEHEADER__
  #include "gui/graphics/effects/juce_ImageEffectFilter.h"
-#endif
-#ifndef __JUCE_REDUCEOPACITYEFFECT_JUCEHEADER__
- #include "gui/graphics/effects/juce_ReduceOpacityEffect.h"
 #endif
 #ifndef __JUCE_FONT_JUCEHEADER__
  #include "gui/graphics/fonts/juce_Font.h"
@@ -757,6 +757,9 @@
 #endif
 #ifndef __JUCE_UNDOMANAGER_JUCEHEADER__
  #include "utilities/juce_UndoManager.h"
+#endif
+#ifndef __JUCE_UNITTEST_JUCEHEADER__
+ #include "utilities/juce_UnitTest.h"
 #endif
 
 #endif

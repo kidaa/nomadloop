@@ -651,8 +651,6 @@ public:
     }
 
     //==============================================================================
-    juce_UseDebuggingNewOperator
-
 private:
     XImage* xImage;
     const int imageDepth;
@@ -675,7 +673,66 @@ private:
         jassertfalse;
         return 0;
     }
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (XBitmapImage);
 };
+
+namespace PixmapHelpers
+{
+    Pixmap createColourPixmapFromImage (Display* display, const Image& image)
+    {
+        ScopedXLock xlock;
+
+        const int width = image.getWidth();
+        const int height = image.getHeight();
+        HeapBlock <uint32> colour (width * height);
+        int index = 0;
+
+        for (int y = 0; y < height; ++y)
+            for (int x = 0; x < width; ++x)
+                colour[index++] = image.getPixelAt (x, y).getARGB();
+
+        XImage* ximage = XCreateImage (display, CopyFromParent, 24, ZPixmap,
+                                       0, reinterpret_cast<char*> (colour.getData()),
+                                       width, height, 32, 0);
+
+        Pixmap pixmap = XCreatePixmap (display, DefaultRootWindow (display),
+                                       width, height, 24);
+
+        GC gc = XCreateGC (display, pixmap, 0, 0);
+        XPutImage (display, pixmap, gc, ximage, 0, 0, 0, 0, width, height);
+        XFreeGC (display, gc);
+
+        return pixmap;
+    }
+
+    Pixmap createMaskPixmapFromImage (Display* display, const Image& image)
+    {
+        ScopedXLock xlock;
+
+        const int width = image.getWidth();
+        const int height = image.getHeight();
+        const int stride = (width + 7) >> 3;
+        HeapBlock <char> mask;
+        mask.calloc (stride * height);
+        const bool msbfirst = (BitmapBitOrder (display) == MSBFirst);
+
+        for (int y = 0; y < height; ++y)
+        {
+            for (int x = 0; x < width; ++x)
+            {
+                const char bit = (char) (1 << (msbfirst ? (7 - (x & 7)) : (x & 7)));
+                const int offset = y * stride + (x >> 3);
+
+                if (image.getPixelAt (x, y).getAlpha() >= 128)
+                    mask[offset] |= bit;
+            }
+        }
+
+        return XCreatePixmapFromBitmapData (display, DefaultRootWindow (display),
+                                            mask.getData(), width, height, 1, 0, 1);
+    }
+}
 
 
 //==============================================================================
@@ -749,17 +806,17 @@ public:
 
     void setTitle (const String& title)
     {
-        setWindowTitle (windowH, title);
-    }
+        XTextProperty nameProperty;
+        char* strings[] = { const_cast <char*> (title.toUTF8()) };
+        ScopedXLock xlock;
 
-    void setPosition (int x, int y)
-    {
-        setBounds (x, y, ww, wh, false);
-    }
+        if (XStringListToTextProperty (strings, 1, &nameProperty))
+        {
+            XSetWMName (display, windowH, &nameProperty);
+            XSetWMIconName (display, windowH, &nameProperty);
 
-    void setSize (int w, int h)
-    {
-        setBounds (wx, wy, w, h, false);
+            XFree (nameProperty.value);
+        }
     }
 
     void setBounds (int x, int y, int w, int h, bool isNowFullScreen)
@@ -807,17 +864,24 @@ public:
         }
     }
 
-    const Rectangle<int> getBounds() const      { return Rectangle<int> (wx, wy, ww, wh); }
-    const Point<int> getScreenPosition() const  { return Point<int> (wx, wy); }
+    void setPosition (int x, int y)                 { setBounds (x, y, ww, wh, false); }
+    void setSize (int w, int h)                     { setBounds (wx, wy, w, h, false); }
+    const Rectangle<int> getBounds() const          { return Rectangle<int> (wx, wy, ww, wh); }
+    const Point<int> getScreenPosition() const      { return Point<int> (wx, wy); }
 
-    const Point<int> relativePositionToGlobal (const Point<int>& relativePosition)
+    const Point<int> localToGlobal (const Point<int>& relativePosition)
     {
         return relativePosition + getScreenPosition();
     }
 
-    const Point<int> globalPositionToRelative (const Point<int>& screenPosition)
+    const Point<int> globalToLocal (const Point<int>& screenPosition)
     {
         return screenPosition - getScreenPosition();
+    }
+
+    void setAlpha (float newAlpha)
+    {
+        //xxx todo!
     }
 
     void setMinimised (bool shouldBeMinimised)
@@ -941,31 +1005,18 @@ public:
 
     bool contains (const Point<int>& position, bool trueIfInAChildWindow) const
     {
-        int x = position.getX();
-        int y = position.getY();
-
-        if (((unsigned int) x) >= (unsigned int) ww
-             || ((unsigned int) y) >= (unsigned int) wh)
+        if (! (isPositiveAndBelow (position.getX(), ww) && isPositiveAndBelow (position.getY(), wh)))
             return false;
 
-        bool inFront = false;
-
-        for (int i = 0; i < Desktop::getInstance().getNumComponents(); ++i)
+        for (int i = Desktop::getInstance().getNumComponents(); --i >= 0;)
         {
             Component* const c = Desktop::getInstance().getComponent (i);
 
-            if (inFront)
-            {
-                if (c->contains (x + wx - c->getScreenX(),
-                                 y + wy - c->getScreenY()))
-                {
-                    return false;
-                }
-            }
-            else if (c == getComponent())
-            {
-                inFront = true;
-            }
+            if (c == getComponent())
+                break;
+
+            if (c->contains (position + Point<int> (wx, wy) - c->getScreenPosition()))
+                return false;
         }
 
         if (trueIfInAChildWindow)
@@ -983,7 +1034,7 @@ public:
             return false;
         }
 
-        if (! XTranslateCoordinates (display, windowH, windowH, x, y, &wx, &wy, &child))
+        if (! XTranslateCoordinates (display, windowH, windowH, position.getX(), position.getY(), &wx, &wy, &child))
             return false;
 
         return child == None;
@@ -1092,60 +1143,6 @@ public:
         repainter->performAnyPendingRepaintsNow();
     }
 
-    static Pixmap juce_createColourPixmapFromImage (Display* display, const Image& image)
-    {
-        ScopedXLock xlock;
-
-        const int width = image.getWidth();
-        const int height = image.getHeight();
-        HeapBlock <char> colour (width * height);
-        int index = 0;
-
-        for (int y = 0; y < height; ++y)
-            for (int x = 0; x < width; ++x)
-                colour[index++] = static_cast<char> (image.getPixelAt (x, y).getARGB());
-
-        XImage* ximage = XCreateImage (display, CopyFromParent, 24, ZPixmap,
-                                       0, colour.getData(),
-                                       width, height, 32, 0);
-
-        Pixmap pixmap = XCreatePixmap (display, DefaultRootWindow (display),
-                                       width, height, 24);
-
-        GC gc = XCreateGC (display, pixmap, 0, 0);
-        XPutImage (display, pixmap, gc, ximage, 0, 0, 0, 0, width, height);
-        XFreeGC (display, gc);
-
-        return pixmap;
-    }
-
-    static Pixmap juce_createMaskPixmapFromImage (Display* display, const Image& image)
-    {
-        ScopedXLock xlock;
-
-        const int width = image.getWidth();
-        const int height = image.getHeight();
-        const int stride = (width + 7) >> 3;
-        HeapBlock <char> mask;
-        mask.calloc (stride * height);
-        const bool msbfirst = (BitmapBitOrder (display) == MSBFirst);
-
-        for (int y = 0; y < height; ++y)
-        {
-            for (int x = 0; x < width; ++x)
-            {
-                const char bit = (char) (1 << (msbfirst ? (7 - (x & 7)) : (x & 7)));
-                const int offset = y * stride + (x >> 3);
-
-                if (image.getPixelAt (x, y).getAlpha() >= 128)
-                    mask[offset] |= bit;
-            }
-        }
-
-        return XCreatePixmapFromBitmapData (display, DefaultRootWindow (display),
-                                            mask.getData(), width, height, 1, 0, 1);
-    }
-
     void setIcon (const Image& newIcon)
     {
         const int dataSize = newIcon.getWidth() * newIcon.getHeight() + 2;
@@ -1173,8 +1170,8 @@ public:
             wmHints = XAllocWMHints();
 
         wmHints->flags |= IconPixmapHint | IconMaskHint;
-        wmHints->icon_pixmap = juce_createColourPixmapFromImage (display, newIcon);
-        wmHints->icon_mask = juce_createMaskPixmapFromImage (display, newIcon);
+        wmHints->icon_pixmap = PixmapHelpers::createColourPixmapFromImage (display, newIcon);
+        wmHints->icon_mask = PixmapHelpers::createMaskPixmapFromImage (display, newIcon);
 
         XSetWMHints (display, windowH, wmHints);
         XFree (wmHints);
@@ -1211,386 +1208,28 @@ public:
     {
         switch (event->xany.type)
         {
-            case 2: // 'KeyPress'
-            {
-                ScopedXLock xlock;
-                XKeyEvent* const keyEvent = (XKeyEvent*) &event->xkey;
-                updateKeyStates (keyEvent->keycode, true);
-
-                char utf8 [64];
-                zeromem (utf8, sizeof (utf8));
-                KeySym sym;
-
-                {
-                    const char* oldLocale = ::setlocale (LC_ALL, 0);
-                    ::setlocale (LC_ALL, "");
-                    XLookupString (keyEvent, utf8, sizeof (utf8), &sym, 0);
-                    ::setlocale (LC_ALL, oldLocale);
-                }
-
-                const juce_wchar unicodeChar = String::fromUTF8 (utf8, sizeof (utf8) - 1) [0];
-                int keyCode = (int) unicodeChar;
-
-                if (keyCode < 0x20)
-                    keyCode = XKeycodeToKeysym (display, keyEvent->keycode, currentModifiers.isShiftDown() ? 1 : 0);
-
-                const ModifierKeys oldMods (currentModifiers);
-                bool keyPressed = false;
-
-                const bool keyDownChange = (sym != NoSymbol) && ! updateKeyModifiersFromSym (sym, true);
-
-                if ((sym & 0xff00) == 0xff00)
-                {
-                    // Translate keypad
-                    if (sym == XK_KP_Divide)
-                        keyCode = XK_slash;
-                    else if (sym == XK_KP_Multiply)
-                        keyCode = XK_asterisk;
-                    else if (sym == XK_KP_Subtract)
-                        keyCode = XK_hyphen;
-                    else if (sym == XK_KP_Add)
-                        keyCode = XK_plus;
-                    else if (sym == XK_KP_Enter)
-                        keyCode = XK_Return;
-                    else if (sym == XK_KP_Decimal)
-                        keyCode = Keys::numLock ? XK_period : XK_Delete;
-                    else if (sym == XK_KP_0)
-                        keyCode = Keys::numLock ? XK_0 : XK_Insert;
-                    else if (sym == XK_KP_1)
-                        keyCode = Keys::numLock ? XK_1 : XK_End;
-                    else if (sym == XK_KP_2)
-                        keyCode = Keys::numLock ? XK_2 : XK_Down;
-                    else if (sym == XK_KP_3)
-                        keyCode = Keys::numLock ? XK_3 : XK_Page_Down;
-                    else if (sym == XK_KP_4)
-                        keyCode = Keys::numLock ? XK_4 : XK_Left;
-                    else if (sym == XK_KP_5)
-                        keyCode = XK_5;
-                    else if (sym == XK_KP_6)
-                        keyCode = Keys::numLock ? XK_6 : XK_Right;
-                    else if (sym == XK_KP_7)
-                        keyCode = Keys::numLock ? XK_7 : XK_Home;
-                    else if (sym == XK_KP_8)
-                        keyCode = Keys::numLock ? XK_8 : XK_Up;
-                    else if (sym == XK_KP_9)
-                        keyCode = Keys::numLock ? XK_9 : XK_Page_Up;
-
-                    switch (sym)
-                    {
-                        case XK_Left:
-                        case XK_Right:
-                        case XK_Up:
-                        case XK_Down:
-                        case XK_Page_Up:
-                        case XK_Page_Down:
-                        case XK_End:
-                        case XK_Home:
-                        case XK_Delete:
-                        case XK_Insert:
-                            keyPressed = true;
-                            keyCode = (sym & 0xff) | Keys::extendedKeyModifier;
-                            break;
-                        case XK_Tab:
-                        case XK_Return:
-                        case XK_Escape:
-                        case XK_BackSpace:
-                            keyPressed = true;
-                            keyCode &= 0xff;
-                            break;
-                        default:
-                        {
-                            if (sym >= XK_F1 && sym <= XK_F16)
-                            {
-                                keyPressed = true;
-                                keyCode = (sym & 0xff) | Keys::extendedKeyModifier;
-                            }
-                            break;
-                        }
-                    }
-                }
-
-                if (utf8[0] != 0 || ((sym & 0xff00) == 0 && sym >= 8))
-                    keyPressed = true;
-
-                if (oldMods != currentModifiers)
-                    handleModifierKeysChange();
-
-                if (keyDownChange)
-                    handleKeyUpOrDown (true);
-
-                if (keyPressed)
-                    handleKeyPress (keyCode, unicodeChar);
-
-                break;
-            }
-
-            case KeyRelease:
-            {
-                const XKeyEvent* const keyEvent = (const XKeyEvent*) &event->xkey;
-                updateKeyStates (keyEvent->keycode, false);
-
-                ScopedXLock xlock;
-                KeySym sym = XKeycodeToKeysym (display, keyEvent->keycode, 0);
-
-                const ModifierKeys oldMods (currentModifiers);
-                const bool keyDownChange = (sym != NoSymbol) && ! updateKeyModifiersFromSym (sym, false);
-
-                if (oldMods != currentModifiers)
-                    handleModifierKeysChange();
-
-                if (keyDownChange)
-                    handleKeyUpOrDown (false);
-
-                break;
-            }
-
-            case ButtonPress:
-            {
-                const XButtonPressedEvent* const buttonPressEvent = (const XButtonPressedEvent*) &event->xbutton;
-                updateKeyModifiers (buttonPressEvent->state);
-
-                bool buttonMsg = false;
-                const int map = pointerMap [buttonPressEvent->button - Button1];
-
-                if (map == Keys::WheelUp || map == Keys::WheelDown)
-                {
-                    handleMouseWheel (0, Point<int> (buttonPressEvent->x, buttonPressEvent->y),
-                                      getEventTime (buttonPressEvent->time), 0, map == Keys::WheelDown ? -84.0f : 84.0f);
-                }
-                if (map == Keys::LeftButton)
-                {
-                    currentModifiers = currentModifiers.withFlags (ModifierKeys::leftButtonModifier);
-                    buttonMsg = true;
-                }
-                else if (map == Keys::RightButton)
-                {
-                    currentModifiers = currentModifiers.withFlags (ModifierKeys::rightButtonModifier);
-                    buttonMsg = true;
-                }
-                else if (map == Keys::MiddleButton)
-                {
-                    currentModifiers = currentModifiers.withFlags (ModifierKeys::middleButtonModifier);
-                    buttonMsg = true;
-                }
-
-                if (buttonMsg)
-                {
-                    toFront (true);
-
-                    handleMouseEvent (0, Point<int> (buttonPressEvent->x, buttonPressEvent->y), currentModifiers,
-                                      getEventTime (buttonPressEvent->time));
-                }
-
-                clearLastMousePos();
-                break;
-            }
-
-            case ButtonRelease:
-            {
-                const XButtonReleasedEvent* const buttonRelEvent = (const XButtonReleasedEvent*) &event->xbutton;
-                updateKeyModifiers (buttonRelEvent->state);
-
-                const int map = pointerMap [buttonRelEvent->button - Button1];
-
-                if (map == Keys::LeftButton)
-                    currentModifiers = currentModifiers.withoutFlags (ModifierKeys::leftButtonModifier);
-                else if (map == Keys::RightButton)
-                    currentModifiers = currentModifiers.withoutFlags (ModifierKeys::rightButtonModifier);
-                else if (map == Keys::MiddleButton)
-                    currentModifiers = currentModifiers.withoutFlags (ModifierKeys::middleButtonModifier);
-
-                handleMouseEvent (0, Point<int> (buttonRelEvent->x, buttonRelEvent->y), currentModifiers,
-                                  getEventTime (buttonRelEvent->time));
-
-                clearLastMousePos();
-                break;
-            }
-
-            case MotionNotify:
-            {
-                const XPointerMovedEvent* const movedEvent = (const XPointerMovedEvent*) &event->xmotion;
-                updateKeyModifiers (movedEvent->state);
-
-                const Point<int> mousePos (Desktop::getMousePosition());
-
-                if (lastMousePos != mousePos)
-                {
-                    lastMousePos = mousePos;
-
-                    if (parentWindow != 0 && (styleFlags & windowHasTitleBar) == 0)
-                    {
-                        Window wRoot = 0, wParent = 0;
-
-                        {
-                            ScopedXLock xlock;
-                            unsigned int numChildren;
-                            Window* wChild = 0;
-                            XQueryTree (display, windowH, &wRoot, &wParent, &wChild, &numChildren);
-                        }
-
-                        if (wParent != 0
-                             && wParent != windowH
-                             && wParent != wRoot)
-                        {
-                            parentWindow = wParent;
-                            updateBounds();
-                        }
-                        else
-                        {
-                            parentWindow = 0;
-                        }
-                    }
-
-                    handleMouseEvent (0, mousePos - getScreenPosition(), currentModifiers, getEventTime (movedEvent->time));
-                }
-
-                break;
-            }
-
-            case EnterNotify:
-            {
-                clearLastMousePos();
-                const XEnterWindowEvent* const enterEvent = (const XEnterWindowEvent*) &event->xcrossing;
-
-                if (! currentModifiers.isAnyMouseButtonDown())
-                {
-                    updateKeyModifiers (enterEvent->state);
-                    handleMouseEvent (0, Point<int> (enterEvent->x, enterEvent->y), currentModifiers, getEventTime (enterEvent->time));
-                }
-
-                break;
-            }
-
-            case LeaveNotify:
-            {
-                const XLeaveWindowEvent* const leaveEvent = (const XLeaveWindowEvent*) &event->xcrossing;
-
-                // Suppress the normal leave if we've got a pointer grab, or if
-                // it's a bogus one caused by clicking a mouse button when running
-                // in a Window manager
-                if (((! currentModifiers.isAnyMouseButtonDown()) && leaveEvent->mode == NotifyNormal)
-                     || leaveEvent->mode == NotifyUngrab)
-                {
-                    updateKeyModifiers (leaveEvent->state);
-                    handleMouseEvent (0, Point<int> (leaveEvent->x, leaveEvent->y), currentModifiers, getEventTime (leaveEvent->time));
-                }
-
-                break;
-            }
-
-            case FocusIn:
-            {
-                isActiveApplication = true;
-                if (isFocused())
-                    handleFocusGain();
-
-                break;
-            }
-
-            case FocusOut:
-            {
-                isActiveApplication = false;
-                if (! isFocused())
-                    handleFocusLoss();
-
-                break;
-            }
-
-            case Expose:
-            {
-                // Batch together all pending expose events
-                XExposeEvent* exposeEvent = (XExposeEvent*) &event->xexpose;
-                XEvent nextEvent;
-                ScopedXLock xlock;
-
-                if (exposeEvent->window != windowH)
-                {
-                    Window child;
-                    XTranslateCoordinates (display, exposeEvent->window, windowH,
-                                           exposeEvent->x, exposeEvent->y, &exposeEvent->x, &exposeEvent->y,
-                                           &child);
-                }
-
-                repaint (Rectangle<int> (exposeEvent->x, exposeEvent->y,
-                                         exposeEvent->width, exposeEvent->height));
-
-                while (XEventsQueued (display, QueuedAfterFlush) > 0)
-                {
-                    XPeekEvent (display, (XEvent*) &nextEvent);
-                    if (nextEvent.type != Expose || nextEvent.xany.window != event->xany.window)
-                        break;
-
-                    XNextEvent (display, (XEvent*) &nextEvent);
-                    XExposeEvent* nextExposeEvent = (XExposeEvent*) &nextEvent.xexpose;
-                    repaint (Rectangle<int> (nextExposeEvent->x, nextExposeEvent->y,
-                                             nextExposeEvent->width, nextExposeEvent->height));
-                }
-
-                break;
-            }
+            case 2: /* KeyPress */      handleKeyPressEvent ((XKeyEvent*) &event->xkey); break;
+            case KeyRelease:            handleKeyReleaseEvent ((const XKeyEvent*) &event->xkey); break;
+            case ButtonPress:           handleButtonPressEvent ((const XButtonPressedEvent*) &event->xbutton); break;
+            case ButtonRelease:         handleButtonReleaseEvent ((const XButtonReleasedEvent*) &event->xbutton); break;
+            case MotionNotify:          handleMotionNotifyEvent ((const XPointerMovedEvent*) &event->xmotion); break;
+            case EnterNotify:           handleEnterNotifyEvent ((const XEnterWindowEvent*) &event->xcrossing); break;
+            case LeaveNotify:           handleLeaveNotifyEvent ((const XLeaveWindowEvent*) &event->xcrossing); break;
+            case FocusIn:               handleFocusInEvent(); break;
+            case FocusOut:              handleFocusOutEvent(); break;
+            case Expose:                handleExposeEvent ((XExposeEvent*) &event->xexpose); break;
+            case MappingNotify:         handleMappingNotify ((XMappingEvent*) &event->xmapping); break;
+            case ClientMessage:         handleClientMessageEvent ((XClientMessageEvent*) &event->xclient, event); break;
+            case SelectionNotify:       handleDragAndDropSelection (event); break;
+            case ConfigureNotify:       handleConfigureNotifyEvent ((XConfigureEvent*) &event->xconfigure); break;
+            case ReparentNotify:        handleReparentNotifyEvent(); break;
+            case GravityNotify:         handleGravityNotify(); break;
 
             case CirculateNotify:
             case CreateNotify:
             case DestroyNotify:
                 // Think we can ignore these
                 break;
-
-            case ConfigureNotify:
-            {
-                updateBounds();
-                updateBorderSize();
-                handleMovedOrResized();
-
-                // if the native title bar is dragged, need to tell any active menus, etc.
-                if ((styleFlags & windowHasTitleBar) != 0
-                      && component->isCurrentlyBlockedByAnotherModalComponent())
-                {
-                    Component* const currentModalComp = Component::getCurrentlyModalComponent();
-
-                    if (currentModalComp != 0)
-                        currentModalComp->inputAttemptWhenModal();
-                }
-
-                XConfigureEvent* const confEvent = (XConfigureEvent*) &event->xconfigure;
-
-                if (confEvent->window == windowH
-                     && confEvent->above != 0
-                     && isFrontWindow())
-                {
-                    handleBroughtToFront();
-                }
-
-                break;
-            }
-
-            case ReparentNotify:
-            {
-                parentWindow = 0;
-                Window wRoot = 0;
-                Window* wChild = 0;
-                unsigned int numChildren;
-
-                {
-                    ScopedXLock xlock;
-                    XQueryTree (display, windowH, &wRoot, &parentWindow, &wChild, &numChildren);
-                }
-
-                if (parentWindow == windowH || parentWindow == wRoot)
-                    parentWindow = 0;
-
-                updateBounds();
-                updateBorderSize();
-                handleMovedOrResized();
-                break;
-            }
-
-            case GravityNotify:
-            {
-                updateBounds();
-                updateBorderSize();
-                handleMovedOrResized();
-                break;
-            }
 
             case MapNotify:
                 mapped = true;
@@ -1601,103 +1240,419 @@ public:
                 mapped = false;
                 break;
 
-            case MappingNotify:
-            {
-                XMappingEvent* mappingEvent = (XMappingEvent*) &event->xmapping;
-
-                if (mappingEvent->request != MappingPointer)
-                {
-                    // Deal with modifier/keyboard mapping
-                    ScopedXLock xlock;
-                    XRefreshKeyboardMapping (mappingEvent);
-                    updateModifierMappings();
-                }
-
-                break;
-            }
-
-            case ClientMessage:
-            {
-                const XClientMessageEvent* const clientMsg = (const XClientMessageEvent*) &event->xclient;
-
-                if (clientMsg->message_type == Atoms::Protocols && clientMsg->format == 32)
-                {
-                    const Atom atom = (Atom) clientMsg->data.l[0];
-
-                    if (atom == Atoms::ProtocolList [Atoms::PING])
-                    {
-                        Window root = RootWindow (display, DefaultScreen (display));
-
-                        event->xclient.window = root;
-
-                        XSendEvent (display, root, False, NoEventMask, event);
-                        XFlush (display);
-                    }
-                    else if (atom == Atoms::ProtocolList [Atoms::TAKE_FOCUS])
-                    {
-                        XWindowAttributes atts;
-
-                        ScopedXLock xlock;
-                        if (clientMsg->window != 0
-                             && XGetWindowAttributes (display, clientMsg->window, &atts))
-                        {
-                            if (atts.map_state == IsViewable)
-                                XSetInputFocus (display, clientMsg->window, RevertToParent, clientMsg->data.l[1]);
-                        }
-                    }
-                    else if (atom == Atoms::ProtocolList [Atoms::DELETE_WINDOW])
-                    {
-                        handleUserClosingWindow();
-                    }
-                }
-                else if (clientMsg->message_type == Atoms::XdndEnter)
-                {
-                    handleDragAndDropEnter (clientMsg);
-                }
-                else if (clientMsg->message_type == Atoms::XdndLeave)
-                {
-                    resetDragAndDrop();
-                }
-                else if (clientMsg->message_type == Atoms::XdndPosition)
-                {
-                    handleDragAndDropPosition (clientMsg);
-                }
-                else if (clientMsg->message_type == Atoms::XdndDrop)
-                {
-                    handleDragAndDropDrop (clientMsg);
-                }
-                else if (clientMsg->message_type == Atoms::XdndStatus)
-                {
-                    handleDragAndDropStatus (clientMsg);
-                }
-                else if (clientMsg->message_type == Atoms::XdndFinished)
-                {
-                    resetDragAndDrop();
-                }
-
-                break;
-            }
-
-            case SelectionNotify:
-                handleDragAndDropSelection (event);
-                break;
-
             case SelectionClear:
             case SelectionRequest:
                 break;
 
             default:
-#if JUCE_USE_XSHM
-            {
-                ScopedXLock xlock;
-                if (event->xany.type == XShmGetEventBase (display))
-                    repainter->notifyPaintCompleted();
-            }
-#endif
+               #if JUCE_USE_XSHM
+                {
+                    ScopedXLock xlock;
+                    if (event->xany.type == XShmGetEventBase (display))
+                        repainter->notifyPaintCompleted();
+                }
+               #endif
                 break;
         }
     }
 
+    void handleKeyPressEvent (XKeyEvent* const keyEvent)
+    {
+        char utf8 [64] = { 0 };
+        juce_wchar unicodeChar = 0;
+        int keyCode = 0;
+        bool keyDownChange = false;
+        KeySym sym;
+
+        {
+            ScopedXLock xlock;
+            updateKeyStates (keyEvent->keycode, true);
+
+            const char* oldLocale = ::setlocale (LC_ALL, 0);
+            ::setlocale (LC_ALL, "");
+            XLookupString (keyEvent, utf8, sizeof (utf8), &sym, 0);
+            ::setlocale (LC_ALL, oldLocale);
+
+            unicodeChar = String::fromUTF8 (utf8, sizeof (utf8) - 1) [0];
+            keyCode = (int) unicodeChar;
+
+            if (keyCode < 0x20)
+                keyCode = XKeycodeToKeysym (display, keyEvent->keycode, currentModifiers.isShiftDown() ? 1 : 0);
+
+            keyDownChange = (sym != NoSymbol) && ! updateKeyModifiersFromSym (sym, true);
+        }
+
+        const ModifierKeys oldMods (currentModifiers);
+        bool keyPressed = false;
+
+        if ((sym & 0xff00) == 0xff00)
+        {
+            switch (sym)  // Translate keypad
+            {
+                case XK_KP_Divide:      keyCode = XK_slash; break;
+                case XK_KP_Multiply:    keyCode = XK_asterisk; break;
+                case XK_KP_Subtract:    keyCode = XK_hyphen; break;
+                case XK_KP_Add:         keyCode = XK_plus; break;
+                case XK_KP_Enter:       keyCode = XK_Return; break;
+                case XK_KP_Decimal:     keyCode = Keys::numLock ? XK_period : XK_Delete; break;
+                case XK_KP_0:           keyCode = Keys::numLock ? XK_0 : XK_Insert; break;
+                case XK_KP_1:           keyCode = Keys::numLock ? XK_1 : XK_End; break;
+                case XK_KP_2:           keyCode = Keys::numLock ? XK_2 : XK_Down; break;
+                case XK_KP_3:           keyCode = Keys::numLock ? XK_3 : XK_Page_Down; break;
+                case XK_KP_4:           keyCode = Keys::numLock ? XK_4 : XK_Left; break;
+                case XK_KP_5:           keyCode = XK_5; break;
+                case XK_KP_6:           keyCode = Keys::numLock ? XK_6 : XK_Right; break;
+                case XK_KP_7:           keyCode = Keys::numLock ? XK_7 : XK_Home; break;
+                case XK_KP_8:           keyCode = Keys::numLock ? XK_8 : XK_Up; break;
+                case XK_KP_9:           keyCode = Keys::numLock ? XK_9 : XK_Page_Up; break;
+                default:                break;
+            }
+
+            switch (sym)
+            {
+                case XK_Left:
+                case XK_Right:
+                case XK_Up:
+                case XK_Down:
+                case XK_Page_Up:
+                case XK_Page_Down:
+                case XK_End:
+                case XK_Home:
+                case XK_Delete:
+                case XK_Insert:
+                    keyPressed = true;
+                    keyCode = (sym & 0xff) | Keys::extendedKeyModifier;
+                    break;
+
+                case XK_Tab:
+                case XK_Return:
+                case XK_Escape:
+                case XK_BackSpace:
+                    keyPressed = true;
+                    keyCode &= 0xff;
+                    break;
+
+                default:
+                    if (sym >= XK_F1 && sym <= XK_F16)
+                    {
+                        keyPressed = true;
+                        keyCode = (sym & 0xff) | Keys::extendedKeyModifier;
+                    }
+                    break;
+            }
+        }
+
+        if (utf8[0] != 0 || ((sym & 0xff00) == 0 && sym >= 8))
+            keyPressed = true;
+
+        if (oldMods != currentModifiers)
+            handleModifierKeysChange();
+
+        if (keyDownChange)
+            handleKeyUpOrDown (true);
+
+        if (keyPressed)
+            handleKeyPress (keyCode, unicodeChar);
+    }
+
+    void handleKeyReleaseEvent (const XKeyEvent* const keyEvent)
+    {
+        updateKeyStates (keyEvent->keycode, false);
+        KeySym sym;
+
+        {
+            ScopedXLock xlock;
+            sym = XKeycodeToKeysym (display, keyEvent->keycode, 0);
+        }
+
+        const ModifierKeys oldMods (currentModifiers);
+        const bool keyDownChange = (sym != NoSymbol) && ! updateKeyModifiersFromSym (sym, false);
+
+        if (oldMods != currentModifiers)
+            handleModifierKeysChange();
+
+        if (keyDownChange)
+            handleKeyUpOrDown (false);
+    }
+
+    void handleButtonPressEvent (const XButtonPressedEvent* const buttonPressEvent)
+    {
+        updateKeyModifiers (buttonPressEvent->state);
+
+        bool buttonMsg = false;
+        const int map = pointerMap [buttonPressEvent->button - Button1];
+
+        if (map == Keys::WheelUp || map == Keys::WheelDown)
+        {
+            handleMouseWheel (0, Point<int> (buttonPressEvent->x, buttonPressEvent->y),
+                              getEventTime (buttonPressEvent->time), 0, map == Keys::WheelDown ? -84.0f : 84.0f);
+        }
+        if (map == Keys::LeftButton)
+        {
+            currentModifiers = currentModifiers.withFlags (ModifierKeys::leftButtonModifier);
+            buttonMsg = true;
+        }
+        else if (map == Keys::RightButton)
+        {
+            currentModifiers = currentModifiers.withFlags (ModifierKeys::rightButtonModifier);
+            buttonMsg = true;
+        }
+        else if (map == Keys::MiddleButton)
+        {
+            currentModifiers = currentModifiers.withFlags (ModifierKeys::middleButtonModifier);
+            buttonMsg = true;
+        }
+
+        if (buttonMsg)
+        {
+            toFront (true);
+
+            handleMouseEvent (0, Point<int> (buttonPressEvent->x, buttonPressEvent->y), currentModifiers,
+                              getEventTime (buttonPressEvent->time));
+        }
+
+        clearLastMousePos();
+    }
+
+    void handleButtonReleaseEvent (const XButtonReleasedEvent* const buttonRelEvent)
+    {
+        updateKeyModifiers (buttonRelEvent->state);
+        const int map = pointerMap [buttonRelEvent->button - Button1];
+
+        if (map == Keys::LeftButton)        currentModifiers = currentModifiers.withoutFlags (ModifierKeys::leftButtonModifier);
+        else if (map == Keys::RightButton)  currentModifiers = currentModifiers.withoutFlags (ModifierKeys::rightButtonModifier);
+        else if (map == Keys::MiddleButton) currentModifiers = currentModifiers.withoutFlags (ModifierKeys::middleButtonModifier);
+
+        handleMouseEvent (0, Point<int> (buttonRelEvent->x, buttonRelEvent->y), currentModifiers,
+                          getEventTime (buttonRelEvent->time));
+
+        clearLastMousePos();
+    }
+
+    void handleMotionNotifyEvent (const XPointerMovedEvent* const movedEvent)
+    {
+        updateKeyModifiers (movedEvent->state);
+        const Point<int> mousePos (movedEvent->x_root, movedEvent->y_root);
+
+        if (lastMousePos != mousePos)
+        {
+            lastMousePos = mousePos;
+
+            if (parentWindow != 0 && (styleFlags & windowHasTitleBar) == 0)
+            {
+                Window wRoot = 0, wParent = 0;
+
+                {
+                    ScopedXLock xlock;
+                    unsigned int numChildren;
+                    Window* wChild = 0;
+                    XQueryTree (display, windowH, &wRoot, &wParent, &wChild, &numChildren);
+                }
+
+                if (wParent != 0
+                     && wParent != windowH
+                     && wParent != wRoot)
+                {
+                    parentWindow = wParent;
+                    updateBounds();
+                }
+                else
+                {
+                    parentWindow = 0;
+                }
+            }
+
+            handleMouseEvent (0, mousePos - getScreenPosition(), currentModifiers, getEventTime (movedEvent->time));
+        }
+    }
+
+    void handleEnterNotifyEvent (const XEnterWindowEvent* const enterEvent)
+    {
+        clearLastMousePos();
+
+        if (! currentModifiers.isAnyMouseButtonDown())
+        {
+            updateKeyModifiers (enterEvent->state);
+            handleMouseEvent (0, Point<int> (enterEvent->x, enterEvent->y), currentModifiers, getEventTime (enterEvent->time));
+        }
+    }
+
+    void handleLeaveNotifyEvent (const XLeaveWindowEvent* const leaveEvent)
+    {
+        // Suppress the normal leave if we've got a pointer grab, or if
+        // it's a bogus one caused by clicking a mouse button when running
+        // in a Window manager
+        if (((! currentModifiers.isAnyMouseButtonDown()) && leaveEvent->mode == NotifyNormal)
+             || leaveEvent->mode == NotifyUngrab)
+        {
+            updateKeyModifiers (leaveEvent->state);
+            handleMouseEvent (0, Point<int> (leaveEvent->x, leaveEvent->y), currentModifiers, getEventTime (leaveEvent->time));
+        }
+    }
+
+    void handleFocusInEvent()
+    {
+        isActiveApplication = true;
+        if (isFocused())
+            handleFocusGain();
+    }
+
+    void handleFocusOutEvent()
+    {
+        isActiveApplication = false;
+        if (! isFocused())
+            handleFocusLoss();
+    }
+
+    void handleExposeEvent (XExposeEvent* exposeEvent)
+    {
+        // Batch together all pending expose events
+        XEvent nextEvent;
+        ScopedXLock xlock;
+
+        if (exposeEvent->window != windowH)
+        {
+            Window child;
+            XTranslateCoordinates (display, exposeEvent->window, windowH,
+                                   exposeEvent->x, exposeEvent->y, &exposeEvent->x, &exposeEvent->y,
+                                   &child);
+        }
+
+        repaint (Rectangle<int> (exposeEvent->x, exposeEvent->y,
+                                 exposeEvent->width, exposeEvent->height));
+
+        while (XEventsQueued (display, QueuedAfterFlush) > 0)
+        {
+            XPeekEvent (display, (XEvent*) &nextEvent);
+            if (nextEvent.type != Expose || nextEvent.xany.window != exposeEvent->window)
+                break;
+
+            XNextEvent (display, (XEvent*) &nextEvent);
+            XExposeEvent* nextExposeEvent = (XExposeEvent*) &nextEvent.xexpose;
+            repaint (Rectangle<int> (nextExposeEvent->x, nextExposeEvent->y,
+                                     nextExposeEvent->width, nextExposeEvent->height));
+        }
+    }
+
+    void handleConfigureNotifyEvent (XConfigureEvent* const confEvent)
+    {
+        updateBounds();
+        updateBorderSize();
+        handleMovedOrResized();
+
+        // if the native title bar is dragged, need to tell any active menus, etc.
+        if ((styleFlags & windowHasTitleBar) != 0
+              && component->isCurrentlyBlockedByAnotherModalComponent())
+        {
+            Component* const currentModalComp = Component::getCurrentlyModalComponent();
+
+            if (currentModalComp != 0)
+                currentModalComp->inputAttemptWhenModal();
+        }
+
+        if (confEvent->window == windowH
+             && confEvent->above != 0
+             && isFrontWindow())
+        {
+            handleBroughtToFront();
+        }
+    }
+
+    void handleReparentNotifyEvent()
+    {
+        parentWindow = 0;
+        Window wRoot = 0;
+        Window* wChild = 0;
+        unsigned int numChildren;
+
+        {
+            ScopedXLock xlock;
+            XQueryTree (display, windowH, &wRoot, &parentWindow, &wChild, &numChildren);
+        }
+
+        if (parentWindow == windowH || parentWindow == wRoot)
+            parentWindow = 0;
+
+        handleGravityNotify();
+    }
+
+    void handleGravityNotify()
+    {
+        updateBounds();
+        updateBorderSize();
+        handleMovedOrResized();
+    }
+
+    void handleMappingNotify (XMappingEvent* const mappingEvent)
+    {
+        if (mappingEvent->request != MappingPointer)
+        {
+            // Deal with modifier/keyboard mapping
+            ScopedXLock xlock;
+            XRefreshKeyboardMapping (mappingEvent);
+            updateModifierMappings();
+        }
+    }
+
+    void handleClientMessageEvent (XClientMessageEvent* const clientMsg, XEvent* event)
+    {
+        if (clientMsg->message_type == Atoms::Protocols && clientMsg->format == 32)
+        {
+            const Atom atom = (Atom) clientMsg->data.l[0];
+
+            if (atom == Atoms::ProtocolList [Atoms::PING])
+            {
+                Window root = RootWindow (display, DefaultScreen (display));
+
+                clientMsg->window = root;
+
+                XSendEvent (display, root, False, NoEventMask, event);
+                XFlush (display);
+            }
+            else if (atom == Atoms::ProtocolList [Atoms::TAKE_FOCUS])
+            {
+                XWindowAttributes atts;
+
+                ScopedXLock xlock;
+                if (clientMsg->window != 0
+                     && XGetWindowAttributes (display, clientMsg->window, &atts))
+                {
+                    if (atts.map_state == IsViewable)
+                        XSetInputFocus (display, clientMsg->window, RevertToParent, clientMsg->data.l[1]);
+                }
+            }
+            else if (atom == Atoms::ProtocolList [Atoms::DELETE_WINDOW])
+            {
+                handleUserClosingWindow();
+            }
+        }
+        else if (clientMsg->message_type == Atoms::XdndEnter)
+        {
+            handleDragAndDropEnter (clientMsg);
+        }
+        else if (clientMsg->message_type == Atoms::XdndLeave)
+        {
+            resetDragAndDrop();
+        }
+        else if (clientMsg->message_type == Atoms::XdndPosition)
+        {
+            handleDragAndDropPosition (clientMsg);
+        }
+        else if (clientMsg->message_type == Atoms::XdndDrop)
+        {
+            handleDragAndDropDrop (clientMsg);
+        }
+        else if (clientMsg->message_type == Atoms::XdndStatus)
+        {
+            handleDragAndDropStatus (clientMsg);
+        }
+        else if (clientMsg->message_type == Atoms::XdndFinished)
+        {
+            resetDragAndDrop();
+        }
+    }
+
+    //==============================================================================
     void showMouseCursor (Cursor cursor) throw()
     {
         ScopedXLock xlock;
@@ -1765,8 +1720,6 @@ public:
     const Image& getTaskbarIcon() const throw()           { return taskbarImage; }
 
     //==============================================================================
-    juce_UseDebuggingNewOperator
-
     bool dontRepaint;
 
     static ModifierKeys currentModifiers;
@@ -1781,7 +1734,7 @@ private:
             : peer (peer_),
               lastTimeImageUsed (0)
         {
-#if JUCE_USE_XSHM
+          #if JUCE_USE_XSHM
             shmCompletedDrawing = true;
 
             useARGBImagesForRendering = XSHMHelpers::isShmAvailable();
@@ -1798,19 +1751,15 @@ private:
                 useARGBImagesForRendering = (testImage->bits_per_pixel == 32);
                 XDestroyImage (testImage);
             }
-#endif
-        }
-
-        ~LinuxRepaintManager()
-        {
+          #endif
         }
 
         void timerCallback()
         {
-#if JUCE_USE_XSHM
+          #if JUCE_USE_XSHM
             if (! shmCompletedDrawing)
                 return;
-#endif
+          #endif
             if (! regionsNeedingRepaint.isEmpty())
             {
                 stopTimer();
@@ -1833,13 +1782,13 @@ private:
 
         void performAnyPendingRepaintsNow()
         {
-#if JUCE_USE_XSHM
+          #if JUCE_USE_XSHM
             if (! shmCompletedDrawing)
             {
                 startTimer (repaintTimerPeriod);
                 return;
             }
-#endif
+          #endif
 
             peer->clearMaskedRegion();
 
@@ -1852,12 +1801,12 @@ private:
                 if (image.isNull() || image.getWidth() < totalArea.getWidth()
                      || image.getHeight() < totalArea.getHeight())
                 {
-#if JUCE_USE_XSHM
+                  #if JUCE_USE_XSHM
                     image = Image (new XBitmapImage (useARGBImagesForRendering ? Image::ARGB
                                                                                : Image::RGB,
-#else
+                  #else
                     image = Image (new XBitmapImage (Image::RGB,
-#endif
+                  #endif
                                                      (totalArea.getWidth() + 31) & ~31,
                                                      (totalArea.getHeight() + 31) & ~31,
                                                      false, peer->depth, peer->visual));
@@ -1884,9 +1833,9 @@ private:
 
                 for (RectangleList::Iterator i (originalRepaintRegion); i.next();)
                 {
-#if JUCE_USE_XSHM
+                  #if JUCE_USE_XSHM
                     shmCompletedDrawing = false;
-#endif
+                  #endif
                     const Rectangle<int>& r = *i.getRectangle();
 
                     static_cast<XBitmapImage*> (image.getSharedImage())
@@ -1900,9 +1849,9 @@ private:
             startTimer (repaintTimerPeriod);
         }
 
-#if JUCE_USE_XSHM
+      #if JUCE_USE_XSHM
         void notifyPaintCompleted()                 { shmCompletedDrawing = true; }
-#endif
+      #endif
 
     private:
         enum { repaintTimerPeriod = 1000 / 100 };
@@ -1912,11 +1861,10 @@ private:
         uint32 lastTimeImageUsed;
         RectangleList regionsNeedingRepaint;
 
-#if JUCE_USE_XSHM
+      #if JUCE_USE_XSHM
         bool useARGBImagesForRendering, shmCompletedDrawing;
-#endif
-        LinuxRepaintManager (const LinuxRepaintManager&);
-        LinuxRepaintManager& operator= (const LinuxRepaintManager&);
+      #endif
+        JUCE_DECLARE_NON_COPYABLE (LinuxRepaintManager);
     };
 
     ScopedPointer <LinuxRepaintManager> repainter;
@@ -2243,8 +2191,7 @@ private:
         else
             addWindowButtons (windowH);
 
-        // Set window name
-        setWindowTitle (windowH, getComponent()->getName());
+        setTitle (getComponent()->getName());
 
         // Associate the PID, allowing to be shut down when something goes wrong
         unsigned long pid = getpid();
@@ -2338,21 +2285,6 @@ private:
             eventTimeOffset = Time::currentTimeMillis() - thisMessageTime;
 
         return eventTimeOffset + thisMessageTime;
-    }
-
-    static void setWindowTitle (Window xwin, const String& title)
-    {
-        XTextProperty nameProperty;
-        char* strings[] = { const_cast <char*> (title.toUTF8()) };
-        ScopedXLock xlock;
-
-        if (XStringListToTextProperty (strings, 1, &nameProperty))
-        {
-            XSetWMName (display, xwin, &nameProperty);
-            XSetWMIconName (display, xwin, &nameProperty);
-
-            XFree (nameProperty.value);
-        }
     }
 
     void updateBorderSize()
@@ -2671,6 +2603,8 @@ private:
     {
         lastMousePos = Point<int> (0x100000, 0x100000);
     }
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (LinuxComponentPeer);
 };
 
 ModifierKeys LinuxComponentPeer::currentModifiers;
@@ -2760,7 +2694,7 @@ void juce_updateMultiMonitorInfo (Array <Rectangle<int> >& monitorCoords, const 
     if (display == 0)
         return;
 
-#if JUCE_USE_XINERAMA
+  #if JUCE_USE_XINERAMA
     int major_opcode, first_event, first_error;
 
     ScopedXLock xlock;
@@ -2817,7 +2751,7 @@ void juce_updateMultiMonitorInfo (Array <Rectangle<int> >& monitorCoords, const 
     }
 
     if (monitorCoords.size() == 0)
-#endif
+  #endif
     {
         Atom hints = XInternAtom (display, "_NET_WORKAREA", True);
 
@@ -2872,7 +2806,7 @@ bool Desktop::canUseSemiTransparentWindows() throw()
              && (matchedDepth == desiredDepth);
 }
 
-const Point<int> Desktop::getMousePosition()
+const Point<int> MouseInputSource::getCurrentMousePosition()
 {
     Window root, child;
     int x, y, winx, winy;
@@ -2899,6 +2833,10 @@ void Desktop::setMousePosition (const Point<int>& newPosition)
     XWarpPointer (display, None, root, 0, 0, 0, 0, newPosition.getX(), newPosition.getY());
 }
 
+Desktop::DisplayOrientation Desktop::getCurrentOrientation() const
+{
+    return upright;
+}
 
 //==============================================================================
 static bool screenSaverAllowed = true;
@@ -2938,7 +2876,7 @@ void* MouseCursor::createMouseCursorFromImage (const Image& image, int hotspotX,
     const unsigned int imageW = image.getWidth();
     const unsigned int imageH = image.getHeight();
 
-#if JUCE_USE_XCURSOR
+  #if JUCE_USE_XCURSOR
     {
         typedef XcursorBool (*tXcursorSupportsARGB) (Display*);
         typedef XcursorImage* (*tXcursorImageCreate) (int, int);
@@ -2992,7 +2930,7 @@ void* MouseCursor::createMouseCursorFromImage (const Image& image, int hotspotX,
             }
         }
     }
-#endif
+  #endif
 
     Window root = RootWindow (display, DefaultScreen (display));
     unsigned int cursorW, cursorH;
@@ -3320,8 +3258,6 @@ public:
     }
 
     //==============================================================================
-    juce_UseDebuggingNewOperator
-
     GLXContext renderContext;
 
 private:
@@ -3330,8 +3266,7 @@ private:
     int swapInterval;
 
     //==============================================================================
-    WindowedGLContext (const WindowedGLContext&);
-    WindowedGLContext& operator= (const WindowedGLContext&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (WindowedGLContext);
 };
 
 //==============================================================================

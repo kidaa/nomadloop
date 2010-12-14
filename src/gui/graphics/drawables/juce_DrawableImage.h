@@ -84,17 +84,15 @@ public:
 
     //==============================================================================
     /** @internal */
-    void render (const Drawable::RenderingContext& context) const;
+    void paint (Graphics& g);
     /** @internal */
-    const Rectangle<float> getBounds() const;
-    /** @internal */
-    bool hitTest (float x, float y) const;
+    bool hitTest (int x, int y) const;
     /** @internal */
     Drawable* createCopy() const;
     /** @internal */
-    void invalidatePoints();
+    const Rectangle<float> getDrawableBounds() const;
     /** @internal */
-    const Rectangle<float> refreshFromValueTree (const ValueTree& tree, ImageProvider* imageProvider);
+    void refreshFromValueTree (const ValueTree& tree, ImageProvider* imageProvider);
     /** @internal */
     const ValueTree createValueTree (ImageProvider* imageProvider) const;
     /** @internal */
@@ -104,7 +102,7 @@ public:
 
     //==============================================================================
     /** Internally-used class for wrapping a DrawableImage's state into a ValueTree. */
-    class ValueTreeWrapper   : public ValueTreeWrapperBase
+    class ValueTreeWrapper   : public Drawable::ValueTreeWrapperBase
     {
     public:
         ValueTreeWrapper (const ValueTree& state);
@@ -127,18 +125,17 @@ public:
         static const Identifier opacity, overlay, image, topLeft, topRight, bottomLeft;
     };
 
-    //==============================================================================
-    juce_UseDebuggingNewOperator
-
 private:
+    //==============================================================================
     Image image;
     float opacity;
     Colour overlayColour;
     RelativeParallelogram bounds;
 
-    const AffineTransform calculateTransform() const;
+    void refreshTransformFromBounds();
 
     DrawableImage& operator= (const DrawableImage&);
+    JUCE_LEAK_DETECTOR (DrawableImage);
 };
 
 

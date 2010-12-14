@@ -108,8 +108,7 @@ public:
 
         if (fontDirs.size() == 0)
         {
-            XmlDocument fontsConfig (File ("/etc/fonts/fonts.conf"));
-            const ScopedPointer<XmlElement> fontsInfo (fontsConfig.getDocumentElement());
+            const ScopedPointer<XmlElement> fontsInfo (XmlDocument::parse (File ("/etc/fonts/fonts.conf")));
 
             if (fontsInfo != 0)
             {
@@ -510,57 +509,60 @@ const StringArray Font::findAllTypefaceNames()
     return s;
 }
 
-static const String pickBestFont (const StringArray& names,
-                                  const char* const choicesString)
+namespace
 {
-    StringArray choices;
-    choices.addTokens (String (choicesString), ",", String::empty);
-    choices.trim();
-    choices.removeEmptyStrings();
+    const String pickBestFont (const StringArray& names,
+                               const char* const choicesString)
+    {
+        StringArray choices;
+        choices.addTokens (String (choicesString), ",", String::empty);
+        choices.trim();
+        choices.removeEmptyStrings();
 
-    int i, j;
-    for (j = 0; j < choices.size(); ++j)
-        if (names.contains (choices[j], true))
-            return choices[j];
+        int i, j;
+        for (j = 0; j < choices.size(); ++j)
+            if (names.contains (choices[j], true))
+                return choices[j];
 
-    for (j = 0; j < choices.size(); ++j)
-        for (i = 0; i < names.size(); i++)
-            if (names[i].startsWithIgnoreCase (choices[j]))
-                return names[i];
+        for (j = 0; j < choices.size(); ++j)
+            for (i = 0; i < names.size(); i++)
+                if (names[i].startsWithIgnoreCase (choices[j]))
+                    return names[i];
 
-    for (j = 0; j < choices.size(); ++j)
-        for (i = 0; i < names.size(); i++)
-            if (names[i].containsIgnoreCase (choices[j]))
-                return names[i];
+        for (j = 0; j < choices.size(); ++j)
+            for (i = 0; i < names.size(); i++)
+                if (names[i].containsIgnoreCase (choices[j]))
+                    return names[i];
 
-    return names[0];
+        return names[0];
+    }
+
+    const String linux_getDefaultSansSerifFontName()
+    {
+        StringArray allFonts;
+        FreeTypeInterface::getInstance()->getSansSerifNames (allFonts);
+
+        return pickBestFont (allFonts, "Verdana, Bitstream Vera Sans, Luxi Sans, Sans");
+    }
+
+    const String linux_getDefaultSerifFontName()
+    {
+        StringArray allFonts;
+        FreeTypeInterface::getInstance()->getSerifNames (allFonts);
+
+        return pickBestFont (allFonts, "Bitstream Vera Serif, Times, Nimbus Roman, Serif");
+    }
+
+    const String linux_getDefaultMonospacedFontName()
+    {
+        StringArray allFonts;
+        FreeTypeInterface::getInstance()->getMonospacedNames (allFonts);
+
+        return pickBestFont (allFonts, "Bitstream Vera Sans Mono, Courier, Sans Mono, Mono");
+    }
 }
 
-static const String linux_getDefaultSansSerifFontName()
-{
-    StringArray allFonts;
-    FreeTypeInterface::getInstance()->getSansSerifNames (allFonts);
-
-    return pickBestFont (allFonts, "Verdana, Bitstream Vera Sans, Luxi Sans, Sans");
-}
-
-static const String linux_getDefaultSerifFontName()
-{
-    StringArray allFonts;
-    FreeTypeInterface::getInstance()->getSerifNames (allFonts);
-
-    return pickBestFont (allFonts, "Bitstream Vera Serif, Times, Nimbus Roman, Serif");
-}
-
-static const String linux_getDefaultMonospacedFontName()
-{
-    StringArray allFonts;
-    FreeTypeInterface::getInstance()->getMonospacedNames (allFonts);
-
-    return pickBestFont (allFonts, "Bitstream Vera Sans Mono, Courier, Sans Mono, Mono");
-}
-
-void Font::getPlatformDefaultFontNames (String& defaultSans, String& defaultSerif, String& defaultFixed)
+void Font::getPlatformDefaultFontNames (String& defaultSans, String& defaultSerif, String& defaultFixed, String& /*defaultFallback*/)
 {
     defaultSans = linux_getDefaultSansSerifFontName();
     defaultSerif = linux_getDefaultSerifFontName();

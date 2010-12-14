@@ -126,6 +126,8 @@ private:
         return format == Image::ARGB ? (kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Little) : kCGBitmapByteOrderDefault;
 #endif
     }
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (CoreGraphicsImage);
 };
 
 Image::SharedImage* Image::SharedImage::createNativeImage (PixelFormat format, int width, int height, bool clearImage)
@@ -144,9 +146,9 @@ public:
     CoreGraphicsContext (CGContextRef context_, const float flipHeight_)
         : context (context_),
           flipHeight (flipHeight_),
+          lastClipRectIsValid (false),
           state (new SavedState()),
-          numGradientLookupEntries (0),
-          lastClipRectIsValid (false)
+          numGradientLookupEntries (0)
     {
         CGContextRetain (context);
         CGContextSaveGState(context);
@@ -180,12 +182,26 @@ public:
             lastClipRect.translate (-x, -y);
     }
 
+    void addTransform (const AffineTransform& transform)
+    {
+        applyTransform (AffineTransform::scale (1.0f, -1.0f)
+                                        .translated (0, flipHeight)
+                                        .followedBy (transform)
+                                        .translated (0, -flipHeight)
+                                        .scaled (1.0f, -1.0f));
+        lastClipRectIsValid = false;
+    }
+
     bool clipToRectangle (const Rectangle<int>& r)
     {
         CGContextClipToRect (context, CGRectMake (r.getX(), flipHeight - r.getBottom(), r.getWidth(), r.getHeight()));
 
         if (lastClipRectIsValid)
         {
+            // This is actually incorrect, because the actual clip region may be complex, and
+            // clipping its bounds to a rect may not be right... But, removing this shortcut
+            // doesn't actually fix anything because CoreGraphics also ignores complex regions
+            // when calculating the resultant clip bounds, and makes the same mistake!
             lastClipRect = lastClipRect.getIntersection (r);
             return ! lastClipRect.isEmpty();
         }
@@ -311,6 +327,19 @@ public:
         }
     }
 
+    void beginTransparencyLayer (float opacity)
+    {
+        saveState();
+        CGContextSetAlpha (context, opacity);
+        CGContextBeginTransparencyLayer (context, 0);
+    }
+
+    void endTransparencyLayer()
+    {
+        CGContextEndTransparencyLayer (context);
+        restoreState();
+    }
+
     //==============================================================================
     void setFill (const FillType& fillType)
     {
@@ -340,8 +369,11 @@ public:
     //==============================================================================
     void fillRect (const Rectangle<int>& r, const bool replaceExistingContents)
     {
-        CGRect cgRect = CGRectMake (r.getX(), flipHeight - r.getBottom(), r.getWidth(), r.getHeight());
+        fillCGRect (CGRectMake (r.getX(), flipHeight - r.getBottom(), r.getWidth(), r.getHeight()), replaceExistingContents);
+    }
 
+    void fillCGRect (const CGRect& cgRect, const bool replaceExistingContents)
+    {
         if (replaceExistingContents)
         {
 #if MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5
@@ -355,7 +387,7 @@ public:
                 CGContextSetBlendMode (context, kCGBlendModeCopy);
 #endif
 
-            fillRect (r, false);
+            fillCGRect (cgRect, false);
             CGContextSetBlendMode (context, kCGBlendModeNormal);
         }
         else
@@ -472,38 +504,61 @@ public:
     //==============================================================================
     void drawLine (const Line<float>& line)
     {
-        CGContextSetLineCap (context, kCGLineCapSquare);
-        CGContextSetLineWidth (context, 1.0f);
-        CGContextSetRGBStrokeColor (context,
-                                    state->fillType.colour.getFloatRed(), state->fillType.colour.getFloatGreen(),
-                                    state->fillType.colour.getFloatBlue(), state->fillType.colour.getFloatAlpha());
+        if (state->fillType.isColour())
+        {
+            CGContextSetLineCap (context, kCGLineCapSquare);
+            CGContextSetLineWidth (context, 1.0f);
+            CGContextSetRGBStrokeColor (context,
+                                        state->fillType.colour.getFloatRed(), state->fillType.colour.getFloatGreen(),
+                                        state->fillType.colour.getFloatBlue(), state->fillType.colour.getFloatAlpha());
 
-        CGPoint cgLine[] = { { (CGFloat) line.getStartX(), flipHeight - (CGFloat) line.getStartY() },
-                             { (CGFloat) line.getEndX(),   flipHeight - (CGFloat) line.getEndY()   } };
+            CGPoint cgLine[] = { { (CGFloat) line.getStartX(), flipHeight - (CGFloat) line.getStartY() },
+                                 { (CGFloat) line.getEndX(),   flipHeight - (CGFloat) line.getEndY()   } };
 
-        CGContextStrokeLineSegments (context, cgLine, 1);
+            CGContextStrokeLineSegments (context, cgLine, 1);
+        }
+        else
+        {
+            Path p;
+            p.addLineSegment (line, 1.0f);
+            fillPath (p, AffineTransform::identity);
+        }
     }
 
     void drawVerticalLine (const int x, float top, float bottom)
     {
-#if MAC_OS_X_VERSION_MIN_REQUIRED > MAC_OS_X_VERSION_10_5
-        CGContextFillRect (context, CGRectMake (x, flipHeight - bottom, 1.0f, bottom - top));
-#else
-        // On Leopard, unless both co-ordinates are non-integer, it disables anti-aliasing, so nudge
-        // the x co-ord slightly to trick it..
-        CGContextFillRect (context, CGRectMake (x + 1.0f / 256.0f, flipHeight - bottom, 1.0f + 1.0f / 256.0f, bottom - top));
-#endif
+        if (state->fillType.isColour())
+        {
+          #if MAC_OS_X_VERSION_MIN_REQUIRED > MAC_OS_X_VERSION_10_5
+            CGContextFillRect (context, CGRectMake (x, flipHeight - bottom, 1.0f, bottom - top));
+          #else
+            // On Leopard, unless both co-ordinates are non-integer, it disables anti-aliasing, so nudge
+            // the x co-ord slightly to trick it..
+            CGContextFillRect (context, CGRectMake (x + 1.0f / 256.0f, flipHeight - bottom, 1.0f + 1.0f / 256.0f, bottom - top));
+          #endif
+        }
+        else
+        {
+            fillCGRect (CGRectMake ((float) x, flipHeight - bottom, 1.0f, bottom - top), false);
+        }
     }
 
     void drawHorizontalLine (const int y, float left, float right)
     {
-#if MAC_OS_X_VERSION_MIN_REQUIRED > MAC_OS_X_VERSION_10_5
-        CGContextFillRect (context, CGRectMake (left, flipHeight - (y + 1.0f), right - left, 1.0f));
-#else
-        // On Leopard, unless both co-ordinates are non-integer, it disables anti-aliasing, so nudge
-        // the x co-ord slightly to trick it..
-        CGContextFillRect (context, CGRectMake (left, flipHeight - (y + (1.0f + 1.0f / 256.0f)), right - left, 1.0f + 1.0f / 256.0f));
-#endif
+        if (state->fillType.isColour())
+        {
+          #if MAC_OS_X_VERSION_MIN_REQUIRED > MAC_OS_X_VERSION_10_5
+            CGContextFillRect (context, CGRectMake (left, flipHeight - (y + 1.0f), right - left, 1.0f));
+          #else
+            // On Leopard, unless both co-ordinates are non-integer, it disables anti-aliasing, so nudge
+            // the x co-ord slightly to trick it..
+            CGContextFillRect (context, CGRectMake (left, flipHeight - (y + (1.0f + 1.0f / 256.0f)), right - left, 1.0f + 1.0f / 256.0f));
+          #endif
+        }
+        else
+        {
+            fillCGRect (CGRectMake (left, flipHeight - (y + 1), right - left, 1.0f), false);
+        }
     }
 
     void setFont (const Font& newFont)
@@ -590,10 +645,6 @@ private:
         SavedState (const SavedState& other)
             : fillType (other.fillType), font (other.font), fontRef (other.fontRef),
               fontTransform (other.fontTransform)
-        {
-        }
-
-        ~SavedState()
         {
         }
 
@@ -731,13 +782,72 @@ private:
         CGContextConcatCTM (context, t);
     }
 
-    CoreGraphicsContext (const CoreGraphicsContext&);
-    CoreGraphicsContext& operator= (const CoreGraphicsContext&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (CoreGraphicsContext);
 };
 
 LowLevelGraphicsContext* CoreGraphicsImage::createLowLevelContext()
 {
     return new CoreGraphicsContext (context, height);
 }
+
+//==============================================================================
+#if USE_COREGRAPHICS_RENDERING && ! DONT_USE_COREIMAGE_LOADER
+const Image juce_loadWithCoreImage (InputStream& input)
+{
+    MemoryBlock data;
+    input.readIntoMemoryBlock (data, -1);
+
+#if JUCE_IOS
+    JUCE_AUTORELEASEPOOL
+    UIImage* image = [UIImage imageWithData: [NSData dataWithBytesNoCopy: data.getData()
+                                                                  length: data.getSize()
+                                                            freeWhenDone: NO]];
+
+    if (image != nil)
+    {
+        CGImageRef loadedImage = image.CGImage;
+
+#else
+    CGDataProviderRef provider = CGDataProviderCreateWithData (0, data.getData(), data.getSize(), 0);
+    CGImageSourceRef imageSource = CGImageSourceCreateWithDataProvider (provider, 0);
+    CGDataProviderRelease (provider);
+
+    if (imageSource != 0)
+    {
+        CGImageRef loadedImage = CGImageSourceCreateImageAtIndex (imageSource, 0, 0);
+        CFRelease (imageSource);
+#endif
+
+        if (loadedImage != 0)
+        {
+            CGImageAlphaInfo alphaInfo = CGImageGetAlphaInfo (loadedImage);
+            const bool hasAlphaChan = (alphaInfo != kCGImageAlphaNone
+                                         && alphaInfo != kCGImageAlphaNoneSkipLast
+                                         && alphaInfo != kCGImageAlphaNoneSkipFirst);
+
+            Image image (Image::ARGB, // (CoreImage doesn't work with 24-bit images)
+                         (int) CGImageGetWidth (loadedImage), (int) CGImageGetHeight (loadedImage),
+                         hasAlphaChan, Image::NativeImage);
+
+            CoreGraphicsImage* const cgImage = dynamic_cast<CoreGraphicsImage*> (image.getSharedImage());
+            jassert (cgImage != 0); // if USE_COREGRAPHICS_RENDERING is set, the CoreGraphicsImage class should have been used.
+
+            CGContextDrawImage (cgImage->context, CGRectMake (0, 0, image.getWidth(), image.getHeight()), loadedImage);
+            CGContextFlush (cgImage->context);
+
+#if ! JUCE_IOS
+            CFRelease (loadedImage);
+#endif
+
+            // Because it's impossible to create a truly 24-bit CG image, this flag allows a user
+            // to find out whether the file they just loaded the image from had an alpha channel or not.
+            image.getProperties()->set ("originalImageHadAlpha", hasAlphaChan);
+            return image;
+        }
+    }
+
+    return Image::null;
+}
+#endif
 
 #endif

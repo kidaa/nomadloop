@@ -193,17 +193,14 @@ public:
         */
         void sendChangeMessage (bool dispatchSynchronously);
 
-        //==============================================================================
-        juce_UseDebuggingNewOperator
-
     protected:
+        //==============================================================================
         friend class Value;
         SortedSet <Value*> valuesWithListeners;
 
         void handleAsyncUpdate();
 
-        ValueSource (const ValueSource&);
-        ValueSource& operator= (const ValueSource&);
+        JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ValueSource);
     };
 
 
@@ -215,10 +212,8 @@ public:
     ValueSource& getValueSource() throw()           { return *value; }
 
 
-    //==============================================================================
-    juce_UseDebuggingNewOperator
-
 private:
+    //==============================================================================
     friend class ValueSource;
     ReferenceCountedObjectPtr <ValueSource> value;
     ListenerList <Listener> listeners;
@@ -233,5 +228,7 @@ private:
 /** Writes a Value to an OutputStream as a UTF8 string. */
 OutputStream& JUCE_CALLTYPE operator<< (OutputStream& stream, const Value& value);
 
+/** This typedef is just for compatibility with old code - newer code should use the Value::Listener class directly. */
+typedef Value::Listener ValueListener;
 
 #endif   // __JUCE_VALUE_JUCEHEADER__

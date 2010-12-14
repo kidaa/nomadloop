@@ -36,44 +36,41 @@ class TableDemoComponent    : public Component,
 public:
     //==============================================================================
     TableDemoComponent()
-        : font (14.0f),
-          demoData (0)
+        : font (14.0f)
     {
         // Load some data from an embedded XML file..
         loadData();
 
         // Create our table component and add it to this component..
-        addAndMakeVisible (table = new TableListBox ("demo table", this));
+        addAndMakeVisible (&table);
+        table.setModel (this);
 
         // give it a border
-        table->setColour (ListBox::outlineColourId, Colours::grey);
-        table->setOutlineThickness (1);
+        table.setColour (ListBox::outlineColourId, Colours::grey);
+        table.setOutlineThickness (1);
 
         // Add some columns to the table header, based on the column list in our database..
         forEachXmlChildElement (*columnList, columnXml)
         {
-            table->getHeader()->addColumn (columnXml->getStringAttribute ("name"),
-                                           columnXml->getIntAttribute ("columnId"),
-                                           columnXml->getIntAttribute ("width"),
-                                           50, 400,
-                                           TableHeaderComponent::defaultFlags);
+            table.getHeader().addColumn (columnXml->getStringAttribute ("name"),
+                                         columnXml->getIntAttribute ("columnId"),
+                                         columnXml->getIntAttribute ("width"),
+                                         50, 400,
+                                         TableHeaderComponent::defaultFlags);
         }
 
         // we could now change some initial settings..
-        table->getHeader()->setSortColumnId (1, true); // sort forwards by the ID column
-        table->getHeader()->setColumnVisible (7, false); // hide the "length" column until the user shows it
+        table.getHeader().setSortColumnId (1, true); // sort forwards by the ID column
+        table.getHeader().setColumnVisible (7, false); // hide the "length" column until the user shows it
 
         // un-comment this line to have a go of stretch-to-fit mode
-        // table->getHeader()->setStretchToFitActive (true);
+        // table.getHeader().setStretchToFitActive (true);
 
-        table->setMultipleSelectionEnabled (true);
+        table.setMultipleSelectionEnabled (true);
     }
 
     ~TableDemoComponent()
     {
-        deleteAllChildren();
-
-        delete demoData;
     }
 
     //==============================================================================
@@ -123,7 +120,7 @@ public:
             DemoDataSorter sorter (getAttributeNameForColumnId (newSortColumnId), isForwards);
             dataList->sortChildElements (sorter);
 
-            table->updateContent();
+            table.updateContent();
         }
     }
 
@@ -194,17 +191,15 @@ public:
     void resized()
     {
         // position our table with a gap around its edge
-        table->setBoundsInset (BorderSize (8));
+        table.setBoundsInset (BorderSize (8));
     }
 
-    //==============================================================================
-    juce_UseDebuggingNewOperator
 
 private:
-    TableListBox* table;    // the table component itself
+    TableListBox table;     // the table component itself
     Font font;
 
-    XmlElement* demoData;   // This is the XML document loaded from the embedded file "demo table data.xml"
+    ScopedPointer<XmlElement> demoData;   // This is the XML document loaded from the embedded file "demo table data.xml"
     XmlElement* columnList; // A pointer to the sub-node of demoData that contains the list of columns
     XmlElement* dataList;   // A pointer to the sub-node of demoData that contains the list of data rows
     int numRows;            // The number of rows of data we've got
@@ -220,28 +215,27 @@ private:
             : owner (owner_)
         {
             // just put a combo box inside this component
-            addAndMakeVisible (comboBox = new ComboBox (String::empty));
-            comboBox->addItem ("fab", 1);
-            comboBox->addItem ("groovy", 2);
-            comboBox->addItem ("hep", 3);
-            comboBox->addItem ("neat", 4);
-            comboBox->addItem ("wild", 5);
-            comboBox->addItem ("swingin", 6);
-            comboBox->addItem ("mad for it", 7);
+            addAndMakeVisible (&comboBox);
+            comboBox.addItem ("fab", 1);
+            comboBox.addItem ("groovy", 2);
+            comboBox.addItem ("hep", 3);
+            comboBox.addItem ("neat", 4);
+            comboBox.addItem ("wild", 5);
+            comboBox.addItem ("swingin", 6);
+            comboBox.addItem ("mad for it", 7);
 
             // when the combo is changed, we'll get a callback.
-            comboBox->addListener (this);
-            comboBox->setWantsKeyboardFocus (false);
+            comboBox.addListener (this);
+            comboBox.setWantsKeyboardFocus (false);
         }
 
         ~RatingColumnCustomComponent()
         {
-            deleteAllChildren();
         }
 
         void resized()
         {
-            comboBox->setBoundsInset (BorderSize (2));
+            comboBox.setBoundsInset (BorderSize (2));
         }
 
         // Our demo code will call this when we may need to update our contents
@@ -249,17 +243,17 @@ private:
         {
             row = newRow;
             columnId = newColumn;
-            comboBox->setSelectedId (owner.getRating (row), true);
+            comboBox.setSelectedId (owner.getRating (row), true);
         }
 
         void comboBoxChanged (ComboBox* /*comboBoxThatHasChanged*/)
         {
-            owner.setRating (row, comboBox->getSelectedId());
+            owner.setRating (row, comboBox.getSelectedId());
         }
 
     private:
         TableDemoComponent& owner;
-        ComboBox* comboBox;
+        ComboBox comboBox;
         int row, columnId;
     };
 
@@ -315,6 +309,8 @@ private:
 
         return String::empty;
     }
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (TableDemoComponent);
 };
 
 

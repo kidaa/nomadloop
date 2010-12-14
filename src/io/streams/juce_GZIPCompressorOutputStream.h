@@ -28,7 +28,6 @@
 
 #include "juce_OutputStream.h"
 #include "../../containers/juce_ScopedPointer.h"
-class GZIPCompressorHelper;
 
 
 //==============================================================================
@@ -51,13 +50,14 @@ public:
                                                 indicates that a default compression level should be used.
         @param deleteDestStreamWhenDestroyed    whether or not to delete the destStream object when
                                                 this stream is destroyed
-        @param noWrap                           this is used internally by the ZipFile class
-                                                and should be ignored by user applications
+        @param windowBits                       this is used internally to change the window size used
+                                                by zlib - leave it as 0 unless you specifically need to set
+                                                its value for some reason
     */
     GZIPCompressorOutputStream (OutputStream* destStream,
                                 int compressionLevel = 0,
                                 bool deleteDestStreamWhenDestroyed = false,
-                                bool noWrap = false);
+                                int windowBits = 0);
 
     /** Destructor. */
     ~GZIPCompressorOutputStream();
@@ -68,19 +68,26 @@ public:
     bool setPosition (int64 newPosition);
     bool write (const void* destBuffer, int howMany);
 
-
-    //==============================================================================
-    juce_UseDebuggingNewOperator
+    /** These are preset values that can be used for the constructor's windowBits paramter.
+        For more info about this, see the zlib documentation for its windowBits parameter.
+    */
+    enum WindowBitsValues
+    {
+        windowBitsRaw = -15,
+        windowBitsGZIP = 15 + 16
+    };
 
 private:
+    //==============================================================================
     OutputStream* const destStream;
     ScopedPointer <OutputStream> streamToDelete;
     HeapBlock <uint8> buffer;
+    class GZIPCompressorHelper;
+    friend class ScopedPointer <GZIPCompressorHelper>;
     ScopedPointer <GZIPCompressorHelper> helper;
     bool doNextBlock();
 
-    GZIPCompressorOutputStream (const GZIPCompressorOutputStream&);
-    GZIPCompressorOutputStream& operator= (const GZIPCompressorOutputStream&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (GZIPCompressorOutputStream);
 };
 
 #endif   // __JUCE_GZIPCOMPRESSOROUTPUTSTREAM_JUCEHEADER__

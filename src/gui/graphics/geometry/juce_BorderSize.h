@@ -82,6 +82,9 @@ public:
     /** Returns the sum of the left and right gaps. */
     int getLeftAndRight() const throw()                 { return left + right; }
 
+    /** Returns true if this border has no thickness along any edge. */
+    bool isEmpty() const throw()                        { return left + right + top + bottom == 0; }
+
     //==============================================================================
     /** Changes the top gap. */
     void setTop (int newTopGap) throw();
@@ -113,11 +116,11 @@ public:
     bool operator!= (const BorderSize& other) const throw();
 
 
-    //==============================================================================
-    juce_UseDebuggingNewOperator
-
 private:
+    //==============================================================================
     int top, left, bottom, right;
+
+    JUCE_LEAK_DETECTOR (BorderSize);
 };
 
 

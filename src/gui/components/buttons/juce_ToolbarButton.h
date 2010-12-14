@@ -77,14 +77,21 @@ public:
     void paintButtonArea (Graphics& g, int width, int height, bool isMouseOver, bool isMouseDown);
     /** @internal */
     void contentAreaChanged (const Rectangle<int>& newBounds);
-
-    juce_UseDebuggingNewOperator
+    /** @internal */
+    void buttonStateChanged();
+    /** @internal */
+    void resized();
+    /** @internal */
+    void enablementChanged();
 
 private:
-    ScopedPointer <Drawable> normalImage, toggledOnImage;
+    //==============================================================================
+    ScopedPointer<Drawable> normalImage, toggledOnImage;
+    Drawable* currentImage;
 
-    ToolbarButton (const ToolbarButton&);
-    ToolbarButton& operator= (const ToolbarButton&);
+    void updateDrawable();
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ToolbarButton);
 };
 
 

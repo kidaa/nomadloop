@@ -26,7 +26,7 @@
 #ifndef __JUCE_DRAWABLE_JUCEHEADER__
 #define __JUCE_DRAWABLE_JUCEHEADER__
 
-#include "../contexts/juce_Graphics.h"
+#include "../../components/juce_Component.h"
 #include "../geometry/juce_RelativeCoordinate.h"
 #include "../../../text/juce_XmlElement.h"
 #include "../../../containers/juce_ValueTree.h"
@@ -39,7 +39,7 @@ class DrawableComposite;
 
     @see DrawableComposite, DrawableImage, DrawablePath, DrawableText
 */
-class JUCE_API  Drawable
+class JUCE_API  Drawable  : public Component
 {
 protected:
     //==============================================================================
@@ -62,6 +62,11 @@ public:
 
     //==============================================================================
     /** Renders this Drawable object.
+
+        Note that the preferred way to render a drawable in future is by using it
+        as a component and adding it to a parent, so you might want to consider that
+        before using this method.
+
         @see drawWithin
     */
     void draw (Graphics& g, float opacity,
@@ -75,10 +80,12 @@ public:
         @code
         draw (g, AffineTransform::translation (x, y)).
         @endcode
+
+        Note that the preferred way to render a drawable in future is by using it
+        as a component and adding it to a parent, so you might want to consider that
+        before using this method.
     */
-    void drawAt (Graphics& g,
-                 float x, float y,
-                 float opacity) const;
+    void drawAt (Graphics& g, float x, float y, float opacity) const;
 
     /** Renders the Drawable within a rectangle, scaling it to fit neatly inside without
         changing its aspect-ratio.
@@ -86,70 +93,35 @@ public:
         The object can placed arbitrarily within the rectangle based on a Justification type,
         and can either be made as big as possible, or just reduced to fit.
 
+        Note that the preferred way to render a drawable in future is by using it
+        as a component and adding it to a parent, so you might want to consider that
+        before using this method.
+
         @param g                        the graphics context to render onto
-        @param destX                    top-left of the target rectangle to fit it into
-        @param destY                    top-left of the target rectangle to fit it into
-        @param destWidth                size of the target rectangle to fit the image into
-        @param destHeight               size of the target rectangle to fit the image into
+        @param destArea                 the target rectangle to fit the drawable into
         @param placement                defines the alignment and rescaling to use to fit
                                         this object within the target rectangle.
         @param opacity                  the opacity to use, in the range 0 to 1.0
     */
     void drawWithin (Graphics& g,
-                     int destX,
-                     int destY,
-                     int destWidth,
-                     int destHeight,
+                     const Rectangle<float>& destArea,
                      const RectanglePlacement& placement,
                      float opacity) const;
 
 
     //==============================================================================
-    /** Holds the information needed when telling a drawable to render itself.
-        @see Drawable::draw
+    /** Resets any transformations on this drawable, and positions its origin within
+        its parent component.
     */
-    class RenderingContext
-    {
-    public:
-        RenderingContext (Graphics& g, const AffineTransform& transform, float opacity) throw();
+    void setOriginWithOriginalSize (const Point<float>& originWithinParent);
 
-        Graphics& g;
-        AffineTransform transform;
-        float opacity;
-
-    private:
-        RenderingContext& operator= (const RenderingContext&);
-    };
-
-    /** Renders this Drawable object.
-        @see draw
+    /** Sets a transform for this drawable that will position it within the specified
+        area of its parent component.
     */
-    virtual void render (const RenderingContext& context) const = 0;
-
-    //==============================================================================
-    /** Returns the smallest rectangle that can contain this Drawable object.
-
-        Co-ordinates are relative to the object's own origin.
-    */
-    virtual const Rectangle<float> getBounds() const = 0;
-
-    /** Returns true if the given point is somewhere inside this Drawable.
-
-        Co-ordinates are relative to the object's own origin.
-    */
-    virtual bool hitTest (float x, float y) const = 0;
-
-    //==============================================================================
-    /** Returns the name given to this drawable.
-        @see setName
-    */
-    const String& getName() const throw()               { return name; }
-
-    /** Assigns a name to this drawable. */
-    void setName (const String& newName) throw()        { name = newName; }
+    void setTransformToFit (const Rectangle<float>& areaInParent, const RectanglePlacement& placement);
 
     /** Returns the DrawableComposite that contains this object, if there is one. */
-    DrawableComposite* getParent() const throw()        { return parent; }
+    DrawableComposite* getParent() const;
 
     //==============================================================================
     /** Tries to turn some kind of image file into a drawable.
@@ -221,7 +193,7 @@ public:
     /** Tries to refresh a Drawable from the same ValueTree that was used to create it.
         @returns the damage rectangle that will need repainting due to any changes that were made.
     */
-    virtual const Rectangle<float> refreshFromValueTree (const ValueTree& tree, ImageProvider* imageProvider) = 0;
+    virtual void refreshFromValueTree (const ValueTree& tree, ImageProvider* imageProvider) = 0;
 
     /** Creates a ValueTree to represent this Drawable.
         The VarTree that is returned can be turned back into a Drawable with
@@ -233,6 +205,12 @@ public:
 
     /** Returns the tag ID that is used for a ValueTree that stores this type of drawable.  */
     virtual const Identifier getValueTreeType() const = 0;
+
+    /** Returns the area that this drawble covers.
+        The result is expressed in this drawable's own coordinate space, and does not take
+        into account any transforms that may be applied to the component.
+    */
+    virtual const Rectangle<float> getDrawableBounds() const = 0;
 
     //==============================================================================
     /** Internal class used to manage ValueTrees that represent Drawables. */
@@ -248,36 +226,31 @@ public:
         void setID (const String& newID, UndoManager* undoManager);
         static const Identifier idProperty;
 
-        static const FillType readFillType (const ValueTree& v, RelativePoint* gradientPoint1,
-                                            RelativePoint* gradientPoint2, RelativePoint* gradientPoint3,
-                                            RelativeCoordinate::NamedCoordinateFinder* nameFinder,
-                                            ImageProvider* imageProvider);
-
-        static void writeFillType (ValueTree& v, const FillType& fillType,
-                                   const RelativePoint* gradientPoint1, const RelativePoint* gradientPoint2,
-                                   const RelativePoint* gradientPoint3, ImageProvider* imageProvider,
-                                   UndoManager* undoManager);
-
         ValueTree state;
-        static const Identifier type, gradientPoint1, gradientPoint2, gradientPoint3,
-                                colour, radial, colours, imageId, imageOpacity;
     };
 
-    //==============================================================================
-    juce_UseDebuggingNewOperator
-
 protected:
+    //==============================================================================
     friend class DrawableComposite;
-    DrawableComposite* parent;
-    virtual void invalidatePoints() = 0;
+    friend class DrawableShape;
 
+    /** @internal */
     static Drawable* createChildFromValueTree (DrawableComposite* parent, const ValueTree& tree, ImageProvider* imageProvider);
+    /** @internal */
+    void transformContextToCorrectOrigin (Graphics& g);
+    /** @internal */
+    void markerHasMoved();
+    /** @internal */
+    void parentHierarchyChanged();
+    /** @internal */
+    void setBoundsToEnclose (const Rectangle<float>& area);
+
+    Point<int> originRelativeToComponent;
 
 private:
-    String name;
+    void nonConstDraw (Graphics& g, float opacity, const AffineTransform& transform);
 
-    Drawable (const Drawable&);
-    Drawable& operator= (const Drawable&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Drawable);
 };
 
 

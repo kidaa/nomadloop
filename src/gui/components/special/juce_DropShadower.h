@@ -78,9 +78,6 @@ public:
     void componentVisibilityChanged (Component& component);
 
 
-    //==============================================================================
-    juce_UseDebuggingNewOperator
-
 private:
     //==============================================================================
     Component* owner;
@@ -92,16 +89,11 @@ private:
     bool inDestructor, reentrant;
 
     void updateShadows();
-    void setShadowImage (const Image& src,
-                         const int num,
-                         const int w, const int h,
-                         const int sx, const int sy);
-
+    void setShadowImage (const Image& src, int num, int w, int h, int sx, int sy);
     void bringShadowWindowsToFront();
     void deleteShadowWindows();
 
-    DropShadower (const DropShadower&);
-    DropShadower& operator= (const DropShadower&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (DropShadower);
 };
 
 

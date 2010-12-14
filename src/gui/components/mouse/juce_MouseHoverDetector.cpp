@@ -59,12 +59,7 @@ void MouseHoverDetector::setHoverComponent (Component* const newSourceComponent)
         hasJustHovered = false;
 
         if (source != 0)
-        {
-            // ! you need to delete the hover detector before deleting its component
-            jassert (source->isValidComponent());
-
             source->removeMouseListener (&internalTimer);
-        }
 
         source = newSourceComponent;
 
@@ -81,7 +76,7 @@ void MouseHoverDetector::hoverTimerCallback()
     {
         const Point<int> pos (source->getMouseXYRelative());
 
-        if (source->reallyContains (pos.getX(), pos.getY(), false))
+        if (source->reallyContains (pos, false))
         {
             hasJustHovered = true;
             mouseHovered (pos.getX(), pos.getY());

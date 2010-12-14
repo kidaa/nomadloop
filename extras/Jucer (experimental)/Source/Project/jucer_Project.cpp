@@ -58,6 +58,8 @@ Project::Project (const File& file_)
 
     setChangedFlag (false);
 
+    mainProjectIcon.setImage (ImageCache::getFromMemory (BinaryData::juce_icon_png, BinaryData::juce_icon_pngSize));
+
     projectRoot.addListener (this);
 }
 
@@ -155,8 +157,7 @@ void Project::setMissingDefaultValues()
 //==============================================================================
 const String Project::loadDocument (const File& file)
 {
-    XmlDocument doc (file);
-    ScopedPointer <XmlElement> xml (doc.getDocumentElement());
+    ScopedPointer <XmlElement> xml (XmlDocument::parse (file));
 
     if (xml == 0 || ! xml->hasTagName (Tags::projectRoot.toString()))
         return "Not a valid Jucer project!";
@@ -226,10 +227,12 @@ void Project::valueTreeParentChanged (ValueTree& tree)
 }
 
 //==============================================================================
-const File Project::resolveFilename (const String& filename) const
+const File Project::resolveFilename (String filename) const
 {
     if (filename.isEmpty())
         return File::nonexistent;
+
+    filename = replacePreprocessorDefs (getPreprocessorDefs(), filename);
 
     if (File::isAbsolutePath (filename))
         return File (filename);
@@ -411,6 +414,9 @@ void Project::createPropertyEditors (Array <PropertyComponent*>& props)
                                      "ePlugInCategory_Dither, ePlugInCategory_SoundField");
     }
 
+    props.add (new TextPropertyComponent (getProjectPreprocessorDefs(), "Preprocessor definitions", 32768, false));
+    props.getLast()->setTooltip ("Extra preprocessor definitions. Use the form \"NAME1=value NAME2=value\", using whitespace or commas to separate the items - to include a space or comma in a definition, precede it with a backslash.");
+
     for (int i = props.size(); --i >= 0;)
         props.getUnchecked(i)->setPreferredHeight (22);
 }
@@ -433,6 +439,11 @@ const Image Project::getSmallIcon()
         return ImageCache::getFromFile (icon.getFile());
 
     return Image();
+}
+
+const StringPairArray Project::getPreprocessorDefs() const
+{
+    return parsePreprocessorDefs (getProjectPreprocessorDefs().toString());
 }
 
 //==============================================================================
@@ -461,10 +472,9 @@ Project::Item Project::createNewItem (const File& file)
 
 static void findImages (const Project::Item& item, OwnedArray<Project::Item>& found)
 {
-    if (item.isFile())
+    if (item.isImageFile())
     {
-        if (item.getFile().hasFileExtension ("png;jpg;jpeg;gif"))
-            found.add (new Project::Item (item));
+        found.add (new Project::Item (item));
     }
     else if (item.isGroup())
     {
@@ -496,9 +506,10 @@ Project::Item::~Item()
 const String Project::Item::getID() const               { return node [Ids::id_]; }
 const String Project::Item::getImageFileID() const      { return "id:" + getID(); }
 
-bool Project::Item::isFile() const         { return node.hasType (Tags::file); }
-bool Project::Item::isGroup() const        { return node.hasType (Tags::group) || isMainGroup(); }
-bool Project::Item::isMainGroup() const    { return node.hasType (Tags::projectMainGroup); }
+bool Project::Item::isFile() const          { return node.hasType (Tags::file); }
+bool Project::Item::isGroup() const         { return node.hasType (Tags::group) || isMainGroup(); }
+bool Project::Item::isMainGroup() const     { return node.hasType (Tags::projectMainGroup); }
+bool Project::Item::isImageFile() const     { return isFile() && getFile().hasFileExtension ("png;jpg;jpeg;gif;drawable"); }
 
 Project::Item Project::Item::findItemWithID (const String& targetId) const
 {
@@ -687,7 +698,7 @@ struct ItemSorter
 void Project::Item::sortAlphabetically()
 {
     ItemSorter sorter;
-    node.sort (sorter);
+    node.sort (sorter, getUndoManager(), true);
 }
 
 bool Project::Item::addFile (const File& file, int insertIndex)
@@ -735,14 +746,21 @@ bool Project::Item::addFile (const File& file, int insertIndex)
     return true;
 }
 
-const Image Project::Item::getIcon() const
+const Drawable* Project::Item::getIcon() const
 {
     if (isFile())
+    {
+        if (isImageFile())
+            return StoredSettings::getInstance()->getImageFileIcon();
+
         return LookAndFeel::getDefaultLookAndFeel().getDefaultDocumentFileImage();
+    }
     else if (isMainGroup())
-        return ImageCache::getFromMemory (BinaryData::juce_icon_png, BinaryData::juce_icon_pngSize);
-    else
-        return LookAndFeel::getDefaultLookAndFeel().getDefaultFolderImage();
+    {
+        return &(getProject().mainProjectIcon);
+    }
+
+    return LookAndFeel::getDefaultLookAndFeel().getDefaultFolderImage();
 }
 
 //==============================================================================
@@ -954,8 +972,8 @@ void Project::BuildConfiguration::createPropertyEditors (Array <PropertyComponen
     props.add (new TextPropertyComponent (getHeaderSearchPath(), "Header search path", 16384, false));
     props.getLast()->setTooltip ("Extra header search paths. Use semi-colons to separate multiple paths.");
 
-    props.add (new TextPropertyComponent (getPreprocessorDefs(), "Preprocessor definitions", 32768, false));
-    props.getLast()->setTooltip ("Extra preprocessor definitions. Use whitespace or commas as a delimiter.");
+    props.add (new TextPropertyComponent (getBuildConfigPreprocessorDefs(), "Preprocessor definitions", 32768, false));
+    props.getLast()->setTooltip ("Extra preprocessor definitions. Use the form \"NAME1=value NAME2=value\", using whitespace or commas to separate the items - to include a space or comma in a definition, precede it with a backslash.");
 
     if (getMacSDKVersion().toString().isEmpty())
         getMacSDKVersion() = osxVersionDefault;
@@ -976,12 +994,10 @@ void Project::BuildConfiguration::createPropertyEditors (Array <PropertyComponen
         props.getUnchecked(i)->setPreferredHeight (22);
 }
 
-const StringArray Project::BuildConfiguration::parsePreprocessorDefs() const
+const StringPairArray Project::BuildConfiguration::getAllPreprocessorDefs() const
 {
-    StringArray defines;
-    defines.addTokens (getPreprocessorDefs().toString(), " ,;", String::empty);
-    defines.removeEmptyStrings (true);
-    return defines;
+    return mergePreprocessorDefs (project->getPreprocessorDefs(),
+                                  parsePreprocessorDefs (getBuildConfigPreprocessorDefs().toString()));
 }
 
 const StringArray Project::BuildConfiguration::getHeaderSearchPaths() const

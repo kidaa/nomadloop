@@ -30,9 +30,6 @@
 class BouncingBallComponent : public Component,
                               public Timer
 {
-    Colour colour;
-    float x, y, dx, dy;
-
 public:
     BouncingBallComponent()
     {
@@ -86,14 +83,15 @@ public:
     {
         return false;
     }
+
+private:
+    Colour colour;
+    float x, y, dx, dy;
 };
 
 //==============================================================================
 class DragOntoDesktopDemoComp : public Component
 {
-    Component* parent;
-    ComponentDragger dragger;
-
 public:
     DragOntoDesktopDemoComp (Component* p)
         : parent (p)
@@ -101,33 +99,30 @@ public:
         // show off semi-transparency if it's supported by the current OS.
         setOpaque (! Desktop::canUseSemiTransparentWindows());
 
-        for (int i = 3; --i >= 0;)
-            addAndMakeVisible (new BouncingBallComponent());
+        for (int i = 0; i < numElementsInArray (balls); ++i)
+            addAndMakeVisible (&(balls[i]));
     }
 
     ~DragOntoDesktopDemoComp()
     {
-        deleteAllChildren();
     }
 
-    void mouseDown (const MouseEvent&)
+    void mouseDown (const MouseEvent& e)
     {
-        dragger.startDraggingComponent (this, 0);
+        dragger.startDraggingComponent (this, e);
     }
 
     void mouseDrag (const MouseEvent& e)
     {
-        if (! parent->isValidComponent())
+        if (parent == 0)
         {
-            delete this;
+            delete this;  // If our parent has been deleted, we'll just get rid of this component
         }
         else
         {
-            MouseEvent e2 (e.getEventRelativeTo (parent));
-
             // if the mouse is inside the parent component, we'll make that the
             // parent - otherwise, we'll put this comp on the desktop.
-            if (e2.x >= 0 && e2.y >= 0 && e2.x < parent->getWidth() && e2.y < parent->getHeight())
+            if (parent->getLocalBounds().contains (e.getEventRelativeTo (parent).getPosition()))
             {
                 // re-add this component to a parent component, which will
                 // remove it from the desktop..
@@ -140,7 +135,7 @@ public:
                 addToDesktop (ComponentPeer::windowIsTemporary);
             }
 
-            dragger.dragComponent (this, e);
+            dragger.dragComponent (this, e, 0);
         }
     }
 
@@ -159,14 +154,18 @@ public:
 
         g.drawRect (0, 0, getWidth(), getHeight());
     }
+
+private:
+    Component::SafePointer<Component> parent; // A safe-pointer will become zero if the component that it refers to is deleted..
+    ComponentDragger dragger;
+
+    BouncingBallComponent balls[3];
 };
 
 //==============================================================================
 class CustomMenuComponent  : public PopupMenuCustomComponent,
                              public Timer
 {
-    int blobX, blobY;
-
 public:
     CustomMenuComponent()
         : blobX (0),
@@ -210,6 +209,9 @@ public:
         blobY = Random::getSystemRandom().nextInt (getHeight());
         repaint();
     }
+
+private:
+    int blobX, blobY;
 };
 
 //==============================================================================
@@ -267,20 +269,18 @@ public:
         callOut.runModalLoop();
     }
 
-    void changeListenerCallback (void* source)
+    void changeListenerCallback (ChangeBroadcaster* source)
     {
-        ColourSelector* cs = (ColourSelector*) source;
+        ColourSelector* cs = dynamic_cast <ColourSelector*> (source);
 
-        if (cs->getName() == "text")
-            setColour (TextButton::textColourOffId, cs->getCurrentColour());
-        else
-            setColour (TextButton::buttonColourId, cs->getCurrentColour());
+        setColour (TextButton::buttonColourId, cs->getCurrentColour());
     }
 };
 
 //==============================================================================
-// just a component that deletes all its children, to use for the tabbed pages to avoid
-// memory leaks when they're deleted
+/* A component to act as a simple container for our demos, which deletes all the child
+   components that we stuff into it.
+*/
 class DemoPageComp  : public Component
 {
 public:
@@ -290,6 +290,12 @@ public:
 
     ~DemoPageComp()
     {
+        /* Deleting your child components indiscriminately using deleteAllChildren() is not recommended! It's much
+           safer to make them embedded members or use ScopedPointers to automatically manage their lifetimes!
+
+           In this demo, where we're throwing together a whole bunch of random components, it's simpler to do it
+           like this, but don't treat this as an example of good practice!
+        */
         deleteAllChildren();
     }
 };
@@ -579,6 +585,12 @@ public:
 
     ~ButtonsPage()
     {
+        /* Deleting your child components indiscriminately using deleteAllChildren() is not recommended! It's much
+           safer to make them embedded members or use ScopedPointers to automatically manage their lifetimes!
+
+           In this demo, where we're throwing together a whole bunch of random components, it's simpler to do it
+           like this, but don't treat this as an example of good practice!
+        */
         deleteAllChildren();
     }
 
@@ -593,7 +605,9 @@ public:
                                                            Random::getSystemRandom().nextInt (getHeight() / 2),
                                                            60 + Random::getSystemRandom().nextInt (getWidth() / 3),
                                                            16 + Random::getSystemRandom().nextInt (getHeight() / 6)),
+                                           Random::getSystemRandom().nextFloat(),
                                            500 + Random::getSystemRandom().nextInt (2000),
+                                           false,
                                            Random::getSystemRandom().nextDouble(),
                                            Random::getSystemRandom().nextDouble());
             }
@@ -648,57 +662,57 @@ class ToolbarDemoComp   : public Component,
 {
 public:
     ToolbarDemoComp()
+        : depthLabel (String::empty, "Toolbar depth:"),
+          infoLabel (String::empty, "As well as showing off toolbars, this demo illustrates how to store "
+                                    "a set of SVG files in a Zip file, embed that in your application, and read "
+                                    "them back in at runtime.\n\nThe icon images here are taken from the open-source "
+                                    "Tango icon project."),
+          orientationButton ("Vertical/Horizontal"),
+          customiseButton ("Customise...")
     {
         // Create and add the toolbar...
-        addAndMakeVisible (toolbar = new Toolbar());
+        addAndMakeVisible (&toolbar);
 
         // And use our item factory to add a set of default icons to it...
-        toolbar->addDefaultItems (factory);
+        toolbar.addDefaultItems (factory);
 
         // Now we'll just create the other sliders and buttons on the demo page, which adjust
         // the toolbar's properties...
-        Label* info = new Label (String::empty,
-            "As well as showing off toolbars, this demo illustrates how to store "
-            "a set of SVG files in a Zip file, embed that in your application, and read "
-            "them back in at runtime.\n\nThe icon images here are taken from the open-source "
-            "Tango icon project.");
+        addAndMakeVisible (&infoLabel);
+        infoLabel.setJustificationType (Justification::topLeft);
+        infoLabel.setBounds (80, 80, 450, 100);
+        infoLabel.setInterceptsMouseClicks (false, false);
 
-        addAndMakeVisible (info);
-        info->setJustificationType (Justification::topLeft);
-        info->setBounds (80, 80, 450, 100);
-        info->setInterceptsMouseClicks (false, false);
+        addAndMakeVisible (&depthSlider);
+        depthSlider.setRange (10.0, 200.0, 1.0);
+        depthSlider.setValue (50, false);
+        depthSlider.setSliderStyle (Slider::LinearHorizontal);
+        depthSlider.setTextBoxStyle (Slider::TextBoxLeft, false, 80, 20);
+        depthSlider.addListener (this);
+        depthSlider.setBounds (80, 210, 300, 22);
+        depthLabel.attachToComponent (&depthSlider, false);
 
-        addAndMakeVisible (depthSlider = new Slider ("toolbar depth:"));
-        depthSlider->setRange (10.0, 200.0, 1.0);
-        depthSlider->setValue (50, false);
-        depthSlider->setSliderStyle (Slider::LinearHorizontal);
-        depthSlider->setTextBoxStyle (Slider::TextBoxLeft, false, 80, 20);
-        depthSlider->addListener (this);
-        depthSlider->setBounds (80, 210, 300, 22);
-        (new Label (depthSlider->getName(), depthSlider->getName()))->attachToComponent (depthSlider, false);
+        addAndMakeVisible (&orientationButton);
+        orientationButton.addButtonListener (this);
+        orientationButton.changeWidthToFitText (22);
+        orientationButton.setTopLeftPosition (depthSlider.getX(), depthSlider.getBottom() + 20);
 
-        addAndMakeVisible (orientationButton = new TextButton ("vertical/horizontal"));
-        orientationButton->addButtonListener (this);
-        orientationButton->changeWidthToFitText (22);
-        orientationButton->setTopLeftPosition (depthSlider->getX(), depthSlider->getBottom() + 20);
-
-        addAndMakeVisible (customiseButton = new TextButton ("customise..."));
-        customiseButton->addButtonListener (this);
-        customiseButton->changeWidthToFitText (22);
-        customiseButton->setTopLeftPosition (orientationButton->getRight() + 20, orientationButton->getY());
+        addAndMakeVisible (&customiseButton);
+        customiseButton.addButtonListener (this);
+        customiseButton.changeWidthToFitText (22);
+        customiseButton.setTopLeftPosition (orientationButton.getRight() + 20, orientationButton.getY());
     }
 
     ~ToolbarDemoComp()
     {
-        deleteAllChildren();
     }
 
     void resized()
     {
-        if (toolbar->isVertical())
-            toolbar->setBounds (0, 0, (int) depthSlider->getValue(), getHeight());
+        if (toolbar.isVertical())
+            toolbar.setBounds (0, 0, (int) depthSlider.getValue(), getHeight());
         else
-            toolbar->setBounds (0, 0, getWidth(), (int) depthSlider->getValue());
+            toolbar.setBounds (0, 0, getWidth(), (int) depthSlider.getValue());
     }
 
     void sliderValueChanged (Slider*)
@@ -708,22 +722,22 @@ public:
 
     void buttonClicked (Button* button)
     {
-        if (button == orientationButton)
+        if (button == &orientationButton)
         {
-            toolbar->setVertical (! toolbar->isVertical());
+            toolbar.setVertical (! toolbar.isVertical());
             resized();
         }
-        else if (button == customiseButton)
+        else if (button == &customiseButton)
         {
-            toolbar->showCustomisationDialog (factory);
+            toolbar.showCustomisationDialog (factory);
         }
     }
 
 private:
-    Toolbar* toolbar;
-    Slider* depthSlider;
-    TextButton* orientationButton;
-    TextButton* customiseButton;
+    Toolbar toolbar;
+    Slider depthSlider;
+    Label depthLabel, infoLabel;
+    TextButton orientationButton, customiseButton;
 
     //==============================================================================
     class DemoToolbarItemFactory   : public ToolbarItemFactory
@@ -797,35 +811,16 @@ private:
         {
             switch (itemId)
             {
-            case doc_new:
-                return createButtonFromZipFileSVG (itemId, "new", "document-new.svg");
-
-            case doc_open:
-                return createButtonFromZipFileSVG (itemId, "open", "document-open.svg");
-
-            case doc_save:
-                return createButtonFromZipFileSVG (itemId, "save", "document-save.svg");
-
-            case doc_saveAs:
-                return createButtonFromZipFileSVG (itemId, "save as", "document-save-as.svg");
-
-            case edit_copy:
-                return createButtonFromZipFileSVG (itemId, "copy", "edit-copy.svg");
-
-            case edit_cut:
-                return createButtonFromZipFileSVG (itemId, "cut", "edit-cut.svg");
-
-            case edit_paste:
-                return createButtonFromZipFileSVG (itemId, "paste", "edit-paste.svg");
-
-            case juceLogoButton:
-                return new ToolbarButton (itemId, "juce!", Drawable::createFromImageData (BinaryData::juce_png, BinaryData::juce_pngSize), 0);
-
-            case customComboBox:
-                return new CustomToolbarComboBox (itemId);
-
-            default:
-                break;
+                case doc_new:           return createButtonFromZipFileSVG (itemId, "new", "document-new.svg");
+                case doc_open:          return createButtonFromZipFileSVG (itemId, "open", "document-open.svg");
+                case doc_save:          return createButtonFromZipFileSVG (itemId, "save", "document-save.svg");
+                case doc_saveAs:        return createButtonFromZipFileSVG (itemId, "save as", "document-save-as.svg");
+                case edit_copy:         return createButtonFromZipFileSVG (itemId, "copy", "edit-copy.svg");
+                case edit_cut:          return createButtonFromZipFileSVG (itemId, "cut", "edit-cut.svg");
+                case edit_paste:        return createButtonFromZipFileSVG (itemId, "paste", "edit-paste.svg");
+                case juceLogoButton:    return new ToolbarButton (itemId, "juce!", Drawable::createFromImageData (BinaryData::juce_png, BinaryData::juce_pngSize), 0);
+                case customComboBox:    return new CustomToolbarComboBox (itemId);
+                default:                break;
             }
 
             return 0;
@@ -867,20 +862,20 @@ private:
         {
         public:
             CustomToolbarComboBox (const int toolbarItemId)
-                : ToolbarItemComponent (toolbarItemId, "Custom Toolbar Item", false)
+                : ToolbarItemComponent (toolbarItemId, "Custom Toolbar Item", false),
+                  comboBox ("demo toolbar combo box")
             {
-                addAndMakeVisible (comboBox = new ComboBox ("demo toolbar combo box"));
+                addAndMakeVisible (&comboBox);
 
                 for (int i = 1; i < 20; ++i)
-                    comboBox->addItem ("Toolbar ComboBox item " + String (i), i);
+                    comboBox.addItem ("Toolbar ComboBox item " + String (i), i);
 
-                comboBox->setSelectedId (1);
-                comboBox->setEditableText (true);
+                comboBox.setSelectedId (1);
+                comboBox.setEditableText (true);
             }
 
             ~CustomToolbarComboBox()
             {
-                delete comboBox;
             }
 
             bool getToolbarItemSizes (int /*toolbarDepth*/, bool isToolbarVertical,
@@ -901,14 +896,14 @@ private:
 
             void contentAreaChanged (const Rectangle<int>& contentArea)
             {
-                comboBox->setSize (contentArea.getWidth() - 2,
-                                   jmin (contentArea.getHeight() - 2, 22));
+                comboBox.setSize (contentArea.getWidth() - 2,
+                                  jmin (contentArea.getHeight() - 2, 22));
 
-                comboBox->setCentrePosition (contentArea.getCentreX(), contentArea.getCentreY());
+                comboBox.setCentrePosition (contentArea.getCentreX(), contentArea.getCentreY());
             }
 
         private:
-            ComboBox* comboBox;
+            ComboBox comboBox;
         };
     };
 
@@ -1065,39 +1060,17 @@ public:
 
         switch (buttonId)
         {
-        case menuButton:
-            desc = "menu button (short)";
-            break;
-        case playButton:
-            desc = "play button";
-            break;
-        case plusButton:
-            desc = "plus button";
-            break;
-        case minusButton:
-            desc = "minus button";
-            break;
-        case rightButton:
-            desc = "right button (short)";
-            break;
-        case leftButton:
-            desc = "left button (short)";
-            break;
-        case rightButton_Long:
-            desc = "right button (long)";
-            break;
-        case leftButton_Long:
-            desc = "left button (long)";
-            break;
-        case menuButton_Long:
-            desc = "menu button (long)";
-            break;
-        case playButtonSleepMode:
-            desc = "play (sleep mode)";
-            break;
-        case switched:
-            desc = "remote switched";
-            break;
+            case menuButton:            desc = "menu button (short)";   break;
+            case playButton:            desc = "play button";           break;
+            case plusButton:            desc = "plus button";           break;
+            case minusButton:           desc = "minus button";          break;
+            case rightButton:           desc = "right button (short)";  break;
+            case leftButton:            desc = "left button (short)";   break;
+            case rightButton_Long:      desc = "right button (long)";   break;
+            case leftButton_Long:       desc = "left button (long)";    break;
+            case menuButton_Long:       desc = "menu button (long)";    break;
+            case playButtonSleepMode:   desc = "play (sleep mode)";     break;
+            case switched:              desc = "remote switched";       break;
         }
 
         if (isDown)
@@ -1112,64 +1085,64 @@ public:
 #endif
 
 //==============================================================================
-const int numGroups = 4;
-
 class WidgetsDemo  : public Component,
-                     public ButtonListener
+                     public ButtonListener,
+                     public SliderListener
 {
-    TextButton* menuButton;
-    ToggleButton* enableButton;
-
-    DemoTabbedComponent* tabs;
-
 public:
     //==============================================================================
     WidgetsDemo()
+        : menuButton ("click for a popup menu..",
+                      "click for a demo of the different types of item you can put into a popup menu..."),
+          enableButton ("enable/disable components")
     {
         setName ("Widgets");
 
-        addAndMakeVisible (tabs = new DemoTabbedComponent());
+        addAndMakeVisible (&tabs);
 
         //==============================================================================
-        menuButton = new TextButton ("click for a popup menu..",
-                                     "click for a demo of the different types of item you can put into a popup menu...");
-
-        addAndMakeVisible (menuButton);
-        menuButton->setBounds (10, 10, 200, 24);
-        menuButton->addButtonListener (this);
-        menuButton->setTriggeredOnMouseDown (true); // because this button pops up a menu, this lets us
+        addAndMakeVisible (&menuButton);
+        menuButton.setBounds (10, 10, 200, 24);
+        menuButton.addButtonListener (this);
+        menuButton.setTriggeredOnMouseDown (true); // because this button pops up a menu, this lets us
                                                     // hold down the button and drag straight onto the menu
 
         //==============================================================================
-        enableButton = new ToggleButton ("enable/disable components");
-        addAndMakeVisible (enableButton);
-        enableButton->setBounds (230, 10, 180, 24);
-        enableButton->setTooltip ("toggle button");
-        enableButton->setToggleState (true, false);
-        enableButton->addButtonListener (this);
+        addAndMakeVisible (&enableButton);
+        enableButton.setBounds (230, 10, 180, 24);
+        enableButton.setTooltip ("Enables/disables all the components");
+        enableButton.setToggleState (true, false);
+        enableButton.addButtonListener (this);
+
+        addAndMakeVisible (&transformSlider);
+        transformSlider.setSliderStyle (Slider::LinearBar);
+        transformSlider.setTextValueSuffix (" degrees rotation");
+        transformSlider.setRange (-180.0, 180.0, 0.1);
+        transformSlider.setBounds (440, 10, 180, 24);
+        transformSlider.setTooltip ("Applies a transform to the components");
+        transformSlider.addListener (this);
     }
 
     ~WidgetsDemo()
     {
-        deleteAllChildren();
     }
 
     void resized()
     {
-        tabs->setBounds (10, 40, getWidth() - 20, getHeight() - 50);
+        tabs.setBounds (10, 40, getWidth() - 20, getHeight() - 50);
     }
 
     //==============================================================================
     void buttonClicked (Button* button)
     {
-        if (button == enableButton)
+        if (button == &enableButton)
         {
-            const bool enabled = enableButton->getToggleState();
+            const bool enabled = enableButton.getToggleState();
 
-            menuButton->setEnabled (enabled);
-            tabs->setEnabled (enabled);
+            menuButton.setEnabled (enabled);
+            tabs.setEnabled (enabled);
         }
-        else if (button == menuButton)
+        else if (button == &menuButton)
         {
             PopupMenu m;
             m.addItem (1, "Normal item");
@@ -1182,10 +1155,10 @@ public:
             m.addSeparator();
 
             PopupMenu tabsMenu;
-            tabsMenu.addItem (1001, "Show tabs at the top", true, tabs->getOrientation() == TabbedButtonBar::TabsAtTop);
-            tabsMenu.addItem (1002, "Show tabs at the bottom", true, tabs->getOrientation() == TabbedButtonBar::TabsAtBottom);
-            tabsMenu.addItem (1003, "Show tabs at the left", true, tabs->getOrientation() == TabbedButtonBar::TabsAtLeft);
-            tabsMenu.addItem (1004, "Show tabs at the right", true, tabs->getOrientation() == TabbedButtonBar::TabsAtRight);
+            tabsMenu.addItem (1001, "Show tabs at the top", true, tabs.getOrientation() == TabbedButtonBar::TabsAtTop);
+            tabsMenu.addItem (1002, "Show tabs at the bottom", true, tabs.getOrientation() == TabbedButtonBar::TabsAtBottom);
+            tabsMenu.addItem (1003, "Show tabs at the left", true, tabs.getOrientation() == TabbedButtonBar::TabsAtLeft);
+            tabsMenu.addItem (1004, "Show tabs at the right", true, tabs.getOrientation() == TabbedButtonBar::TabsAtRight);
             m.addSubMenu ("Tab position", tabsMenu);
 
             m.addSeparator();
@@ -1238,7 +1211,7 @@ public:
 
             m.addSubMenu ("File chooser dialogs", fileChoosers);
 
-            int result = m.showAt (menuButton);
+            int result = m.showAt (&menuButton);
 
             if (result != 0)
             {
@@ -1317,7 +1290,6 @@ public:
                                                      "Progress window",
                                                      "You pressed cancel!");
                     }
-
                 }
                 else if (result == 120)
                 {
@@ -1347,13 +1319,15 @@ public:
                                         "*",
                                         useNativeVersion);
 
-                        if (fc.browseForFileToOpen())
+                        if (fc.browseForMultipleFilesToOpen())
                         {
-                            File chosenFile = fc.getResult();
+                            String chosen;
+                            for (int i = 0; i < fc.getResults().size(); ++i)
+                                chosen << fc.getResults().getReference(i).getFullPathName() << "\n";
 
                             AlertWindow::showMessageBox (AlertWindow::InfoIcon,
                                                          "File Chooser...",
-                                                         "You picked: " + chosenFile.getFullPathName());
+                                                         "You picked: " + chosen);
                         }
                     }
                     else if (result == 124)
@@ -1366,13 +1340,15 @@ public:
                                         "*.jpg;*.jpeg;*.png;*.gif",
                                         useNativeVersion);
 
-                        if (fc.browseForFileToOpen (&imagePreview))
+                        if (fc.browseForMultipleFilesToOpen (&imagePreview))
                         {
-                            File chosenFile = fc.getResult();
+                            String chosen;
+                            for (int i = 0; i < fc.getResults().size(); ++i)
+                                chosen << fc.getResults().getReference(i).getFullPathName() << "\n";
 
                             AlertWindow::showMessageBox (AlertWindow::InfoIcon,
                                                          "File Chooser...",
-                                                         "You picked: " + chosenFile.getFullPathName());
+                                                         "You picked: " + chosen);
                         }
                     }
                     else if (result == 122)
@@ -1410,23 +1386,36 @@ public:
                 }
                 else if (result == 1001)
                 {
-                    tabs->setOrientation (TabbedButtonBar::TabsAtTop);
+                    tabs.setOrientation (TabbedButtonBar::TabsAtTop);
                 }
                 else if (result == 1002)
                 {
-                    tabs->setOrientation (TabbedButtonBar::TabsAtBottom);
+                    tabs.setOrientation (TabbedButtonBar::TabsAtBottom);
                 }
                 else if (result == 1003)
                 {
-                    tabs->setOrientation (TabbedButtonBar::TabsAtLeft);
+                    tabs.setOrientation (TabbedButtonBar::TabsAtLeft);
                 }
                 else if (result == 1004)
                 {
-                    tabs->setOrientation (TabbedButtonBar::TabsAtRight);
+                    tabs.setOrientation (TabbedButtonBar::TabsAtRight);
                 }
             }
         }
     }
+
+    void sliderValueChanged (Slider*)
+    {
+        // When you move the rotation slider, we'll apply a rotaion transform to the whole tabs component..
+        tabs.setTransform (AffineTransform::rotation ((float) (transformSlider.getValue() / (180.0 / double_Pi)),
+                                                      getWidth() * 0.5f, getHeight() * 0.5f));
+    }
+
+private:
+    TextButton menuButton;
+    ToggleButton enableButton;
+    Slider transformSlider;
+    DemoTabbedComponent tabs;
 };
 
 

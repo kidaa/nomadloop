@@ -231,25 +231,20 @@ public:
         /** Returns the current rectangle. */
         const Rectangle<int>* getRectangle() const throw()       { return current; }
 
-
-        //==============================================================================
-        juce_UseDebuggingNewOperator
-
     private:
         const Rectangle<int>* current;
         const RectangleList& owner;
         int index;
 
-        Iterator (const Iterator&);
-        Iterator& operator= (const Iterator&);
+        JUCE_DECLARE_NON_COPYABLE (Iterator);
     };
 
-    //==============================================================================
-    juce_UseDebuggingNewOperator
-
 private:
+    //==============================================================================
     friend class Iterator;
     Array <Rectangle<int> > rects;
+
+    JUCE_LEAK_DETECTOR (RectangleList);
 };
 
 

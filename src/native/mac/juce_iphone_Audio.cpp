@@ -35,10 +35,10 @@ public:
     //==============================================================================
     IPhoneAudioIODevice (const String& deviceName)
         : AudioIODevice (deviceName, "Audio"),
-          audioUnit (0),
-          isRunning (false),
-          callback (0),
           actualBufferSize (0),
+          isRunning (false),
+          audioUnit (0),
+          callback (0),
           floatData (1, 2)
     {
         numInputChannels = 2;
@@ -519,8 +519,7 @@ private:
         }
     }
 
-    IPhoneAudioIODevice (const IPhoneAudioIODevice&);
-    IPhoneAudioIODevice& operator= (const IPhoneAudioIODevice&);
+    JUCE_DECLARE_NON_COPYABLE (IPhoneAudioIODevice);
 };
 
 
@@ -531,10 +530,6 @@ public:
     //==============================================================================
     IPhoneAudioIODeviceType()
         : AudioIODeviceType ("iPhone Audio")
-    {
-    }
-
-    ~IPhoneAudioIODeviceType()
     {
     }
 
@@ -574,12 +569,8 @@ public:
         return 0;
     }
 
-    //==============================================================================
-    juce_UseDebuggingNewOperator
-
 private:
-    IPhoneAudioIODeviceType (const IPhoneAudioIODeviceType&);
-    IPhoneAudioIODeviceType& operator= (const IPhoneAudioIODeviceType&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (IPhoneAudioIODeviceType);
 };
 
 //==============================================================================

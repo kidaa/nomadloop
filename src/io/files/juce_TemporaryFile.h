@@ -143,8 +143,11 @@ public:
     */
     bool overwriteTargetFileWithTemporary() const;
 
-    //==============================================================================
-    juce_UseDebuggingNewOperator
+    /** Attempts to delete the temporary file, if it exists.
+        @returns true if the file is successfully deleted (or if it didn't exist).
+    */
+    bool deleteTemporaryFile() const;
+
 
 private:
     //==============================================================================
@@ -152,8 +155,7 @@ private:
 
     void createTempFile (const File& parentDirectory, String name, const String& suffix, int optionFlags);
 
-    TemporaryFile (const TemporaryFile&);
-    TemporaryFile& operator= (const TemporaryFile&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (TemporaryFile);
 };
 
 #endif   // __JUCE_TEMPORARYFILE_JUCEHEADER__

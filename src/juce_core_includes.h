@@ -26,6 +26,9 @@
 #ifndef __JUCE_JUCE_CORE_INCLUDES_INCLUDEFILES__
 #define __JUCE_JUCE_CORE_INCLUDES_INCLUDEFILES__
 
+#ifndef __JUCE_ABSTRACTFIFO_JUCEHEADER__
+ #include "containers/juce_AbstractFifo.h"
+#endif
 #ifndef __JUCE_ARRAY_JUCEHEADER__
  #include "containers/juce_Array.h"
 #endif
@@ -40,6 +43,9 @@
 #endif
 #ifndef __JUCE_ELEMENTCOMPARATOR_JUCEHEADER__
  #include "containers/juce_ElementComparator.h"
+#endif
+#ifndef __JUCE_EXPRESSION_JUCEHEADER__
+ #include "containers/juce_Expression.h"
 #endif
 #ifndef __JUCE_HEAPBLOCK_JUCEHEADER__
  #include "containers/juce_HeapBlock.h"
@@ -97,6 +103,9 @@
 #endif
 #ifndef __JUCE_INITIALISATION_JUCEHEADER__
  #include "core/juce_Initialisation.h"
+#endif
+#ifndef __JUCE_LEAKEDOBJECTDETECTOR_JUCEHEADER__
+ #include "core/juce_LeakedObjectDetector.h"
 #endif
 #ifndef __JUCE_LOGGER_JUCEHEADER__
  #include "core/juce_Logger.h"
@@ -175,6 +184,9 @@
 #endif
 #ifndef __JUCE_ZIPFILE_JUCEHEADER__
  #include "io/files/juce_ZipFile.h"
+#endif
+#ifndef __JUCE_MACADDRESS_JUCEHEADER__
+ #include "io/network/juce_MACAddress.h"
 #endif
 #ifndef __JUCE_SOCKET_JUCEHEADER__
  #include "io/network/juce_Socket.h"

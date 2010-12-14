@@ -76,10 +76,15 @@ ResizableWindow::ResizableWindow (const String& name,
 
 ResizableWindow::~ResizableWindow()
 {
+    // Don't delete or remove the resizer components yourself! They're managed by the
+    // ResizableWindow, and you should leave them alone! You may have deleted them
+    // accidentally by careless use of deleteAllChildren()..?
+    jassert (resizableCorner == 0 || getIndexOfChildComponent (resizableCorner) >= 0);
+    jassert (resizableBorder == 0 || getIndexOfChildComponent (resizableBorder) >= 0);
+
     resizableCorner = 0;
     resizableBorder = 0;
-    delete static_cast <Component*> (contentComponent);
-    contentComponent = 0;
+    contentComponent.deleteAndZero();
 
     // have you been adding your own components directly to this window..? tut tut tut.
     // Read the instructions for using a ResizableWindow!
@@ -106,8 +111,8 @@ void ResizableWindow::setContentComponent (Component* const newContentComponent,
     if (newContentComponent != static_cast <Component*> (contentComponent))
     {
         if (deleteOldOne)
-            delete static_cast <Component*> (contentComponent); // (avoid using a scoped pointer for this, so that it survives
-                                                                //  external deletion of the content comp)
+            contentComponent.deleteAndZero(); // (avoid using a scoped pointer for this, so that it survives
+                                              //  external deletion of the content comp)
         else
             removeChildComponent (contentComponent);
 
@@ -158,16 +163,26 @@ void ResizableWindow::resized()
 {
     if (resizableBorder != 0)
     {
+      #if JUCE_WINDOWS || JUCE_LINUX
+        // hide the resizable border if the OS already provides one..
+        resizableBorder->setVisible (! (isFullScreen() || isUsingNativeTitleBar()));
+      #else
         resizableBorder->setVisible (! isFullScreen());
-        resizableBorder->setBorderThickness (getBorderThickness());
+      #endif
 
+        resizableBorder->setBorderThickness (getBorderThickness());
         resizableBorder->setSize (getWidth(), getHeight());
         resizableBorder->toBack();
     }
 
     if (resizableCorner != 0)
     {
+      #if JUCE_MAC
+        // hide the resizable border if the OS already provides one..
+        resizableCorner->setVisible (! (isFullScreen() || isUsingNativeTitleBar()));
+      #else
         resizableCorner->setVisible (! isFullScreen());
+      #endif
 
         const int resizerSize = 18;
         resizableCorner->setBounds (getWidth() - resizerSize,
@@ -180,9 +195,9 @@ void ResizableWindow::resized()
 
     updateLastPos();
 
-#if JUCE_DEBUG
+  #if JUCE_DEBUG
     hasBeenResized = true;
-#endif
+  #endif
 }
 
 void ResizableWindow::childBoundsChanged (Component* child)
@@ -391,7 +406,7 @@ void ResizableWindow::setFullScreen (const bool shouldBeFullScreen)
 
                 peer->setFullScreen (shouldBeFullScreen);
 
-                if (! shouldBeFullScreen)
+                if ((! shouldBeFullScreen) && ! lastPos.isEmpty())
                     setBounds (lastPos);
             }
             else
@@ -511,16 +526,16 @@ bool ResizableWindow::restoreWindowStateFromString (const String& s)
 }
 
 //==============================================================================
-void ResizableWindow::mouseDown (const MouseEvent&)
+void ResizableWindow::mouseDown (const MouseEvent& e)
 {
     if (! isFullScreen())
-        dragger.startDraggingComponent (this, constrainer);
+        dragger.startDraggingComponent (this, e);
 }
 
 void ResizableWindow::mouseDrag (const MouseEvent& e)
 {
     if (! isFullScreen())
-        dragger.dragComponent (this, e);
+        dragger.dragComponent (this, e, constrainer);
 }
 
 //==============================================================================

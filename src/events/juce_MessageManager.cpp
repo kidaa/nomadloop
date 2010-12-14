@@ -28,7 +28,7 @@
 BEGIN_JUCE_NAMESPACE
 
 #include "juce_MessageManager.h"
-#include "juce_ActionListenerList.h"
+#include "juce_ActionBroadcaster.h"
 #include "../application/juce_Application.h"
 #include "../gui/components/juce_Component.h"
 #include "../threads/juce_Thread.h"
@@ -52,16 +52,18 @@ MessageManager::MessageManager() throw()
     threadWithLock (0)
 {
     messageThreadId = Thread::getCurrentThreadId();
+
+    if (JUCEApplication::isStandaloneApp())
+        Thread::setCurrentThreadName ("Juce Message Thread");
 }
 
 MessageManager::~MessageManager() throw()
 {
-    broadcastListeners = 0;
+    broadcaster = 0;
 
     doPlatformSpecificShutdown();
 
-    // If you hit this assertion, then you've probably leaked a Component or some other
-    // kind of MessageListener object...
+    // If you hit this assertion, then you've probably leaked some kind of MessageListener object..
     jassert (messageListeners.size() == 0);
 
     jassert (instance == this);
@@ -86,47 +88,40 @@ void MessageManager::postMessageToQueue (Message* const message)
 }
 
 //==============================================================================
-CallbackMessage::CallbackMessage() throw()  {}
-CallbackMessage::~CallbackMessage() throw()  {}
+CallbackMessage::CallbackMessage() throw() {}
+CallbackMessage::~CallbackMessage() {}
 
 void CallbackMessage::post()
 {
     if (MessageManager::instance != 0)
-        MessageManager::instance->postCallbackMessage (this);
-}
-
-void MessageManager::postCallbackMessage (Message* const message)
-{
-    message->messageRecipient = 0;
-    postMessageToQueue (message);
+        MessageManager::instance->postMessageToQueue (this);
 }
 
 //==============================================================================
 // not for public use..
 void MessageManager::deliverMessage (Message* const message)
 {
-    const ScopedPointer <Message> messageDeleter (message);
-    MessageListener* const recipient = message->messageRecipient;
-
     JUCE_TRY
     {
-        if (messageListeners.contains (recipient))
+        const ScopedPointer <Message> messageDeleter (message);
+        MessageListener* const recipient = message->messageRecipient;
+
+        if (recipient == 0)
         {
-            recipient->handleMessage (*message);
-        }
-        else if (recipient == 0)
-        {
-            if (message->intParameter1 == quitMessageId)
+            CallbackMessage* const callbackMessage = dynamic_cast <CallbackMessage*> (message);
+
+            if (callbackMessage != 0)
+            {
+                callbackMessage->messageCallback();
+            }
+            else if (message->intParameter1 == quitMessageId)
             {
                 quitMessageReceived = true;
             }
-            else
-            {
-                CallbackMessage* const cm = dynamic_cast <CallbackMessage*> (message);
-
-                if (cm != 0)
-                    cm->messageCallback();
-            }
+        }
+        else if (messageListeners.contains (recipient))
+        {
+            recipient->handleMessage (*message);
         }
     }
     JUCE_CATCH_EXCEPTION
@@ -143,10 +138,7 @@ void MessageManager::runDispatchLoop()
 
 void MessageManager::stopDispatchLoop()
 {
-    Message* const m = new Message (quitMessageId, 0, 0, 0);
-    m->messageRecipient = 0;
-    postMessageToQueue (m);
-
+    postMessageToQueue (new Message (quitMessageId, 0, 0, 0));
     quitMessagePosted = true;
 }
 
@@ -180,22 +172,22 @@ bool MessageManager::runDispatchLoopUntil (int millisecondsToRunFor)
 //==============================================================================
 void MessageManager::deliverBroadcastMessage (const String& value)
 {
-    if (broadcastListeners != 0)
-        broadcastListeners->sendActionMessage (value);
+    if (broadcaster != 0)
+        broadcaster->sendActionMessage (value);
 }
 
-void MessageManager::registerBroadcastListener (ActionListener* const listener) throw()
+void MessageManager::registerBroadcastListener (ActionListener* const listener)
 {
-    if (broadcastListeners == 0)
-        broadcastListeners = new ActionListenerList();
+    if (broadcaster == 0)
+        broadcaster = new ActionBroadcaster();
 
-    broadcastListeners->addActionListener (listener);
+    broadcaster->addActionListener (listener);
 }
 
-void MessageManager::deregisterBroadcastListener (ActionListener* const listener) throw()
+void MessageManager::deregisterBroadcastListener (ActionListener* const listener)
 {
-    if (broadcastListeners != 0)
-        broadcastListeners->removeActionListener (listener);
+    if (broadcaster != 0)
+        broadcaster->removeActionListener (listener);
 }
 
 //==============================================================================
@@ -237,7 +229,6 @@ class MessageManagerLock::SharedEvents   : public ReferenceCountedObject
 {
 public:
     SharedEvents()   {}
-    ~SharedEvents()  {}
 
     /* This class just holds a couple of events to communicate between the BlockingMessage
        and the MessageManagerLock. Because both of these objects may be deleted at any time,
@@ -245,15 +236,13 @@ public:
     WaitableEvent lockedEvent, releaseEvent;
 
 private:
-    SharedEvents (const SharedEvents&);
-    SharedEvents& operator= (const SharedEvents&);
+    JUCE_DECLARE_NON_COPYABLE (SharedEvents);
 };
 
 class MessageManagerLock::BlockingMessage   : public CallbackMessage
 {
 public:
     BlockingMessage (MessageManagerLock::SharedEvents* const events_) : events (events_) {}
-    ~BlockingMessage() throw()  {}
 
     void messageCallback()
     {
@@ -261,31 +250,28 @@ public:
         events->releaseEvent.wait();
     }
 
-    juce_UseDebuggingNewOperator
-
 private:
     ReferenceCountedObjectPtr <MessageManagerLock::SharedEvents> events;
 
-    BlockingMessage (const BlockingMessage&);
-    BlockingMessage& operator= (const BlockingMessage&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (BlockingMessage);
 };
 
 //==============================================================================
-MessageManagerLock::MessageManagerLock (Thread* const threadToCheck) throw()
+MessageManagerLock::MessageManagerLock (Thread* const threadToCheck)
     : sharedEvents (0),
       locked (false)
 {
     init (threadToCheck, 0);
 }
 
-MessageManagerLock::MessageManagerLock (ThreadPoolJob* const jobToCheckForExitSignal) throw()
+MessageManagerLock::MessageManagerLock (ThreadPoolJob* const jobToCheckForExitSignal)
     : sharedEvents (0),
       locked (false)
 {
     init (0, jobToCheckForExitSignal);
 }
 
-void MessageManagerLock::init (Thread* const threadToCheck, ThreadPoolJob* const job) throw()
+void MessageManagerLock::init (Thread* const threadToCheck, ThreadPoolJob* const job)
 {
     if (MessageManager::instance != 0)
     {

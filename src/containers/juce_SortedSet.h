@@ -185,8 +185,8 @@ public:
     inline ElementType operator[] (const int index) const throw()
     {
         const ScopedLockType lock (getLock());
-        return (((unsigned int) index) < (unsigned int) numUsed) ? data.elements [index]
-                                                                 : ElementType();
+        return isPositiveAndBelow (index, numUsed) ? data.elements [index]
+                                                   : ElementType();
     }
 
     /** Returns one of the elements in the set, without checking the index passed in.
@@ -200,7 +200,7 @@ public:
     inline ElementType getUnchecked (const int index) const throw()
     {
         const ScopedLockType lock (getLock());
-        jassert (((unsigned int) index) < (unsigned int) numUsed);
+        jassert (isPositiveAndBelow (index, numUsed));
         return data.elements [index];
     }
 
@@ -376,21 +376,24 @@ public:
                  int numElementsToAdd = -1) throw()
     {
         const typename OtherSetType::ScopedLockType lock1 (setToAddFrom.getLock());
-        const ScopedLockType lock2 (getLock());
-        jassert (this != &setToAddFrom);
 
-        if (this != &setToAddFrom)
         {
-            if (startIndex < 0)
+            const ScopedLockType lock2 (getLock());
+            jassert (this != &setToAddFrom);
+
+            if (this != &setToAddFrom)
             {
-                jassertfalse;
-                startIndex = 0;
+                if (startIndex < 0)
+                {
+                    jassertfalse;
+                    startIndex = 0;
+                }
+
+                if (numElementsToAdd < 0 || startIndex + numElementsToAdd > setToAddFrom.size())
+                    numElementsToAdd = setToAddFrom.size() - startIndex;
+
+                addArray (setToAddFrom.elements + startIndex, numElementsToAdd);
             }
-
-            if (numElementsToAdd < 0 || startIndex + numElementsToAdd > setToAddFrom.size())
-                numElementsToAdd = setToAddFrom.size() - startIndex;
-
-            addArray (setToAddFrom.elements + startIndex, numElementsToAdd);
         }
     }
 
@@ -409,7 +412,7 @@ public:
     {
         const ScopedLockType lock (getLock());
 
-        if (((unsigned int) indexToRemove) < (unsigned int) numUsed)
+        if (isPositiveAndBelow (indexToRemove, numUsed))
         {
             --numUsed;
 
@@ -520,10 +523,8 @@ public:
     typedef typename TypeOfCriticalSectionToUse::ScopedLockType ScopedLockType;
 
 
-    //==============================================================================
-    juce_UseDebuggingNewOperator
-
 private:
+    //==============================================================================
     ArrayAllocationBase <ElementType, TypeOfCriticalSectionToUse> data;
     int numUsed;
 

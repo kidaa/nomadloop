@@ -59,7 +59,7 @@ public:
              void* pointerParameter) throw();
 
     /** Destructor. */
-    virtual ~Message() throw();
+    virtual ~Message();
 
     //==============================================================================
     // These values can be used for carrying simple data that the application needs to
@@ -72,15 +72,12 @@ public:
 
 
     //==============================================================================
-    juce_UseDebuggingNewOperator
-
 private:
     friend class MessageListener;
     friend class MessageManager;
     MessageListener* messageRecipient;
 
-    Message (const Message&);
-    Message& operator= (const Message&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Message);
 };
 
 

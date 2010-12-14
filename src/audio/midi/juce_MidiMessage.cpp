@@ -32,8 +32,7 @@ BEGIN_JUCE_NAMESPACE
 
 
 //==============================================================================
-int MidiMessage::readVariableLengthVal (const uint8* data,
-                                        int& numBytesUsed) throw()
+int MidiMessage::readVariableLengthVal (const uint8* data, int& numBytesUsed) throw()
 {
     numBytesUsed = 0;
     int v = 0;
@@ -185,17 +184,26 @@ MidiMessage::MidiMessage (const void* src_, int sz, int& numBytesUsed, const uin
         if (byte == 0xf0)
         {
             const uint8* d = src;
+            bool haveReadAllLengthBytes = false;
 
             while (d < src + sz)
             {
-                if (*d >= 0x80) // stop if we hit a status byte, and don't include it in this message
+                if (*d >= 0x80)
                 {
-                    if (*d == 0xf7)   // include an 0xf7 if we hit one
-                        ++d;
+                    if (*d == 0xf7)
+                    {
+                        ++d;  // include the trailing 0xf7 when we hit it
+                        break;
+                    }
 
-                    break;
+                    if (haveReadAllLengthBytes) // if we see a 0x80 bit set after the initial data length
+                        break;                  // bytes, assume it's the end of the sysex
+
+                    ++d;
+                    continue;
                 }
 
+                haveReadAllLengthBytes = true;
                 ++d;
             }
 
@@ -291,7 +299,7 @@ void MidiMessage::setChannel (const int channel) throw()
     jassert (channel > 0 && channel <= 16); // valid channels are numbered 1 to 16
 
     if ((data[0] & 0xf0) != (uint8) 0xf0)
-        data[0] = (uint8) ((data[0] & (uint8)0xf0)
+        data[0] = (uint8) ((data[0] & (uint8) 0xf0)
                             | (uint8)(channel - 1));
 }
 
@@ -364,8 +372,8 @@ const MidiMessage MidiMessage::aftertouchChange (const int channel,
                                                  const int aftertouchValue) throw()
 {
     jassert (channel > 0 && channel <= 16); // valid channels are numbered 1 to 16
-    jassert (((unsigned int) noteNum) <= 127);
-    jassert (((unsigned int) aftertouchValue) <= 127);
+    jassert (isPositiveAndBelow (noteNum, (int) 128));
+    jassert (isPositiveAndBelow (aftertouchValue, (int) 128));
 
     return MidiMessage (0xa0 | jlimit (0, 15, channel - 1),
                         noteNum & 0x7f,
@@ -388,7 +396,7 @@ const MidiMessage MidiMessage::channelPressureChange (const int channel,
                                                       const int pressure) throw()
 {
     jassert (channel > 0 && channel <= 16); // valid channels are numbered 1 to 16
-    jassert (((unsigned int) pressure) <= 127);
+    jassert (isPositiveAndBelow (pressure, (int) 128));
 
     return MidiMessage (0xd0 | jlimit (0, 15, channel - 1),
                         pressure & 0x7f);
@@ -427,7 +435,7 @@ const MidiMessage MidiMessage::pitchWheel (const int channel,
                                            const int position) throw()
 {
     jassert (channel > 0 && channel <= 16); // valid channels are numbered 1 to 16
-    jassert (((unsigned int) position) <= 0x3fff);
+    jassert (isPositiveAndBelow (position, (int) 0x4000));
 
     return MidiMessage (0xe0 | jlimit (0, 15, channel - 1),
                         position & 127,
@@ -477,7 +485,7 @@ const MidiMessage MidiMessage::noteOn (const int channel,
                                        const uint8 velocity) throw()
 {
     jassert (channel > 0 && channel <= 16);
-    jassert (((unsigned int) noteNumber) <= 127);
+    jassert (isPositiveAndBelow (noteNumber, (int) 128));
 
     return MidiMessage (0x90 | jlimit (0, 15, channel - 1),
                         noteNumber & 127,
@@ -488,15 +496,13 @@ const MidiMessage MidiMessage::noteOff (const int channel,
                                         const int noteNumber) throw()
 {
     jassert (channel > 0 && channel <= 16);
-    jassert (((unsigned int) noteNumber) <= 127);
+    jassert (isPositiveAndBelow (noteNumber, (int) 128));
 
     return MidiMessage (0x80 | jlimit (0, 15, channel - 1), noteNumber & 127, 0);
 }
 
 const MidiMessage MidiMessage::allNotesOff (const int channel) throw()
 {
-    jassert (channel > 0 && channel <= 16);
-
     return controllerEvent (channel, 123, 0);
 }
 
@@ -975,42 +981,34 @@ const MidiMessage MidiMessage::midiMachineControlGoto (int hours,
 }
 
 //==============================================================================
-const String MidiMessage::getMidiNoteName (int note,
-                                           bool useSharps,
-                                           bool includeOctaveNumber,
-                                           int octaveNumForMiddleC) throw()
+const String MidiMessage::getMidiNoteName (int note, bool useSharps, bool includeOctaveNumber, int octaveNumForMiddleC)
 {
-    static const char* const sharpNoteNames[] = { "C", "C#", "D", "D#", "E",
-                                                  "F", "F#", "G", "G#", "A",
-                                                  "A#", "B" };
+    static const char* const sharpNoteNames[] = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
+    static const char* const flatNoteNames[]  = { "C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B" };
 
-    static const char* const flatNoteNames[]  = { "C", "Db", "D", "Eb", "E",
-                                                  "F", "Gb", "G", "Ab", "A",
-                                                  "Bb", "B" };
-
-    if (((unsigned int) note) < 128)
+    if (isPositiveAndBelow (note, (int) 128))
     {
-        const String s ((useSharps) ? sharpNoteNames [note % 12]
-                                    : flatNoteNames [note % 12]);
+        String s (useSharps ? sharpNoteNames [note % 12]
+                            : flatNoteNames  [note % 12]);
 
         if (includeOctaveNumber)
-            return s + String (note / 12 + (octaveNumForMiddleC - 5));
-        else
-            return s;
+            s << (note / 12 + (octaveNumForMiddleC - 5));
+
+        return s;
     }
 
     return String::empty;
 }
 
-const double MidiMessage::getMidiNoteInHertz (int noteNumber) throw()
+const double MidiMessage::getMidiNoteInHertz (int noteNumber, const double frequencyOfA) throw()
 {
-    noteNumber -= 12 * 6 + 9; // now 0 = A440
-    return 440.0 * pow (2.0, noteNumber / 12.0);
+    noteNumber -= 12 * 6 + 9; // now 0 = A
+    return frequencyOfA * pow (2.0, noteNumber / 12.0);
 }
 
-const String MidiMessage::getGMInstrumentName (int n) throw()
+const String MidiMessage::getGMInstrumentName (const int n)
 {
-    const char *names[] =
+    const char* names[] =
     {
         "Acoustic Grand Piano", "Bright Acoustic Piano", "Electric Grand Piano", "Honky-tonk Piano",
         "Electric Piano 1", "Electric Piano 2", "Harpsichord", "Clavinet", "Celesta", "Glockenspiel",
@@ -1037,11 +1035,10 @@ const String MidiMessage::getGMInstrumentName (int n) throw()
         "Applause", "Gunshot"
     };
 
-    return (((unsigned int) n) < 128) ? names[n]
-                                      : (const char*)0;
+    return isPositiveAndBelow (n, (int) 128) ? names[n] : (const char*) 0;
 }
 
-const String MidiMessage::getGMInstrumentBankName (int n) throw()
+const String MidiMessage::getGMInstrumentBankName (const int n)
 {
     const char* names[] =
     {
@@ -1051,11 +1048,10 @@ const String MidiMessage::getGMInstrumentBankName (int n) throw()
         "Synth Effects", "Ethnic", "Percussive", "Sound Effects"
     };
 
-    return (((unsigned int) n) <= 15) ? names[n]
-                                      : (const char*)0;
+    return isPositiveAndBelow (n, (int) 16) ? names[n] : (const char*) 0;
 }
 
-const String MidiMessage::getRhythmInstrumentName (int n) throw()
+const String MidiMessage::getRhythmInstrumentName (const int n)
 {
     const char* names[] =
     {
@@ -1070,11 +1066,10 @@ const String MidiMessage::getRhythmInstrumentName (int n) throw()
         "Mute Triangle", "Open Triangle"
     };
 
-    return (n >= 35 && n <= 81) ? names [n - 35]
-                                : (const char*)0;
+    return (n >= 35 && n <= 81) ? names [n - 35] : (const char*) 0;
 }
 
-const String MidiMessage::getControllerName (int n) throw()
+const String MidiMessage::getControllerName (const int n)
 {
     const char* names[] =
     {
@@ -1102,8 +1097,7 @@ const String MidiMessage::getControllerName (int n) throw()
         "Poly Operation"
     };
 
-    return (((unsigned int) n) < 128) ? names[n]
-                                      : (const char*)0;
+    return isPositiveAndBelow (n, (int) 128) ? names[n] : (const char*) 0;
 }
 
 END_JUCE_NAMESPACE

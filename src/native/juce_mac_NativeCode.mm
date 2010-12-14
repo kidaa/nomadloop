@@ -34,6 +34,8 @@
 
 #if JUCE_MAC || JUCE_IOS
 
+#undef JUCE_BUILD_NATIVE
+#define JUCE_BUILD_NATIVE 1
 #include "mac/juce_mac_NativeIncludes.h"
 
 BEGIN_JUCE_NAMESPACE
@@ -50,6 +52,7 @@ BEGIN_JUCE_NAMESPACE
 #include "../io/files/juce_NamedPipe.h"
 #include "../io/files/juce_DirectoryIterator.h"
 #include "../io/network/juce_URL.h"
+#include "../io/network/juce_MACAddress.h"
 #include "../io/streams/juce_MemoryInputStream.h"
 #include "../io/streams/juce_BufferedInputStream.h"
 #include "../core/juce_PlatformUtilities.h"
@@ -85,7 +88,29 @@ BEGIN_JUCE_NAMESPACE
 #include "../audio/devices/juce_AudioIODeviceType.h"
 #include "../audio/devices/juce_MidiOutput.h"
 #include "../audio/devices/juce_MidiInput.h"
+#include "common/juce_MidiDataConcatenator.h"
 #undef Point
+
+namespace
+{
+    template <class RectType>
+    const Rectangle<int> convertToRectInt (const RectType& r)
+    {
+        return Rectangle<int> ((int) r.origin.x, (int) r.origin.y, (int) r.size.width, (int) r.size.height);
+    }
+
+    template <class RectType>
+    const Rectangle<float> convertToRectFloat (const RectType& r)
+    {
+        return Rectangle<float> (r.origin.x, r.origin.y, r.size.width, r.size.height);
+    }
+
+    template <class RectType>
+    CGRect convertToCGRect (const RectType& r)
+    {
+        return CGRectMake ((CGFloat) r.getX(), (CGFloat) r.getY(), (CGFloat) r.getWidth(), (CGFloat) r.getHeight());
+    }
+}
 
 //==============================================================================
 #define JUCE_INCLUDED_FILE 1

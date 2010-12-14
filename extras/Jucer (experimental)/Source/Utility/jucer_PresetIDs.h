@@ -105,6 +105,10 @@ namespace Ids
     DECLARE_ID (constructorParams);
     DECLARE_ID (memberInitialisers);
     DECLARE_ID (lossOfFocusDiscardsChanges);
+    DECLARE_ID (url);
+    DECLARE_ID (rootItemVisible);
+    DECLARE_ID (openByDefault);
+    DECLARE_ID (locked);
     const Identifier class_ ("class");
     const Identifier id_ ("id");
 

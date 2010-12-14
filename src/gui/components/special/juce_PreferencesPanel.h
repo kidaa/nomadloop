@@ -27,7 +27,7 @@
 #define __JUCE_PREFERENCESPANEL_JUCEHEADER__
 
 #include "../juce_Component.h"
-#include "../buttons/juce_Button.h"
+#include "../buttons/juce_DrawableButton.h"
 #include "../../graphics/drawables/juce_Drawable.h"
 
 
@@ -104,7 +104,7 @@ public:
         given size and title, and will run it modally, returning when the user
         closes the dialog box.
     */
-    void showInDialogBox (const String& dialogtitle,
+    void showInDialogBox (const String& dialogTitle,
                           int dialogWidth,
                           int dialogHeight,
                           const Colour& backgroundColour = Colours::white);
@@ -132,16 +132,14 @@ public:
     /** @internal */
     void buttonClicked (Button* button);
 
-    juce_UseDebuggingNewOperator
-
 private:
     //==============================================================================
     String currentPageName;
     ScopedPointer <Component> currentPage;
+    OwnedArray<DrawableButton> buttons;
     int buttonSize;
 
-    PreferencesPanel (const PreferencesPanel&);
-    PreferencesPanel& operator= (const PreferencesPanel&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PreferencesPanel);
 };
 
 

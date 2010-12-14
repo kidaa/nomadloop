@@ -27,8 +27,6 @@
 // compiled on its own).
 #if JUCE_INCLUDED_FILE
 
-extern void juce_initialiseThreadEvents();
-
 
 //==============================================================================
 void Logger::outputDebugString (const String& text)
@@ -115,8 +113,6 @@ const String SystemStats::getCpuVendor()
 //==============================================================================
 void SystemStats::initialiseStats()
 {
-    juce_initialiseThreadEvents();
-
     cpuFlags.hasMMX   = IsProcessorFeaturePresent (PF_MMX_INSTRUCTIONS_AVAILABLE) != 0;
     cpuFlags.hasSSE   = IsProcessorFeaturePresent (PF_XMMI_INSTRUCTIONS_AVAILABLE) != 0;
     cpuFlags.hasSSE2  = IsProcessorFeaturePresent (PF_XMMI64_INSTRUCTIONS_AVAILABLE) != 0;
@@ -143,9 +139,9 @@ void SystemStats::initialiseStats()
     (void) res;
     jassert (res == TIMERR_NOERROR);
 
-#if JUCE_DEBUG && JUCE_MSVC && JUCE_CHECK_MEMORY_LEAKS
+  #if JUCE_MSVC && JUCE_CHECK_MEMORY_LEAKS
     _CrtSetDbgFlag (_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
-#endif
+  #endif
 }
 
 //==============================================================================
@@ -220,7 +216,7 @@ int SystemStats::getMemorySizeInMegabytes()
 //==============================================================================
 uint32 juce_millisecondsSinceStartup() throw()
 {
-    return (uint32) GetTickCount();
+    return (uint32) timeGetTime();
 }
 
 int64 Time::getHighResolutionTicks() throw()
@@ -228,7 +224,7 @@ int64 Time::getHighResolutionTicks() throw()
     LARGE_INTEGER ticks;
     QueryPerformanceCounter (&ticks);
 
-    const int64 mainCounterAsHiResTicks = (GetTickCount() * hiResTicksPerSecond) / 1000;
+    const int64 mainCounterAsHiResTicks = (juce_millisecondsSinceStartup() * hiResTicksPerSecond) / 1000;
     const int64 newOffset = mainCounterAsHiResTicks - ticks.QuadPart;
 
     // fix for a very obscure PCI hardware bug that can make the counter

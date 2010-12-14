@@ -457,10 +457,8 @@ public:
     */
     const String getItemIdentifierString() const;
 
-    //==============================================================================
-    juce_UseDebuggingNewOperator
-
 private:
+    //==============================================================================
     TreeView* ownerView;
     TreeViewItem* parentItem;
     OwnedArray <TreeViewItem> subItems;
@@ -485,13 +483,12 @@ private:
     int getNumRows() const throw();
     TreeViewItem* getItemOnRow (int index) throw();
     void deselectAllRecursively();
-    int countSelectedItemsRecursively() const throw();
+    int countSelectedItemsRecursively (int depth) const throw();
     TreeViewItem* getSelectedItemWithIndex (int index) throw();
     TreeViewItem* getNextVisibleItem (bool recurse) const throw();
     TreeViewItem* findItemFromIdentifierString (const String& identifierString);
 
-    TreeViewItem (const TreeViewItem&);
-    TreeViewItem& operator= (const TreeViewItem&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (TreeViewItem);
 };
 
 
@@ -613,10 +610,11 @@ public:
     void clearSelectedItems();
 
     /** Returns the number of items that are currently selected.
-
+        If maximumDepthToSearchTo is >= 0, it lets you specify a maximum depth to which the
+        tree will be recursed.
         @see getSelectedItem, clearSelectedItems
     */
-    int getNumSelectedItems() const throw();
+    int getNumSelectedItems (int maximumDepthToSearchTo = -1) const throw();
 
     /** Returns one of the selected items in the tree.
 
@@ -746,8 +744,6 @@ public:
     /** @internal */
     void itemDropped (const String& sourceDescription, Component* sourceComponent, int x, int y);
 
-    juce_UseDebuggingNewOperator
-
 private:
     friend class TreeViewItem;
     friend class TreeViewContentComponent;
@@ -781,8 +777,7 @@ private:
                                      const StringArray& files, const String& sourceDescription,
                                      Component* sourceComponent) const throw();
 
-    TreeView (const TreeView&);
-    TreeView& operator= (const TreeView&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (TreeView);
 };
 
 #endif   // __JUCE_TREEVIEW_JUCEHEADER__

@@ -31,6 +31,7 @@ BEGIN_JUCE_NAMESPACE
 #include "juce_MouseEvent.h"
 #include "../juce_Component.h"
 #include "../../../events/juce_AsyncUpdater.h"
+#include "../../../events/juce_MessageManager.h"
 #include "../lookandfeel/juce_LookAndFeel.h"
 #include "../windows/juce_ComponentPeer.h"
 
@@ -41,14 +42,9 @@ class MouseInputSourceInternal   : public AsyncUpdater
 public:
     //==============================================================================
     MouseInputSourceInternal (MouseInputSource& source_, const int index_, const bool isMouseDevice_)
-        : index (index_), isMouseDevice (isMouseDevice_), source (source_), lastPeer (0), lastTime (0),
+        : index (index_), isMouseDevice (isMouseDevice_), source (source_), lastPeer (0),
           isUnboundedMouseModeOn (false), isCursorVisibleUntilOffscreen (false), currentCursorHandle (0),
-          mouseEventCounter (0)
-    {
-        zerostruct (mouseDowns);
-    }
-
-    ~MouseInputSourceInternal()
+          mouseEventCounter (0), lastTime (0)
     {
     }
 
@@ -83,62 +79,65 @@ public:
         if (peer != 0)
         {
             Component* const comp = peer->getComponent();
-            const Point<int> relativePos (comp->globalPositionToRelative (screenPos));
+            const Point<int> relativePos (comp->getLocalPoint (0, screenPos));
 
             // (the contains() call is needed to test for overlapping desktop windows)
-            if (comp->contains (relativePos.getX(), relativePos.getY()))
+            if (comp->contains (relativePos))
                 return comp->getComponentAt (relativePos);
         }
 
         return 0;
     }
 
-    const Point<int> getScreenPosition() const throw()
+    const Point<int> getScreenPosition() const
     {
-        return lastScreenPos + unboundedMouseOffset;
+        // This needs to return the live position if possible, but it mustn't update the lastScreenPos
+        // value, because that can cause continuity problems.
+        return unboundedMouseOffset + (isMouseDevice ? MouseInputSource::getCurrentMousePosition()
+                                                     : lastScreenPos);
     }
 
     //==============================================================================
     void sendMouseEnter (Component* const comp, const Point<int>& screenPos, const int64 time)
     {
-        //DBG ("Mouse " + String (source.getIndex()) + " enter: " + comp->globalPositionToRelative (screenPos).toString() + " - Comp: " + String::toHexString ((int) comp));
-        comp->internalMouseEnter (source, comp->globalPositionToRelative (screenPos), time);
+        //DBG ("Mouse " + String (source.getIndex()) + " enter: " + comp->getLocalPoint (0, screenPos).toString() + " - Comp: " + String::toHexString ((int) comp));
+        comp->internalMouseEnter (source, comp->getLocalPoint (0, screenPos), time);
     }
 
     void sendMouseExit (Component* const comp, const Point<int>& screenPos, const int64 time)
     {
-        //DBG ("Mouse " + String (source.getIndex()) + " exit: " + comp->globalPositionToRelative (screenPos).toString() + " - Comp: " + String::toHexString ((int) comp));
-        comp->internalMouseExit (source, comp->globalPositionToRelative (screenPos), time);
+        //DBG ("Mouse " + String (source.getIndex()) + " exit: " + comp->getLocalPoint (0, screenPos).toString() + " - Comp: " + String::toHexString ((int) comp));
+        comp->internalMouseExit (source, comp->getLocalPoint (0, screenPos), time);
     }
 
     void sendMouseMove (Component* const comp, const Point<int>& screenPos, const int64 time)
     {
-        //DBG ("Mouse " + String (source.getIndex()) + " move: " + comp->globalPositionToRelative (screenPos).toString() + " - Comp: " + String::toHexString ((int) comp));
-        comp->internalMouseMove (source, comp->globalPositionToRelative (screenPos), time);
+        //DBG ("Mouse " + String (source.getIndex()) + " move: " + comp->getLocalPoint (0, screenPos).toString() + " - Comp: " + String::toHexString ((int) comp));
+        comp->internalMouseMove (source, comp->getLocalPoint (0, screenPos), time);
     }
 
     void sendMouseDown (Component* const comp, const Point<int>& screenPos, const int64 time)
     {
-        //DBG ("Mouse " + String (source.getIndex()) + " down: " + comp->globalPositionToRelative (screenPos).toString() + " - Comp: " + String::toHexString ((int) comp));
-        comp->internalMouseDown (source, comp->globalPositionToRelative (screenPos), time);
+        //DBG ("Mouse " + String (source.getIndex()) + " down: " + comp->getLocalPoint (0, screenPos).toString() + " - Comp: " + String::toHexString ((int) comp));
+        comp->internalMouseDown (source, comp->getLocalPoint (0, screenPos), time);
     }
 
     void sendMouseDrag (Component* const comp, const Point<int>& screenPos, const int64 time)
     {
-        //DBG ("Mouse " + String (source.getIndex()) + " drag: " + comp->globalPositionToRelative (screenPos).toString() + " - Comp: " + String::toHexString ((int) comp));
-        comp->internalMouseDrag (source, comp->globalPositionToRelative (screenPos), time);
+        //DBG ("Mouse " + String (source.getIndex()) + " drag: " + comp->getLocalPoint (0, screenPos).toString() + " - Comp: " + String::toHexString ((int) comp));
+        comp->internalMouseDrag (source, comp->getLocalPoint (0, screenPos), time);
     }
 
     void sendMouseUp (Component* const comp, const Point<int>& screenPos, const int64 time)
     {
-        //DBG ("Mouse " + String (source.getIndex()) + " up: " + comp->globalPositionToRelative (screenPos).toString() + " - Comp: " + String::toHexString ((int) comp));
-        comp->internalMouseUp (source, comp->globalPositionToRelative (screenPos), time, getCurrentModifiers());
+        //DBG ("Mouse " + String (source.getIndex()) + " up: " + comp->getLocalPoint (0, screenPos).toString() + " - Comp: " + String::toHexString ((int) comp));
+        comp->internalMouseUp (source, comp->getLocalPoint (0, screenPos), time, getCurrentModifiers());
     }
 
     void sendMouseWheel (Component* const comp, const Point<int>& screenPos, const int64 time, float x, float y)
     {
-        //DBG ("Mouse " + String (source.getIndex()) + " wheel: " + comp->globalPositionToRelative (screenPos).toString() + " - Comp: " + String::toHexString ((int) comp));
-        comp->internalMouseWheel (source, comp->globalPositionToRelative (screenPos), time, x, y);
+        //DBG ("Mouse " + String (source.getIndex()) + " wheel: " + comp->getLocalPoint (0, screenPos).toString() + " - Comp: " + String::toHexString ((int) comp));
+        comp->internalMouseWheel (source, comp->getLocalPoint (0, screenPos), time, x, y);
     }
 
     //==============================================================================
@@ -179,7 +178,7 @@ public:
 
             if (current != 0)
             {
-                registerMouseDown (screenPos, time, current);
+                registerMouseDown (screenPos, time, current, buttonState);
                 sendMouseDown (current, screenPos, time);
             }
         }
@@ -264,7 +263,7 @@ public:
         jassert (newPeer != 0);
         lastTime = time;
         ++mouseEventCounter;
-        const Point<int> screenPos (newPeer->relativePositionToGlobal (positionWithinPeer));
+        const Point<int> screenPos (newPeer->localToGlobal (positionWithinPeer));
 
         if (isDragging() && newMods.isAnyMouseButtonDown())
         {
@@ -292,7 +291,7 @@ public:
         jassert (peer != 0);
         lastTime = time;
         ++mouseEventCounter;
-        const Point<int> screenPos (peer->relativePositionToGlobal (positionWithinPeer));
+        const Point<int> screenPos (peer->localToGlobal (positionWithinPeer));
 
         setPeer (peer, screenPos, time);
         setScreenPos (screenPos, time, false);
@@ -328,16 +327,10 @@ public:
 
             for (int i = 1; i < numElementsInArray (mouseDowns); ++i)
             {
-                if (mouseDowns[0].time - mouseDowns[i].time < (int) (MouseEvent::getDoubleClickTimeout() * (1.0 + 0.25 * (i - 1)))
-                    && abs (mouseDowns[0].position.getX() - mouseDowns[i].position.getX()) < 8
-                    && abs (mouseDowns[0].position.getY() - mouseDowns[i].position.getY()) < 8)
-                {
+                if (mouseDowns[0].canBePartOfMultipleClickWith (mouseDowns[i], (int) (MouseEvent::getDoubleClickTimeout() * (1.0 + 0.25 * (i - 1)))))
                     ++numClicks;
-                }
                 else
-                {
                     break;
-                }
             }
         }
 
@@ -437,8 +430,8 @@ public:
     }
 
     //==============================================================================
-    int index;
-    bool isMouseDevice;
+    const int index;
+    const bool isMouseDevice;
     Point<int> lastScreenPos;
     ModifierKeys buttonState;
 
@@ -454,16 +447,31 @@ private:
 
     struct RecentMouseDown
     {
+        RecentMouseDown()
+            : time (0), component (0)
+        {
+        }
+
         Point<int> position;
         int64 time;
         Component* component;
+        ModifierKeys buttons;
+
+        bool canBePartOfMultipleClickWith (const RecentMouseDown& other, const int maxTimeBetween) const
+        {
+            return time - other.time < maxTimeBetween
+                    && abs (position.getX() - other.position.getX()) < 8
+                    && abs (position.getY() - other.position.getY()) < 8
+                    && buttons == other.buttons;;
+        }
     };
 
     RecentMouseDown mouseDowns[4];
     bool mouseMovedSignificantlySincePressed;
     int64 lastTime;
 
-    void registerMouseDown (const Point<int>& screenPos, const int64 time, Component* const component) throw()
+    void registerMouseDown (const Point<int>& screenPos, const int64 time,
+                            Component* const component, const ModifierKeys& modifiers) throw()
     {
         for (int i = numElementsInArray (mouseDowns); --i > 0;)
             mouseDowns[i] = mouseDowns[i - 1];
@@ -471,6 +479,7 @@ private:
         mouseDowns[0].position = screenPos;
         mouseDowns[0].time = time;
         mouseDowns[0].component = component;
+        mouseDowns[0].buttons = modifiers.withOnlyMouseButtons();
         mouseMovedSignificantlySincePressed = false;
     }
 
@@ -480,8 +489,7 @@ private:
                || mouseDowns[0].position.getDistanceFrom (screenPos) >= 4;
     }
 
-    MouseInputSourceInternal (const MouseInputSourceInternal&);
-    MouseInputSourceInternal& operator= (const MouseInputSourceInternal&);
+    JUCE_DECLARE_NON_COPYABLE (MouseInputSourceInternal);
 };
 
 //==============================================================================

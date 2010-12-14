@@ -279,10 +279,19 @@ END_JUCE_NAMESPACE
 
             source->getNextAudioBlock (info);
 
-            JUCE_NAMESPACE::AudioDataConverters::convertFloatToInt16LE (tempBuffer.getSampleData (0),
-                                                                        buffer, numSamples, 4);
-            JUCE_NAMESPACE::AudioDataConverters::convertFloatToInt16LE (tempBuffer.getSampleData (1),
-                                                                        buffer + 2, numSamples, 4);
+            typedef JUCE_NAMESPACE::AudioData::Pointer <JUCE_NAMESPACE::AudioData::Int16,
+                                                        JUCE_NAMESPACE::AudioData::LittleEndian,
+                                                        JUCE_NAMESPACE::AudioData::Interleaved,
+                                                        JUCE_NAMESPACE::AudioData::NonConst> CDSampleFormat;
+
+            typedef JUCE_NAMESPACE::AudioData::Pointer <JUCE_NAMESPACE::AudioData::Float32,
+                                                        JUCE_NAMESPACE::AudioData::NativeEndian,
+                                                        JUCE_NAMESPACE::AudioData::NonInterleaved,
+                                                        JUCE_NAMESPACE::AudioData::Const> SourceSampleFormat;
+            CDSampleFormat left (buffer, 2);
+            left.convertSamples (SourceSampleFormat (tempBuffer.getSampleData (0)), numSamples);
+            CDSampleFormat right (buffer + 2, 2);
+            right.convertSamples (SourceSampleFormat (tempBuffer.getSampleData (1)), numSamples);
 
             readPosition += numSamples;
         }
@@ -343,7 +352,7 @@ public:
         if (state != lastState)
         {
             lastState = state;
-            owner.sendChangeMessage (&owner);
+            owner.sendChangeMessage();
         }
     }
 
@@ -438,25 +447,23 @@ AudioCDBurner* AudioCDBurner::openDevice (const int deviceIndex)
     return b.release();
 }
 
-static NSArray* findDiskBurnerDevices()
+namespace
 {
-    NSMutableArray* results = [NSMutableArray array];
-    NSArray* devs = [DRDevice devices];
-
-    if (devs != 0)
+    NSArray* findDiskBurnerDevices()
     {
-        int num = [devs count];
-        int i;
-        for (i = 0; i < num; ++i)
+        NSMutableArray* results = [NSMutableArray array];
+        NSArray* devs = [DRDevice devices];
+
+        for (int i = 0; i < [devs count]; ++i)
         {
             NSDictionary* dic = [[devs objectAtIndex: i] info];
             NSString* name = [dic valueForKey: DRDeviceProductNameKey];
             if (name != nil)
                 [results addObject: name];
         }
-    }
 
-    return results;
+        return results;
+    }
 }
 
 const StringArray AudioCDBurner::findAvailableDevices()

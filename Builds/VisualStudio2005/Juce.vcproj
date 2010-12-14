@@ -26,7 +26,7 @@
             BufferSecurityCheck=""
             DebugInformationFormat="3"
             AdditionalIncludeDirectories=""
-            PreprocessorDefinitions="JUCER_VS2005_78A5003;WIN32;_WINDOWS;_DEBUG;_LIB"
+            PreprocessorDefinitions="WIN32;_WINDOWS;DEBUG;_DEBUG;_LIB;JUCER_VS2005_78A5003=1"
             RuntimeLibrary="1"
             RuntimeTypeInfo="true"
             UsePrecompiledHeader="0"
@@ -69,7 +69,7 @@
             InlineFunctionExpansion="1"
             StringPooling="true"
             AdditionalIncludeDirectories=""
-            PreprocessorDefinitions="JUCER_VS2005_78A5003;WIN32;_WINDOWS;NDEBUG;_LIB"
+            PreprocessorDefinitions="WIN32;_WINDOWS;NDEBUG;_LIB;JUCER_VS2005_78A5003=1"
             RuntimeLibrary="0"
             RuntimeTypeInfo="true"
             UsePrecompiledHeader="0"
@@ -124,7 +124,9 @@
             <File RelativePath="..\..\src\audio\audio_file_formats\juce_AudioFormat.h"/>
             <File RelativePath="..\..\src\audio\audio_file_formats\juce_AudioFormatManager.cpp"/>
             <File RelativePath="..\..\src\audio\audio_file_formats\juce_AudioFormatManager.h"/>
+            <File RelativePath="..\..\src\audio\audio_file_formats\juce_AudioFormatReader.cpp"/>
             <File RelativePath="..\..\src\audio\audio_file_formats\juce_AudioFormatReader.h"/>
+            <File RelativePath="..\..\src\audio\audio_file_formats\juce_AudioFormatWriter.cpp"/>
             <File RelativePath="..\..\src\audio\audio_file_formats\juce_AudioFormatWriter.h"/>
             <File RelativePath="..\..\src\audio\audio_file_formats\juce_AudioSubsectionReader.cpp"/>
             <File RelativePath="..\..\src\audio\audio_file_formats\juce_AudioSubsectionReader.h"/>
@@ -179,6 +181,7 @@
             <File RelativePath="..\..\src\audio\dsp\juce_AudioDataConverters.h"/>
             <File RelativePath="..\..\src\audio\dsp\juce_AudioSampleBuffer.cpp"/>
             <File RelativePath="..\..\src\audio\dsp\juce_AudioSampleBuffer.h"/>
+            <File RelativePath="..\..\src\audio\dsp\juce_Decibels.h"/>
             <File RelativePath="..\..\src\audio\dsp\juce_IIRFilter.cpp"/>
             <File RelativePath="..\..\src\audio\dsp\juce_IIRFilter.h"/>
           </Filter>
@@ -343,6 +346,8 @@
           </Filter>
         </Filter>
         <Filter Name="containers">
+          <File RelativePath="..\..\src\containers\juce_AbstractFifo.cpp"/>
+          <File RelativePath="..\..\src\containers\juce_AbstractFifo.h"/>
           <File RelativePath="..\..\src\containers\juce_Array.h"/>
           <File RelativePath="..\..\src\containers\juce_ArrayAllocationBase.h"/>
           <File RelativePath="..\..\src\containers\juce_BigInteger.cpp"/>
@@ -350,6 +355,8 @@
           <File RelativePath="..\..\src\containers\juce_DynamicObject.cpp"/>
           <File RelativePath="..\..\src\containers\juce_DynamicObject.h"/>
           <File RelativePath="..\..\src\containers\juce_ElementComparator.h"/>
+          <File RelativePath="..\..\src\containers\juce_Expression.cpp"/>
+          <File RelativePath="..\..\src\containers\juce_Expression.h"/>
           <File RelativePath="..\..\src\containers\juce_HeapBlock.h"/>
           <File RelativePath="..\..\src\containers\juce_Identifier.cpp"/>
           <File RelativePath="..\..\src\containers\juce_Identifier.h"/>
@@ -380,6 +387,7 @@
           <File RelativePath="..\..\src\core\juce_FileLogger.h"/>
           <File RelativePath="..\..\src\core\juce_Initialisation.cpp"/>
           <File RelativePath="..\..\src\core\juce_Initialisation.h"/>
+          <File RelativePath="..\..\src\core\juce_LeakedObjectDetector.h"/>
           <File RelativePath="..\..\src\core\juce_Logger.cpp"/>
           <File RelativePath="..\..\src\core\juce_Logger.h"/>
           <File RelativePath="..\..\src\core\juce_MathsFunctions.h"/>
@@ -416,16 +424,12 @@
           <File RelativePath="..\..\src\events\juce_ActionBroadcaster.cpp"/>
           <File RelativePath="..\..\src\events\juce_ActionBroadcaster.h"/>
           <File RelativePath="..\..\src\events\juce_ActionListener.h"/>
-          <File RelativePath="..\..\src\events\juce_ActionListenerList.cpp"/>
-          <File RelativePath="..\..\src\events\juce_ActionListenerList.h"/>
           <File RelativePath="..\..\src\events\juce_AsyncUpdater.cpp"/>
           <File RelativePath="..\..\src\events\juce_AsyncUpdater.h"/>
           <File RelativePath="..\..\src\events\juce_CallbackMessage.h"/>
           <File RelativePath="..\..\src\events\juce_ChangeBroadcaster.cpp"/>
           <File RelativePath="..\..\src\events\juce_ChangeBroadcaster.h"/>
           <File RelativePath="..\..\src\events\juce_ChangeListener.h"/>
-          <File RelativePath="..\..\src\events\juce_ChangeListenerList.cpp"/>
-          <File RelativePath="..\..\src\events\juce_ChangeListenerList.h"/>
           <File RelativePath="..\..\src\events\juce_InterprocessConnection.cpp"/>
           <File RelativePath="..\..\src\events\juce_InterprocessConnection.h"/>
           <File RelativePath="..\..\src\events\juce_InterprocessConnectionServer.cpp"/>
@@ -717,6 +721,10 @@
               <File RelativePath="..\..\src\gui\graphics\drawables\juce_DrawableImage.h"/>
               <File RelativePath="..\..\src\gui\graphics\drawables\juce_DrawablePath.cpp"/>
               <File RelativePath="..\..\src\gui\graphics\drawables\juce_DrawablePath.h"/>
+              <File RelativePath="..\..\src\gui\graphics\drawables\juce_DrawableRectangle.cpp"/>
+              <File RelativePath="..\..\src\gui\graphics\drawables\juce_DrawableRectangle.h"/>
+              <File RelativePath="..\..\src\gui\graphics\drawables\juce_DrawableShape.cpp"/>
+              <File RelativePath="..\..\src\gui\graphics\drawables\juce_DrawableShape.h"/>
               <File RelativePath="..\..\src\gui\graphics\drawables\juce_DrawableText.cpp"/>
               <File RelativePath="..\..\src\gui\graphics\drawables\juce_DrawableText.h"/>
               <File RelativePath="..\..\src\gui\graphics\drawables\juce_SVGParser.cpp"/>
@@ -727,8 +735,6 @@
               <File RelativePath="..\..\src\gui\graphics\effects\juce_GlowEffect.cpp"/>
               <File RelativePath="..\..\src\gui\graphics\effects\juce_GlowEffect.h"/>
               <File RelativePath="..\..\src\gui\graphics\effects\juce_ImageEffectFilter.h"/>
-              <File RelativePath="..\..\src\gui\graphics\effects\juce_ReduceOpacityEffect.cpp"/>
-              <File RelativePath="..\..\src\gui\graphics\effects\juce_ReduceOpacityEffect.h"/>
             </Filter>
             <Filter Name="fonts">
               <File RelativePath="..\..\src\gui\graphics\fonts\juce_Font.cpp"/>
@@ -764,7 +770,6 @@
             <Filter Name="imaging">
               <Filter Name="image_file_formats">
                 <File RelativePath="..\..\src\gui\graphics\imaging\image_file_formats\juce_GIFLoader.cpp"/>
-                <File RelativePath="..\..\src\gui\graphics\imaging\image_file_formats\juce_GIFLoader.h"/>
                 <File RelativePath="..\..\src\gui\graphics\imaging\image_file_formats\juce_JPEGLoader.cpp"/>
                 <File RelativePath="..\..\src\gui\graphics\imaging\image_file_formats\juce_PNGLoader.cpp"/>
               </Filter>
@@ -800,6 +805,8 @@
             <File RelativePath="..\..\src\io\files\juce_ZipFile.h"/>
           </Filter>
           <Filter Name="network">
+            <File RelativePath="..\..\src\io\network\juce_MACAddress.cpp"/>
+            <File RelativePath="..\..\src\io\network\juce_MACAddress.h"/>
             <File RelativePath="..\..\src\io\network\juce_Socket.cpp"/>
             <File RelativePath="..\..\src\io\network\juce_Socket.h"/>
             <File RelativePath="..\..\src\io\network\juce_URL.cpp"/>
@@ -832,6 +839,7 @@
           <File RelativePath="..\..\src\native\juce_mac_NativeCode.mm"/>
           <File RelativePath="..\..\src\native\juce_win32_NativeCode.cpp"/>
           <Filter Name="common">
+            <File RelativePath="..\..\src\native\common\juce_MidiDataConcatenator.h"/>
             <File RelativePath="..\..\src\native\common\juce_posix_NamedPipe.cpp"/>
             <File RelativePath="..\..\src\native\common\juce_posix_SharedCode.h"/>
           </Filter>
@@ -891,6 +899,7 @@
             <File RelativePath="..\..\src\native\windows\juce_win32_AudioCDReader.cpp"/>
             <File RelativePath="..\..\src\native\windows\juce_win32_AutoLinkLibraries.h"/>
             <File RelativePath="..\..\src\native\windows\juce_win32_CameraDevice.cpp"/>
+            <File RelativePath="..\..\src\native\windows\juce_win32_Direct2DGraphicsContext.cpp"/>
             <File RelativePath="..\..\src\native\windows\juce_win32_DirectSound.cpp"/>
             <File RelativePath="..\..\src\native\windows\juce_win32_DynamicLibraryLoader.cpp"/>
             <File RelativePath="..\..\src\native\windows\juce_win32_DynamicLibraryLoader.h"/>
@@ -962,6 +971,8 @@
           <File RelativePath="..\..\src\utilities\juce_UndoableAction.h"/>
           <File RelativePath="..\..\src\utilities\juce_UndoManager.cpp"/>
           <File RelativePath="..\..\src\utilities\juce_UndoManager.h"/>
+          <File RelativePath="..\..\src\utilities\juce_UnitTest.cpp"/>
+          <File RelativePath="..\..\src\utilities\juce_UnitTest.h"/>
         </Filter>
         <File RelativePath="..\..\juce.h"/>
         <File RelativePath="..\..\juce_Config.h"/>

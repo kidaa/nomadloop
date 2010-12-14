@@ -44,7 +44,7 @@ namespace MouseCursorHelpers
     static void* fromWebKitFile (const char* filename, float hx, float hy)
     {
         FileInputStream fileStream (String ("/System/Library/Frameworks/WebKit.framework/Frameworks/WebCore.framework/Resources/") + filename);
-        BufferedInputStream buf (&fileStream, 4096, false);
+        BufferedInputStream buf (fileStream, 4096);
 
         PNGImageFormat pngFormat;
         Image im (pngFormat.decodeImage (buf));
@@ -118,7 +118,12 @@ void MouseCursor::showInAllWindows() const
 
 void MouseCursor::showInWindow (ComponentPeer*) const
 {
-    [((NSCursor*) getHandle()) set];
+    NSCursor* c = (NSCursor*) getHandle();
+
+    if (c == 0)
+        c = [NSCursor arrowCursor];
+
+    [c set];
 }
 
 #else

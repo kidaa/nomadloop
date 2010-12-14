@@ -62,7 +62,7 @@ public:
 
         if (file_.inputSource != 0)
         {
-            inputStream = file.inputSource->createInputStream();
+            inputStream = streamToDelete = file.inputSource->createInputStream();
         }
         else
         {
@@ -89,9 +89,6 @@ public:
         if (inputStream != 0 && inputStream == file.inputStream)
             file.numOpenStreams--;
 #endif
-
-        if (inputStream != file.inputStream)
-            delete inputStream;
     }
 
     int64 getTotalLength()
@@ -151,9 +148,9 @@ private:
     int64 pos;
     int headerSize;
     InputStream* inputStream;
+    ScopedPointer<InputStream> streamToDelete;
 
-    ZipInputStream (const ZipInputStream&);
-    ZipInputStream& operator= (const ZipInputStream&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ZipInputStream);
 };
 
 
@@ -195,11 +192,11 @@ ZipFile::~ZipFile()
 #if JUCE_DEBUG
     entries.clear();
 
-    // If you hit this assertion, it means you've created a stream to read
-    // one of the items in the zipfile, but you've forgotten to delete that
-    // stream object before deleting the file.. Streams can't be kept open
-    // after the file is deleted because they need to share the input
-    // stream that the file uses to read itself.
+    /* If you hit this assertion, it means you've created a stream to read one of the items in the
+       zipfile, but you've forgotten to delete that stream object before deleting the file..
+       Streams can't be kept open after the file is deleted because they need to share the input
+       stream that the file uses to read itself.
+    */
     jassert (numOpenStreams == 0);
 #endif
 }
@@ -282,7 +279,7 @@ void ZipFile::init()
     if (in != 0)
     {
         int numEntries = 0;
-        int pos = findEndOfZipEntryTable (in, numEntries);
+        int pos = findEndOfZipEntryTable (*in, numEntries);
 
         if (pos >= 0 && pos < in->getTotalLength())
         {
@@ -338,9 +335,9 @@ void ZipFile::init()
     }
 }
 
-int ZipFile::findEndOfZipEntryTable (InputStream* input, int& numEntries)
+int ZipFile::findEndOfZipEntryTable (InputStream& input, int& numEntries)
 {
-    BufferedInputStream in (input, 8192, false);
+    BufferedInputStream in (input, 8192);
 
     in.setPosition (in.getTotalLength());
     int64 pos = in.getPosition();
@@ -374,46 +371,61 @@ int ZipFile::findEndOfZipEntryTable (InputStream* input, int& numEntries)
     return 0;
 }
 
-void ZipFile::uncompressTo (const File& targetDirectory,
+bool ZipFile::uncompressTo (const File& targetDirectory,
                             const bool shouldOverwriteFiles)
 {
     for (int i = 0; i < entries.size(); ++i)
+        if (! uncompressEntry (i, targetDirectory, shouldOverwriteFiles))
+            return false;
+
+    return true;
+}
+
+bool ZipFile::uncompressEntry (const int index,
+                               const File& targetDirectory,
+                               bool shouldOverwriteFiles)
+{
+    const ZipEntryInfo* zei = entries [index];
+
+    if (zei != 0)
     {
-        const ZipEntry& zei = entries.getUnchecked(i)->entry;
+        const File targetFile (targetDirectory.getChildFile (zei->entry.filename));
 
-        const File targetFile (targetDirectory.getChildFile (zei.filename));
-
-        if (zei.filename.endsWithChar ('/'))
+        if (zei->entry.filename.endsWithChar ('/'))
         {
-            targetFile.createDirectory(); // (entry is a directory, not a file)
+            return targetFile.createDirectory(); // (entry is a directory, not a file)
         }
         else
         {
-            ScopedPointer <InputStream> in (createStreamForEntry (i));
+            ScopedPointer<InputStream> in (createStreamForEntry (index));
 
             if (in != 0)
             {
-                if (shouldOverwriteFiles)
-                    targetFile.deleteFile();
+                if (shouldOverwriteFiles && ! targetFile.deleteFile())
+                    return false;
 
-                if ((! targetFile.exists())
-                     && targetFile.getParentDirectory().createDirectory())
+                if ((! targetFile.exists()) && targetFile.getParentDirectory().createDirectory())
                 {
-                    ScopedPointer <FileOutputStream> out (targetFile.createOutputStream());
+                    ScopedPointer<FileOutputStream> out (targetFile.createOutputStream());
 
                     if (out != 0)
                     {
                         out->writeFromInputStream (*in, -1);
                         out = 0;
 
-                        targetFile.setCreationTime (zei.fileTime);
-                        targetFile.setLastModificationTime (zei.fileTime);
-                        targetFile.setLastAccessTime (zei.fileTime);
+                        targetFile.setCreationTime (zei->entry.fileTime);
+                        targetFile.setLastModificationTime (zei->entry.fileTime);
+                        targetFile.setLastAccessTime (zei->entry.fileTime);
+
+                        return true;
                     }
                 }
             }
         }
     }
+
+    return false;
 }
+
 
 END_JUCE_NAMESPACE

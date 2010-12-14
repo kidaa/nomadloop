@@ -287,30 +287,27 @@ public:
     /** @internal */
     void itemDropped (const String&, Component*, int, int);
     /** @internal */
-    void updateAllItemPositions (const bool animate);
+    void updateAllItemPositions (bool animate);
     /** @internal */
-    static ToolbarItemComponent* createItem (ToolbarItemFactory&, const int itemId);
-
-    juce_UseDebuggingNewOperator
+    static ToolbarItemComponent* createItem (ToolbarItemFactory&, int itemId);
 
 private:
-    Button* missingItemsButton;
+    //==============================================================================
+    ScopedPointer<Button> missingItemsButton;
     bool vertical, isEditingActive;
     ToolbarItemStyle toolbarStyle;
-    ComponentAnimator animator;
     class MissingItemsComponent;
     friend class MissingItemsComponent;
-    Array <ToolbarItemComponent*> items;
+    OwnedArray <ToolbarItemComponent> items;
 
     friend class ItemDragAndDropOverlayComponent;
     static const char* const toolbarDragDescriptor;
 
-    void addItemInternal (ToolbarItemFactory& factory, const int itemId, const int insertIndex);
+    void addItemInternal (ToolbarItemFactory& factory, int itemId, int insertIndex);
 
-    ToolbarItemComponent* getNextActiveComponent (int index, const int delta) const;
+    ToolbarItemComponent* getNextActiveComponent (int index, int delta) const;
 
-    Toolbar (const Toolbar&);
-    Toolbar& operator= (const Toolbar&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Toolbar);
 };
 
 

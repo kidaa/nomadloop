@@ -77,7 +77,7 @@ public:
     /** Sets a gain to apply to the audio data.
         @see getGain
     */
-    void setGain (const float newGain) throw();
+    void setGain (float newGain) throw();
 
     /** Returns the current gain.
         @see setGain
@@ -98,9 +98,6 @@ public:
     /** Implementation of the AudioIODeviceCallback method. */
     void audioDeviceStopped();
 
-    //==============================================================================
-    juce_UseDebuggingNewOperator
-
 private:
     //==============================================================================
     CriticalSection readLock;
@@ -113,8 +110,7 @@ private:
     AudioSampleBuffer tempBuffer;
     float lastGain, gain;
 
-    AudioSourcePlayer (const AudioSourcePlayer&);
-    AudioSourcePlayer& operator= (const AudioSourcePlayer&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioSourcePlayer);
 };
 
 

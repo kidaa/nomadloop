@@ -272,27 +272,28 @@ public:
     static void stopAllThreads (int timeoutInMillisecs);
 
 
-    //==============================================================================
-    juce_UseDebuggingNewOperator
-
 private:
+    //==============================================================================
     const String threadName_;
     void* volatile threadHandle_;
+    ThreadID threadId_;
     CriticalSection startStopLock;
     WaitableEvent startSuspensionEvent_, defaultEvent_;
-
     int threadPriority_;
-    ThreadID threadId_;
     uint32 affinityMask_;
     bool volatile threadShouldExit_;
 
+    friend class MessageManager;
     friend void JUCE_API juce_threadEntryPoint (void*);
-    static void threadEntryPoint (Thread* thread);
-    static Array<Thread*> runningThreads;
-    static CriticalSection runningThreadsLock;
 
-    Thread (const Thread&);
-    Thread& operator= (const Thread&);
+    void launchThread();
+    void closeThreadHandle();
+    void killThread();
+    void threadEntryPoint();
+    static void setCurrentThreadName (const String& name);
+    static bool setThreadPriority (void* handle, int priority);
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Thread);
 };
 
 #endif   // __JUCE_THREAD_JUCEHEADER__

@@ -97,269 +97,37 @@ URL::~URL()
 {
 }
 
-static const String getMangledParameters (const StringPairArray& parameters)
+namespace URLHelpers
 {
-    String p;
-
-    for (int i = 0; i < parameters.size(); ++i)
+    const String getMangledParameters (const StringPairArray& parameters)
     {
-        if (i > 0)
-            p += '&';
+        String p;
 
-        p << URL::addEscapeChars (parameters.getAllKeys() [i], true)
-          << '='
-          << URL::addEscapeChars (parameters.getAllValues() [i], true);
-    }
-
-    return p;
-}
-
-const String URL::toString (const bool includeGetParameters) const
-{
-    if (includeGetParameters && parameters.size() > 0)
-        return url + "?" + getMangledParameters (parameters);
-    else
-        return url;
-}
-
-bool URL::isWellFormed() const
-{
-    //xxx TODO
-    return url.isNotEmpty();
-}
-
-static int findStartOfDomain (const String& url)
-{
-    int i = 0;
-
-    while (CharacterFunctions::isLetterOrDigit (url[i])
-           || CharacterFunctions::indexOfChar (L"+-.", url[i], false) >= 0)
-        ++i;
-
-    return url[i] == ':' ? i + 1 : 0;
-}
-
-const String URL::getDomain() const
-{
-    int start = findStartOfDomain (url);
-    while (url[start] == '/')
-        ++start;
-
-    const int end1 = url.indexOfChar (start, '/');
-    const int end2 = url.indexOfChar (start, ':');
-
-    const int end = (end1 < 0 || end2 < 0) ? jmax (end1, end2)
-                                           : jmin (end1, end2);
-
-    return url.substring (start, end);
-}
-
-const String URL::getSubPath() const
-{
-    int start = findStartOfDomain (url);
-    while (url[start] == '/')
-        ++start;
-
-    const int startOfPath = url.indexOfChar (start, '/') + 1;
-
-    return startOfPath <= 0 ? String::empty
-                            : url.substring (startOfPath);
-}
-
-const String URL::getScheme() const
-{
-    return url.substring (0, findStartOfDomain (url) - 1);
-}
-
-const URL URL::withNewSubPath (const String& newPath) const
-{
-    int start = findStartOfDomain (url);
-    while (url[start] == '/')
-        ++start;
-
-    const int startOfPath = url.indexOfChar (start, '/') + 1;
-
-    URL u (*this);
-
-    if (startOfPath > 0)
-        u.url = url.substring (0, startOfPath);
-
-    if (! u.url.endsWithChar ('/'))
-        u.url << '/';
-
-    if (newPath.startsWithChar ('/'))
-        u.url << newPath.substring (1);
-    else
-        u.url << newPath;
-
-    return u;
-}
-
-//==============================================================================
-bool URL::isProbablyAWebsiteURL (const String& possibleURL)
-{
-    if (possibleURL.startsWithIgnoreCase ("http:")
-         || possibleURL.startsWithIgnoreCase ("ftp:"))
-        return true;
-
-    if (possibleURL.startsWithIgnoreCase ("file:")
-         || possibleURL.containsChar ('@')
-         || possibleURL.endsWithChar ('.')
-         || (! possibleURL.containsChar ('.')))
-        return false;
-
-    if (possibleURL.startsWithIgnoreCase ("www.")
-         && possibleURL.substring (5).containsChar ('.'))
-        return true;
-
-    const char* commonTLDs[] = { "com", "net", "org", "uk", "de", "fr", "jp" };
-
-    for (int i = 0; i < numElementsInArray (commonTLDs); ++i)
-        if ((possibleURL + "/").containsIgnoreCase ("." + String (commonTLDs[i]) + "/"))
-            return true;
-
-    return false;
-}
-
-bool URL::isProbablyAnEmailAddress (const String& possibleEmailAddress)
-{
-    const int atSign = possibleEmailAddress.indexOfChar ('@');
-
-    return atSign > 0
-            && possibleEmailAddress.lastIndexOfChar ('.') > (atSign + 1)
-            && (! possibleEmailAddress.endsWithChar ('.'));
-}
-
-//==============================================================================
-void* juce_openInternetFile (const String& url,
-                             const String& headers,
-                             const MemoryBlock& optionalPostData,
-                             const bool isPost,
-                             URL::OpenStreamProgressCallback* callback,
-                             void* callbackContext,
-                             int timeOutMs);
-
-void juce_closeInternetFile (void* handle);
-int juce_readFromInternetFile (void* handle, void* dest, int bytesToRead);
-int juce_seekInInternetFile (void* handle, int newPosition);
-int64 juce_getInternetFileContentLength (void* handle);
-void juce_getInternetFileHeaders (void* handle, StringPairArray& headers);
-
-
-//==============================================================================
-class WebInputStream  : public InputStream
-{
-public:
-    //==============================================================================
-    WebInputStream (const URL& url,
-                    const bool isPost_,
-                    URL::OpenStreamProgressCallback* const progressCallback_,
-                    void* const progressCallbackContext_,
-                    const String& extraHeaders,
-                    const int timeOutMs_,
-                    StringPairArray* const responseHeaders)
-      : position (0),
-        finished (false),
-        isPost (isPost_),
-        progressCallback (progressCallback_),
-        progressCallbackContext (progressCallbackContext_),
-        timeOutMs (timeOutMs_)
-    {
-        server = url.toString (! isPost);
-
-        if (isPost_)
-            createHeadersAndPostData (url);
-
-        headers += extraHeaders;
-
-        if (! headers.endsWithChar ('\n'))
-            headers << "\r\n";
-
-        handle = juce_openInternetFile (server, headers, postData, isPost,
-                                        progressCallback_, progressCallbackContext_,
-                                        timeOutMs);
-
-        if (responseHeaders != 0)
-            juce_getInternetFileHeaders (handle, *responseHeaders);
-    }
-
-    ~WebInputStream()
-    {
-        juce_closeInternetFile (handle);
-    }
-
-    //==============================================================================
-    bool isError() const        { return handle == 0; }
-    int64 getTotalLength()      { return juce_getInternetFileContentLength (handle); }
-    bool isExhausted()          { return finished; }
-    int64 getPosition()         { return position; }
-
-    int read (void* dest, int bytes)
-    {
-        if (finished || isError())
+        for (int i = 0; i < parameters.size(); ++i)
         {
-            return 0;
-        }
-        else
-        {
-            const int bytesRead = juce_readFromInternetFile (handle, dest, bytes);
-            position += bytesRead;
+            if (i > 0)
+                p << '&';
 
-            if (bytesRead == 0)
-                finished = true;
-
-            return bytesRead;
-        }
-    }
-
-    bool setPosition (int64 wantedPos)
-    {
-        if (wantedPos != position)
-        {
-            finished = false;
-
-            const int actualPos = juce_seekInInternetFile (handle, (int) wantedPos);
-
-            if (actualPos == wantedPos)
-            {
-                position = wantedPos;
-            }
-            else
-            {
-                if (wantedPos < position)
-                {
-                    juce_closeInternetFile (handle);
-
-                    position = 0;
-                    finished = false;
-
-                    handle = juce_openInternetFile (server, headers, postData, isPost,
-                                                    progressCallback, progressCallbackContext,
-                                                    timeOutMs);
-                }
-
-                skipNextBytes (wantedPos - position);
-            }
+            p << URL::addEscapeChars (parameters.getAllKeys() [i], true)
+              << '='
+              << URL::addEscapeChars (parameters.getAllValues() [i], true);
         }
 
-        return true;
+        return p;
     }
 
-    //==============================================================================
-    juce_UseDebuggingNewOperator
+    int findStartOfDomain (const String& url)
+    {
+        int i = 0;
 
-private:
-    String server, headers;
-    MemoryBlock postData;
-    int64 position;
-    bool finished;
-    const bool isPost;
-    void* handle;
-    URL::OpenStreamProgressCallback* const progressCallback;
-    void* const progressCallbackContext;
-    const int timeOutMs;
+        while (CharacterFunctions::isLetterOrDigit (url[i])
+               || CharacterFunctions::indexOfChar (L"+-.", url[i], false) >= 0)
+            ++i;
 
-    void createHeadersAndPostData (const URL& url)
+        return url[i] == ':' ? i + 1 : 0;
+    }
+
+    void createHeadersAndPostData (const URL& url, String& headers, MemoryBlock& postData)
     {
         MemoryOutputStream data (postData, false);
 
@@ -406,22 +174,115 @@ private:
         }
         else
         {
-            data << getMangledParameters (url.getParameters())
-                 << url.getPostData();
-
+            data << getMangledParameters (url.getParameters()) << url.getPostData();
             data.flush();
 
             // just a short text attachment, so use simple url encoding..
-            headers = "Content-Type: application/x-www-form-urlencoded\r\nContent-length: "
-                        + String ((unsigned int) postData.getSize())
-                        + "\r\n";
+            headers << "Content-Type: application/x-www-form-urlencoded\r\nContent-length: "
+                    << postData.getSize() << "\r\n";
         }
     }
+}
 
-    WebInputStream (const WebInputStream&);
-    WebInputStream& operator= (const WebInputStream&);
-};
+const String URL::toString (const bool includeGetParameters) const
+{
+    if (includeGetParameters && parameters.size() > 0)
+        return url + "?" + URLHelpers::getMangledParameters (parameters);
+    else
+        return url;
+}
 
+bool URL::isWellFormed() const
+{
+    //xxx TODO
+    return url.isNotEmpty();
+}
+
+const String URL::getDomain() const
+{
+    int start = URLHelpers::findStartOfDomain (url);
+    while (url[start] == '/')
+        ++start;
+
+    const int end1 = url.indexOfChar (start, '/');
+    const int end2 = url.indexOfChar (start, ':');
+
+    const int end = (end1 < 0 || end2 < 0) ? jmax (end1, end2)
+                                           : jmin (end1, end2);
+
+    return url.substring (start, end);
+}
+
+const String URL::getSubPath() const
+{
+    int start = URLHelpers::findStartOfDomain (url);
+    while (url[start] == '/')
+        ++start;
+
+    const int startOfPath = url.indexOfChar (start, '/') + 1;
+
+    return startOfPath <= 0 ? String::empty
+                            : url.substring (startOfPath);
+}
+
+const String URL::getScheme() const
+{
+    return url.substring (0, URLHelpers::findStartOfDomain (url) - 1);
+}
+
+const URL URL::withNewSubPath (const String& newPath) const
+{
+    int start = URLHelpers::findStartOfDomain (url);
+    while (url[start] == '/')
+        ++start;
+
+    const int startOfPath = url.indexOfChar (start, '/') + 1;
+
+    URL u (*this);
+
+    if (startOfPath > 0)
+        u.url = url.substring (0, startOfPath);
+
+    if (! u.url.endsWithChar ('/'))
+        u.url << '/';
+
+    if (newPath.startsWithChar ('/'))
+        u.url << newPath.substring (1);
+    else
+        u.url << newPath;
+
+    return u;
+}
+
+//==============================================================================
+bool URL::isProbablyAWebsiteURL (const String& possibleURL)
+{
+    const char* validProtocols[] = { "http:", "ftp:", "https:" };
+
+    for (int i = 0; i < numElementsInArray (validProtocols); ++i)
+        if (possibleURL.startsWithIgnoreCase (validProtocols[i]))
+            return true;
+
+    if (possibleURL.containsChar ('@')
+         || possibleURL.containsChar (' '))
+        return false;
+
+    const String topLevelDomain (possibleURL.upToFirstOccurrenceOf ("/", false, false)
+                                            .fromLastOccurrenceOf (".", false, false));
+
+    return topLevelDomain.isNotEmpty() && topLevelDomain.length() <= 3;
+}
+
+bool URL::isProbablyAnEmailAddress (const String& possibleEmailAddress)
+{
+    const int atSign = possibleEmailAddress.indexOfChar ('@');
+
+    return atSign > 0
+            && possibleEmailAddress.lastIndexOfChar ('.') > (atSign + 1)
+            && (! possibleEmailAddress.endsWithChar ('.'));
+}
+
+//==============================================================================
 InputStream* URL::createInputStream (const bool usePostCommand,
                                      OpenStreamProgressCallback* const progressCallback,
                                      void* const progressCallbackContext,
@@ -429,11 +290,20 @@ InputStream* URL::createInputStream (const bool usePostCommand,
                                      const int timeOutMs,
                                      StringPairArray* const responseHeaders) const
 {
-    ScopedPointer <WebInputStream> wi (new WebInputStream (*this, usePostCommand,
-                                                           progressCallback, progressCallbackContext,
-                                                           extraHeaders, timeOutMs, responseHeaders));
+    String headers;
+    MemoryBlock postData;
 
-    return wi->isError() ? 0 : wi.release();
+    if (usePostCommand)
+        URLHelpers::createHeadersAndPostData (*this, headers, postData);
+
+    headers += extraHeaders;
+
+    if (! headers.endsWithChar ('\n'))
+        headers << "\r\n";
+
+    return createNativeStream (toString (! usePostCommand), usePostCommand, postData,
+                               progressCallback, progressCallbackContext,
+                               headers, timeOutMs, responseHeaders);
 }
 
 //==============================================================================
@@ -463,8 +333,7 @@ const String URL::readEntireTextStream (const bool usePostCommand) const
 
 XmlElement* URL::readEntireXmlStream (const bool usePostCommand) const
 {
-    XmlDocument doc (readEntireTextStream (usePostCommand));
-    return doc.getDocumentElement();
+    return XmlDocument::parse (readEntireTextStream (usePostCommand));
 }
 
 //==============================================================================
@@ -514,48 +383,62 @@ const StringPairArray& URL::getMimeTypesOfUploadFiles() const
 const String URL::removeEscapeChars (const String& s)
 {
     String result (s.replaceCharacter ('+', ' '));
-    int nextPercent = 0;
 
-    for (;;)
+    if (! result.containsChar ('%'))
+        return result;
+
+    // We need to operate on the string as raw UTF8 chars, and then recombine them into unicode
+    // after all the replacements have been made, so that multi-byte chars are handled.
+    Array<char> utf8 (result.toUTF8(), result.getNumBytesAsUTF8());
+
+    for (int i = 0; i < utf8.size(); ++i)
     {
-        nextPercent = result.indexOfChar (nextPercent, '%');
+        if (utf8.getUnchecked(i) == '%')
+        {
+            const int hexDigit1 = CharacterFunctions::getHexDigitValue (utf8 [i + 1]);
+            const int hexDigit2 = CharacterFunctions::getHexDigitValue (utf8 [i + 2]);
 
-        if (nextPercent < 0)
-            break;
-
-        juce_wchar replacementChar = (juce_wchar) result.substring (nextPercent + 1, nextPercent + 3).getHexValue32();
-        result = result.replaceSection (nextPercent, 3, String::charToString (replacementChar));
-        ++nextPercent;
+            if (hexDigit1 >= 0 && hexDigit2 >= 0)
+            {
+                utf8.set (i, (char) ((hexDigit1 << 4) + hexDigit2));
+                utf8.removeRange (i + 1, 2);
+            }
+        }
     }
 
-    return result;
+    return String::fromUTF8 (utf8.getRawDataPointer(), utf8.size());
 }
 
 const String URL::addEscapeChars (const String& s, const bool isParameter)
 {
-    String result;
-    result.preallocateStorage (s.length() + 8);
-    const char* utf8 = s.toUTF8();
-    const char* legalChars = isParameter ? "_-.*!'()"
-                                         : "_-$.*!'(),";
+    const char* const legalChars = isParameter ? "_-.*!'()"
+                                               : ",$_-.*!'()";
 
-    while (*utf8 != 0)
+    Array<char> utf8 (s.toUTF8(), s.getNumBytesAsUTF8());
+
+    for (int i = 0; i < utf8.size(); ++i)
     {
-        const char c = *utf8++;
+        const char c = utf8.getUnchecked(i);
 
-        if (CharacterFunctions::isLetterOrDigit (c)
-             || CharacterFunctions::indexOfChar (legalChars, c, false) >= 0)
+        if (! (CharacterFunctions::isLetterOrDigit (c)
+                 || CharacterFunctions::indexOfChar (legalChars, c, false) >= 0))
         {
-            result << c;
-        }
-        else
-        {
-            const int v = (int) (uint8) c;
-            result << (v < 0x10 ? "%0" : "%") << String::toHexString (v);
+            if (c == ' ')
+            {
+                utf8.set (i, '+');
+            }
+            else
+            {
+                static const char* const hexDigits = "0123456789abcdef";
+
+                utf8.set (i, '%');
+                utf8.insert (++i, hexDigits [((uint8) c) >> 4]);
+                utf8.insert (++i, hexDigits [c & 15]);
+            }
         }
     }
 
-    return result;
+    return String::fromUTF8 (utf8.getRawDataPointer(), utf8.size());
 }
 
 //==============================================================================
@@ -568,5 +451,6 @@ bool URL::launchInDefaultBrowser() const
 
     return PlatformUtilities::openDocument (u, String::empty);
 }
+
 
 END_JUCE_NAMESPACE

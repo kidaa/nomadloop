@@ -62,7 +62,7 @@ public:
         The processor that is passed in will not be deleted or owned by this object.
         To stop anything playing, pass in 0 to this method.
     */
-    void setProcessor (AudioProcessor* const processorToPlay);
+    void setProcessor (AudioProcessor* processorToPlay);
 
     /** Returns the current audio processor that is being played.
     */
@@ -88,10 +88,8 @@ public:
     /** @internal */
     void handleIncomingMidiMessage (MidiInput* source, const MidiMessage& message);
 
-    //==============================================================================
-    juce_UseDebuggingNewOperator
-
 private:
+    //==============================================================================
     AudioProcessor* processor;
     CriticalSection lock;
     double sampleRate;
@@ -105,8 +103,7 @@ private:
     MidiBuffer incomingMidi;
     MidiMessageCollector messageCollector;
 
-    AudioProcessorPlayer (const AudioProcessorPlayer&);
-    AudioProcessorPlayer& operator= (const AudioProcessorPlayer&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioProcessorPlayer);
 };
 
 

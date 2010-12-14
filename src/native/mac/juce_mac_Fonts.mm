@@ -310,21 +310,13 @@ public:
             NSPoint p[3];
             switch ([bez elementAtIndex: i associatedPoints: p])
             {
-            case NSMoveToBezierPathElement:
-                path.startNewSubPath ((float) p[0].x, (float) -p[0].y);
-                break;
-            case NSLineToBezierPathElement:
-                path.lineTo ((float) p[0].x, (float) -p[0].y);
-                break;
-            case NSCurveToBezierPathElement:
-                path.cubicTo ((float) p[0].x, (float) -p[0].y, (float) p[1].x, (float) -p[1].y, (float) p[2].x, (float) -p[2].y);
-                break;
-            case NSClosePathBezierPathElement:
-                path.closeSubPath();
-                break;
-            default:
-                jassertfalse;
-                break;
+                case NSMoveToBezierPathElement:     path.startNewSubPath ((float) p[0].x, (float) -p[0].y); break;
+                case NSLineToBezierPathElement:     path.lineTo ((float) p[0].x, (float) -p[0].y); break;
+                case NSCurveToBezierPathElement:    path.cubicTo ((float) p[0].x, (float) -p[0].y,
+                                                                  (float) p[1].x, (float) -p[1].y,
+                                                                  (float) p[2].x, (float) -p[2].y); break;
+                case NSClosePathBezierPathElement:  path.closeSubPath(); break;
+                default:                            jassertfalse; break;
             }
         }
 
@@ -334,8 +326,6 @@ public:
     }
 
     //==============================================================================
-    juce_UseDebuggingNewOperator
-
     CGFontRef fontRef;
     float fontHeightToCGSizeFactor;
     CGAffineTransform renderingTransform;
@@ -458,7 +448,7 @@ private:
             }
 
             // If we failed to find it "properly", this dodgy fall-back seems to do the trick for most fonts!
-            return jmax (-1, c - 29);
+            return jmax (-1, (int) c - 29);
         }
 
     private:
@@ -479,8 +469,7 @@ private:
     ScopedPointer <CharToGlyphMapper> charToGlyphMapper;
 #endif
 
-    MacTypeface (const MacTypeface&);
-    MacTypeface& operator= (const MacTypeface&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MacTypeface);
 };
 
 const Typeface::Ptr Typeface::createSystemTypefaceFor (const Font& font)
@@ -508,17 +497,19 @@ const StringArray Font::findAllTypefaceNames()
     return names;
 }
 
-void Font::getPlatformDefaultFontNames (String& defaultSans, String& defaultSerif, String& defaultFixed)
+void Font::getPlatformDefaultFontNames (String& defaultSans, String& defaultSerif, String& defaultFixed, String& defaultFallback)
 {
-#if JUCE_IOS
+  #if JUCE_IOS
     defaultSans  = "Helvetica";
     defaultSerif = "Times New Roman";
     defaultFixed = "Courier New";
-#else
+  #else
     defaultSans  = "Lucida Grande";
     defaultSerif = "Times New Roman";
     defaultFixed = "Monaco";
-#endif
+  #endif
+
+    defaultFallback = "Arial Unicode MS";
 }
 
 #endif

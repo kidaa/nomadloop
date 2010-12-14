@@ -195,15 +195,10 @@ public:
                                          const String& procedureName);
 #endif
 
-#if JUCE_LINUX || DOXYGEN
-    //==============================================================================
-
-#endif
-
 private:
     PlatformUtilities();
-    PlatformUtilities (const PlatformUtilities&);
-    PlatformUtilities& operator= (const PlatformUtilities&);
+
+    JUCE_DECLARE_NON_COPYABLE (PlatformUtilities);
 };
 
 
@@ -222,8 +217,7 @@ public:
 private:
     void* pool;
 
-    ScopedAutoReleasePool (const ScopedAutoReleasePool&);
-    ScopedAutoReleasePool& operator= (const ScopedAutoReleasePool&);
+    JUCE_DECLARE_NON_COPYABLE (ScopedAutoReleasePool);
 };
 
 #define JUCE_AUTORELEASEPOOL  const JUCE_NAMESPACE::ScopedAutoReleasePool pool;
@@ -302,7 +296,7 @@ public:
         will be true and then false. Others only send a single event when the
         button is pressed.
     */
-    virtual void buttonPressed (const ButtonType buttonId, const bool isDown) = 0;
+    virtual void buttonPressed (ButtonType buttonId, bool isDown) = 0;
 
     //==============================================================================
     /** Starts the device running and responding to events.
@@ -314,7 +308,7 @@ public:
                                 false, it will be shared with other apps.
         @see stop
     */
-    bool start (const bool inExclusiveMode);
+    bool start (bool inExclusiveMode);
 
     /** Stops the device running.
         @see start
@@ -330,8 +324,6 @@ public:
     int getRemoteId() const                     { return remoteId; }
 
     //==============================================================================
-    juce_UseDebuggingNewOperator
-
     /** @internal */
     void handleCallbackInternal();
 
@@ -340,10 +332,9 @@ private:
     void* queue;
     int remoteId;
 
-    bool open (const bool openInExclusiveMode);
+    bool open (bool openInExclusiveMode);
 
-    AppleRemoteDevice (const AppleRemoteDevice&);
-    AppleRemoteDevice& operator= (const AppleRemoteDevice&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AppleRemoteDevice);
 };
 
 #endif

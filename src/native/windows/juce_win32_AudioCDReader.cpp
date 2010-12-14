@@ -32,548 +32,146 @@
 namespace CDReaderHelpers
 {
 
-//***************************************************************************
-//       %%% TARGET STATUS VALUES %%%
-//***************************************************************************
-#define STATUS_GOOD         0x00    // Status Good
-#define STATUS_CHKCOND      0x02    // Check Condition
-#define STATUS_CONDMET      0x04    // Condition Met
-#define STATUS_BUSY         0x08    // Busy
-#define STATUS_INTERM       0x10    // Intermediate
-#define STATUS_INTCDMET     0x14    // Intermediate-condition met
-#define STATUS_RESCONF      0x18    // Reservation conflict
-#define STATUS_COMTERM      0x22    // Command Terminated
-#define STATUS_QFULL        0x28    // Queue full
-
-//***************************************************************************
-//      %%% SCSI MISCELLANEOUS EQUATES %%%
-//***************************************************************************
-#define MAXLUN              7       // Maximum Logical Unit Id
-#define MAXTARG             7       // Maximum Target Id
-#define MAX_SCSI_LUNS       64      // Maximum Number of SCSI LUNs
-#define MAX_NUM_HA          8       // Maximum Number of SCSI HA's
-
-//***************************************************************************
-//     %%% Commands for all Device Types %%%
-//***************************************************************************
-#define SCSI_CHANGE_DEF     0x40    // Change Definition (Optional)
-#define SCSI_COMPARE        0x39    // Compare (O)
-#define SCSI_COPY           0x18    // Copy (O)
-#define SCSI_COP_VERIFY     0x3A    // Copy and Verify (O)
-#define SCSI_INQUIRY        0x12    // Inquiry (MANDATORY)
-#define SCSI_LOG_SELECT     0x4C    // Log Select (O)
-#define SCSI_LOG_SENSE      0x4D    // Log Sense (O)
-#define SCSI_MODE_SEL6      0x15    // Mode Select 6-byte (Device Specific)
-#define SCSI_MODE_SEL10     0x55    // Mode Select 10-byte (Device Specific)
-#define SCSI_MODE_SEN6      0x1A    // Mode Sense 6-byte (Device Specific)
-#define SCSI_MODE_SEN10     0x5A    // Mode Sense 10-byte (Device Specific)
-#define SCSI_READ_BUFF      0x3C    // Read Buffer (O)
-#define SCSI_REQ_SENSE      0x03    // Request Sense (MANDATORY)
-#define SCSI_SEND_DIAG      0x1D    // Send Diagnostic (O)
-#define SCSI_TST_U_RDY      0x00    // Test Unit Ready (MANDATORY)
-#define SCSI_WRITE_BUFF     0x3B    // Write Buffer (O)
-
-//***************************************************************************
-//     %%% Commands Unique to Direct Access Devices %%%
-//***************************************************************************
-#define SCSI_COMPARE        0x39    // Compare (O)
-#define SCSI_FORMAT         0x04    // Format Unit (MANDATORY)
-#define SCSI_LCK_UN_CAC     0x36    // Lock Unlock Cache (O)
-#define SCSI_PREFETCH       0x34    // Prefetch (O)
-#define SCSI_MED_REMOVL     0x1E    // Prevent/Allow medium Removal (O)
-#define SCSI_READ6          0x08    // Read 6-byte (MANDATORY)
-#define SCSI_READ10         0x28    // Read 10-byte (MANDATORY)
-#define SCSI_RD_CAPAC       0x25    // Read Capacity (MANDATORY)
-#define SCSI_RD_DEFECT      0x37    // Read Defect Data (O)
-#define SCSI_READ_LONG      0x3E    // Read Long (O)
-#define SCSI_REASS_BLK      0x07    // Reassign Blocks (O)
-#define SCSI_RCV_DIAG       0x1C    // Receive Diagnostic Results (O)
-#define SCSI_RELEASE        0x17    // Release Unit (MANDATORY)
-#define SCSI_REZERO         0x01    // Rezero Unit (O)
-#define SCSI_SRCH_DAT_E     0x31    // Search Data Equal (O)
-#define SCSI_SRCH_DAT_H     0x30    // Search Data High (O)
-#define SCSI_SRCH_DAT_L     0x32    // Search Data Low (O)
-#define SCSI_SEEK6          0x0B    // Seek 6-Byte (O)
-#define SCSI_SEEK10         0x2B    // Seek 10-Byte (O)
-#define SCSI_SEND_DIAG      0x1D    // Send Diagnostics (MANDATORY)
-#define SCSI_SET_LIMIT      0x33    // Set Limits (O)
-#define SCSI_START_STP      0x1B    // Start/Stop Unit (O)
-#define SCSI_SYNC_CACHE     0x35    // Synchronize Cache (O)
-#define SCSI_VERIFY         0x2F    // Verify (O)
-#define SCSI_WRITE6         0x0A    // Write 6-Byte (MANDATORY)
-#define SCSI_WRITE10        0x2A    // Write 10-Byte (MANDATORY)
-#define SCSI_WRT_VERIFY     0x2E    // Write and Verify (O)
-#define SCSI_WRITE_LONG     0x3F    // Write Long (O)
-#define SCSI_WRITE_SAME     0x41    // Write Same (O)
-
-//***************************************************************************
-//   %%% Commands Unique to Sequential Access Devices %%%
-//***************************************************************************
-#define SCSI_ERASE          0x19    // Erase (MANDATORY)
-#define SCSI_LOAD_UN        0x1b    // Load/Unload (O)
-#define SCSI_LOCATE         0x2B    // Locate (O)
-#define SCSI_RD_BLK_LIM     0x05    // Read Block Limits (MANDATORY)
-#define SCSI_READ_POS       0x34    // Read Position (O)
-#define SCSI_READ_REV       0x0F    // Read Reverse (O)
-#define SCSI_REC_BF_DAT     0x14    // Recover Buffer Data (O)
-#define SCSI_RESERVE        0x16    // Reserve Unit (MANDATORY)
-#define SCSI_REWIND         0x01    // Rewind (MANDATORY)
-#define SCSI_SPACE          0x11    // Space (MANDATORY)
-#define SCSI_VERIFY_T       0x13    // Verify (Tape) (O)
-#define SCSI_WRT_FILE       0x10    // Write Filemarks (MANDATORY)
-
-//***************************************************************************
-//      %%% Commands Unique to Printer Devices %%%
-//***************************************************************************
-#define SCSI_PRINT          0x0A    // Print (MANDATORY)
-#define SCSI_SLEW_PNT       0x0B    // Slew and Print (O)
-#define SCSI_STOP_PNT       0x1B    // Stop Print (O)
-#define SCSI_SYNC_BUFF      0x10    // Synchronize Buffer (O)
-
-//***************************************************************************
-//     %%% Commands Unique to Processor Devices %%%
-//***************************************************************************
-#define SCSI_RECEIVE        0x08    // Receive (O)
-#define SCSI_SEND           0x0A    // Send (O)
-
-//***************************************************************************
-//    %%% Commands Unique to Write-Once Devices %%%
-//***************************************************************************
-#define SCSI_MEDIUM_SCN     0x38    // Medium Scan (O)
-#define SCSI_SRCHDATE10     0x31    // Search Data Equal 10-Byte (O)
-#define SCSI_SRCHDATE12     0xB1    // Search Data Equal 12-Byte (O)
-#define SCSI_SRCHDATH10     0x30    // Search Data High 10-Byte (O)
-#define SCSI_SRCHDATH12     0xB0    // Search Data High 12-Byte (O)
-#define SCSI_SRCHDATL10     0x32    // Search Data Low 10-Byte (O)
-#define SCSI_SRCHDATL12     0xB2    // Search Data Low 12-Byte (O)
-#define SCSI_SET_LIM_10     0x33    // Set Limits 10-Byte (O)
-#define SCSI_SET_LIM_12     0xB3    // Set Limits 10-Byte (O)
-#define SCSI_VERIFY10       0x2F    // Verify 10-Byte (O)
-#define SCSI_VERIFY12       0xAF    // Verify 12-Byte (O)
-#define SCSI_WRITE12        0xAA    // Write 12-Byte (O)
-#define SCSI_WRT_VER10      0x2E    // Write and Verify 10-Byte (O)
-#define SCSI_WRT_VER12      0xAE    // Write and Verify 12-Byte (O)
-
-//***************************************************************************
-//      %%% Commands Unique to CD-ROM Devices %%%
-//***************************************************************************
-#define SCSI_PLAYAUD_10     0x45    // Play Audio 10-Byte (O)
-#define SCSI_PLAYAUD_12     0xA5    // Play Audio 12-Byte 12-Byte (O)
-#define SCSI_PLAYAUDMSF     0x47    // Play Audio MSF (O)
-#define SCSI_PLAYA_TKIN     0x48    // Play Audio Track/Index (O)
-#define SCSI_PLYTKREL10     0x49    // Play Track Relative 10-Byte (O)
-#define SCSI_PLYTKREL12     0xA9    // Play Track Relative 12-Byte (O)
-#define SCSI_READCDCAP      0x25    // Read CD-ROM Capacity (MANDATORY)
-#define SCSI_READHEADER     0x44    // Read Header (O)
-#define SCSI_SUBCHANNEL     0x42    // Read Subchannel (O)
-#define SCSI_READ_TOC       0x43    // Read TOC (O)
-
-//***************************************************************************
-//      %%% Commands Unique to Scanner Devices %%%
-//***************************************************************************
-#define SCSI_GETDBSTAT      0x34    // Get Data Buffer Status (O)
-#define SCSI_GETWINDOW      0x25    // Get Window (O)
-#define SCSI_OBJECTPOS      0x31    // Object Postion (O)
-#define SCSI_SCAN           0x1B    // Scan (O)
-#define SCSI_SETWINDOW      0x24    // Set Window (MANDATORY)
-
-//***************************************************************************
-//    %%% Commands Unique to Optical Memory Devices %%%
-//***************************************************************************
-#define SCSI_UpdateBlk      0x3D    // Update Block (O)
-
-//***************************************************************************
-//    %%% Commands Unique to Medium Changer Devices %%%
-//***************************************************************************
-#define SCSI_EXCHMEDIUM     0xA6    // Exchange Medium (O)
-#define SCSI_INITELSTAT     0x07    // Initialize Element Status (O)
-#define SCSI_POSTOELEM      0x2B    // Position to Element (O)
-#define SCSI_REQ_VE_ADD     0xB5    // Request Volume Element Address (O)
-#define SCSI_SENDVOLTAG     0xB6    // Send Volume Tag (O)
-
-//***************************************************************************
-//     %%% Commands Unique to Communication Devices %%%
-//***************************************************************************
-#define SCSI_GET_MSG_6      0x08    // Get Message 6-Byte (MANDATORY)
-#define SCSI_GET_MSG_10     0x28    // Get Message 10-Byte (O)
-#define SCSI_GET_MSG_12     0xA8    // Get Message 12-Byte (O)
-#define SCSI_SND_MSG_6      0x0A    // Send Message 6-Byte (MANDATORY)
-#define SCSI_SND_MSG_10     0x2A    // Send Message 10-Byte (O)
-#define SCSI_SND_MSG_12     0xAA    // Send Message 12-Byte (O)
-
-
-//***************************************************************************
-//      %%% Request Sense Data Format %%%
-//***************************************************************************
-typedef struct {
- BYTE  ErrorCode;       // Error Code (70H or 71H)
- BYTE  SegmentNum;      // Number of current segment descriptor
- BYTE  SenseKey;        // Sense Key(See bit definitions too)
- BYTE  InfoByte0;       // Information MSB
- BYTE  InfoByte1;       // Information MID
- BYTE  InfoByte2;       // Information MID
- BYTE  InfoByte3;       // Information LSB
- BYTE  AddSenLen;       // Additional Sense Length
- BYTE  ComSpecInf0;     // Command Specific Information MSB
- BYTE  ComSpecInf1;     // Command Specific Information MID
- BYTE  ComSpecInf2;     // Command Specific Information MID
- BYTE  ComSpecInf3;     // Command Specific Information LSB
- BYTE  AddSenseCode;    // Additional Sense Code
- BYTE  AddSenQual;      // Additional Sense Code Qualifier
- BYTE  FieldRepUCode;   // Field Replaceable Unit Code
- BYTE  SenKeySpec15;    // Sense Key Specific 15th byte
- BYTE  SenKeySpec16;    // Sense Key Specific 16th byte
- BYTE  SenKeySpec17;    // Sense Key Specific 17th byte
- BYTE  AddSenseBytes;   // Additional Sense Bytes
-} SENSE_DATA_FMT;
-
-//***************************************************************************
-//       %%% REQUEST SENSE ERROR CODE %%%
-//***************************************************************************
-#define SERROR_CURRENT      0x70    // Current Errors
-#define SERROR_DEFERED      0x71    // Deferred Errors
-
-//***************************************************************************
-//      %%% REQUEST SENSE BIT DEFINITIONS %%%
-//***************************************************************************
-#define SENSE_VALID         0x80    // Byte 0 Bit 7
-#define SENSE_FILEMRK       0x80    // Byte 2 Bit 7
-#define SENSE_EOM           0x40    // Byte 2 Bit 6
-#define SENSE_ILI           0x20    // Byte 2 Bit 5
-
-//***************************************************************************
-//     %%% REQUEST SENSE SENSE KEY DEFINITIONS %%%
-//***************************************************************************
-#define KEY_NOSENSE         0x00    // No Sense
-#define KEY_RECERROR        0x01    // Recovered Error
-#define KEY_NOTREADY        0x02    // Not Ready
-#define KEY_MEDIUMERR       0x03    // Medium Error
-#define KEY_HARDERROR       0x04    // Hardware Error
-#define KEY_ILLGLREQ        0x05    // Illegal Request
-#define KEY_UNITATT         0x06    // Unit Attention
-#define KEY_DATAPROT        0x07    // Data Protect
-#define KEY_BLANKCHK        0x08    // Blank Check
-#define KEY_VENDSPEC        0x09    // Vendor Specific
-#define KEY_COPYABORT       0x0A    // Copy Abort
-#define KEY_EQUAL           0x0C    // Equal (Search)
-#define KEY_VOLOVRFLW       0x0D    // Volume Overflow
-#define KEY_MISCOMP         0x0E    // Miscompare (Search)
-#define KEY_RESERVED        0x0F    // Reserved
-
-//***************************************************************************
-//      %%% PERIPHERAL DEVICE TYPE DEFINITIONS %%%
-//***************************************************************************
-#define DTYPE_DASD          0x00    // Disk Device
-#define DTYPE_SEQD          0x01    // Tape Device
-#define DTYPE_PRNT          0x02    // Printer
-#define DTYPE_PROC          0x03    // Processor
-#define DTYPE_WORM          0x04    // Write-once read-multiple
-#define DTYPE_CROM          0x05    // CD-ROM device
-#define DTYPE_SCAN          0x06    // Scanner device
-#define DTYPE_OPTI          0x07    // Optical memory device
-#define DTYPE_JUKE          0x08    // Medium Changer device
-#define DTYPE_COMM          0x09    // Communications device
-#define DTYPE_RESL          0x0A    // Reserved (low)
-#define DTYPE_RESH          0x1E    // Reserved (high)
-#define DTYPE_UNKNOWN       0x1F    // Unknown or no device type
-
-//***************************************************************************
-//      %%% ANSI APPROVED VERSION DEFINITIONS %%%
-//***************************************************************************
-#define ANSI_MAYBE          0x0     // Device may or may not be ANSI approved stand
-#define ANSI_SCSI1          0x1     // Device complies to ANSI X3.131-1986 (SCSI-1)
-#define ANSI_SCSI2          0x2     // Device complies to SCSI-2
-#define ANSI_RESLO          0x3     // Reserved (low)
-#define ANSI_RESHI          0x7     // Reserved (high)
-
-
-typedef struct
-{
-  USHORT Length;
-  UCHAR  ScsiStatus;
-  UCHAR  PathId;
-  UCHAR  TargetId;
-  UCHAR  Lun;
-  UCHAR  CdbLength;
-  UCHAR  SenseInfoLength;
-  UCHAR  DataIn;
-  ULONG  DataTransferLength;
-  ULONG  TimeOutValue;
-  ULONG  DataBufferOffset;
-  ULONG  SenseInfoOffset;
-  UCHAR  Cdb[16];
-} SCSI_PASS_THROUGH, *PSCSI_PASS_THROUGH;
-
-typedef struct
-{
-  USHORT Length;
-  UCHAR  ScsiStatus;
-  UCHAR  PathId;
-  UCHAR  TargetId;
-  UCHAR  Lun;
-  UCHAR  CdbLength;
-  UCHAR  SenseInfoLength;
-  UCHAR  DataIn;
-  ULONG  DataTransferLength;
-  ULONG  TimeOutValue;
-  PVOID  DataBuffer;
-  ULONG  SenseInfoOffset;
-  UCHAR  Cdb[16];
-} SCSI_PASS_THROUGH_DIRECT, *PSCSI_PASS_THROUGH_DIRECT;
-
-typedef struct
-{
-  SCSI_PASS_THROUGH_DIRECT spt;
-  ULONG Filler;
-  UCHAR ucSenseBuf[32];
-} SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER, *PSCSI_PASS_THROUGH_DIRECT_WITH_BUFFER;
-
-typedef struct
-{
-  ULONG Length;
-  UCHAR PortNumber;
-  UCHAR PathId;
-  UCHAR TargetId;
-  UCHAR Lun;
-} SCSI_ADDRESS, *PSCSI_ADDRESS;
-
-
-#define  METHOD_BUFFERED     0
-#define  METHOD_IN_DIRECT    1
-#define  METHOD_OUT_DIRECT   2
-#define  METHOD_NEITHER      3
-
-#define  FILE_ANY_ACCESS      0
+#define FILE_ANY_ACCESS 0
 #ifndef FILE_READ_ACCESS
-#define  FILE_READ_ACCESS     (0x0001)
+ #define FILE_READ_ACCESS 1
 #endif
 #ifndef FILE_WRITE_ACCESS
-#define  FILE_WRITE_ACCESS    (0x0002)
+ #define FILE_WRITE_ACCESS 2
 #endif
 
-#define IOCTL_SCSI_BASE    0x00000004
+#define METHOD_BUFFERED 0
+#define IOCTL_SCSI_BASE 4
+#define SCSI_IOCTL_DATA_OUT          0
+#define SCSI_IOCTL_DATA_IN           1
+#define SCSI_IOCTL_DATA_UNSPECIFIED  2
 
-#define  SCSI_IOCTL_DATA_OUT          0
-#define  SCSI_IOCTL_DATA_IN           1
-#define  SCSI_IOCTL_DATA_UNSPECIFIED  2
-
-#define CTL_CODE2( DevType, Function, Method, Access ) (                 \
-    ((DevType) << 16) | ((Access) << 14) | ((Function) << 2) | (Method) \
-)
-
-#define IOCTL_SCSI_PASS_THROUGH         CTL_CODE2( IOCTL_SCSI_BASE, 0x0401, METHOD_BUFFERED, FILE_READ_ACCESS | FILE_WRITE_ACCESS )
-#define IOCTL_SCSI_GET_CAPABILITIES     CTL_CODE2( IOCTL_SCSI_BASE, 0x0404, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define CTL_CODE2(DevType, Function, Method, Access) (((DevType) << 16) | ((Access) << 14) | ((Function) << 2) | (Method))
 #define IOCTL_SCSI_PASS_THROUGH_DIRECT  CTL_CODE2( IOCTL_SCSI_BASE, 0x0405, METHOD_BUFFERED, FILE_READ_ACCESS | FILE_WRITE_ACCESS )
 #define IOCTL_SCSI_GET_ADDRESS          CTL_CODE2( IOCTL_SCSI_BASE, 0x0406, METHOD_BUFFERED, FILE_ANY_ACCESS )
 
-
-#define SENSE_LEN                 14
-#define SRB_DIR_SCSI              0x00
-#define SRB_POSTING               0x01
+#define SENSE_LEN         14
 #define SRB_ENABLE_RESIDUAL_COUNT 0x04
-#define SRB_DIR_IN                0x08
-#define SRB_DIR_OUT               0x10
-#define SRB_EVENT_NOTIFY          0x40
-#define RESIDUAL_COUNT_SUPPORTED  0x02
-#define MAX_SRB_TIMEOUT       1080001u
-#define DEFAULT_SRB_TIMEOUT   1080001u
+#define SRB_DIR_IN        0x08
+#define SRB_DIR_OUT       0x10
+#define SRB_EVENT_NOTIFY  0x40
+#define SC_HA_INQUIRY     0x00
+#define SC_GET_DEV_TYPE   0x01
+#define SC_EXEC_SCSI_CMD  0x02
+#define SS_PENDING        0x00
+#define SS_COMP           0x01
+#define SS_ERR            0x04
 
-#define SC_HA_INQUIRY             0x00
-#define SC_GET_DEV_TYPE           0x01
-#define SC_EXEC_SCSI_CMD          0x02
-#define SC_ABORT_SRB              0x03
-#define SC_RESET_DEV              0x04
-#define SC_SET_HA_PARMS           0x05
-#define SC_GET_DISK_INFO          0x06
-#define SC_RESCAN_SCSI_BUS        0x07
-#define SC_GETSET_TIMEOUTS        0x08
+enum
+{
+    READTYPE_ANY = 0,
+    READTYPE_ATAPI1 = 1,
+    READTYPE_ATAPI2 = 2,
+    READTYPE_READ6 = 3,
+    READTYPE_READ10 = 4,
+    READTYPE_READ_D8 = 5,
+    READTYPE_READ_D4 = 6,
+    READTYPE_READ_D4_1 = 7,
+    READTYPE_READ10_2 = 8
+};
 
-#define SS_PENDING                0x00
-#define SS_COMP                   0x01
-#define SS_ABORTED                0x02
-#define SS_ABORT_FAIL             0x03
-#define SS_ERR                    0x04
-#define SS_INVALID_CMD            0x80
-#define SS_INVALID_HA             0x81
-#define SS_NO_DEVICE              0x82
-#define SS_INVALID_SRB            0xE0
-#define SS_OLD_MANAGER            0xE1
-#define SS_BUFFER_ALIGN           0xE1
-#define SS_ILLEGAL_MODE           0xE2
-#define SS_NO_ASPI                0xE3
-#define SS_FAILED_INIT            0xE4
-#define SS_ASPI_IS_BUSY           0xE5
-#define SS_BUFFER_TO_BIG          0xE6
-#define SS_BUFFER_TOO_BIG         0xE6
-#define SS_MISMATCHED_COMPONENTS  0xE7
-#define SS_NO_ADAPTERS            0xE8
-#define SS_INSUFFICIENT_RESOURCES 0xE9
-#define SS_ASPI_IS_SHUTDOWN       0xEA
-#define SS_BAD_INSTALL            0xEB
+struct SCSI_PASS_THROUGH
+{
+    USHORT Length;
+    UCHAR ScsiStatus;
+    UCHAR PathId;
+    UCHAR TargetId;
+    UCHAR Lun;
+    UCHAR CdbLength;
+    UCHAR SenseInfoLength;
+    UCHAR DataIn;
+    ULONG DataTransferLength;
+    ULONG TimeOutValue;
+    ULONG DataBufferOffset;
+    ULONG SenseInfoOffset;
+    UCHAR Cdb[16];
+};
 
-#define HASTAT_OK                 0x00
-#define HASTAT_SEL_TO             0x11
-#define HASTAT_DO_DU              0x12
-#define HASTAT_BUS_FREE           0x13
-#define HASTAT_PHASE_ERR          0x14
-#define HASTAT_TIMEOUT            0x09
-#define HASTAT_COMMAND_TIMEOUT    0x0B
-#define HASTAT_MESSAGE_REJECT     0x0D
-#define HASTAT_BUS_RESET          0x0E
-#define HASTAT_PARITY_ERROR       0x0F
-#define HASTAT_REQUEST_SENSE_FAILED 0x10
+struct SCSI_PASS_THROUGH_DIRECT
+{
+    USHORT Length;
+    UCHAR ScsiStatus;
+    UCHAR PathId;
+    UCHAR TargetId;
+    UCHAR Lun;
+    UCHAR CdbLength;
+    UCHAR SenseInfoLength;
+    UCHAR DataIn;
+    ULONG DataTransferLength;
+    ULONG TimeOutValue;
+    PVOID DataBuffer;
+    ULONG SenseInfoOffset;
+    UCHAR Cdb[16];
+};
 
-#define PACKED
+struct SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER
+{
+    SCSI_PASS_THROUGH_DIRECT spt;
+    ULONG Filler;
+    UCHAR ucSenseBuf[32];
+};
+
+struct SCSI_ADDRESS
+{
+    ULONG Length;
+    UCHAR PortNumber;
+    UCHAR PathId;
+    UCHAR TargetId;
+    UCHAR Lun;
+};
+
 #pragma pack(1)
 
-typedef struct
+struct SRB_GDEVBlock
 {
-  BYTE     SRB_Cmd;
-  BYTE     SRB_Status;
-  BYTE     SRB_HaID;
-  BYTE     SRB_Flags;
-  DWORD    SRB_Hdr_Rsvd;
-  BYTE     HA_Count;
-  BYTE     HA_SCSI_ID;
-  BYTE     HA_ManagerId[16];
-  BYTE     HA_Identifier[16];
-  BYTE     HA_Unique[16];
-  WORD     HA_Rsvd1;
-  BYTE     pad[20];
-} PACKED SRB_HAInquiry, *PSRB_HAInquiry, FAR *LPSRB_HAInquiry;
-
-
-typedef struct
-{
-  BYTE     SRB_Cmd;
-  BYTE     SRB_Status;
-  BYTE     SRB_HaID;
-  BYTE     SRB_Flags;
-  DWORD    SRB_Hdr_Rsvd;
-  BYTE     SRB_Target;
-  BYTE     SRB_Lun;
-  BYTE     SRB_DeviceType;
-  BYTE     SRB_Rsvd1;
-  BYTE     pad[68];
-} PACKED SRB_GDEVBlock, *PSRB_GDEVBlock, FAR *LPSRB_GDEVBlock;
-
-
-typedef struct
-{
-  BYTE     SRB_Cmd;
-  BYTE     SRB_Status;
-  BYTE     SRB_HaID;
-  BYTE     SRB_Flags;
-  DWORD    SRB_Hdr_Rsvd;
-  BYTE     SRB_Target;
-  BYTE     SRB_Lun;
-  WORD     SRB_Rsvd1;
-  DWORD    SRB_BufLen;
-  BYTE FAR *SRB_BufPointer;
-  BYTE     SRB_SenseLen;
-  BYTE     SRB_CDBLen;
-  BYTE     SRB_HaStat;
-  BYTE     SRB_TargStat;
-  VOID FAR *SRB_PostProc;
-  BYTE     SRB_Rsvd2[20];
-  BYTE     CDBByte[16];
-  BYTE SenseArea[SENSE_LEN+2];
-} PACKED SRB_ExecSCSICmd, *PSRB_ExecSCSICmd, FAR *LPSRB_ExecSCSICmd;
-
-
-typedef struct
-{
-  BYTE      SRB_Cmd;
-  BYTE      SRB_Status;
-  BYTE      SRB_HaId;
-  BYTE      SRB_Flags;
-  DWORD     SRB_Hdr_Rsvd;
-} PACKED SRB, *PSRB, FAR *LPSRB;
-
-#pragma pack()
-
-
-//==============================================================================
-struct CDDeviceInfo
-{
-    char vendor[9];
-    char productId[17];
-    char rev[5];
-    char vendorSpec[21];
-
-    BYTE ha;
-    BYTE tgt;
-    BYTE lun;
-    char scsiDriveLetter; // will be 0 if not using scsi
+    BYTE SRB_Cmd;
+    BYTE SRB_Status;
+    BYTE SRB_HaID;
+    BYTE SRB_Flags;
+    DWORD SRB_Hdr_Rsvd;
+    BYTE SRB_Target;
+    BYTE SRB_Lun;
+    BYTE SRB_DeviceType;
+    BYTE SRB_Rsvd1;
+    BYTE pad[68];
 };
 
 
-//==============================================================================
-class CDReadBuffer
+struct SRB_ExecSCSICmd
 {
-public:
-    int startFrame;
-    int numFrames;
-    int dataStartOffset;
-    int dataLength;
-    int bufferSize;
-    HeapBlock<BYTE> buffer;
-    int index;
-    bool wantsIndex;
-
-    //==============================================================================
-    CDReadBuffer (const int numberOfFrames)
-        : startFrame (0),
-          numFrames (0),
-          dataStartOffset (0),
-          dataLength (0),
-          bufferSize (2352 * numberOfFrames),
-          buffer (bufferSize),
-          index (0),
-          wantsIndex (false)
-    {
-    }
-
-    bool isZero() const throw()
-    {
-        BYTE* p = buffer + dataStartOffset;
-
-        for (int i = dataLength; --i >= 0;)
-            if (*p++ != 0)
-                return false;
-
-        return true;
-    }
+    BYTE SRB_Cmd;
+    BYTE SRB_Status;
+    BYTE SRB_HaID;
+    BYTE SRB_Flags;
+    DWORD SRB_Hdr_Rsvd;
+    BYTE SRB_Target;
+    BYTE SRB_Lun;
+    WORD SRB_Rsvd1;
+    DWORD SRB_BufLen;
+    BYTE *SRB_BufPointer;
+    BYTE SRB_SenseLen;
+    BYTE SRB_CDBLen;
+    BYTE SRB_HaStat;
+    BYTE SRB_TargStat;
+    VOID *SRB_PostProc;
+    BYTE SRB_Rsvd2[20];
+    BYTE CDBByte[16];
+    BYTE SenseArea[SENSE_LEN + 2];
 };
 
-class CDDeviceHandle;
-
-class CDController
+struct SRB
 {
-public:
-    CDController();
-    virtual ~CDController();
-
-    virtual bool read (CDReadBuffer* t) = 0;
-    virtual void shutDown();
-
-    bool readAudio (CDReadBuffer* t, CDReadBuffer* overlapBuffer = 0);
-    int getLastIndex();
-
-public:
-    bool initialised;
-
-    CDDeviceHandle* deviceInfo;
-    int framesToCheck, framesOverlap;
-
-    void prepare (SRB_ExecSCSICmd& s);
-    void perform (SRB_ExecSCSICmd& s);
-    void setPaused (bool paused);
+    BYTE SRB_Cmd;
+    BYTE SRB_Status;
+    BYTE SRB_HaId;
+    BYTE SRB_Flags;
+    DWORD SRB_Hdr_Rsvd;
 };
-
-
-//==============================================================================
-#pragma pack(1)
 
 struct TOCTRACK
 {
@@ -594,17 +192,74 @@ struct TOC
 
 #pragma pack()
 
-enum
+//==============================================================================
+struct CDDeviceDescription
 {
-    READTYPE_ANY = 0,
-    READTYPE_ATAPI1 = 1,
-    READTYPE_ATAPI2 = 2,
-    READTYPE_READ6 = 3,
-    READTYPE_READ10 = 4,
-    READTYPE_READ_D8 = 5,
-    READTYPE_READ_D4 = 6,
-    READTYPE_READ_D4_1 = 7,
-    READTYPE_READ10_2 = 8
+    CDDeviceDescription()  : ha (0), tgt (0), lun (0), scsiDriveLetter (0)
+    {
+    }
+
+    void createDescription (const char* data)
+    {
+        description << String (data + 8, 8).trim() // vendor
+                    << ' ' << String (data + 16, 16).trim() // product id
+                    << ' ' << String (data + 32, 4).trim(); // rev
+    }
+
+    String description;
+    BYTE ha, tgt, lun;
+    char scsiDriveLetter; // will be 0 if not using scsi
+};
+
+//==============================================================================
+class CDReadBuffer
+{
+public:
+    CDReadBuffer (const int numberOfFrames)
+        : startFrame (0), numFrames (0), dataStartOffset (0),
+          dataLength (0), bufferSize (2352 * numberOfFrames), index (0),
+          buffer (bufferSize), wantsIndex (false)
+    {
+    }
+
+    bool isZero() const throw()
+    {
+        for (int i = 0; i < dataLength; ++i)
+            if (buffer [dataStartOffset + i] != 0)
+                return false;
+
+        return true;
+    }
+
+    int startFrame, numFrames, dataStartOffset;
+    int dataLength, bufferSize, index;
+    HeapBlock<BYTE> buffer;
+    bool wantsIndex;
+};
+
+class CDDeviceHandle;
+
+//==============================================================================
+class CDController
+{
+public:
+    CDController() : initialised (false) {}
+    virtual ~CDController() {}
+
+    virtual bool read (CDReadBuffer&) = 0;
+    virtual void shutDown() {}
+
+    bool readAudio (CDReadBuffer& rb, CDReadBuffer* overlapBuffer = 0);
+    int getLastIndex();
+
+public:
+    CDDeviceHandle* deviceInfo;
+    int framesToCheck, framesOverlap;
+    bool initialised;
+
+    void prepare (SRB_ExecSCSICmd& s);
+    void perform (SRB_ExecSCSICmd& s);
+    void setPaused (bool paused);
 };
 
 
@@ -612,12 +267,9 @@ enum
 class CDDeviceHandle
 {
 public:
-    CDDeviceHandle (const CDDeviceInfo* const device)
-        : scsiHandle (0),
-          readType (READTYPE_ANY),
-          controller (0)
+    CDDeviceHandle (const CDDeviceDescription& device, HANDLE scsiHandle_)
+        : info (device), scsiHandle (scsiHandle_), readType (READTYPE_ANY)
     {
-        memcpy (&info, device, sizeof (info));
     }
 
     ~CDDeviceHandle()
@@ -633,95 +285,25 @@ public:
     }
 
     bool readTOC (TOC* lpToc);
-    bool readAudio (CDReadBuffer* buffer, CDReadBuffer* overlapBuffer = 0);
+    bool readAudio (CDReadBuffer& buffer, CDReadBuffer* overlapBuffer = 0);
     void openDrawer (bool shouldBeOpen);
+    void performScsiCommand (HANDLE event, SRB_ExecSCSICmd& s);
 
-    CDDeviceInfo info;
+    CDDeviceDescription info;
     HANDLE scsiHandle;
     BYTE readType;
 
 private:
     ScopedPointer<CDController> controller;
 
-    bool testController (const int readType,
-                         CDController* const newController,
-                         CDReadBuffer* const bufferToUse);
+    bool testController (int readType, CDController* newController, CDReadBuffer& bufferToUse);
 };
 
-
 //==============================================================================
-DWORD (*fGetASPI32SupportInfo)(void);
-DWORD (*fSendASPI32Command)(LPSRB);
-
-//==============================================================================
-static HINSTANCE winAspiLib = 0;
-static bool usingScsi = false;
-static bool initialised = false;
-
-
-static bool InitialiseCDRipper()
-{
-    if (! initialised)
-    {
-        initialised = true;
-
-        OSVERSIONINFO info;
-        info.dwOSVersionInfoSize = sizeof (info);
-        GetVersionEx (&info);
-
-        usingScsi = (info.dwPlatformId == VER_PLATFORM_WIN32_NT) && (info.dwMajorVersion > 4);
-
-        if (! usingScsi)
-        {
-            fGetASPI32SupportInfo = 0;
-            fSendASPI32Command = 0;
-            winAspiLib = LoadLibrary (_T("WNASPI32.DLL"));
-
-            if (winAspiLib != 0)
-            {
-                fGetASPI32SupportInfo = (DWORD(*)(void))  GetProcAddress (winAspiLib, "GetASPI32SupportInfo");
-                fSendASPI32Command    = (DWORD(*)(LPSRB)) GetProcAddress (winAspiLib, "SendASPI32Command");
-
-                if (fGetASPI32SupportInfo == 0 || fSendASPI32Command == 0)
-                    return false;
-            }
-            else
-            {
-                usingScsi = true;
-            }
-        }
-    }
-
-    return true;
-}
-
-static void DeinitialiseCDRipper()
-{
-    if (winAspiLib != 0)
-    {
-        fGetASPI32SupportInfo = 0;
-        fSendASPI32Command = 0;
-        FreeLibrary (winAspiLib);
-        winAspiLib = 0;
-    }
-
-    initialised = false;
-}
-
-//==============================================================================
-static HANDLE CreateSCSIDeviceHandle (char driveLetter)
+HANDLE createSCSIDeviceHandle (const char driveLetter)
 {
     TCHAR devicePath[] = { '\\', '\\', '.', '\\', driveLetter, ':', 0, 0 };
-
-    OSVERSIONINFO info;
-    info.dwOSVersionInfoSize = sizeof (info);
-    GetVersionEx (&info);
-
-    DWORD flags = GENERIC_READ;
-
-    if ((info.dwPlatformId == VER_PLATFORM_WIN32_NT) && (info.dwMajorVersion > 4))
-        flags = GENERIC_READ | GENERIC_WRITE;
-
+    DWORD flags = GENERIC_READ | GENERIC_WRITE;
     HANDLE h = CreateFile (devicePath, flags, FILE_SHARE_WRITE | FILE_SHARE_READ, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
 
     if (h == INVALID_HANDLE_VALUE)
@@ -733,10 +315,67 @@ static HANDLE CreateSCSIDeviceHandle (char driveLetter)
     return h;
 }
 
-static DWORD performScsiPassThroughCommand (const LPSRB_ExecSCSICmd srb,
-                                            const char driveLetter,
-                                            HANDLE& deviceHandle,
-                                            const bool retryOnFailure = true)
+void findCDDevices (Array<CDDeviceDescription>& list)
+{
+    for (char driveLetter = 'b'; driveLetter <= 'z'; ++driveLetter)
+    {
+        TCHAR drivePath[] = { driveLetter, ':', '\\', 0, 0 };
+
+        if (GetDriveType (drivePath) == DRIVE_CDROM)
+        {
+            HANDLE h = createSCSIDeviceHandle (driveLetter);
+
+            if (h != INVALID_HANDLE_VALUE)
+            {
+                char buffer[100];
+                zeromem (buffer, sizeof (buffer));
+
+                SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER p;
+                zerostruct (p);
+                p.spt.Length             = sizeof (SCSI_PASS_THROUGH);
+                p.spt.CdbLength          = 6;
+                p.spt.SenseInfoLength    = 24;
+                p.spt.DataIn             = SCSI_IOCTL_DATA_IN;
+                p.spt.DataTransferLength = sizeof (buffer);
+                p.spt.TimeOutValue       = 2;
+                p.spt.DataBuffer         = buffer;
+                p.spt.SenseInfoOffset    = offsetof (SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER, ucSenseBuf);
+                p.spt.Cdb[0]             = 0x12;
+                p.spt.Cdb[4]             = 100;
+
+                DWORD bytesReturned = 0;
+
+                if (DeviceIoControl (h, IOCTL_SCSI_PASS_THROUGH_DIRECT,
+                                     &p, sizeof (p), &p, sizeof (p),
+                                     &bytesReturned, 0) != 0)
+                {
+                    CDDeviceDescription dev;
+                    dev.scsiDriveLetter = driveLetter;
+                    dev.createDescription (buffer);
+
+                    SCSI_ADDRESS scsiAddr;
+                    zerostruct (scsiAddr);
+                    scsiAddr.Length = sizeof (scsiAddr);
+
+                    if (DeviceIoControl (h, IOCTL_SCSI_GET_ADDRESS,
+                                         0, 0, &scsiAddr, sizeof (scsiAddr),
+                                         &bytesReturned, 0) != 0)
+                    {
+                        dev.ha = scsiAddr.PortNumber;
+                        dev.tgt = scsiAddr.TargetId;
+                        dev.lun = scsiAddr.Lun;
+                        list.add (dev);
+                    }
+                }
+
+                CloseHandle (h);
+            }
+        }
+    }
+}
+
+DWORD performScsiPassThroughCommand (SRB_ExecSCSICmd* const srb, const char driveLetter,
+                                     HANDLE& deviceHandle, const bool retryOnFailure)
 {
     SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER s;
     zerostruct (s);
@@ -763,9 +402,7 @@ static DWORD performScsiPassThroughCommand (const LPSRB_ExecSCSICmd srb,
     DWORD bytesReturned = 0;
 
     if (DeviceIoControl (deviceHandle, IOCTL_SCSI_PASS_THROUGH_DIRECT,
-                         &s, sizeof (s),
-                         &s, sizeof (s),
-                         &bytesReturned, 0) != 0)
+                         &s, sizeof (s), &s, sizeof (s), &bytesReturned, 0) != 0)
     {
         srb->SRB_Status = SS_COMP;
     }
@@ -778,7 +415,7 @@ static DWORD performScsiPassThroughCommand (const LPSRB_ExecSCSICmd srb,
             if (error != ERROR_INVALID_HANDLE)
                 CloseHandle (deviceHandle);
 
-            deviceHandle = CreateSCSIDeviceHandle (driveLetter);
+            deviceHandle = createSCSIDeviceHandle (driveLetter);
 
             return performScsiPassThroughCommand (srb, driveLetter, deviceHandle, false);
         }
@@ -795,43 +432,40 @@ class ControllerType1  : public CDController
 {
 public:
     ControllerType1() {}
-    ~ControllerType1() {}
 
-    bool read (CDReadBuffer* rb)
+    bool read (CDReadBuffer& rb)
     {
-        if (rb->numFrames * 2352 > rb->bufferSize)
+        if (rb.numFrames * 2352 > rb.bufferSize)
             return false;
 
         SRB_ExecSCSICmd s;
         prepare (s);
         s.SRB_Flags = SRB_DIR_IN | SRB_EVENT_NOTIFY;
-        s.SRB_BufLen = rb->bufferSize;
-        s.SRB_BufPointer = rb->buffer;
+        s.SRB_BufLen = rb.bufferSize;
+        s.SRB_BufPointer = rb.buffer;
         s.SRB_CDBLen = 12;
         s.CDBByte[0] = 0xBE;
-        s.CDBByte[3] = (BYTE)((rb->startFrame >> 16) & 0xFF);
-        s.CDBByte[4] = (BYTE)((rb->startFrame >> 8) & 0xFF);
-        s.CDBByte[5] = (BYTE)(rb->startFrame & 0xFF);
-        s.CDBByte[8] = (BYTE)(rb->numFrames & 0xFF);
-        s.CDBByte[9] = (BYTE)((deviceInfo->readType == READTYPE_ATAPI1) ? 0x10 : 0xF0);
+        s.CDBByte[3] = (BYTE) ((rb.startFrame >> 16) & 0xFF);
+        s.CDBByte[4] = (BYTE) ((rb.startFrame >> 8) & 0xFF);
+        s.CDBByte[5] = (BYTE) (rb.startFrame & 0xFF);
+        s.CDBByte[8] = (BYTE) (rb.numFrames & 0xFF);
+        s.CDBByte[9] = (BYTE) (deviceInfo->readType == READTYPE_ATAPI1 ? 0x10 : 0xF0);
         perform (s);
 
         if (s.SRB_Status != SS_COMP)
             return false;
 
-        rb->dataLength = rb->numFrames * 2352;
-        rb->dataStartOffset = 0;
+        rb.dataLength = rb.numFrames * 2352;
+        rb.dataStartOffset = 0;
         return true;
     }
 };
-
 
 //==============================================================================
 class ControllerType2  : public CDController
 {
 public:
     ControllerType2() {}
-    ~ControllerType2() {}
 
     void shutDown()
     {
@@ -894,57 +528,54 @@ public:
         return s.SRB_Status == SS_COMP;
     }
 
-    bool read (CDReadBuffer* rb)
+    bool read (CDReadBuffer& rb)
     {
-        if (rb->numFrames * 2352 > rb->bufferSize)
+        if (rb.numFrames * 2352 > rb.bufferSize)
             return false;
 
-        if (!initialised)
+        if (! initialised)
         {
             initialised = init();
 
-            if (!initialised)
+            if (! initialised)
                 return false;
         }
 
         SRB_ExecSCSICmd s;
         prepare (s);
         s.SRB_Flags = SRB_DIR_IN | SRB_EVENT_NOTIFY;
-        s.SRB_BufLen = rb->bufferSize;
-        s.SRB_BufPointer = rb->buffer;
+        s.SRB_BufLen = rb.bufferSize;
+        s.SRB_BufPointer = rb.buffer;
         s.SRB_CDBLen = 10;
         s.CDBByte[0] = 0x28;
-        s.CDBByte[1] = (BYTE)(deviceInfo->info.lun << 5);
-        s.CDBByte[3] = (BYTE)((rb->startFrame >> 16) & 0xFF);
-        s.CDBByte[4] = (BYTE)((rb->startFrame >> 8) & 0xFF);
-        s.CDBByte[5] = (BYTE)(rb->startFrame & 0xFF);
-        s.CDBByte[8] = (BYTE)(rb->numFrames & 0xFF);
+        s.CDBByte[1] = (BYTE) (deviceInfo->info.lun << 5);
+        s.CDBByte[3] = (BYTE) ((rb.startFrame >> 16) & 0xFF);
+        s.CDBByte[4] = (BYTE) ((rb.startFrame >> 8) & 0xFF);
+        s.CDBByte[5] = (BYTE) (rb.startFrame & 0xFF);
+        s.CDBByte[8] = (BYTE) (rb.numFrames & 0xFF);
         perform (s);
 
         if (s.SRB_Status != SS_COMP)
             return false;
 
-        rb->dataLength = rb->numFrames * 2352;
-        rb->dataStartOffset = 0;
-
+        rb.dataLength = rb.numFrames * 2352;
+        rb.dataStartOffset = 0;
         return true;
     }
 };
-
 
 //==============================================================================
 class ControllerType3  : public CDController
 {
 public:
     ControllerType3() {}
-    ~ControllerType3() {}
 
-    bool read (CDReadBuffer* rb)
+    bool read (CDReadBuffer& rb)
     {
-        if (rb->numFrames * 2352 > rb->bufferSize)
+        if (rb.numFrames * 2352 > rb.bufferSize)
             return false;
 
-        if (!initialised)
+        if (! initialised)
         {
             setPaused (false);
             initialised = true;
@@ -953,33 +584,30 @@ public:
         SRB_ExecSCSICmd s;
         prepare (s);
         s.SRB_Flags = SRB_DIR_IN | SRB_EVENT_NOTIFY;
-        s.SRB_BufLen = rb->numFrames * 2352;
-        s.SRB_BufPointer = rb->buffer;
+        s.SRB_BufLen = rb.numFrames * 2352;
+        s.SRB_BufPointer = rb.buffer;
         s.SRB_CDBLen = 12;
         s.CDBByte[0] = 0xD8;
-        s.CDBByte[3] = (BYTE)((rb->startFrame >> 16) & 0xFF);
-        s.CDBByte[4] = (BYTE)((rb->startFrame >> 8) & 0xFF);
-        s.CDBByte[5] = (BYTE)(rb->startFrame & 0xFF);
-        s.CDBByte[9] = (BYTE)(rb->numFrames & 0xFF);
+        s.CDBByte[3] = (BYTE) ((rb.startFrame >> 16) & 0xFF);
+        s.CDBByte[4] = (BYTE) ((rb.startFrame >> 8) & 0xFF);
+        s.CDBByte[5] = (BYTE) (rb.startFrame & 0xFF);
+        s.CDBByte[9] = (BYTE) (rb.numFrames & 0xFF);
         perform (s);
 
         if (s.SRB_Status != SS_COMP)
             return false;
 
-        rb->dataLength = rb->numFrames * 2352;
-        rb->dataStartOffset = 0;
-
+        rb.dataLength = rb.numFrames * 2352;
+        rb.dataStartOffset = 0;
         return true;
     }
 };
-
 
 //==============================================================================
 class ControllerType4  : public CDController
 {
 public:
     ControllerType4() {}
-    ~ControllerType4() {}
 
     bool selectD4Mode()
     {
@@ -999,12 +627,12 @@ public:
         return s.SRB_Status == SS_COMP;
     }
 
-    bool read (CDReadBuffer* rb)
+    bool read (CDReadBuffer& rb)
     {
-        if (rb->numFrames * 2352 > rb->bufferSize)
+        if (rb.numFrames * 2352 > rb.bufferSize)
             return false;
 
-        if (!initialised)
+        if (! initialised)
         {
             setPaused (true);
 
@@ -1017,40 +645,30 @@ public:
         SRB_ExecSCSICmd s;
         prepare (s);
         s.SRB_Flags = SRB_DIR_IN | SRB_EVENT_NOTIFY;
-        s.SRB_BufLen = rb->bufferSize;
-        s.SRB_BufPointer = rb->buffer;
+        s.SRB_BufLen = rb.bufferSize;
+        s.SRB_BufPointer = rb.buffer;
         s.SRB_CDBLen = 10;
         s.CDBByte[0] = 0xD4;
-        s.CDBByte[3] = (BYTE)((rb->startFrame >> 16) & 0xFF);
-        s.CDBByte[4] = (BYTE)((rb->startFrame >> 8) & 0xFF);
-        s.CDBByte[5] = (BYTE)(rb->startFrame & 0xFF);
-        s.CDBByte[8] = (BYTE)(rb->numFrames & 0xFF);
+        s.CDBByte[3] = (BYTE) ((rb.startFrame >> 16) & 0xFF);
+        s.CDBByte[4] = (BYTE) ((rb.startFrame >> 8) & 0xFF);
+        s.CDBByte[5] = (BYTE) (rb.startFrame & 0xFF);
+        s.CDBByte[8] = (BYTE) (rb.numFrames & 0xFF);
         perform (s);
 
         if (s.SRB_Status != SS_COMP)
             return false;
 
-        rb->dataLength = rb->numFrames * 2352;
-        rb->dataStartOffset = 0;
-
+        rb.dataLength = rb.numFrames * 2352;
+        rb.dataStartOffset = 0;
         return true;
     }
 };
 
 
 //==============================================================================
-CDController::CDController()  : initialised (false)
-{
-}
-
-CDController::~CDController()
-{
-}
-
 void CDController::prepare (SRB_ExecSCSICmd& s)
 {
     zerostruct (s);
-
     s.SRB_Cmd = SC_EXEC_SCSI_CMD;
     s.SRB_HaID = deviceInfo->info.ha;
     s.SRB_Target = deviceInfo->info.tgt;
@@ -1060,20 +678,9 @@ void CDController::prepare (SRB_ExecSCSICmd& s)
 
 void CDController::perform (SRB_ExecSCSICmd& s)
 {
-    HANDLE event = CreateEvent (0, TRUE, FALSE, 0);
-    s.SRB_PostProc = event;
+    s.SRB_PostProc = CreateEvent (0, TRUE, FALSE, 0);
 
-    ResetEvent (event);
-
-    DWORD status = (usingScsi) ? performScsiPassThroughCommand ((LPSRB_ExecSCSICmd)&s,
-                                                                deviceInfo->info.scsiDriveLetter,
-                                                                deviceInfo->scsiHandle)
-                               : fSendASPI32Command ((LPSRB)&s);
-
-    if (status == SS_PENDING)
-        WaitForSingleObject (event, 4000);
-
-    CloseHandle (event);
+    deviceInfo->performScsiCommand (s.SRB_PostProc, s);
 }
 
 void CDController::setPaused (bool paused)
@@ -1087,11 +694,7 @@ void CDController::setPaused (bool paused)
     perform (s);
 }
 
-void CDController::shutDown()
-{
-}
-
-bool CDController::readAudio (CDReadBuffer* rb, CDReadBuffer* overlapBuffer)
+bool CDController::readAudio (CDReadBuffer& rb, CDReadBuffer* overlapBuffer)
 {
     if (overlapBuffer != 0)
     {
@@ -1103,15 +706,15 @@ bool CDController::readAudio (CDReadBuffer* rb, CDReadBuffer* overlapBuffer)
              && overlapBuffer->numFrames > 0
              && overlapBuffer->dataLength > 0)
         {
-            const int numFrames = rb->numFrames;
+            const int numFrames = rb.numFrames;
 
-            if (overlapBuffer->startFrame == (rb->startFrame - framesToCheck))
+            if (overlapBuffer->startFrame == (rb.startFrame - framesToCheck))
             {
-                rb->startFrame -= framesOverlap;
+                rb.startFrame -= framesOverlap;
 
                 if (framesToCheck < framesOverlap
-                     && numFrames + framesOverlap <= rb->bufferSize / 2352)
-                    rb->numFrames += framesOverlap;
+                     && numFrames + framesOverlap <= rb.bufferSize / 2352)
+                    rb.numFrames += framesOverlap;
             }
             else
             {
@@ -1127,7 +730,7 @@ bool CDController::readAudio (CDReadBuffer* rb, CDReadBuffer* overlapBuffer)
         if (doJitter)
         {
             const int checkLen = framesToCheck * 2352;
-            const int maxToCheck = rb->dataLength - checkLen;
+            const int maxToCheck = rb.dataLength - checkLen;
 
             if (overlapBuffer->dataLength == 0 || overlapBuffer->isZero())
                 return true;
@@ -1137,31 +740,31 @@ bool CDController::readAudio (CDReadBuffer* rb, CDReadBuffer* overlapBuffer)
 
             for (int i = 0; i < maxToCheck; ++i)
             {
-                if (memcmp (p, rb->buffer + i, checkLen) == 0)
+                if (memcmp (p, rb.buffer + i, checkLen) == 0)
                 {
                     i += checkLen;
-                    rb->dataStartOffset = i;
-                    rb->dataLength -= i;
-                    rb->startFrame = overlapBuffer->startFrame + framesToCheck;
+                    rb.dataStartOffset = i;
+                    rb.dataLength -= i;
+                    rb.startFrame = overlapBuffer->startFrame + framesToCheck;
                     found = true;
                     break;
                 }
             }
 
-            rb->numFrames = rb->dataLength / 2352;
-            rb->dataLength = 2352 * rb->numFrames;
+            rb.numFrames = rb.dataLength / 2352;
+            rb.dataLength = 2352 * rb.numFrames;
 
-            if (!found)
+            if (! found)
                 return false;
         }
 
         if (canDoJitter)
         {
             memcpy (overlapBuffer->buffer,
-                    rb->buffer + rb->dataStartOffset + 2352 * (rb->numFrames - framesToCheck),
+                    rb.buffer + rb.dataStartOffset + 2352 * (rb.numFrames - framesToCheck),
                     2352 * framesToCheck);
 
-            overlapBuffer->startFrame = rb->startFrame + rb->numFrames - framesToCheck;
+            overlapBuffer->startFrame = rb.startFrame + rb.numFrames - framesToCheck;
             overlapBuffer->numFrames = framesToCheck;
             overlapBuffer->dataLength = 2352 * framesToCheck;
             overlapBuffer->dataStartOffset = 0;
@@ -1175,10 +778,8 @@ bool CDController::readAudio (CDReadBuffer* rb, CDReadBuffer* overlapBuffer)
 
         return true;
     }
-    else
-    {
-        return read (rb);
-    }
+
+    return read (rb);
 }
 
 int CDController::getLastIndex()
@@ -1189,58 +790,55 @@ int CDController::getLastIndex()
     prepare (s);
     s.SRB_Flags = SRB_DIR_IN | SRB_EVENT_NOTIFY;
     s.SRB_BufLen = sizeof (qdata);
-    s.SRB_BufPointer = (BYTE*)qdata;
+    s.SRB_BufPointer = (BYTE*) qdata;
     s.SRB_CDBLen = 12;
     s.CDBByte[0] = 0x42;
-    s.CDBByte[1] = (BYTE)(deviceInfo->info.lun << 5);
+    s.CDBByte[1] = (BYTE) (deviceInfo->info.lun << 5);
     s.CDBByte[2] = 64;
     s.CDBByte[3] = 1; // get current position
     s.CDBByte[7] = 0;
-    s.CDBByte[8] = (BYTE)sizeof (qdata);
+    s.CDBByte[8] = (BYTE) sizeof (qdata);
     perform (s);
 
-    if (s.SRB_Status == SS_COMP)
-        return qdata[7];
-
-    return 0;
+    return s.SRB_Status == SS_COMP ? qdata[7] : 0;
 }
 
 //==============================================================================
 bool CDDeviceHandle::readTOC (TOC* lpToc)
 {
-    HANDLE event = CreateEvent (0, TRUE, FALSE, 0);
-
     SRB_ExecSCSICmd s;
     zerostruct (s);
-
     s.SRB_Cmd = SC_EXEC_SCSI_CMD;
     s.SRB_HaID = info.ha;
     s.SRB_Target = info.tgt;
     s.SRB_Lun = info.lun;
     s.SRB_Flags = SRB_DIR_IN | SRB_EVENT_NOTIFY;
     s.SRB_BufLen = 0x324;
-    s.SRB_BufPointer = (BYTE*)lpToc;
+    s.SRB_BufPointer = (BYTE*) lpToc;
     s.SRB_SenseLen = 0x0E;
     s.SRB_CDBLen = 0x0A;
-    s.SRB_PostProc = event;
+    s.SRB_PostProc = CreateEvent (0, TRUE, FALSE, 0);
     s.CDBByte[0] = 0x43;
     s.CDBByte[1] = 0x00;
     s.CDBByte[7] = 0x03;
     s.CDBByte[8] = 0x24;
 
+    performScsiCommand (s.SRB_PostProc, s);
+    return (s.SRB_Status == SS_COMP);
+}
+
+void CDDeviceHandle::performScsiCommand (HANDLE event, SRB_ExecSCSICmd& s)
+{
     ResetEvent (event);
-    DWORD status = (usingScsi) ? performScsiPassThroughCommand ((LPSRB_ExecSCSICmd)&s, info.scsiDriveLetter, scsiHandle)
-                               : fSendASPI32Command ((LPSRB)&s);
+    DWORD status = performScsiPassThroughCommand ((SRB_ExecSCSICmd*) &s, info.scsiDriveLetter, scsiHandle, true);
 
     if (status == SS_PENDING)
         WaitForSingleObject (event, 4000);
 
     CloseHandle (event);
-    return (s.SRB_Status == SS_COMP);
 }
 
-bool CDDeviceHandle::readAudio (CDReadBuffer* const buffer,
-                                CDReadBuffer* const overlapBuffer)
+bool CDDeviceHandle::readAudio (CDReadBuffer& buffer, CDReadBuffer* overlapBuffer)
 {
     if (controller == 0)
     {
@@ -1253,13 +851,12 @@ bool CDDeviceHandle::readAudio (CDReadBuffer* const buffer,
         || testController (READTYPE_READ_D4_1, new ControllerType4(), buffer);
     }
 
-    buffer->index = 0;
+    buffer.index = 0;
 
-    if ((controller != 0)
-        && controller->readAudio (buffer, overlapBuffer))
+    if (controller != 0 && controller->readAudio (buffer, overlapBuffer))
     {
-        if (buffer->wantsIndex)
-            buffer->index = controller->getLastIndex();
+        if (buffer.wantsIndex)
+            buffer.index = controller->getLastIndex();
 
         return true;
     }
@@ -1286,7 +883,6 @@ void CDDeviceHandle::openDrawer (bool shouldBeOpen)
 
     SRB_ExecSCSICmd s;
     zerostruct (s);
-
     s.SRB_Cmd = SC_EXEC_SCSI_CMD;
     s.SRB_HaID = info.ha;
     s.SRB_Target = info.tgt;
@@ -1297,45 +893,32 @@ void CDDeviceHandle::openDrawer (bool shouldBeOpen)
     s.SRB_BufPointer = 0;
     s.SRB_CDBLen = 12;
     s.CDBByte[0] = 0x1b;
-    s.CDBByte[1] = (BYTE)(info.lun << 5);
-    s.CDBByte[4] = (BYTE)((shouldBeOpen) ? 2 : 3);
+    s.CDBByte[1] = (BYTE) (info.lun << 5);
+    s.CDBByte[4] = (BYTE) (shouldBeOpen ? 2 : 3);
+    s.SRB_PostProc = CreateEvent (0, TRUE, FALSE, 0);
 
-    HANDLE event = CreateEvent (0, TRUE, FALSE, 0);
-    s.SRB_PostProc = event;
-
-    ResetEvent (event);
-
-    DWORD status = (usingScsi) ? performScsiPassThroughCommand  ((LPSRB_ExecSCSICmd)&s, info.scsiDriveLetter, scsiHandle)
-                               : fSendASPI32Command ((LPSRB)&s);
-
-    if (status == SS_PENDING)
-        WaitForSingleObject (event, 4000);
-
-    CloseHandle (event);
+    performScsiCommand (s.SRB_PostProc, s);
 }
 
-bool CDDeviceHandle::testController (const int type,
-                                     CDController* const newController,
-                                     CDReadBuffer* const rb)
+bool CDDeviceHandle::testController (const int type, CDController* const newController, CDReadBuffer& rb)
 {
     controller = newController;
-    readType = (BYTE)type;
+    readType = (BYTE) type;
 
     controller->deviceInfo = this;
     controller->framesToCheck = 1;
     controller->framesOverlap = 3;
 
     bool passed = false;
-
-    memset (rb->buffer, 0xcd, rb->bufferSize);
+    memset (rb.buffer, 0xcd, rb.bufferSize);
 
     if (controller->read (rb))
     {
         passed = true;
-        int* p = (int*) (rb->buffer + rb->dataStartOffset);
+        int* p = (int*) (rb.buffer + rb.dataStartOffset);
         int wrong = 0;
 
-        for (int i = rb->dataLength / 4; --i >= 0;)
+        for (int i = rb.dataLength / 4; --i >= 0;)
         {
             if (*p++ == (int) 0xcdcdcdcd)
             {
@@ -1363,274 +946,29 @@ bool CDDeviceHandle::testController (const int type,
 
 
 //==============================================================================
-static void GetAspiDeviceInfo (CDDeviceInfo* dev, BYTE ha, BYTE tgt, BYTE lun)
-{
-    HANDLE event = CreateEvent (0, TRUE, FALSE, 0);
-
-    const int bufSize = 128;
-    BYTE buffer[bufSize];
-    zeromem (buffer, bufSize);
-
-    SRB_ExecSCSICmd s;
-    zerostruct (s);
-
-    s.SRB_Cmd        = SC_EXEC_SCSI_CMD;
-    s.SRB_HaID       = ha;
-    s.SRB_Target     = tgt;
-    s.SRB_Lun        = lun;
-    s.SRB_Flags      = SRB_DIR_IN | SRB_EVENT_NOTIFY;
-    s.SRB_BufLen     = bufSize;
-    s.SRB_BufPointer = buffer;
-    s.SRB_SenseLen   = SENSE_LEN;
-    s.SRB_CDBLen     = 6;
-    s.SRB_PostProc   = event;
-    s.CDBByte[0]     = SCSI_INQUIRY;
-    s.CDBByte[4]     = 100;
-
-    ResetEvent (event);
-
-    if (fSendASPI32Command ((LPSRB)&s) == SS_PENDING)
-        WaitForSingleObject (event, 4000);
-
-    CloseHandle (event);
-
-    if (s.SRB_Status == SS_COMP)
-    {
-        memcpy (dev->vendor,     &buffer[8], 8);
-        memcpy (dev->productId,  &buffer[16], 16);
-        memcpy (dev->rev,        &buffer[32], 4);
-        memcpy (dev->vendorSpec, &buffer[36], 20);
-    }
-}
-
-static int FindCDDevices (CDDeviceInfo* const list,
-                          int maxItems)
-{
-    int count = 0;
-
-    if (usingScsi)
-    {
-        for (char driveLetter = 'b'; driveLetter <= 'z'; ++driveLetter)
-        {
-            TCHAR drivePath[8];
-            drivePath[0] = driveLetter;
-            drivePath[1] = ':';
-            drivePath[2] = '\\';
-            drivePath[3] = 0;
-
-            if (GetDriveType (drivePath) == DRIVE_CDROM)
-            {
-                HANDLE h = CreateSCSIDeviceHandle (driveLetter);
-
-                if (h != INVALID_HANDLE_VALUE)
-                {
-                    BYTE buffer[100], passThroughStruct[1024];
-                    zeromem (buffer, sizeof (buffer));
-                    zeromem (passThroughStruct, sizeof (passThroughStruct));
-
-                    PSCSI_PASS_THROUGH_DIRECT_WITH_BUFFER p = (PSCSI_PASS_THROUGH_DIRECT_WITH_BUFFER)passThroughStruct;
-
-                    p->spt.Length             = sizeof (SCSI_PASS_THROUGH);
-                    p->spt.CdbLength          = 6;
-                    p->spt.SenseInfoLength    = 24;
-                    p->spt.DataIn             = SCSI_IOCTL_DATA_IN;
-                    p->spt.DataTransferLength = 100;
-                    p->spt.TimeOutValue       = 2;
-                    p->spt.DataBuffer         = buffer;
-                    p->spt.SenseInfoOffset    = offsetof (SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER, ucSenseBuf);
-                    p->spt.Cdb[0]             = 0x12;
-                    p->spt.Cdb[4]             = 100;
-
-                    DWORD bytesReturned = 0;
-
-                    if (DeviceIoControl (h, IOCTL_SCSI_PASS_THROUGH_DIRECT,
-                                         p, sizeof (SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER),
-                                         p, sizeof (SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER),
-                                         &bytesReturned, 0) != 0)
-                    {
-                        zeromem (&list[count], sizeof (CDDeviceInfo));
-
-                        list[count].scsiDriveLetter = driveLetter;
-
-                        memcpy (list[count].vendor,     &buffer[8], 8);
-                        memcpy (list[count].productId,  &buffer[16], 16);
-                        memcpy (list[count].rev,        &buffer[32], 4);
-                        memcpy (list[count].vendorSpec, &buffer[36], 20);
-
-                        zeromem (passThroughStruct, sizeof (passThroughStruct));
-                        PSCSI_ADDRESS scsiAddr = (PSCSI_ADDRESS)passThroughStruct;
-
-                        scsiAddr->Length = sizeof (SCSI_ADDRESS);
-
-                        if (DeviceIoControl (h, IOCTL_SCSI_GET_ADDRESS,
-                                             0, 0, scsiAddr, sizeof (SCSI_ADDRESS),
-                                             &bytesReturned, 0) != 0)
-                        {
-                            list[count].ha = scsiAddr->PortNumber;
-                            list[count].tgt = scsiAddr->TargetId;
-                            list[count].lun = scsiAddr->Lun;
-                            ++count;
-                        }
-                    }
-
-                    CloseHandle (h);
-                }
-            }
-        }
-    }
-    else
-    {
-        const DWORD d = fGetASPI32SupportInfo();
-        BYTE status = HIBYTE (LOWORD (d));
-
-        if (status != SS_COMP || status == SS_NO_ADAPTERS)
-            return 0;
-
-        const int numAdapters = LOBYTE (LOWORD (d));
-
-        for (BYTE ha = 0; ha < numAdapters; ++ha)
-        {
-            SRB_HAInquiry s;
-            zerostruct (s);
-
-            s.SRB_Cmd = SC_HA_INQUIRY;
-            s.SRB_HaID = ha;
-            fSendASPI32Command ((LPSRB)&s);
-
-            if (s.SRB_Status == SS_COMP)
-            {
-                maxItems = (int)s.HA_Unique[3];
-
-                if (maxItems == 0)
-                    maxItems = 8;
-
-                for (BYTE tgt = 0; tgt < maxItems; ++tgt)
-                {
-                    for (BYTE lun = 0; lun < 8; ++lun)
-                    {
-                        SRB_GDEVBlock sb;
-                        zerostruct (sb);
-
-                        sb.SRB_Cmd = SC_GET_DEV_TYPE;
-                        sb.SRB_HaID = ha;
-                        sb.SRB_Target = tgt;
-                        sb.SRB_Lun = lun;
-                        fSendASPI32Command ((LPSRB) &sb);
-
-                        if (sb.SRB_Status == SS_COMP
-                             && sb.SRB_DeviceType == DTYPE_CROM)
-                        {
-                            zeromem (&list[count], sizeof (CDDeviceInfo));
-
-                            list[count].ha = ha;
-                            list[count].tgt = tgt;
-                            list[count].lun = lun;
-
-                            GetAspiDeviceInfo (&(list[count]), ha, tgt, lun);
-
-                            ++count;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    return count;
-}
-
-
-//==============================================================================
-static int ripperUsers = 0;
-static bool initialisedOk = false;
-
-class DeinitialiseTimer  : private Timer,
-                           private DeletedAtShutdown
-{
-    DeinitialiseTimer (const DeinitialiseTimer&);
-    DeinitialiseTimer& operator= (const DeinitialiseTimer&);
-
-public:
-    DeinitialiseTimer()
-    {
-        startTimer (4000);
-    }
-
-    ~DeinitialiseTimer()
-    {
-        if (--ripperUsers == 0)
-            DeinitialiseCDRipper();
-    }
-
-    void timerCallback()
-    {
-        delete this;
-    }
-
-    juce_UseDebuggingNewOperator
-};
-
-static void incUserCount()
-{
-    if (ripperUsers++ == 0)
-        initialisedOk = InitialiseCDRipper();
-}
-
-static void decUserCount()
-{
-    new DeinitialiseTimer();
-}
-
-//==============================================================================
 struct CDDeviceWrapper
 {
-    ScopedPointer<CDDeviceHandle> cdH;
-    ScopedPointer<CDReadBuffer> overlapBuffer;
+    CDDeviceWrapper (const CDDeviceDescription& device, HANDLE scsiHandle)
+        : deviceHandle (device, scsiHandle), overlapBuffer (3), jitter (false)
+    {
+        // xxx jitter never seemed to actually be enabled (??)
+    }
+
+    CDDeviceHandle deviceHandle;
+    CDReadBuffer overlapBuffer;
     bool jitter;
 };
 
 //==============================================================================
-static int getAddressOf (const TOCTRACK* const t)
+int getAddressOfTrack (const TOCTRACK& t) throw()
 {
-    return (((DWORD)t->addr[0]) << 24) + (((DWORD)t->addr[1]) << 16) +
-           (((DWORD)t->addr[2]) << 8) + ((DWORD)t->addr[3]);
+    return (((DWORD) t.addr[0]) << 24) + (((DWORD) t.addr[1]) << 16)
+            + (((DWORD) t.addr[2]) << 8) + ((DWORD) t.addr[3]);
 }
 
-static const int samplesPerFrame = 44100 / 75;
-static const int bytesPerFrame = samplesPerFrame * 4;
-
-static CDDeviceHandle* openHandle (const CDDeviceInfo* const device)
-{
-    SRB_GDEVBlock s;
-    zerostruct (s);
-
-    s.SRB_Cmd = SC_GET_DEV_TYPE;
-    s.SRB_HaID = device->ha;
-    s.SRB_Target = device->tgt;
-    s.SRB_Lun = device->lun;
-
-    if (usingScsi)
-    {
-        HANDLE h = CreateSCSIDeviceHandle (device->scsiDriveLetter);
-
-        if (h != INVALID_HANDLE_VALUE)
-        {
-            CDDeviceHandle* cdh = new CDDeviceHandle (device);
-            cdh->scsiHandle = h;
-            return cdh;
-        }
-    }
-    else
-    {
-        if (fSendASPI32Command ((LPSRB)&s) == SS_COMP
-             && s.SRB_DeviceType == DTYPE_CROM)
-        {
-            return new CDDeviceHandle (device);
-        }
-    }
-
-    return 0;
-}
+const int samplesPerFrame = 44100 / 75;
+const int bytesPerFrame = samplesPerFrame * 4;
+const int framesPerIndexRead = 4;
 
 }
 
@@ -1639,28 +977,18 @@ const StringArray AudioCDReader::getAvailableCDNames()
 {
     using namespace CDReaderHelpers;
     StringArray results;
-    incUserCount();
 
-    if (initialisedOk)
+    Array<CDDeviceDescription> list;
+    findCDDevices (list);
+
+    for (int i = 0; i < list.size(); ++i)
     {
-        CDDeviceInfo list[8];
-        const int num = FindCDDevices (list, 8);
+        String s;
+        if (list[i].scsiDriveLetter > 0)
+            s << String::charToString (list[i].scsiDriveLetter).toUpperCase() << ": ";
 
-        decUserCount();
-
-        for (int i = 0; i < num; ++i)
-        {
-            String s;
-
-            if (list[i].scsiDriveLetter > 0)
-                s << String::charToString (list[i].scsiDriveLetter).toUpperCase() << ": ";
-
-            s << String (list[i].vendor).trim()
-              << ' ' << String (list[i].productId).trim()
-              << ' ' << String (list[i].rev).trim();
-
-            results.add (s);
-        }
+        s << list[i].description;
+        results.add (s);
     }
 
     return results;
@@ -1669,29 +997,18 @@ const StringArray AudioCDReader::getAvailableCDNames()
 AudioCDReader* AudioCDReader::createReaderForCD (const int deviceIndex)
 {
     using namespace CDReaderHelpers;
-    incUserCount();
 
-    if (initialisedOk)
+    Array<CDDeviceDescription> list;
+    findCDDevices (list);
+
+    if (isPositiveAndBelow (deviceIndex, list.size()))
     {
-        CDDeviceInfo list[8];
-        const int num = FindCDDevices (list, 8);
+        HANDLE h = createSCSIDeviceHandle (list [deviceIndex].scsiDriveLetter);
 
-        if (((unsigned int) deviceIndex) < (unsigned int) num)
-        {
-            CDDeviceHandle* const handle = openHandle (&(list[deviceIndex]));
-
-            if (handle != 0)
-            {
-                CDDeviceWrapper* const d = new CDDeviceWrapper();
-                d->cdH = handle;
-                d->overlapBuffer = new CDReadBuffer(3);
-
-                return new AudioCDReader (d);
-            }
-        }
+        if (h != INVALID_HANDLE_VALUE)
+            return new AudioCDReader (new CDDeviceWrapper (list [deviceIndex], h));
     }
 
-    decUserCount();
     return 0;
 }
 
@@ -1719,17 +1036,15 @@ AudioCDReader::AudioCDReader (void* handle_)
 AudioCDReader::~AudioCDReader()
 {
     using namespace CDReaderHelpers;
-    CDDeviceWrapper* const device = (CDDeviceWrapper*) handle;
+    CDDeviceWrapper* const device = static_cast <CDDeviceWrapper*> (handle);
     delete device;
-
-    decUserCount();
 }
 
 bool AudioCDReader::readSamples (int** destSamples, int numDestChannels, int startOffsetInDestBuffer,
                                  int64 startSampleInFile, int numSamples)
 {
     using namespace CDReaderHelpers;
-    CDDeviceWrapper* const device = (CDDeviceWrapper*) handle;
+    CDDeviceWrapper* const device = static_cast <CDDeviceWrapper*> (handle);
 
     bool ok = true;
 
@@ -1767,9 +1082,9 @@ bool AudioCDReader::readSamples (int** destSamples, int numDestChannels, int sta
 
             if (firstFrameInBuffer + framesInBuffer != frameNeeded)
             {
-                device->overlapBuffer->dataLength = 0;
-                device->overlapBuffer->startFrame = 0;
-                device->overlapBuffer->numFrames = 0;
+                device->overlapBuffer.dataLength = 0;
+                device->overlapBuffer.startFrame = 0;
+                device->overlapBuffer.numFrames = 0;
                 device->jitter = false;
             }
 
@@ -1785,18 +1100,15 @@ bool AudioCDReader::readSamples (int** destSamples, int numDestChannels, int sta
                 readBuffer.startFrame = frameNeeded;
                 readBuffer.numFrames = framesInBuffer;
 
-                if (device->cdH->readAudio (&readBuffer, (device->jitter) ? device->overlapBuffer : 0))
+                if (device->deviceHandle.readAudio (readBuffer, device->jitter ? &device->overlapBuffer : 0))
                     break;
                 else
-                    device->overlapBuffer->dataLength = 0;
+                    device->overlapBuffer.dataLength = 0;
             }
 
             if (i >= 0)
             {
-                memcpy ((char*) buffer.getData(),
-                        readBuffer.buffer + readBuffer.dataStartOffset,
-                        readBuffer.dataLength);
-
+                buffer.copyFrom (readBuffer.buffer + readBuffer.dataStartOffset, 0, readBuffer.dataLength);
                 samplesInBuffer = readBuffer.dataLength >> 2;
                 lastIndex = readBuffer.index;
             }
@@ -1830,7 +1142,7 @@ bool AudioCDReader::isCDStillPresent() const
     TOC toc;
     zerostruct (toc);
 
-    return ((CDDeviceWrapper*) handle)->cdH->readTOC (&toc);
+    return static_cast <CDDeviceWrapper*> (handle)->deviceHandle.readTOC (&toc);
 }
 
 void AudioCDReader::refreshTrackLengths()
@@ -1842,13 +1154,13 @@ void AudioCDReader::refreshTrackLengths()
     TOC toc;
     zerostruct (toc);
 
-    if (((CDDeviceWrapper*)handle)->cdH->readTOC (&toc))
+    if (static_cast <CDDeviceWrapper*> (handle)->deviceHandle.readTOC (&toc))
     {
         int numTracks = 1 + toc.lastTrack - toc.firstTrack;
 
         for (int i = 0; i <= numTracks; ++i)
         {
-            trackStartSamples.add (samplesPerFrame * getAddressOf (&toc.tracks [i]));
+            trackStartSamples.add (samplesPerFrame * getAddressOfTrack (toc.tracks [i]));
             audioTracks [i] = ((toc.tracks[i].ADR & 4) == 0);
         }
     }
@@ -1871,18 +1183,16 @@ int AudioCDReader::getLastIndex() const
     return lastIndex;
 }
 
-const int framesPerIndexRead = 4;
-
 int AudioCDReader::getIndexAt (int samplePos)
 {
     using namespace CDReaderHelpers;
-    CDDeviceWrapper* const device = (CDDeviceWrapper*) handle;
+    CDDeviceWrapper* const device = static_cast <CDDeviceWrapper*> (handle);
 
     const int frameNeeded = samplePos / samplesPerFrame;
 
-    device->overlapBuffer->dataLength = 0;
-    device->overlapBuffer->startFrame = 0;
-    device->overlapBuffer->numFrames = 0;
+    device->overlapBuffer.dataLength = 0;
+    device->overlapBuffer.startFrame = 0;
+    device->overlapBuffer.numFrames = 0;
     device->jitter = false;
 
     firstFrameInBuffer = 0;
@@ -1897,7 +1207,7 @@ int AudioCDReader::getIndexAt (int samplePos)
         readBuffer.startFrame = frameNeeded;
         readBuffer.numFrames = framesPerIndexRead;
 
-        if (device->cdH->readAudio (&readBuffer, (false) ? device->overlapBuffer : 0))
+        if (device->deviceHandle.readAudio (readBuffer))
             break;
     }
 
@@ -1957,7 +1267,7 @@ const Array <int> AudioCDReader::findIndexesInTrack (const int trackNumber)
 
     if (needToScan)
     {
-        CDDeviceWrapper* const device = (CDDeviceWrapper*) handle;
+        CDDeviceWrapper* const device = static_cast <CDDeviceWrapper*> (handle);
 
         int pos = trackStart;
         int last = -1;
@@ -1966,9 +1276,9 @@ const Array <int> AudioCDReader::findIndexesInTrack (const int trackNumber)
         {
             const int frameNeeded = pos / samplesPerFrame;
 
-            device->overlapBuffer->dataLength = 0;
-            device->overlapBuffer->startFrame = 0;
-            device->overlapBuffer->numFrames = 0;
+            device->overlapBuffer.dataLength = 0;
+            device->overlapBuffer.startFrame = 0;
+            device->overlapBuffer.numFrames = 0;
             device->jitter = false;
 
             firstFrameInBuffer = 0;
@@ -1982,7 +1292,7 @@ const Array <int> AudioCDReader::findIndexesInTrack (const int trackNumber)
                 readBuffer.startFrame = frameNeeded;
                 readBuffer.numFrames = framesPerIndexRead;
 
-                if (device->cdH->readAudio (&readBuffer, (false) ? device->overlapBuffer : 0))
+                if (device->deviceHandle.readAudio (readBuffer))
                     break;
             }
 
@@ -2007,7 +1317,7 @@ const Array <int> AudioCDReader::findIndexesInTrack (const int trackNumber)
 void AudioCDReader::ejectDisk()
 {
     using namespace CDReaderHelpers;
-    ((CDDeviceWrapper*) handle)->cdH->openDrawer (true);
+    static_cast <CDDeviceWrapper*> (handle)->deviceHandle.openDrawer (true);
 }
 
 #endif
@@ -2015,61 +1325,64 @@ void AudioCDReader::ejectDisk()
 #if JUCE_USE_CDBURNER
 
 //==============================================================================
-static IDiscRecorder* enumCDBurners (StringArray* list, int indexToOpen, IDiscMaster** master)
+namespace CDBurnerHelpers
 {
-    CoInitialize (0);
-
-    IDiscMaster* dm;
-    IDiscRecorder* result = 0;
-
-    if (SUCCEEDED (CoCreateInstance (CLSID_MSDiscMasterObj, 0,
-                                     CLSCTX_INPROC_SERVER | CLSCTX_LOCAL_SERVER,
-                                     IID_IDiscMaster,
-                                     (void**) &dm)))
+    IDiscRecorder* enumCDBurners (StringArray* list, int indexToOpen, IDiscMaster** master)
     {
-        if (SUCCEEDED (dm->Open()))
+        CoInitialize (0);
+
+        IDiscMaster* dm;
+        IDiscRecorder* result = 0;
+
+        if (SUCCEEDED (CoCreateInstance (CLSID_MSDiscMasterObj, 0,
+                                         CLSCTX_INPROC_SERVER | CLSCTX_LOCAL_SERVER,
+                                         IID_IDiscMaster,
+                                         (void**) &dm)))
         {
-            IEnumDiscRecorders* drEnum = 0;
-
-            if (SUCCEEDED (dm->EnumDiscRecorders (&drEnum)))
+            if (SUCCEEDED (dm->Open()))
             {
-                IDiscRecorder* dr = 0;
-                DWORD dummy;
-                int index = 0;
+                IEnumDiscRecorders* drEnum = 0;
 
-                while (drEnum->Next (1, &dr, &dummy) == S_OK)
+                if (SUCCEEDED (dm->EnumDiscRecorders (&drEnum)))
                 {
-                    if (indexToOpen == index)
-                    {
-                        result = dr;
-                        break;
-                    }
-                    else if (list != 0)
-                    {
-                        BSTR path;
+                    IDiscRecorder* dr = 0;
+                    DWORD dummy;
+                    int index = 0;
 
-                        if (SUCCEEDED (dr->GetPath (&path)))
-                            list->add ((const WCHAR*) path);
+                    while (drEnum->Next (1, &dr, &dummy) == S_OK)
+                    {
+                        if (indexToOpen == index)
+                        {
+                            result = dr;
+                            break;
+                        }
+                        else if (list != 0)
+                        {
+                            BSTR path;
+
+                            if (SUCCEEDED (dr->GetPath (&path)))
+                                list->add ((const WCHAR*) path);
+                        }
+
+                        ++index;
+                        dr->Release();
                     }
 
-                    ++index;
-                    dr->Release();
+                    drEnum->Release();
                 }
 
-                drEnum->Release();
+                if (master == 0)
+                    dm->Close();
             }
 
-            if (master == 0)
-                dm->Close();
+            if (master != 0)
+                *master = dm;
+            else
+                dm->Release();
         }
 
-        if (master != 0)
-            *master = dm;
-        else
-            dm->Release();
+        return result;
     }
-
-    return result;
 }
 
 //==============================================================================
@@ -2137,8 +1450,7 @@ public:
     private:
         Pimpl& pimpl;
 
-        ScopedDiscOpener (const ScopedDiscOpener&);
-        ScopedDiscOpener& operator= (const ScopedDiscOpener&);
+        JUCE_DECLARE_NON_COPYABLE (ScopedDiscOpener);
     };
 
     DiskState getDiskState()
@@ -2163,7 +1475,7 @@ public:
     int getIntProperty (const LPOLESTR name, const int defaultReturn) const
     {
         ComSmartPtr<IPropertyStorage> prop;
-        if (FAILED (discRecorder->GetRecorderProperties (&prop)))
+        if (FAILED (discRecorder->GetRecorderProperties (prop.resetAndGetPointerAddress())))
             return defaultReturn;
 
         PROPSPEC iPropSpec;
@@ -2178,7 +1490,7 @@ public:
     bool setIntProperty (const LPOLESTR name, const int value) const
     {
         ComSmartPtr<IPropertyStorage> prop;
-        if (FAILED (discRecorder->GetRecorderProperties (&prop)))
+        if (FAILED (discRecorder->GetRecorderProperties (prop.resetAndGetPointerAddress())))
             return false;
 
         PROPSPEC iPropSpec;
@@ -2201,7 +1513,7 @@ public:
         if (state != lastState)
         {
             lastState = state;
-            owner.sendChangeMessage (&owner);
+            owner.sendChangeMessage();
         }
     }
 
@@ -2219,7 +1531,7 @@ public:
 AudioCDBurner::AudioCDBurner (const int deviceIndex)
 {
     IDiscMaster* discMaster = 0;
-    IDiscRecorder* discRecorder = enumCDBurners (0, deviceIndex, &discMaster);
+    IDiscRecorder* discRecorder = CDBurnerHelpers::enumCDBurners (0, deviceIndex, &discMaster);
 
     if (discRecorder != 0)
         pimpl = new Pimpl (*this, discMaster, discRecorder);
@@ -2234,7 +1546,7 @@ AudioCDBurner::~AudioCDBurner()
 const StringArray AudioCDBurner::findAvailableDevices()
 {
     StringArray devs;
-    enumCDBurners (&devs, -1, 0);
+    CDBurnerHelpers::enumCDBurners (&devs, -1, 0);
     return devs;
 }
 
@@ -2378,11 +1690,16 @@ bool AudioCDBurner::addAudioTrack (AudioSource* audioSource, int numSamples)
 
         zeromem (buffer, bytesPerBlock);
 
-        AudioDataConverters::convertFloatToInt16LE (sourceBuffer.getSampleData (0, 0),
-                                                    buffer, samplesPerBlock, 4);
+        typedef AudioData::Pointer <AudioData::Int16, AudioData::LittleEndian,
+                                    AudioData::Interleaved, AudioData::NonConst> CDSampleFormat;
 
-        AudioDataConverters::convertFloatToInt16LE (sourceBuffer.getSampleData (1, 0),
-                                                    buffer + 2, samplesPerBlock, 4);
+        typedef AudioData::Pointer <AudioData::Float32, AudioData::NativeEndian,
+                                    AudioData::NonInterleaved, AudioData::Const> SourceSampleFormat;
+
+        CDSampleFormat left (buffer, 2);
+        left.convertSamples (SourceSampleFormat (sourceBuffer.getSampleData (0)), samplesPerBlock);
+        CDSampleFormat right (buffer + 2, 2);
+        right.convertSamples (SourceSampleFormat (sourceBuffer.getSampleData (1)), samplesPerBlock);
 
         hr = pimpl->redbook->AddAudioTrackBlocks (buffer, bytesPerBlock);
 

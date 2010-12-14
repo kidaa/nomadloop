@@ -23,52 +23,55 @@
   ==============================================================================
 */
 
-#ifndef __JUCE_REDUCEOPACITYEFFECT_JUCEHEADER__
-#define __JUCE_REDUCEOPACITYEFFECT_JUCEHEADER__
-
-#include "juce_ImageEffectFilter.h"
+#ifndef __JUCER_JUCEUPDATER_H_81537815__
+#define __JUCER_JUCEUPDATER_H_81537815__
 
 
 //==============================================================================
-/**
-    An effect filter that reduces the image's opacity.
-
-    This can be used to make a component (and its child components) more
-    transparent.
-
-    @see Component::setComponentEffect
-*/
-class JUCE_API  ReduceOpacityEffect  : public ImageEffectFilter
+class JuceUpdater  : public Component,
+                     public ButtonListener,
+                     public FilenameComponentListener,
+                     public ListBoxModel
 {
 public:
-    //==============================================================================
-    /** Creates the effect object.
+    JuceUpdater();
+    ~JuceUpdater();
 
-        The opacity of the component to which the effect is applied will be
-        scaled by the given factor (in the range 0 to 1.0f).
-    */
-    ReduceOpacityEffect (float opacity = 1.0f);
-
-    /** Destructor. */
-    ~ReduceOpacityEffect();
-
-    /** Sets how much to scale the component's opacity.
-
-        @param newOpacity   should be between 0 and 1.0f
-    */
-    void setOpacity (float newOpacity);
-
+    static void show (Component* mainWindow);
 
     //==============================================================================
-    /** @internal */
-    void applyEffect (Image& sourceImage, Graphics& destContext);
+    void resized();
+    void paint (Graphics& g);
+    void buttonClicked (Button*);
+    void filenameComponentChanged (FilenameComponent* fileComponentThatHasChanged);
 
-    //==============================================================================
-    juce_UseDebuggingNewOperator
+    int getNumRows();
+    void paintListBoxItem (int rowNumber, Graphics& g, int width, int height, bool rowIsSelected);
+    Component* refreshComponentForRow (int rowNumber, bool isRowSelected, Component* existingComponentToUpdate);
 
 private:
-    float opacity;
+    Label label, currentVersionLabel;
+    FilenameComponent filenameComp;
+    TextButton checkNowButton;
+    ListBox availableVersionsList;
+
+    XmlElement* downloadVersionList();
+    const String getCurrentVersion();
+    bool isAlreadyUpToDate();
+
+    struct VersionInfo
+    {
+        URL url;
+        String desc;
+        String version;
+        String date;
+    };
+
+    OwnedArray<VersionInfo> availableVersions;
+
+    void updateVersions (const XmlElement& xml);
+    void applyVersion (VersionInfo* version);
 };
 
 
-#endif   // __JUCE_REDUCEOPACITYEFFECT_JUCEHEADER__
+#endif  // __JUCER_JUCEUPDATER_H_81537815__

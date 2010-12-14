@@ -56,7 +56,7 @@ public:
 
     //==============================================================================
     bool shouldBeAddedToBinaryResourcesByDefault (const File& file);
-    const File resolveFilename (const String& filename) const;
+    const File resolveFilename (String filename) const;
     const String getRelativePathForFile (const File& file) const;
 
     //==============================================================================
@@ -101,6 +101,9 @@ public:
 
     //==============================================================================
     Value getProjectValue (const Identifier& name) const       { return projectRoot.getPropertyAsValue (name, getUndoManagerFor (projectRoot)); }
+
+    Value getProjectPreprocessorDefs() const            { return getProjectValue (Ids::defines); }
+    const StringPairArray getPreprocessorDefs() const;
 
     Value getBigIconImageItemID() const                 { return getProjectValue ("bigIcon"); }
     Value getSmallIconImageItemID() const               { return getProjectValue ("smallIcon"); }
@@ -170,6 +173,7 @@ public:
         bool isFile() const;
         bool isGroup() const;
         bool isMainGroup() const;
+        bool isImageFile() const;
 
         const String getID() const;
         Item findItemWithID (const String& targetId) const; // (recursive search)
@@ -200,7 +204,7 @@ public:
 
         Item getParent() const;
 
-        const Image getIcon() const;
+        const Drawable* getIcon() const;
 
     private:
         //==============================================================================
@@ -238,8 +242,8 @@ public:
         Value getTargetBinaryRelativePath() const           { return getValue (Ids::binaryPath); }
         Value getOptimisationLevel() const                  { return getValue (Ids::optimisation); }
         const String getGCCOptimisationFlag() const;
-        Value getPreprocessorDefs() const                   { return getValue (Ids::defines); }
-        const StringArray parsePreprocessorDefs() const;
+        Value getBuildConfigPreprocessorDefs() const        { return getValue (Ids::defines); }
+        const StringPairArray getAllPreprocessorDefs() const; // includes inherited definitions
         Value getHeaderSearchPath() const                   { return getValue (Ids::headerPath); }
         const StringArray getHeaderSearchPaths() const;
 
@@ -308,8 +312,10 @@ public:
     static void resaveJucerFile (const File& file);
 
 private:
+    friend class Item;
     ValueTree projectRoot;
     static File lastDocumentOpened;
+    DrawableImage mainProjectIcon;
 
     const File getLocalJuceFolder();
     void updateProjectSettings();
@@ -318,8 +324,7 @@ private:
     void createDefaultConfigs();
     ValueTree getJuceConfigNode();
 
-    Project (const Project&);
-    const Project& operator= (const Project&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Project);
 };
 
 

@@ -112,6 +112,12 @@ void LowLevelGraphicsPostScriptRenderer::setOrigin (int x, int y)
     }
 }
 
+void LowLevelGraphicsPostScriptRenderer::addTransform (const AffineTransform& /*transform*/)
+{
+    //xxx
+    jassertfalse;
+}
+
 bool LowLevelGraphicsPostScriptRenderer::clipToRectangle (const Rectangle<int>& r)
 {
     needToClip = true;
@@ -184,6 +190,14 @@ void LowLevelGraphicsPostScriptRenderer::restoreState()
 
     if (stateStack.size() > 0)
         stateStack.removeLast();
+}
+
+void LowLevelGraphicsPostScriptRenderer::beginTransparencyLayer (float)
+{
+}
+
+void LowLevelGraphicsPostScriptRenderer::endTransparencyLayer()
+{
 }
 
 //==============================================================================

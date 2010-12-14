@@ -30,6 +30,7 @@ BEGIN_JUCE_NAMESPACE
 #include "juce_CallOutBox.h"
 #include "juce_ComponentPeer.h"
 #include "../lookandfeel/juce_LookAndFeel.h"
+#include "../../../application/juce_Application.h"
 
 
 //==============================================================================
@@ -42,14 +43,18 @@ CallOutBox::CallOutBox (Component& contentComponent,
 
     if (parentComponent != 0)
     {
-        updatePosition (parentComponent->getLocalBounds(),
-                        componentToPointTo.getLocalBounds()
-                            + componentToPointTo.relativePositionToOtherComponent (parentComponent, Point<int>()));
+        parentComponent->addChildComponent (this);
 
-        parentComponent->addAndMakeVisible (this);
+        updatePosition (parentComponent->getLocalArea (&componentToPointTo, componentToPointTo.getLocalBounds()),
+                        parentComponent->getLocalBounds());
+
+        setVisible (true);
     }
     else
     {
+        if (! JUCEApplication::isStandaloneApp())
+            setAlwaysOnTop (true); // for a plugin, make it always-on-top because the host windows are often top-level
+
         updatePosition (componentToPointTo.getScreenBounds(),
                         componentToPointTo.getParentMonitorArea());
 

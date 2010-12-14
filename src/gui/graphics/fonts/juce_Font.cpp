@@ -38,14 +38,13 @@ BEGIN_JUCE_NAMESPACE
 //==============================================================================
 namespace FontValues
 {
-    static float limitFontHeight (const float height) throw()
+    float limitFontHeight (const float height) throw()
     {
         return jlimit (0.1f, 10000.0f, height);
     }
 
-    static const float defaultFontHeight = 14.0f;
-
-    static String fallbackFont;
+    const float defaultFontHeight = 14.0f;
+    String fallbackFont;
 }
 
 //==============================================================================
@@ -75,13 +74,13 @@ Font::SharedFontInternal::SharedFontInternal (const SharedFontInternal& other) t
 
 
 //==============================================================================
-Font::Font() throw()
+Font::Font()
     : font (new SharedFontInternal (getDefaultSansSerifFontName(), FontValues::defaultFontHeight,
                                     1.0f, 0, 0, Font::plain, 0))
 {
 }
 
-Font::Font (const float fontHeight, const int styleFlags_) throw()
+Font::Font (const float fontHeight, const int styleFlags_)
     : font (new SharedFontInternal (getDefaultSansSerifFontName(), FontValues::limitFontHeight (fontHeight),
                                     1.0f, 0, 0, styleFlags_, 0))
 {
@@ -89,7 +88,7 @@ Font::Font (const float fontHeight, const int styleFlags_) throw()
 
 Font::Font (const String& typefaceName_,
             const float fontHeight,
-            const int styleFlags_) throw()
+            const int styleFlags_)
     : font (new SharedFontInternal (typefaceName_, FontValues::limitFontHeight (fontHeight),
                                     1.0f, 0, 0, styleFlags_, 0))
 {
@@ -110,7 +109,7 @@ Font::~Font() throw()
 {
 }
 
-Font::Font (const Typeface::Ptr& typeface) throw()
+Font::Font (const Typeface::Ptr& typeface)
     : font (new SharedFontInternal (typeface->getName(), FontValues::defaultFontHeight,
                                     1.0f, 0, 0, Font::plain, typeface))
 {
@@ -131,32 +130,32 @@ bool Font::operator!= (const Font& other) const throw()
     return ! operator== (other);
 }
 
-void Font::dupeInternalIfShared() throw()
+void Font::dupeInternalIfShared()
 {
     if (font->getReferenceCount() > 1)
         font = new SharedFontInternal (*font);
 }
 
 //==============================================================================
-const String Font::getDefaultSansSerifFontName() throw()
+const String Font::getDefaultSansSerifFontName()
 {
     static const String name ("<Sans-Serif>");
     return name;
 }
 
-const String Font::getDefaultSerifFontName() throw()
+const String Font::getDefaultSerifFontName()
 {
     static const String name ("<Serif>");
     return name;
 }
 
-const String Font::getDefaultMonospacedFontName() throw()
+const String Font::getDefaultMonospacedFontName()
 {
     static const String name ("<Monospaced>");
     return name;
 }
 
-void Font::setTypefaceName (const String& faceName) throw()
+void Font::setTypefaceName (const String& faceName)
 {
     if (faceName != font->typefaceName)
     {
@@ -168,18 +167,18 @@ void Font::setTypefaceName (const String& faceName) throw()
 }
 
 //==============================================================================
-const String Font::getFallbackFontName() throw()
+const String Font::getFallbackFontName()
 {
     return FontValues::fallbackFont;
 }
 
-void Font::setFallbackFontName (const String& name) throw()
+void Font::setFallbackFontName (const String& name)
 {
     FontValues::fallbackFont = name;
 }
 
 //==============================================================================
-void Font::setHeight (float newHeight) throw()
+void Font::setHeight (float newHeight)
 {
     newHeight = FontValues::limitFontHeight (newHeight);
 
@@ -190,7 +189,7 @@ void Font::setHeight (float newHeight) throw()
     }
 }
 
-void Font::setHeightWithoutChangingWidth (float newHeight) throw()
+void Font::setHeightWithoutChangingWidth (float newHeight)
 {
     newHeight = FontValues::limitFontHeight (newHeight);
 
@@ -202,7 +201,7 @@ void Font::setHeightWithoutChangingWidth (float newHeight) throw()
     }
 }
 
-void Font::setStyleFlags (const int newFlags) throw()
+void Font::setStyleFlags (const int newFlags)
 {
     if (font->styleFlags != newFlags)
     {
@@ -216,7 +215,7 @@ void Font::setStyleFlags (const int newFlags) throw()
 void Font::setSizeAndStyle (float newHeight,
                             const int newStyleFlags,
                             const float newHorizontalScale,
-                            const float newKerningAmount) throw()
+                            const float newKerningAmount)
 {
     newHeight = FontValues::limitFontHeight (newHeight);
 
@@ -233,22 +232,29 @@ void Font::setSizeAndStyle (float newHeight,
     setStyleFlags (newStyleFlags);
 }
 
-void Font::setHorizontalScale (const float scaleFactor) throw()
+void Font::setHorizontalScale (const float scaleFactor)
 {
     dupeInternalIfShared();
     font->horizontalScale = scaleFactor;
 }
 
-void Font::setExtraKerningFactor (const float extraKerning) throw()
+void Font::setExtraKerningFactor (const float extraKerning)
 {
     dupeInternalIfShared();
     font->kerning = extraKerning;
 }
 
-void Font::setBold (const bool shouldBeBold) throw()
+void Font::setBold (const bool shouldBeBold)
 {
     setStyleFlags (shouldBeBold ? (font->styleFlags | bold)
                                 : (font->styleFlags & ~bold));
+}
+
+const Font Font::boldened() const
+{
+    Font f (*this);
+    f.setBold (true);
+    return f;
 }
 
 bool Font::isBold() const throw()
@@ -256,10 +262,17 @@ bool Font::isBold() const throw()
     return (font->styleFlags & bold) != 0;
 }
 
-void Font::setItalic (const bool shouldBeItalic) throw()
+void Font::setItalic (const bool shouldBeItalic)
 {
     setStyleFlags (shouldBeItalic ? (font->styleFlags | italic)
                                   : (font->styleFlags & ~italic));
+}
+
+const Font Font::italicised() const
+{
+    Font f (*this);
+    f.setItalic (true);
+    return f;
 }
 
 bool Font::isItalic() const throw()
@@ -267,7 +280,7 @@ bool Font::isItalic() const throw()
     return (font->styleFlags & italic) != 0;
 }
 
-void Font::setUnderline (const bool shouldBeUnderlined) throw()
+void Font::setUnderline (const bool shouldBeUnderlined)
 {
     setStyleFlags (shouldBeUnderlined ? (font->styleFlags | underlined)
                                       : (font->styleFlags & ~underlined));
@@ -278,7 +291,7 @@ bool Font::isUnderlined() const throw()
     return (font->styleFlags & underlined) != 0;
 }
 
-float Font::getAscent() const throw()
+float Font::getAscent() const
 {
     if (font->ascent == 0)
         font->ascent = getTypeface()->getAscent();
@@ -286,17 +299,17 @@ float Font::getAscent() const throw()
     return font->height * font->ascent;
 }
 
-float Font::getDescent() const throw()
+float Font::getDescent() const
 {
     return font->height - getAscent();
 }
 
-int Font::getStringWidth (const String& text) const throw()
+int Font::getStringWidth (const String& text) const
 {
     return roundToInt (getStringWidthFloat (text));
 }
 
-float Font::getStringWidthFloat (const String& text) const throw()
+float Font::getStringWidthFloat (const String& text) const
 {
     float w = getTypeface()->getStringWidth (text);
 
@@ -306,7 +319,7 @@ float Font::getStringWidthFloat (const String& text) const throw()
     return w * font->height * font->horizontalScale;
 }
 
-void Font::getGlyphPositions (const String& text, Array <int>& glyphs, Array <float>& xOffsets) const throw()
+void Font::getGlyphPositions (const String& text, Array <int>& glyphs, Array <float>& xOffsets) const
 {
     getTypeface()->getGlyphPositions (text, glyphs, xOffsets);
 
@@ -330,7 +343,7 @@ void Font::getGlyphPositions (const String& text, Array <int>& glyphs, Array <fl
     }
 }
 
-void Font::findFonts (Array<Font>& destArray) throw()
+void Font::findFonts (Array<Font>& destArray)
 {
     const StringArray names (findAllTypefaceNames());
 
@@ -390,7 +403,7 @@ const Font Font::fromString (const String& fontDescription)
 class TypefaceCache  : public DeletedAtShutdown
 {
 public:
-    TypefaceCache (int numToCache = 10) throw()
+    TypefaceCache (int numToCache = 10)
         : counter (1)
     {
         while (--numToCache >= 0)
@@ -404,7 +417,7 @@ public:
 
     juce_DeclareSingleton_SingleThreaded_Minimal (TypefaceCache)
 
-    const Typeface::Ptr findTypefaceFor (const Font& font) throw()
+    const Typeface::Ptr findTypefaceFor (const Font& font)
     {
         const int flags = font.getStyleFlags() & (Font::bold | Font::italic);
         const String faceName (font.getTypefaceName());
@@ -446,8 +459,6 @@ public:
         return face->typeFace;
     }
 
-    juce_UseDebuggingNewOperator
-
 private:
     struct CachedFace
     {
@@ -465,14 +476,13 @@ private:
     int counter;
     OwnedArray <CachedFace> faces;
 
-    TypefaceCache (const TypefaceCache&);
-    TypefaceCache& operator= (const TypefaceCache&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (TypefaceCache);
 };
 
 juce_ImplementSingleton_SingleThreaded (TypefaceCache)
 
 
-Typeface* Font::getTypeface() const throw()
+Typeface* Font::getTypeface() const
 {
     if (font->typeface == 0)
         font->typeface = TypefaceCache::getInstance()->findTypefaceFor (*this);

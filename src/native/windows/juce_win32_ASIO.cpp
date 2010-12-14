@@ -30,41 +30,46 @@
 #undef WINDOWS
 
 //==============================================================================
-// #define ASIO_DEBUGGING
+// #define ASIO_DEBUGGING 1
 
-#ifdef ASIO_DEBUGGING
+#undef log
+#if ASIO_DEBUGGING
   #define log(a) { Logger::writeToLog (a); DBG (a) }
 #else
   #define log(a) {}
 #endif
 
+/* The ASIO SDK *should* declare its callback functions as being __cdecl, but different versions seem
+   to be pretty random about whether or not they do this. If you hit an error using these functions
+   it'll be because you're trying to build using __stdcall, in which case you'd need to either get hold of
+   an ASIO SDK which correctly specifies __cdecl, or add the __cdecl keyword to its functions yourself.
+*/
+#define JUCE_ASIOCALLBACK __cdecl
 
 //==============================================================================
-#ifdef ASIO_DEBUGGING
-static void logError (const String& context, long error)
+namespace ASIODebugging
 {
-    String err ("unknown error");
+  #if ASIO_DEBUGGING
+    static void log (const String& context, long error)
+    {
+        String err ("unknown error");
 
-    if (error == ASE_NotPresent)
-        err = "Not Present";
-    else if (error == ASE_HWMalfunction)
-        err = "Hardware Malfunction";
-    else if (error == ASE_InvalidParameter)
-        err = "Invalid Parameter";
-    else if (error == ASE_InvalidMode)
-        err = "Invalid Mode";
-    else if (error == ASE_SPNotAdvancing)
-        err = "Sample position not advancing";
-    else if (error == ASE_NoClock)
-        err = "No Clock";
-    else if (error == ASE_NoMemory)
-        err = "Out of memory";
+        if (error == ASE_NotPresent)            err = "Not Present";
+        else if (error == ASE_HWMalfunction)    err = "Hardware Malfunction";
+        else if (error == ASE_InvalidParameter) err = "Invalid Parameter";
+        else if (error == ASE_InvalidMode)      err = "Invalid Mode";
+        else if (error == ASE_SPNotAdvancing)   err = "Sample position not advancing";
+        else if (error == ASE_NoClock)          err = "No Clock";
+        else if (error == ASE_NoMemory)         err = "Out of memory";
 
-    log ("!!error: " + context + " - " + err);
+        log ("!!error: " + context + " - " + err);
+    }
+
+    #define logError(a, b) ASIODebugging::log ((a), (b))
+  #else
+    #define logError(a, b) {}
+  #endif
 }
-#else
-  #define logError(a, b) {}
-#endif
 
 //==============================================================================
 class ASIOAudioIODevice;
@@ -151,40 +156,15 @@ public:
         }
     }
 
-    const StringArray getOutputChannelNames()
-    {
-        return outputChannelNames;
-    }
+    const StringArray getOutputChannelNames()   { return outputChannelNames; }
+    const StringArray getInputChannelNames()    { return inputChannelNames; }
 
-    const StringArray getInputChannelNames()
-    {
-        return inputChannelNames;
-    }
+    int getNumSampleRates()                     { return sampleRates.size(); }
+    double getSampleRate (int index)            { return sampleRates [index]; }
 
-    int getNumSampleRates()
-    {
-        return sampleRates.size();
-    }
-
-    double getSampleRate (int index)
-    {
-        return sampleRates [index];
-    }
-
-    int getNumBufferSizesAvailable()
-    {
-        return bufferSizes.size();
-    }
-
-    int getBufferSizeSamples (int index)
-    {
-        return bufferSizes [index];
-    }
-
-    int getDefaultBufferSize()
-    {
-        return preferredSize;
-    }
+    int getNumBufferSizesAvailable()            { return bufferSizes.size(); }
+    int getBufferSizeSamples (int index)        { return bufferSizes [index]; }
+    int getDefaultBufferSize()                  { return preferredSize; }
 
     const String open (const BigInteger& inputChannels,
                        const BigInteger& outputChannels,
@@ -638,45 +618,18 @@ public:
         }
     }
 
-    bool isOpen()
-    {
-        return isOpen_ || insideControlPanelModalLoop;
-    }
+    bool isOpen()                       { return isOpen_ || insideControlPanelModalLoop; }
+    bool isPlaying()                    { return isASIOOpen && (currentCallback != 0); }
 
-    int getCurrentBufferSizeSamples()
-    {
-        return currentBlockSizeSamples;
-    }
+    int getCurrentBufferSizeSamples()   { return currentBlockSizeSamples; }
+    double getCurrentSampleRate()       { return currentSampleRate; }
+    int getCurrentBitDepth()            { return currentBitDepth; }
 
-    double getCurrentSampleRate()
-    {
-        return currentSampleRate;
-    }
+    const BigInteger getActiveOutputChannels() const    { return currentChansOut; }
+    const BigInteger getActiveInputChannels() const     { return currentChansIn; }
 
-    const BigInteger getActiveOutputChannels() const
-    {
-        return currentChansOut;
-    }
-
-    const BigInteger getActiveInputChannels() const
-    {
-        return currentChansIn;
-    }
-
-    int getCurrentBitDepth()
-    {
-        return currentBitDepth;
-    }
-
-    int getOutputLatencyInSamples()
-    {
-        return outputLatency + currentBlockSizeSamples / 4;
-    }
-
-    int getInputLatencyInSamples()
-    {
-        return inputLatency + currentBlockSizeSamples / 4;
-    }
+    int getOutputLatencyInSamples()     { return outputLatency + currentBlockSizeSamples / 4; }
+    int getInputLatencyInSamples()      { return inputLatency + currentBlockSizeSamples / 4; }
 
     void start (AudioIODeviceCallback* callback)
     {
@@ -702,20 +655,8 @@ public:
             lastCallback->audioDeviceStopped();
     }
 
-    bool isPlaying()
-    {
-        return isASIOOpen && (currentCallback != 0);
-    }
-
-    const String getLastError()
-    {
-        return error;
-    }
-
-    bool hasControlPanel() const
-    {
-        return true;
-    }
+    const String getLastError()     { return error; }
+    bool hasControlPanel() const    { return true; }
 
     bool showControlPanel()
     {
@@ -794,9 +735,6 @@ public:
         }
     }
 
-    //==============================================================================
-    juce_UseDebuggingNewOperator
-
 private:
     //==============================================================================
     IASIO* volatile asioObject;
@@ -844,7 +782,6 @@ private:
     bool volatile littleEndian, postOutput, needToReset, isReSync;
     bool volatile insideControlPanelModalLoop;
     bool volatile shouldUsePreferredSize;
-
 
     //==============================================================================
     void removeCurrentDriver()
@@ -1199,7 +1136,7 @@ private:
     }
 
     //==============================================================================
-    void callback (const long index)
+    void JUCE_ASIOCALLBACK callback (const long index)
     {
         if (isStarted)
         {
@@ -1247,7 +1184,6 @@ private:
                 for (i = 0; i < numActiveInputChans; ++i)
                 {
                     float* const dst = inBuffers[i];
-
                     jassert (dst != 0);
 
                     const char* const src = (const char*) (infos[i].buffers[bi]);
@@ -1284,16 +1220,12 @@ private:
                     }
                 }
 
-                currentCallback->audioDeviceIOCallback ((const float**) inBuffers,
-                                                        numActiveInputChans,
-                                                        outBuffers,
-                                                        numActiveOutputChans,
-                                                        samps);
+                currentCallback->audioDeviceIOCallback ((const float**) inBuffers, numActiveInputChans,
+                                                        outBuffers, numActiveOutputChans, samps);
 
                 for (i = 0; i < numActiveOutputChans; ++i)
                 {
                     float* const src = outBuffers[i];
-
                     jassert (src != 0);
 
                     char* const dst = (char*) (infos [numActiveInputChans + i].buffers[bi]);
@@ -1345,7 +1277,7 @@ private:
     }
 
     //==============================================================================
-    static ASIOTime* bufferSwitchTimeInfoCallback0 (ASIOTime*, long index, long)
+    static ASIOTime* JUCE_ASIOCALLBACK bufferSwitchTimeInfoCallback0 (ASIOTime*, long index, long)
     {
         if (currentASIODev[0] != 0)
             currentASIODev[0]->callback (index);
@@ -1353,7 +1285,7 @@ private:
         return 0;
     }
 
-    static ASIOTime* bufferSwitchTimeInfoCallback1 (ASIOTime*, long index, long)
+    static ASIOTime* JUCE_ASIOCALLBACK bufferSwitchTimeInfoCallback1 (ASIOTime*, long index, long)
     {
         if (currentASIODev[1] != 0)
             currentASIODev[1]->callback (index);
@@ -1361,7 +1293,7 @@ private:
         return 0;
     }
 
-    static ASIOTime* bufferSwitchTimeInfoCallback2 (ASIOTime*, long index, long)
+    static ASIOTime* JUCE_ASIOCALLBACK bufferSwitchTimeInfoCallback2 (ASIOTime*, long index, long)
     {
         if (currentASIODev[2] != 0)
             currentASIODev[2]->callback (index);
@@ -1369,41 +1301,41 @@ private:
         return 0;
     }
 
-    static void bufferSwitchCallback0 (long index, long)
+    static void JUCE_ASIOCALLBACK bufferSwitchCallback0 (long index, long)
     {
         if (currentASIODev[0] != 0)
             currentASIODev[0]->callback (index);
     }
 
-    static void bufferSwitchCallback1 (long index, long)
+    static void JUCE_ASIOCALLBACK bufferSwitchCallback1 (long index, long)
     {
         if (currentASIODev[1] != 0)
             currentASIODev[1]->callback (index);
     }
 
-    static void bufferSwitchCallback2 (long index, long)
+    static void JUCE_ASIOCALLBACK bufferSwitchCallback2 (long index, long)
     {
         if (currentASIODev[2] != 0)
             currentASIODev[2]->callback (index);
     }
 
-    static long asioMessagesCallback0 (long selector, long value, void*, double*)
+    static long JUCE_ASIOCALLBACK asioMessagesCallback0 (long selector, long value, void*, double*)
     {
         return asioMessagesCallback (selector, value, 0);
     }
 
-    static long asioMessagesCallback1 (long selector, long value, void*, double*)
+    static long JUCE_ASIOCALLBACK asioMessagesCallback1 (long selector, long value, void*, double*)
     {
         return asioMessagesCallback (selector, value, 1);
     }
 
-    static long asioMessagesCallback2 (long selector, long value, void*, double*)
+    static long JUCE_ASIOCALLBACK asioMessagesCallback2 (long selector, long value, void*, double*)
     {
         return asioMessagesCallback (selector, value, 2);
     }
 
     //==============================================================================
-    static long asioMessagesCallback (long selector, long value, const int deviceIndex)
+    static long JUCE_ASIOCALLBACK asioMessagesCallback (long selector, long value, const int deviceIndex)
     {
         switch (selector)
         {
@@ -1445,7 +1377,7 @@ private:
         return 0;
     }
 
-    static void sampleRateChangedCallback (ASIOSampleRate) throw()
+    static void JUCE_ASIOCALLBACK sampleRateChangedCallback (ASIOSampleRate)
     {
     }
 
@@ -1711,6 +1643,8 @@ private:
                 break;
         }
     }
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ASIOAudioIODevice);
 };
 
 //==============================================================================
@@ -1825,8 +1759,6 @@ public:
     }
 
     //==============================================================================
-    juce_UseDebuggingNewOperator
-
 private:
     StringArray deviceNames;
     OwnedArray <CLSID> classIds;
@@ -1924,8 +1856,7 @@ private:
         }
     }
 
-    ASIOAudioIODeviceType (const ASIOAudioIODeviceType&);
-    ASIOAudioIODeviceType& operator= (const ASIOAudioIODeviceType&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ASIOAudioIODeviceType);
 };
 
 AudioIODeviceType* juce_createAudioIODeviceType_ASIO()
@@ -1945,6 +1876,7 @@ AudioIODevice* juce_createASIOAudioIODeviceForGUID (const String& name,
     return new ASIOAudioIODevice (name, *(CLSID*) guid, freeSlot, optionalDllForDirectLoading);
 }
 
+#undef logError
 #undef log
 
 #endif

@@ -69,16 +69,19 @@ public:
     };
 
 
-    const Image getFallbackImage();
-
     //==============================================================================
-    juce_UseDebuggingNewOperator
+    const Image getFallbackImage();
+    const Drawable* getImageFileIcon();
+
 
 private:
     ScopedPointer<PropertiesFile> props;
     StringArray fontNames;
 
+    ScopedPointer<Drawable> imageFileIcon;
     Image fallbackImage;
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (StoredSettings);
 };
 
 

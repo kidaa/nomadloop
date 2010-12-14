@@ -136,28 +136,48 @@ protected:
 
     const String getPreprocessorDefs (const Project::BuildConfiguration& config, const String& joinString) const
     {
-        StringArray defines;
-        defines.add (getExporterIdentifierMacro());
-        defines.add ("WIN32");
-        defines.add ("_WINDOWS");
-        defines.add (config.isDebug().getValue() ? "_DEBUG" : "NDEBUG");
+        StringPairArray defines;
+        defines.set ("WIN32", "");
+        defines.set ("_WINDOWS", "");
+
+        if (config.isDebug().getValue())
+        {
+            defines.set ("DEBUG", "");
+            defines.set ("_DEBUG", "");
+        }
+        else
+        {
+            defines.set ("NDEBUG", "");
+        }
+
         if (project.isCommandLineApp())
-            defines.add ("_CONSOLE");
+            defines.set ("_CONSOLE", "");
 
         if (project.isLibrary())
-            defines.add ("_LIB");
+            defines.set ("_LIB", "");
 
         if (isRTAS())
         {
             RelativePath rtasFolder (getRTASFolder().toString(), RelativePath::unknown);
-            defines.add ("JucePlugin_WinBag_path="
-                            + CodeHelpers::addEscapeChars (rtasFolder.getChildFile ("WinBag")
-                                                                .toWindowsStyle().quoted()));
+            defines.set ("JucePlugin_WinBag_path", CodeHelpers::addEscapeChars (rtasFolder.getChildFile ("WinBag")
+                                                                                .toWindowsStyle().quoted()));
         }
 
-        defines.addArray (config.parsePreprocessorDefs());
-        defines.addArray (parsePreprocessorDefs());
-        return defines.joinIntoString (joinString);
+        defines = mergePreprocessorDefs (defines, getAllPreprocessorDefs (config));
+
+        StringArray result;
+
+        for (int i = 0; i < defines.size(); ++i)
+        {
+            String def (defines.getAllKeys()[i]);
+            const String value (defines.getAllValues()[i]);
+            if (value.isNotEmpty())
+                def << "=" << value;
+
+            result.add (def);
+        }
+
+        return result.joinIntoString (joinString);
     }
 
     const StringArray getHeaderSearchPaths (const Project::BuildConfiguration& config) const
@@ -165,12 +185,10 @@ protected:
         StringArray searchPaths (config.getHeaderSearchPaths());
 
         if (project.shouldAddVSTFolderToPath() && getVSTFolder().toString().isNotEmpty())
-            searchPaths.add (RelativePath (getVSTFolder().toString(), RelativePath::projectFolder)
-                                .rebased (project.getFile().getParentDirectory(), getTargetFolder(), RelativePath::buildTargetFolder)
-                                .toWindowsStyle());
+            searchPaths.add (rebaseFromProjectFolderToBuildTarget (RelativePath (getVSTFolder().toString(), RelativePath::projectFolder)).toWindowsStyle());
 
         if (project.isAudioPlugin())
-            searchPaths.add (juceWrapperFiles[0].getParentDirectory().toWindowsStyle());
+            searchPaths.add (juceWrapperFolder.toWindowsStyle());
 
         if (isRTAS())
         {
@@ -200,10 +218,9 @@ protected:
                                                       "xplat/AVX/avx2/avx2sdk/inc" };
 
             RelativePath sdkFolder (getRTASFolder().toString(), RelativePath::projectFolder);
-            sdkFolder = sdkFolder.rebased (project.getFile().getParentDirectory(), getTargetFolder(), RelativePath::buildTargetFolder);
 
             for (int i = 0; i < numElementsInArray (rtasIncludePaths); ++i)
-                searchPaths.add (sdkFolder.getChildFile (rtasIncludePaths[i]).toWindowsStyle());
+                searchPaths.add (rebaseFromProjectFolderToBuildTarget (sdkFolder.getChildFile (rtasIncludePaths[i])).toWindowsStyle());
         }
 
         return searchPaths;
@@ -226,7 +243,7 @@ protected:
     //==============================================================================
     void writeSolutionFile (OutputStream& out, const String& versionString, const File& vcProject)
     {
-        out << newLine << "Microsoft Visual Studio Solution File, Format Version " << versionString << newLine
+        out << "Microsoft Visual Studio Solution File, Format Version " << versionString << newLine
             << "Project(\"" << createGUID (project.getProjectName().toString() + "sln_guid") << "\") = \"" << project.getProjectName().toString() << "\", \""
             << vcProject.getFileName() << "\", \"" << projectGUID << '"' << newLine
             << "EndProject" << newLine
@@ -334,14 +351,14 @@ protected:
 
                     if (++count == 8)
                     {
-                        dataBlock.writeByte (mask);
+                        dataBlock.writeByte ((char) mask);
                         count = 0;
                         mask = 0;
                     }
                 }
 
                 if (mask != 0)
-                    dataBlock.writeByte (mask);
+                    dataBlock.writeByte ((char) mask);
 
                 for (int i = maskStride - w / 8; --i >= 0;)
                     dataBlock.writeByte (0);
@@ -431,8 +448,7 @@ protected:
         return hasIcon;
     }
 
-    MSVCProjectExporterBase (const MSVCProjectExporterBase&);
-    MSVCProjectExporterBase& operator= (const MSVCProjectExporterBase&);
+    JUCE_DECLARE_NON_COPYABLE (MSVCProjectExporterBase);
 };
 
 
@@ -682,7 +698,7 @@ protected:
                 compiler->setAttribute ("StringPooling", "true");
             }
 
-            compiler->setAttribute ("AdditionalIncludeDirectories", getHeaderSearchPaths (config).joinIntoString (";"));
+            compiler->setAttribute ("AdditionalIncludeDirectories", replacePreprocessorTokens (config, getHeaderSearchPaths (config).joinIntoString (";")));
             compiler->setAttribute ("PreprocessorDefinitions", getPreprocessorDefs (config, ";"));
             compiler->setAttribute ("RuntimeLibrary", isRTAS() ? (isDebug ? 3 : 2) // MT DLL
                                                                : (isDebug ? 1 : 0)); // MT static
@@ -695,8 +711,9 @@ protected:
             compiler->setAttribute ("WarningLevel", "4");
             compiler->setAttribute ("SuppressStartupBanner", "true");
 
-            if (getExtraCompilerFlags().toString().isNotEmpty())
-                compiler->setAttribute ("AdditionalOptions", getExtraCompilerFlags().toString().trim());
+            const String extraFlags (replacePreprocessorTokens (config, getExtraCompilerFlags().toString()).trim());
+            if (extraFlags.isNotEmpty())
+                compiler->setAttribute ("AdditionalOptions", extraFlags);
         }
 
         createToolElement (xml, "VCManagedResourceCompilerTool");
@@ -746,7 +763,7 @@ protected:
             }
 
             if (extraLinkerOptions.isNotEmpty())
-                linker->setAttribute ("AdditionalOptions", extraLinkerOptions.trim());
+                linker->setAttribute ("AdditionalOptions", replacePreprocessorTokens (config, extraLinkerOptions).trim());
         }
         else
         {
@@ -756,7 +773,7 @@ protected:
 
                 String extraLinkerOptions (getExtraLinkerFlags().toString());
                 extraLinkerOptions << " /IMPLIB:" << FileHelpers::windowsStylePath (binariesPath + "/" + outputFileName.upToLastOccurrenceOf (".", false, false) + ".lib");
-                linker->setAttribute ("AdditionalOptions", extraLinkerOptions.trim());
+                linker->setAttribute ("AdditionalOptions", replacePreprocessorTokens (config, extraLinkerOptions).trim());
 
                 linker->setAttribute ("OutputFile", FileHelpers::windowsStylePath (binariesPath + "/" + outputFileName));
                 linker->setAttribute ("IgnoreDefaultLibraryNames", isDebug ? "libcmt.lib, msvcrt.lib" : "");
@@ -798,8 +815,7 @@ protected:
     }
 
     //==============================================================================
-    MSVCProjectExporterVC2008 (const MSVCProjectExporterVC2008&);
-    MSVCProjectExporterVC2008& operator= (const MSVCProjectExporterVC2008&);
+    JUCE_DECLARE_NON_COPYABLE (MSVCProjectExporterVC2008);
 };
 
 
@@ -832,8 +848,7 @@ protected:
     const String getProjectVersionString() const    { return "8.00"; }
     const String getSolutionVersionString() const   { return String ("8.00") + newLine + "# Visual C++ Express 2005"; }
 
-    MSVCProjectExporterVC2005 (const MSVCProjectExporterVC2005&);
-    MSVCProjectExporterVC2005& operator= (const MSVCProjectExporterVC2005&);
+    JUCE_DECLARE_NON_COPYABLE (MSVCProjectExporterVC2005);
 };
 
 
@@ -970,9 +985,9 @@ private:
                 << "# ADD BASE CPP /nologo /W3 /GX /" << optimisationFlag << " /D " << defines
                 << " /YX /FD /c " << extraDebugFlags << " /Zm1024" << newLine
                 << "# ADD CPP /nologo " << (isDebug ? "/MTd" : "/MT") << " /W3 /GR /GX /" << optimisationFlag
-                << " /I " << getHeaderSearchPaths (config).joinIntoString (" /I ")
+                << " /I " << replacePreprocessorTokens (config, getHeaderSearchPaths (config).joinIntoString (" /I "))
                 << " /D " << defines << " /D \"_UNICODE\" /D \"UNICODE\" /FD /c /Zm1024 " << extraDebugFlags
-                << " " << getExtraCompilerFlags().toString().trim() << newLine;
+                << " " << replacePreprocessorTokens (config, getExtraCompilerFlags().toString()).trim() << newLine;
 
             if (! isDebug)
                 out << "# SUBTRACT CPP /YX" << newLine;
@@ -1003,7 +1018,7 @@ private:
                     << " /nologo /machine:I386 /out:\"" << targetBinary << "\" "
                     << (isDLL ? "/dll" : (project.isCommandLineApp() ? "/subsystem:console "
                                                                      : "/subsystem:windows "))
-                    << getExtraLinkerFlags().toString().trim() << newLine;
+                    << replacePreprocessorTokens (config, getExtraLinkerFlags().toString()).trim() << newLine;
             }
         }
 
@@ -1103,8 +1118,7 @@ private:
             << "}}}" << newLine;
     }
 
-    MSVCProjectExporterVC6 (const MSVCProjectExporterVC6&);
-    MSVCProjectExporterVC6& operator= (const MSVCProjectExporterVC6&);
+    JUCE_DECLARE_NON_COPYABLE (MSVCProjectExporterVC6);
 };
 
 
@@ -1534,8 +1548,7 @@ protected:
     }
 
     //==============================================================================
-    MSVCProjectExporterVC2010 (const MSVCProjectExporterVC2010&);
-    MSVCProjectExporterVC2010& operator= (const MSVCProjectExporterVC2010&);
+    JUCE_DECLARE_NON_COPYABLE (MSVCProjectExporterVC2010);
 };
 
 

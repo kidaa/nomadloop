@@ -152,8 +152,7 @@ private:
     bool triggered;
     const bool manualReset;
 
-    WaitableEventImpl (const WaitableEventImpl&);
-    WaitableEventImpl& operator= (const WaitableEventImpl&);
+    JUCE_DECLARE_NON_COPYABLE (WaitableEventImpl);
 };
 
 WaitableEvent::WaitableEvent (const bool manualReset) throw()
@@ -220,15 +219,42 @@ bool File::setAsCurrentWorkingDirectory() const
 }
 
 //==============================================================================
-static bool juce_stat (const String& fileName, struct stat& info)
+namespace
 {
-    return fileName.isNotEmpty()
-            && (stat (fileName.toUTF8(), &info) == 0);
+  #if JUCE_IOS && ! __DARWIN_ONLY_64_BIT_INO_T
+   typedef struct stat64  juce_statStruct; // (need to use the 64-bit version to work around a simulator bug)
+  #else
+   typedef struct stat    juce_statStruct;
+  #endif
+
+    bool juce_stat (const String& fileName, juce_statStruct& info)
+    {
+        return fileName.isNotEmpty()
+          #if JUCE_IOS && ! __DARWIN_ONLY_64_BIT_INO_T
+                && (stat64 (fileName.toUTF8(), &info) == 0);
+          #else
+                && (stat (fileName.toUTF8(), &info) == 0);
+          #endif
+    }
+
+    // if this file doesn't exist, find a parent of it that does..
+    bool juce_doStatFS (File f, struct statfs& result)
+    {
+        for (int i = 5; --i >= 0;)
+        {
+            if (f.exists())
+                break;
+
+            f = f.getParentDirectory();
+        }
+
+        return statfs (f.getFullPathName().toUTF8(), &result) == 0;
+    }
 }
 
 bool File::isDirectory() const
 {
-    struct stat info;
+    juce_statStruct info;
 
     return fullPath.isEmpty()
             || (juce_stat (fullPath, info) && ((info.st_mode & S_IFDIR) != 0));
@@ -236,8 +262,14 @@ bool File::isDirectory() const
 
 bool File::exists() const
 {
+    juce_statStruct info;
+
     return fullPath.isNotEmpty()
-            && access (fullPath.toUTF8(), F_OK) == 0;
+      #if JUCE_IOS && ! __DARWIN_ONLY_64_BIT_INO_T
+            && (lstat64 (fullPath.toUTF8(), &info) == 0);
+      #else
+            && (lstat (fullPath.toUTF8(), &info) == 0);
+      #endif
 }
 
 bool File::existsAsFile() const
@@ -247,7 +279,7 @@ bool File::existsAsFile() const
 
 int64 File::getSize() const
 {
-    struct stat info;
+    juce_statStruct info;
     return juce_stat (fullPath, info) ? info.st_size : 0;
 }
 
@@ -265,9 +297,8 @@ bool File::hasWriteAccess() const
 
 bool File::setFileReadOnlyInternal (const bool shouldBeReadOnly) const
 {
-    struct stat info;
-    const int res = stat (fullPath.toUTF8(), &info);
-    if (res != 0)
+    juce_statStruct info;
+    if (! juce_stat (fullPath, info))
         return false;
 
     info.st_mode &= 0777;   // Just permissions
@@ -287,9 +318,8 @@ void File::getFileTimesInternal (int64& modificationTime, int64& accessTime, int
     accessTime = 0;
     creationTime = 0;
 
-    struct stat info;
-    const int res = stat (fullPath.toUTF8(), &info);
-    if (res == 0)
+    juce_statStruct info;
+    if (juce_stat (fullPath, info))
     {
         modificationTime = (int64) info.st_mtime * 1000;
         accessTime = (int64) info.st_atime * 1000;
@@ -337,52 +367,7 @@ void File::createDirectoryInternal (const String& fileName) const
     mkdir (fileName.toUTF8(), 0777);
 }
 
-void* juce_fileOpen (const File& file, bool forWriting)
-{
-    int flags = O_RDONLY;
-
-    if (forWriting)
-    {
-        if (file.exists())
-        {
-            const int f = open (file.getFullPathName().toUTF8(), O_RDWR, 00644);
-
-            if (f != -1)
-                lseek (f, 0, SEEK_END);
-
-            return (void*) f;
-        }
-        else
-        {
-            flags = O_RDWR + O_CREAT;
-        }
-    }
-
-    return (void*) open (file.getFullPathName().toUTF8(), flags, 00644);
-}
-
-void juce_fileClose (void* handle)
-{
-    if (handle != 0)
-        close ((int) (pointer_sized_int) handle);
-}
-
-int juce_fileRead (void* handle, void* buffer, int size)
-{
-    if (handle != 0)
-        return jmax (0, (int) read ((int) (pointer_sized_int) handle, buffer, size));
-
-    return 0;
-}
-
-int juce_fileWrite (void* handle, const void* buffer, int size)
-{
-    if (handle != 0)
-        return (int) write ((int) (pointer_sized_int) handle, buffer, size);
-
-    return 0;
-}
-
+//==============================================================================
 int64 juce_fileSetPosition (void* handle, int64 pos)
 {
     if (handle != 0 && lseek ((int) (pointer_sized_int) handle, pos, SEEK_SET) == pos)
@@ -391,12 +376,74 @@ int64 juce_fileSetPosition (void* handle, int64 pos)
     return -1;
 }
 
-int64 FileOutputStream::getPositionInternal() const
+void FileInputStream::openHandle()
+{
+    totalSize = file.getSize();
+
+    const int f = open (file.getFullPathName().toUTF8(), O_RDONLY, 00644);
+
+    if (f != -1)
+        fileHandle = (void*) f;
+}
+
+void FileInputStream::closeHandle()
 {
     if (fileHandle != 0)
-        return lseek ((int) (pointer_sized_int) fileHandle, 0, SEEK_CUR);
+    {
+        close ((int) (pointer_sized_int) fileHandle);
+        fileHandle = 0;
+    }
+}
 
-    return -1;
+size_t FileInputStream::readInternal (void* const buffer, const size_t numBytes)
+{
+    if (fileHandle != 0)
+        return jmax ((ssize_t) 0, ::read ((int) (pointer_sized_int) fileHandle, buffer, numBytes));
+
+    return 0;
+}
+
+//==============================================================================
+void FileOutputStream::openHandle()
+{
+    if (file.exists())
+    {
+        const int f = open (file.getFullPathName().toUTF8(), O_RDWR, 00644);
+
+        if (f != -1)
+        {
+            currentPosition = lseek (f, 0, SEEK_END);
+
+            if (currentPosition >= 0)
+                fileHandle = (void*) f;
+            else
+                close (f);
+        }
+    }
+    else
+    {
+        const int f = open (file.getFullPathName().toUTF8(), O_RDWR + O_CREAT, 00644);
+
+        if (f != -1)
+            fileHandle = (void*) f;
+    }
+}
+
+void FileOutputStream::closeHandle()
+{
+    if (fileHandle != 0)
+    {
+        close ((int) (pointer_sized_int) fileHandle);
+        fileHandle = 0;
+    }
+}
+
+int FileOutputStream::writeInternal (const void* const data, const int numBytes)
+{
+    if (fileHandle != 0)
+        return (int) ::write ((int) (pointer_sized_int) fileHandle, data, numBytes);
+
+    return 0;
 }
 
 void FileOutputStream::flushInternal()
@@ -405,6 +452,7 @@ void FileOutputStream::flushInternal()
         fsync ((int) (pointer_sized_int) fileHandle);
 }
 
+//==============================================================================
 const File juce_getExecutableFile()
 {
     Dl_info exeInfo;
@@ -413,20 +461,6 @@ const File juce_getExecutableFile()
 }
 
 //==============================================================================
-// if this file doesn't exist, find a parent of it that does..
-static bool juce_doStatFS (File f, struct statfs& result)
-{
-    for (int i = 5; --i >= 0;)
-    {
-        if (f.exists())
-            break;
-
-        f = f.getParentDirectory();
-    }
-
-    return statfs (f.getFullPathName().toUTF8(), &result) == 0;
-}
-
 int64 File::getBytesFreeOnVolume() const
 {
     struct statfs buf;
@@ -513,12 +547,12 @@ public:
     Pimpl (const String& name, const int timeOutMillisecs)
         : handle (0), refCount (1)
     {
-#if JUCE_MAC
+      #if JUCE_MAC
         // (don't use getSpecialLocation() to avoid the temp folder being different for each app)
         const File temp (File ("~/Library/Caches/Juce").getChildFile (name));
-#else
+      #else
         const File temp (File::getSpecialLocation (File::tempDirectory).getChildFile (name));
-#endif
+      #endif
         temp.create();
         handle = open (temp.getFullPathName().toUTF8(), O_RDWR);
 
@@ -614,4 +648,111 @@ void InterProcessLock::exit()
 
     if (pimpl != 0 && --(pimpl->refCount) == 0)
         pimpl = 0;
+}
+
+//==============================================================================
+void JUCE_API juce_threadEntryPoint (void*);
+
+void* threadEntryProc (void* userData)
+{
+    JUCE_AUTORELEASEPOOL
+    juce_threadEntryPoint (userData);
+    return 0;
+}
+
+void Thread::launchThread()
+{
+    threadHandle_ = 0;
+    pthread_t handle = 0;
+
+    if (pthread_create (&handle, 0, threadEntryProc, this) == 0)
+    {
+        pthread_detach (handle);
+        threadHandle_ = (void*) handle;
+        threadId_ = (ThreadID) threadHandle_;
+    }
+}
+
+void Thread::closeThreadHandle()
+{
+    threadId_ = 0;
+    threadHandle_ = 0;
+}
+
+void Thread::killThread()
+{
+    if (threadHandle_ != 0)
+        pthread_cancel ((pthread_t) threadHandle_);
+}
+
+void Thread::setCurrentThreadName (const String& /*name*/)
+{
+}
+
+bool Thread::setThreadPriority (void* handle, int priority)
+{
+    struct sched_param param;
+    int policy;
+    priority = jlimit (0, 10, priority);
+
+    if (handle == 0)
+        handle = (void*) pthread_self();
+
+    if (pthread_getschedparam ((pthread_t) handle, &policy, &param) != 0)
+        return false;
+
+    policy = priority == 0 ? SCHED_OTHER : SCHED_RR;
+
+    const int minPriority = sched_get_priority_min (policy);
+    const int maxPriority = sched_get_priority_max (policy);
+
+    param.sched_priority = ((maxPriority - minPriority) * priority) / 10 + minPriority;
+    return pthread_setschedparam ((pthread_t) handle, policy, &param) == 0;
+}
+
+Thread::ThreadID Thread::getCurrentThreadId()
+{
+    return (ThreadID) pthread_self();
+}
+
+void Thread::yield()
+{
+    sched_yield();
+}
+
+//==============================================================================
+/* Remove this macro if you're having problems compiling the cpu affinity
+   calls (the API for these has changed about quite a bit in various Linux
+   versions, and a lot of distros seem to ship with obsolete versions)
+*/
+#if defined (CPU_ISSET) && ! defined (SUPPORT_AFFINITIES)
+  #define SUPPORT_AFFINITIES 1
+#endif
+
+void Thread::setCurrentThreadAffinityMask (const uint32 affinityMask)
+{
+#if SUPPORT_AFFINITIES
+    cpu_set_t affinity;
+    CPU_ZERO (&affinity);
+
+    for (int i = 0; i < 32; ++i)
+        if ((affinityMask & (1 << i)) != 0)
+            CPU_SET (i, &affinity);
+
+    /*
+       N.B. If this line causes a compile error, then you've probably not got the latest
+       version of glibc installed.
+
+       If you don't want to update your copy of glibc and don't care about cpu affinities,
+       then you can just disable all this stuff by setting the SUPPORT_AFFINITIES macro to 0.
+    */
+    sched_setaffinity (getpid(), sizeof (cpu_set_t), &affinity);
+    sched_yield();
+
+#else
+    /* affinities aren't supported because either the appropriate header files weren't found,
+       or the SUPPORT_AFFINITIES macro was turned off
+    */
+    jassertfalse;
+#endif
 }

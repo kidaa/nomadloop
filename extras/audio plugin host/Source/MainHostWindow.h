@@ -60,7 +60,7 @@ public:
 
     //==============================================================================
     void closeButtonPressed();
-    void changeListenerCallback (void*);
+    void changeListenerCallback (ChangeBroadcaster*);
 
     bool isInterestedInFileDrag (const StringArray& files);
     void fileDragEnter (const StringArray& files, int, int);
@@ -83,11 +83,8 @@ public:
     void addPluginsToMenu (PopupMenu& m) const;
     const PluginDescription* getChosenType (const int menuID) const;
 
-
-    //==============================================================================
-    juce_UseDebuggingNewOperator
-
 private:
+    //==============================================================================
     AudioDeviceManager deviceManager;
 
     OwnedArray <PluginDescription> internalTypes;
@@ -96,6 +93,8 @@ private:
 
     void showAudioSettings();
     GraphDocumentComponent* getGraphEditor() const;
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainHostWindow);
 };
 
 

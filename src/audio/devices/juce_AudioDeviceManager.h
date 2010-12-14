@@ -429,8 +429,17 @@ public:
     */
     double getCurrentInputLevel() const;
 
-    //==============================================================================
-    juce_UseDebuggingNewOperator
+    /** Returns the a lock that can be used to synchronise access to the audio callback.
+        Obviously while this is locked, you're blocking the audio thread from running, so
+        it must only be used for very brief periods when absolutely necessary.
+    */
+    CriticalSection& getAudioCallbackLock() throw()         { return audioCallbackLock; }
+
+    /** Returns the a lock that can be used to synchronise access to the midi callback.
+        Obviously while this is locked, you're blocking the midi system from running, so
+        it must only be used for very brief periods when absolutely necessary.
+    */
+    CriticalSection& getMidiCallbackLock() throw()          { return midiCallbackLock; }
 
 private:
     //==============================================================================
@@ -505,12 +514,12 @@ private:
     void scanDevicesIfNeeded();
     void deleteCurrentDevice();
     double chooseBestSampleRate (double preferred) const;
+    int chooseBestBufferSize (int preferred) const;
     void insertDefaultDeviceNames (AudioDeviceSetup& setup) const;
 
     AudioIODeviceType* findType (const String& inputName, const String& outputName);
 
-    AudioDeviceManager (const AudioDeviceManager&);
-    AudioDeviceManager& operator= (const AudioDeviceManager&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioDeviceManager);
 };
 
 #endif   // __JUCE_AUDIODEVICEMANAGER_JUCEHEADER__

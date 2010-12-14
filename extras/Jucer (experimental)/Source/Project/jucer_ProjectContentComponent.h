@@ -55,7 +55,7 @@ public:
 
     void updateMissingFileStatuses();
 
-    void changeListenerCallback (void*);
+    void changeListenerCallback (ChangeBroadcaster*);
     void hasBeenMoved();
 
     //==============================================================================
@@ -64,9 +64,6 @@ public:
     void getCommandInfo (CommandID commandID, ApplicationCommandInfo& result);
     bool isCommandActive (const CommandID commandID);
     bool perform (const InvocationInfo& info);
-
-    //==============================================================================
-    juce_UseDebuggingNewOperator
 
 private:
     ScopedPointer<TreeView> projectTree;
@@ -77,6 +74,8 @@ private:
     ScopedPointer<StretchableLayoutResizerBar> resizerBar;
 
     void updateMainWindowTitle();
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ProjectContentComponent);
 };
 
 

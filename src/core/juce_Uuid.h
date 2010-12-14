@@ -100,16 +100,14 @@ public:
 
         @see getRawData
     */
-    Uuid (const uint8* const rawData);
+    Uuid (const uint8* rawData);
 
     /** Sets this UUID from 16-bytes of raw data. */
-    Uuid& operator= (const uint8* const rawData);
+    Uuid& operator= (const uint8* rawData);
 
-
-    //==============================================================================
-    juce_UseDebuggingNewOperator
 
 private:
+    //==============================================================================
     union
     {
         uint8 asBytes [16];
@@ -117,6 +115,8 @@ private:
         int64 asInt64[2];
 
     } value;
+
+    JUCE_LEAK_DETECTOR (Uuid);
 };
 
 

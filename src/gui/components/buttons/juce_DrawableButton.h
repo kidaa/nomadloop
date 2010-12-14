@@ -148,31 +148,45 @@ public:
 
     //==============================================================================
     /** Returns the image that the button is currently displaying. */
-    const Drawable* getCurrentImage() const throw();
-    const Drawable* getNormalImage() const throw();
-    const Drawable* getOverImage() const throw();
-    const Drawable* getDownImage() const throw();
+    Drawable* getCurrentImage() const throw();
+    Drawable* getNormalImage() const throw();
+    Drawable* getOverImage() const throw();
+    Drawable* getDownImage() const throw();
 
     //==============================================================================
-    juce_UseDebuggingNewOperator
+    /** A set of colour IDs to use to change the colour of various aspects of the link.
+
+        These constants can be used either via the Component::setColour(), or LookAndFeel::setColour()
+        methods.
+
+        @see Component::setColour, Component::findColour, LookAndFeel::setColour, LookAndFeel::findColour
+    */
+    enum ColourIds
+    {
+        textColourId             = 0x1004010, /**< The colour to use for the URL text. */
+    };
 
 protected:
+    //==============================================================================
     /** @internal */
     void paintButton (Graphics& g,
                       bool isMouseOverButton,
                       bool isButtonDown);
+    /** @internal */
+    void buttonStateChanged();
+    /** @internal */
+    void resized();
 
 private:
     //==============================================================================
     ButtonStyle style;
     ScopedPointer <Drawable> normalImage, overImage, downImage, disabledImage;
     ScopedPointer <Drawable> normalImageOn, overImageOn, downImageOn, disabledImageOn;
+    Drawable* currentImage;
     Colour backgroundOff, backgroundOn;
     int edgeIndent;
 
-    void deleteImages();
-    DrawableButton (const DrawableButton&);
-    DrawableButton& operator= (const DrawableButton&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (DrawableButton);
 };
 
 

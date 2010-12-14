@@ -49,7 +49,6 @@ public:
 
     ~TreeViewContentComponent()
     {
-        deleteAllChildren();
     }
 
     void mouseDown (const MouseEvent& e)
@@ -204,7 +203,10 @@ public:
         const int visibleTop = -getY();
         const int visibleBottom = visibleTop + getParentHeight();
 
-        BigInteger itemsToKeep;
+        {
+            for (int i = items.size(); --i >= 0;)
+                items.getUnchecked(i)->shouldKeep = false;
+        }
 
         {
             TreeViewItem* item = owner.rootItem;
@@ -216,24 +218,21 @@ public:
 
                 if (y >= visibleTop)
                 {
-                    const int index = rowComponentIds.indexOf (item->uid);
+                    RowItem* const ri = findItem (item->uid);
 
-                    if (index < 0)
+                    if (ri != 0)
+                    {
+                        ri->shouldKeep = true;
+                    }
+                    else
                     {
                         Component* const comp = item->createItemComponent();
 
                         if (comp != 0)
                         {
+                            items.add (new RowItem (item, comp, item->uid));
                             addAndMakeVisible (comp);
-                            itemsToKeep.setBit (rowComponentItems.size());
-                            rowComponentItems.add (item);
-                            rowComponentIds.add (item->uid);
-                            rowComponents.add (comp);
                         }
-                    }
-                    else
-                    {
-                        itemsToKeep.setBit (index);
                     }
                 }
 
@@ -241,41 +240,34 @@ public:
             }
         }
 
-        for (int i = rowComponentItems.size(); --i >= 0;)
+        for (int i = items.size(); --i >= 0;)
         {
-            Component* const comp = rowComponents.getUnchecked(i);
+            RowItem* const ri = items.getUnchecked(i);
             bool keep = false;
 
-            if (isParentOf (comp))
+            if (isParentOf (ri->component))
             {
-                if (itemsToKeep[i])
+                if (ri->shouldKeep)
                 {
-                    const TreeViewItem* const item = rowComponentItems.getUnchecked(i);
-
-                    Rectangle<int> pos (item->getItemPosition (false));
-                    pos.setSize (pos.getWidth(), item->itemHeight);
+                    Rectangle<int> pos (ri->item->getItemPosition (false));
+                    pos.setSize (pos.getWidth(), ri->item->itemHeight);
 
                     if (pos.getBottom() >= visibleTop && pos.getY() < visibleBottom)
                     {
                         keep = true;
-                        comp->setBounds (pos);
+                        ri->component->setBounds (pos);
                     }
                 }
 
-                if ((! keep) && isMouseDraggingInChildCompOf (comp))
+                if ((! keep) && isMouseDraggingInChildCompOf (ri->component))
                 {
                     keep = true;
-                    comp->setSize (0, 0);
+                    ri->component->setSize (0, 0);
                 }
             }
 
             if (! keep)
-            {
-                delete comp;
-                rowComponents.remove (i);
-                rowComponentIds.remove (i);
-                rowComponentItems.remove (i);
-            }
+                items.remove (i);
         }
     }
 
@@ -336,14 +328,30 @@ public:
         return owner.getTooltip();
     }
 
-    //==============================================================================
-    juce_UseDebuggingNewOperator
-
 private:
+    //==============================================================================
     TreeView& owner;
-    Array <TreeViewItem*> rowComponentItems;
-    Array <int> rowComponentIds;
-    Array <Component*> rowComponents;
+
+    struct RowItem
+    {
+        RowItem (TreeViewItem* const item_, Component* const component_, const int itemUID)
+            : component (component_), item (item_), uid (itemUID), shouldKeep (true)
+        {
+        }
+
+        ~RowItem()
+        {
+            component.deleteAndZero();
+        }
+
+        Component::SafePointer<Component> component;
+        TreeViewItem* item;
+        int uid;
+        bool shouldKeep;
+    };
+
+    OwnedArray <RowItem> items;
+
     TreeViewItem* buttonUnderMouse;
     bool isDragging, needSelectionOnMouseUp;
 
@@ -377,13 +385,25 @@ private:
         }
     }
 
-    bool containsItem (TreeViewItem* const item) const
+    bool containsItem (TreeViewItem* const item) const throw()
     {
-        for (int i = rowComponentItems.size(); --i >= 0;)
-            if (rowComponentItems.getUnchecked(i) == item)
+        for (int i = items.size(); --i >= 0;)
+            if (items.getUnchecked(i)->item == item)
                 return true;
 
         return false;
+    }
+
+    RowItem* findItem (const int uid) const throw()
+    {
+        for (int i = items.size(); --i >= 0;)
+        {
+            RowItem* const ri = items.getUnchecked(i);
+            if (ri->uid == uid)
+                return ri;
+        }
+
+        return 0;
     }
 
     static bool isMouseDraggingInChildCompOf (Component* const comp)
@@ -404,8 +424,7 @@ private:
         return false;
     }
 
-    TreeViewContentComponent (const TreeViewContentComponent&);
-    TreeViewContentComponent& operator= (const TreeViewContentComponent&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (TreeViewContentComponent);
 };
 
 //==============================================================================
@@ -436,14 +455,11 @@ public:
         updateComponents (hasScrolledSideways);
     }
 
-    //==============================================================================
-    juce_UseDebuggingNewOperator
-
 private:
+    //==============================================================================
     int lastX;
 
-    TreeViewport (const TreeViewport&);
-    TreeViewport& operator= (const TreeViewport&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (TreeViewport);
 };
 
 
@@ -570,9 +586,9 @@ void TreeView::clearSelectedItems()
         rootItem->deselectAllRecursively();
 }
 
-int TreeView::getNumSelectedItems() const throw()
+int TreeView::getNumSelectedItems (int maximumDepthToSearchTo) const throw()
 {
-    return (rootItem != 0) ? rootItem->countSelectedItemsRecursively() : 0;
+    return (rootItem != 0) ? rootItem->countSelectedItemsRecursively (maximumDepthToSearchTo) : 0;
 }
 
 TreeViewItem* TreeView::getSelectedItem (const int index) const throw()
@@ -603,7 +619,7 @@ TreeViewItem* TreeView::getItemAt (int y) const throw()
 {
     TreeViewContentComponent* const tc = static_cast <TreeViewContentComponent*> (viewport->getViewedComponent());
     Rectangle<int> pos;
-    return tc->findItemAt (relativePositionToOtherComponent (tc, Point<int> (0, y)).getY(), pos);
+    return tc->findItemAt (tc->getLocalPoint (this, Point<int> (0, y)).getY(), pos);
 }
 
 TreeViewItem* TreeView::findItemFromIdentifierString (const String& identifierString) const
@@ -856,8 +872,6 @@ public:
         setInterceptsMouseClicks (false, false);
     }
 
-    ~InsertPointHighlight() {}
-
     void setTargetPosition (TreeViewItem* const item, int insertIndex, const int x, const int y, const int width) throw()
     {
         lastItem = item;
@@ -882,8 +896,7 @@ public:
     int lastIndex;
 
 private:
-    InsertPointHighlight (const InsertPointHighlight&);
-    InsertPointHighlight& operator= (const InsertPointHighlight&);
+    JUCE_DECLARE_NON_COPYABLE (InsertPointHighlight);
 };
 
 //==============================================================================
@@ -895,8 +908,6 @@ public:
         setAlwaysOnTop (true);
         setInterceptsMouseClicks (false, false);
     }
-
-    ~TargetGroupHighlight() {}
 
     void setTargetPosition (TreeViewItem* const item) throw()
     {
@@ -912,8 +923,7 @@ public:
     }
 
 private:
-    TargetGroupHighlight (const TargetGroupHighlight&);
-    TargetGroupHighlight& operator= (const TargetGroupHighlight&);
+    JUCE_DECLARE_NON_COPYABLE (TargetGroupHighlight);
 };
 
 //==============================================================================
@@ -1191,7 +1201,7 @@ void TreeViewItem::removeSubItem (const int index, const bool deleteItem)
     {
         const ScopedLock sl (ownerView->nodeAlterationLock);
 
-        if (((unsigned int) index) < (unsigned int) subItems.size())
+        if (isPositiveAndBelow (index, subItems.size()))
         {
             subItems.remove (index, deleteItem);
             treeHasChanged();
@@ -1217,7 +1227,6 @@ void TreeViewItem::setOpen (const bool shouldBeOpen)
     {
         openness = shouldBeOpen ? opennessOpen
                                 : opennessClosed;
-
         treeHasChanged();
 
         itemOpennessChanged (isOpen());
@@ -1427,6 +1436,15 @@ void TreeViewItem::paintRecursively (Graphics& g, int width)
     const int indent = getIndentX();
     const int itemW = itemWidth < 0 ? width - indent : itemWidth;
 
+    {
+        Graphics::ScopedSaveState ss (g);
+        g.setOrigin (indent, 0);
+
+        if (g.reduceClipRegion (drawsInLeftMargin ? -indent : 0, 0,
+                                drawsInLeftMargin ? itemW + indent : itemW, itemHeight))
+            paintItem (g, itemW, itemHeight);
+    }
+
     g.setColour (ownerView->findColour (TreeView::linesColourId));
 
     const float halfH = itemHeight * 0.5f;
@@ -1477,27 +1495,15 @@ void TreeViewItem::paintRecursively (Graphics& g, int width)
 
         if (mightContainSubItems())
         {
-            g.saveState();
+            Graphics::ScopedSaveState ss (g);
+
             g.setOrigin (depth * indentWidth, 0);
             g.reduceClipRegion (0, 0, indentWidth, itemHeight);
 
             paintOpenCloseButton (g, indentWidth, itemHeight,
                 static_cast <TreeViewContentComponent*> (ownerView->viewport->getViewedComponent())
                     ->isMouseOverButton (this));
-
-            g.restoreState();
         }
-    }
-
-    {
-        g.saveState();
-        g.setOrigin (indent, 0);
-
-        if (g.reduceClipRegion (drawsInLeftMargin ? -indent : 0, 0,
-                                drawsInLeftMargin ? itemW + indent : itemW, itemHeight))
-            paintItem (g, itemW, itemHeight);
-
-        g.restoreState();
     }
 
     if (isOpen())
@@ -1515,13 +1521,12 @@ void TreeViewItem::paintRecursively (Graphics& g, int width)
 
             if (relY + ti->totalHeight >= clip.getY())
             {
-                g.saveState();
+                Graphics::ScopedSaveState ss (g);
+
                 g.setOrigin (0, relY);
 
                 if (g.reduceClipRegion (0, 0, width, ti->totalHeight))
                     ti->paintRecursively (g, width);
-
-                g.restoreState();
             }
         }
     }
@@ -1530,21 +1535,19 @@ void TreeViewItem::paintRecursively (Graphics& g, int width)
 bool TreeViewItem::isLastOfSiblings() const throw()
 {
     return parentItem == 0
-        || parentItem->subItems.getLast() == this;
+            || parentItem->subItems.getLast() == this;
 }
 
 int TreeViewItem::getIndexInParent() const throw()
 {
-    if (parentItem == 0)
-        return 0;
-
-    return parentItem->subItems.indexOf (this);
+    return parentItem == 0 ? 0
+                           : parentItem->subItems.indexOf (this);
 }
 
 TreeViewItem* TreeViewItem::getTopLevelItem() throw()
 {
-    return (parentItem == 0) ? this
-                             : parentItem->getTopLevelItem();
+    return parentItem == 0 ? this
+                           : parentItem->getTopLevelItem();
 }
 
 int TreeViewItem::getNumRows() const throw()
@@ -1590,7 +1593,7 @@ TreeViewItem* TreeViewItem::getItemOnRow (int index) throw()
 
 TreeViewItem* TreeViewItem::findItemRecursively (int targetY) throw()
 {
-    if (((unsigned int) targetY) < (unsigned int) totalHeight)
+    if (isPositiveAndBelow (targetY, totalHeight))
     {
         const int h = itemHeight;
 
@@ -1616,15 +1619,13 @@ TreeViewItem* TreeViewItem::findItemRecursively (int targetY) throw()
     return 0;
 }
 
-int TreeViewItem::countSelectedItemsRecursively() const throw()
+int TreeViewItem::countSelectedItemsRecursively (int depth) const throw()
 {
-    int total = 0;
+    int total = isSelected() ? 1 : 0;
 
-    if (isSelected())
-        ++total;
-
-    for (int i = subItems.size(); --i >= 0;)
-        total += subItems.getUnchecked(i)->countSelectedItemsRecursively();
+    if (depth != 0)
+        for (int i = subItems.size(); --i >= 0;)
+            total += subItems.getUnchecked(i)->countSelectedItemsRecursively (depth - 1);
 
     return total;
 }
@@ -1650,7 +1651,7 @@ TreeViewItem* TreeViewItem::getSelectedItemWithIndex (int index) throw()
             if (found != 0)
                 return found;
 
-            index -= item->countSelectedItemsRecursively();
+            index -= item->countSelectedItemsRecursively (-1);
         }
     }
 

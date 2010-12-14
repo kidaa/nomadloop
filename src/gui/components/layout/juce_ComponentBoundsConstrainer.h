@@ -156,7 +156,7 @@ public:
     virtual void resizeEnd();
 
     /** Checks the given bounds, and then sets the component to the corrected size. */
-    void setBoundsForComponent (Component* const component,
+    void setBoundsForComponent (Component* component,
                                 const Rectangle<int>& bounds,
                                 bool isStretchingTop,
                                 bool isStretchingLeft,
@@ -177,16 +177,13 @@ public:
     virtual void applyBoundsToComponent (Component* component,
                                          const Rectangle<int>& bounds);
 
-    //==============================================================================
-    juce_UseDebuggingNewOperator
-
 private:
+    //==============================================================================
     int minW, maxW, minH, maxH;
     int minOffTop, minOffLeft, minOffBottom, minOffRight;
     double aspectRatio;
 
-    ComponentBoundsConstrainer (const ComponentBoundsConstrainer&);
-    ComponentBoundsConstrainer& operator= (const ComponentBoundsConstrainer&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ComponentBoundsConstrainer);
 };
 
 

@@ -29,6 +29,7 @@ BEGIN_JUCE_NAMESPACE
 
 #include "juce_Component.h"
 #include "juce_ModalComponentManager.h"
+#include "windows/juce_ComponentPeer.h"
 #include "../../events/juce_MessageManager.h"
 #include "../../application/juce_Application.h"
 
@@ -86,8 +87,7 @@ public:
     bool isActive, isDeleted;
 
 private:
-    ModalItem (const ModalItem&);
-    ModalItem& operator= (const ModalItem&);
+    JUCE_DECLARE_NON_COPYABLE (ModalItem);
 };
 
 //==============================================================================
@@ -211,6 +211,34 @@ void ModalComponentManager::handleAsyncUpdate()
     }
 }
 
+void ModalComponentManager::bringModalComponentsToFront()
+{
+    ComponentPeer* lastOne = 0;
+
+    for (int i = 0; i < getNumModalComponents(); ++i)
+    {
+        Component* const c = getModalComponent (i);
+
+        if (c == 0)
+            break;
+
+        ComponentPeer* peer = c->getPeer();
+
+        if (peer != 0 && peer != lastOne)
+        {
+            if (lastOne == 0)
+            {
+                peer->toFront (true);
+                peer->grabFocus();
+            }
+            else
+                peer->toBehind (lastOne);
+
+            lastOne = peer;
+        }
+    }
+}
+
 class ModalComponentManager::ReturnValueRetriever     : public ModalComponentManager::Callback
 {
 public:
@@ -227,8 +255,7 @@ private:
     int& value;
     bool& finished;
 
-    ReturnValueRetriever (const ReturnValueRetriever&);
-    ReturnValueRetriever& operator= (const ReturnValueRetriever&);
+    JUCE_DECLARE_NON_COPYABLE (ReturnValueRetriever);
 };
 
 int ModalComponentManager::runEventLoopForCurrentComponent()

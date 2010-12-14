@@ -143,7 +143,7 @@ bool Desktop::canUseSemiTransparentWindows() throw()
     return true;
 }
 
-const Point<int> Desktop::getMousePosition()
+const Point<int> MouseInputSource::getCurrentMousePosition()
 {
     const ScopedAutoReleasePool pool;
     const NSPoint p ([NSEvent mouseLocation]);
@@ -157,6 +157,11 @@ void Desktop::setMousePosition (const Point<int>& newPosition)
     CGAssociateMouseAndMouseCursorPosition (false);
     CGWarpMouseCursorPosition (CGPointMake (newPosition.getX(), newPosition.getY()));
     CGAssociateMouseAndMouseCursorPosition (true);
+}
+
+Desktop::DisplayOrientation Desktop::getCurrentOrientation() const
+{
+    return upright;
 }
 
 //==============================================================================
@@ -246,10 +251,9 @@ void juce_updateMultiMonitorInfo (Array <Rectangle<int> >& monitorCoords, const 
         NSRect r = clipToWorkArea ? [s visibleFrame]
                                   : [s frame];
 
-        monitorCoords.add (Rectangle<int> ((int) r.origin.x,
-                                           (int) (mainScreenBottom - (r.origin.y + r.size.height)),
-                                           (int) r.size.width,
-                                           (int) r.size.height));
+        r.origin.y = mainScreenBottom - (r.origin.y + r.size.height);
+
+        monitorCoords.add (convertToRectInt (r));
     }
 
     jassert (monitorCoords.size() > 0);

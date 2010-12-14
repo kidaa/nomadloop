@@ -352,7 +352,8 @@ private:
         addPlistDictionaryKey (dict, "CFBundleVersion",             project.getVersion().toString());
 
         StringArray documentExtensions;
-        documentExtensions.addTokens (getSetting ("documentExtensions").toString(), ",", String::empty);
+        documentExtensions.addTokens (replacePreprocessorDefs (project.getPreprocessorDefs(), getSetting ("documentExtensions").toString()),
+                                      ",", String::empty);
         documentExtensions.trim();
         documentExtensions.removeEmptyStrings (true);
 
@@ -386,9 +387,7 @@ private:
         StringArray searchPaths (config.getHeaderSearchPaths());
 
         if (project.shouldAddVSTFolderToPath() && getVSTFolder().toString().isNotEmpty())
-            searchPaths.add (RelativePath (getVSTFolder().toString(), RelativePath::projectFolder)
-                                .rebased (project.getFile().getParentDirectory(), getTargetFolder(), RelativePath::buildTargetFolder)
-                                .toUnixStyle());
+            searchPaths.add (rebaseFromProjectFolderToBuildTarget (RelativePath (getVSTFolder().toString(), RelativePath::projectFolder)).toUnixStyle());
 
         if (project.isAudioPlugin())
         {
@@ -433,10 +432,9 @@ private:
                                                           "xplat/AVX/avx2/avx2sdk/utils" };
 
                 RelativePath sdkFolder (getRTASFolder().toString(), RelativePath::projectFolder);
-                sdkFolder = sdkFolder.rebased (project.getFile().getParentDirectory(), getTargetFolder(), RelativePath::buildTargetFolder);
 
                 for (int i = 0; i < numElementsInArray (rtasIncludePaths); ++i)
-                    searchPaths.add (sdkFolder.getChildFile (rtasIncludePaths[i]).toUnixStyle());
+                    searchPaths.add (rebaseFromProjectFolderToBuildTarget (sdkFolder.getChildFile (rtasIncludePaths[i])).toUnixStyle());
             }
         }
 
@@ -478,7 +476,7 @@ private:
             getLinkerFlagsForStaticLibrary (juceLib, flags, librarySearchPaths);
         }
 
-        flags.add (getExtraLinkerFlags().toString());
+        flags.add (replacePreprocessorTokens (config, getExtraLinkerFlags().toString()));
         flags.removeEmptyStrings (true);
     }
 
@@ -493,6 +491,7 @@ private:
         s.add ("GCC_WARN_MISSING_PARENTHESES = YES");
         s.add ("GCC_WARN_NON_VIRTUAL_DESTRUCTOR = YES");
         s.add ("GCC_WARN_TYPECHECK_CALLS_TO_PRINTF = YES");
+        s.add ("WARNING_CFLAGS = -Wreorder");
         s.add ("GCC_MODEL_TUNING = G5");
 
         if (project.isLibrary() || project.getJuceLinkageMode() == Project::useLinkedJuce)
@@ -506,7 +505,10 @@ private:
         }
 
         s.add ("ZERO_LINK = NO");
-        s.add ("DEBUG_INFORMATION_FORMAT = \"dwarf-with-dsym\"");
+
+        if (! isRTAS())   // (dwarf seems to be incompatible with the RTAS libs)
+            s.add ("DEBUG_INFORMATION_FORMAT = \"dwarf\"");
+
         s.add ("PRODUCT_NAME = \"" + config.getTargetBinaryName().toString() + "\"");
         return s;
     }
@@ -516,12 +518,13 @@ private:
         StringArray s;
         s.add ("ARCHS = \"$(ARCHS_STANDARD_32_BIT)\"");
         s.add ("PREBINDING = NO");
-        s.add ("HEADER_SEARCH_PATHS = \"" + getHeaderSearchPaths (config).joinIntoString (" ") + " $(inherited)\"");
+        s.add ("HEADER_SEARCH_PATHS = \"" + replacePreprocessorTokens (config, getHeaderSearchPaths (config).joinIntoString (" ")) + " $(inherited)\"");
         s.add ("GCC_OPTIMIZATION_LEVEL = " + config.getGCCOptimisationFlag());
         s.add ("INFOPLIST_FILE = " + infoPlistFile.getFileName());
 
-        if (getExtraCompilerFlags().toString().isNotEmpty())
-            s.add ("OTHER_CPLUSPLUSFLAGS = " + getExtraCompilerFlags().toString());
+        const String extraFlags (replacePreprocessorTokens (config, getExtraCompilerFlags().toString()).trim());
+        if (extraFlags.isNotEmpty())
+            s.add ("OTHER_CPLUSPLUSFLAGS = " + extraFlags);
 
         if (project.isGUIApplication())
         {
@@ -615,14 +618,12 @@ private:
             }
         }
 
-        StringArray defines;
-
-        defines.add (getExporterIdentifierMacro() + "=1");
+        StringPairArray defines;
 
         if (config.isDebug().getValue())
         {
-            defines.add ("_DEBUG=1");
-            defines.add ("DEBUG=1 ");
+            defines.set ("_DEBUG", "1");
+            defines.set ("DEBUG", "1");
             s.add ("ONLY_ACTIVE_ARCH = YES");
             s.add ("COPY_PHASE_STRIP = NO");
             s.add ("GCC_DYNAMIC_NO_PIC = NO");
@@ -630,8 +631,8 @@ private:
         }
         else
         {
-            defines.add ("_NDEBUG=1");
-            defines.add ("NDEBUG=1 ");
+            defines.set ("_NDEBUG", "1");
+            defines.set ("NDEBUG", "1");
             s.add ("GCC_GENERATE_DEBUGGING_SYMBOLS = NO");
             s.add ("GCC_SYMBOLS_PRIVATE_EXTERN = YES");
         }
@@ -639,17 +640,25 @@ private:
         {
             const String objCSuffix (getSetting ("objCExtraSuffix").toString().trim());
             if (objCSuffix.isNotEmpty())
-                defines.add ("JUCE_ObjCExtraSuffix=" + objCSuffix);
+                defines.set ("JUCE_ObjCExtraSuffix", replacePreprocessorTokens (config, objCSuffix));
         }
 
         {
-            defines.addArray (config.parsePreprocessorDefs());
-            defines.addArray (parsePreprocessorDefs());
+            defines = mergePreprocessorDefs (defines, getAllPreprocessorDefs (config));
 
-            for (int i = defines.size(); --i >= 0;)
-                defines.set (i, defines[i].quoted());
+            StringArray defsList;
 
-            s.add ("GCC_PREPROCESSOR_DEFINITIONS = (" + indentList (defines, ",") + ")");
+            for (int i = 0; i < defines.size(); ++i)
+            {
+                String def (defines.getAllKeys()[i]);
+                const String value (defines.getAllValues()[i]);
+                if (value.isNotEmpty())
+                    def << "=" << value;
+
+                defsList.add (def.quoted());
+            }
+
+            s.add ("GCC_PREPROCESSOR_DEFINITIONS = (" + indentList (defsList, ",") + ")");
         }
 
         return s;

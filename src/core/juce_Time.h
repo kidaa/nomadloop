@@ -129,7 +129,7 @@ public:
                                     it'll return the long form, e.g. "January"
         @see getMonth
     */
-    const String getMonthName (bool threeLetterVersion) const throw();
+    const String getMonthName (bool threeLetterVersion) const;
 
     /** Returns the day of the month.
 
@@ -148,7 +148,7 @@ public:
         @param threeLetterVersion   if true, it'll return a 3-letter abbreviation, e.g. "Tue"; if
                                     false, it'll return the full version, e.g. "Tuesday".
     */
-    const String getWeekdayName (bool threeLetterVersion) const throw();
+    const String getWeekdayName (bool threeLetterVersion) const;
 
     /** Returns the number of hours since midnight.
 
@@ -245,7 +245,7 @@ public:
 
         @see toString
     */
-    const String formatted (const String& format) const throw();
+    const String formatted (const String& format) const;
 
     //==============================================================================
     /** Adds a RelativeTime to this time and returns the result. */
@@ -291,7 +291,7 @@ public:
                                     false, it'll return the full version, e.g. "Tuesday".
     */
     static const String getWeekdayName (int dayNumber,
-                                        bool threeLetterVersion) throw();
+                                        bool threeLetterVersion);
 
     /** Returns the name of one of the months.
 
@@ -300,7 +300,7 @@ public:
                                     it'll return the long form, e.g. "January"
     */
     static const String getMonthName (int monthNumber,
-                                      bool threeLetterVersion) throw();
+                                      bool threeLetterVersion);
 
     //==============================================================================
     // Static methods for getting system timers directly..
@@ -314,19 +314,20 @@ public:
     */
     static int64 currentTimeMillis() throw();
 
-    /** Returns the number of millisecs since system startup.
+    /** Returns the number of millisecs since a fixed event (usually system startup).
 
-        Should be accurate to within a few millisecs, depending on platform,
+        This returns a monotonically increasing value which it unaffected by changes to the
+        system clock. It should be accurate to within a few millisecs, depending on platform,
         hardware, etc.
 
         @see getApproximateMillisecondCounter
     */
     static uint32 getMillisecondCounter() throw();
 
-    /** Returns the number of millisecs since system startup.
+    /** Returns the number of millisecs since a fixed event (usually system startup).
 
-        Same as getMillisecondCounter(), but returns a more accurate value, using
-        the high-res timer.
+        This has the same function as getMillisecondCounter(), but returns a more accurate
+        value, using a higher-resolution timer if one is available.
 
         @see getMillisecondCounter
     */

@@ -83,13 +83,18 @@ public:
     */
     bool scanNextFile (bool dontRescanIfAlreadyInList);
 
+    /** Skips over the next file without scanning it.
+        Returns false when there are no more files to try.
+    */
+    bool skipNextFile();
+
     /** Returns the description of the plugin that will be scanned during the next
         call to scanNextFile().
 
         This is handy if you want to show the user which file is currently getting
         scanned.
     */
-    const String getNextPluginFileThatWillBeScanned() const throw();
+    const String getNextPluginFileThatWillBeScanned() const;
 
     /** Returns the estimated progress, between 0 and 1.
     */
@@ -100,10 +105,8 @@ public:
     */
     const StringArray& getFailedFiles() const throw()               { return failedFiles; }
 
-    //==============================================================================
-    juce_UseDebuggingNewOperator
-
 private:
+    //==============================================================================
     KnownPluginList& list;
     AudioPluginFormat& format;
     StringArray filesOrIdentifiersToScan;
@@ -112,11 +115,10 @@ private:
     int nextIndex;
     float progress;
 
-    const StringArray getDeadMansPedalFile() throw();
-    void setDeadMansPedalFile (const StringArray& newContents) throw();
+    const StringArray getDeadMansPedalFile();
+    void setDeadMansPedalFile (const StringArray& newContents);
 
-    PluginDirectoryScanner (const PluginDirectoryScanner&);
-    PluginDirectoryScanner& operator= (const PluginDirectoryScanner&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PluginDirectoryScanner);
 };
 
 

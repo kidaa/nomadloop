@@ -153,7 +153,10 @@ const String File::parseAbsolutePath (const String& p)
     }
 #endif
 
-    return path.trimCharactersAtEnd (separatorString);
+    while (path.endsWithChar (separator) && path != separatorString) // careful not to turn a single "/" into an empty string.
+        path = path.dropLastCharacters (1);
+
+    return path;
 }
 
 const String File::addTrailingSeparator (const String& path)
@@ -529,96 +532,40 @@ const String File::loadFileAsString() const
 }
 
 //==============================================================================
-bool File::fileTypeMatches (const int whatToLookFor, const bool isDir, const bool isHidden)
-{
-    return (whatToLookFor & (isDir ? findDirectories
-                                   : findFiles)) != 0
-             && ((! isHidden) || (whatToLookFor & File::ignoreHiddenFiles) == 0);
-}
-
 int File::findChildFiles (Array<File>& results,
                           const int whatToLookFor,
                           const bool searchRecursively,
                           const String& wildCardPattern) const
 {
-    // you have to specify the type of files you're looking for!
-    jassert ((whatToLookFor & (findFiles | findDirectories)) != 0);
+    DirectoryIterator di (*this, searchRecursively, wildCardPattern, whatToLookFor);
 
     int total = 0;
-
-    if (isDirectory())
+    while (di.next())
     {
-        // find child files or directories in this directory first..
-        String path (addTrailingSeparator (fullPath)), filename;
-        bool itemIsDirectory, itemIsHidden;
-
-        DirectoryIterator::NativeIterator i (path, wildCardPattern);
-
-        while (i.next (filename, &itemIsDirectory, &itemIsHidden, 0, 0, 0, 0))
-        {
-            if (! filename.containsOnly ("."))
-            {
-                const File fileFound (path + filename, 0);
-
-                if (fileTypeMatches (whatToLookFor, itemIsDirectory, itemIsHidden))
-                {
-                    results.add (fileFound);
-                    ++total;
-                }
-
-                if (searchRecursively && itemIsDirectory
-                     && fileTypeMatches (whatToLookFor | findDirectories, true, itemIsHidden))
-                {
-                    total += fileFound.findChildFiles (results, whatToLookFor, true, wildCardPattern);
-                }
-            }
-        }
+        results.add (di.getFile());
+        ++total;
     }
 
     return total;
 }
 
-int File::getNumberOfChildFiles (const int whatToLookFor,
-                                 const String& wildCardPattern) const
+int File::getNumberOfChildFiles (const int whatToLookFor, const String& wildCardPattern) const
 {
-    // you have to specify the type of files you're looking for!
-    jassert (whatToLookFor > 0 && whatToLookFor <= 3);
+    DirectoryIterator di (*this, false, wildCardPattern, whatToLookFor);
 
-    int count = 0;
+    int total = 0;
+    while (di.next())
+        ++total;
 
-    if (isDirectory())
-    {
-        String filename;
-        bool itemIsDirectory, itemIsHidden;
-
-        DirectoryIterator::NativeIterator i (*this, wildCardPattern);
-
-        while (i.next (filename, &itemIsDirectory, &itemIsHidden, 0, 0, 0, 0))
-            if (fileTypeMatches (whatToLookFor, itemIsDirectory, itemIsHidden)
-                  && ! filename.containsOnly ("."))
-                ++count;
-    }
-    else
-    {
-        // trying to search for files inside a non-directory?
-        jassertfalse;
-    }
-
-    return count;
+    return total;
 }
 
 bool File::containsSubDirectories() const
 {
     if (isDirectory())
     {
-        String filename;
-        bool itemIsDirectory;
-
-        DirectoryIterator::NativeIterator i (*this, "*");
-
-        while (i.next (filename, &itemIsDirectory, 0, 0, 0, 0, 0))
-            if (itemIsDirectory)
-                return true;
+        DirectoryIterator di (*this, false, "*", findDirectories);
+        return di.next();
     }
 
     return false;
@@ -975,5 +922,144 @@ const File File::createTempFile (const String& fileNameEnding)
         return tempFile;
 }
 
+#if JUCE_UNIT_TESTS
+
+#include "../../utilities/juce_UnitTest.h"
+#include "../../core/juce_Random.h"
+
+class FileTests  : public UnitTest
+{
+public:
+    FileTests() : UnitTest ("Files") {}
+
+    void runTest()
+    {
+        beginTest ("Reading");
+
+        const File home (File::getSpecialLocation (File::userHomeDirectory));
+        const File temp (File::getSpecialLocation (File::tempDirectory));
+
+        expect (! File::nonexistent.exists());
+        expect (home.isDirectory());
+        expect (home.exists());
+        expect (! home.existsAsFile());
+        expect (File::getSpecialLocation (File::userDocumentsDirectory).isDirectory());
+        expect (File::getSpecialLocation (File::userApplicationDataDirectory).isDirectory());
+        expect (File::getSpecialLocation (File::currentExecutableFile).exists());
+        expect (File::getSpecialLocation (File::currentApplicationFile).exists());
+        expect (File::getSpecialLocation (File::invokedExecutableFile).exists());
+        expect (home.getVolumeTotalSize() > 1024 * 1024);
+        expect (home.getBytesFreeOnVolume() > 0);
+        expect (! home.isHidden());
+        expect (home.isOnHardDisk());
+        expect (! home.isOnCDRomDrive());
+        expect (File::getCurrentWorkingDirectory().exists());
+        expect (home.setAsCurrentWorkingDirectory());
+        expect (File::getCurrentWorkingDirectory() == home);
+
+        {
+            Array<File> roots;
+            File::findFileSystemRoots (roots);
+            expect (roots.size() > 0);
+
+            int numRootsExisting = 0;
+            for (int i = 0; i < roots.size(); ++i)
+                if (roots[i].exists())
+                    ++numRootsExisting;
+
+            // (on windows, some of the drives may not contain media, so as long as at least one is ok..)
+            expect (numRootsExisting > 0);
+        }
+
+        beginTest ("Writing");
+
+        File demoFolder (temp.getChildFile ("Juce UnitTests Temp Folder.folder"));
+        expect (demoFolder.deleteRecursively());
+        expect (demoFolder.createDirectory());
+        expect (demoFolder.isDirectory());
+        expect (demoFolder.getParentDirectory() == temp);
+        expect (temp.isDirectory());
+
+        {
+            Array<File> files;
+            temp.findChildFiles (files, File::findFilesAndDirectories, false, "*");
+            expect (files.contains (demoFolder));
+        }
+
+        {
+            Array<File> files;
+            temp.findChildFiles (files, File::findDirectories, true, "*.folder");
+            expect (files.contains (demoFolder));
+        }
+
+        File tempFile (demoFolder.getNonexistentChildFile ("test", ".txt", false));
+
+        expect (tempFile.getFileExtension() == ".txt");
+        expect (tempFile.hasFileExtension (".txt"));
+        expect (tempFile.hasFileExtension ("txt"));
+        expect (tempFile.withFileExtension ("xyz").hasFileExtension (".xyz"));
+        expect (tempFile.getSiblingFile ("foo").isAChildOf (temp));
+        expect (tempFile.hasWriteAccess());
+
+        {
+            FileOutputStream fo (tempFile);
+            fo.write ("0123456789", 10);
+        }
+
+        expect (tempFile.exists());
+        expect (tempFile.getSize() == 10);
+        expect (std::abs ((int) (tempFile.getLastModificationTime().toMilliseconds() - Time::getCurrentTime().toMilliseconds())) < 3000);
+        expect (tempFile.loadFileAsString() == "0123456789");
+        expect (! demoFolder.containsSubDirectories());
+
+        expect (demoFolder.getNumberOfChildFiles (File::findFiles) == 1);
+        expect (demoFolder.getNumberOfChildFiles (File::findFilesAndDirectories) == 1);
+        expect (demoFolder.getNumberOfChildFiles (File::findDirectories) == 0);
+        demoFolder.getNonexistentChildFile ("tempFolder", "", false).createDirectory();
+        expect (demoFolder.getNumberOfChildFiles (File::findDirectories) == 1);
+        expect (demoFolder.getNumberOfChildFiles (File::findFilesAndDirectories) == 2);
+        expect (demoFolder.containsSubDirectories());
+
+        expect (tempFile.hasWriteAccess());
+        tempFile.setReadOnly (true);
+        expect (! tempFile.hasWriteAccess());
+        tempFile.setReadOnly (false);
+        expect (tempFile.hasWriteAccess());
+
+        Time t (Time::getCurrentTime());
+        tempFile.setLastModificationTime (t);
+        Time t2 = tempFile.getLastModificationTime();
+        expect (std::abs ((int) (t2.toMilliseconds() - t.toMilliseconds())) <= 1000);
+
+        {
+            MemoryBlock mb;
+            tempFile.loadFileAsData (mb);
+            expect (mb.getSize() == 10);
+            expect (mb[0] == '0');
+        }
+
+        expect (tempFile.appendData ("abcdefghij", 10));
+        expect (tempFile.getSize() == 20);
+        expect (tempFile.replaceWithData ("abcdefghij", 10));
+        expect (tempFile.getSize() == 10);
+
+        File tempFile2 (tempFile.getNonexistentSibling (false));
+        expect (tempFile.copyFileTo (tempFile2));
+        expect (tempFile2.exists());
+        expect (tempFile2.hasIdenticalContentTo (tempFile));
+        expect (tempFile.deleteFile());
+        expect (! tempFile.exists());
+        expect (tempFile2.moveFileTo (tempFile));
+        expect (tempFile.exists());
+        expect (! tempFile2.exists());
+
+        expect (demoFolder.deleteRecursively());
+        expect (! demoFolder.exists());
+    }
+};
+
+static FileTests fileUnitTests;
+
+#endif
 
 END_JUCE_NAMESPACE

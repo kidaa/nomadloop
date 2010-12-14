@@ -139,14 +139,11 @@ public:
     /** @internal */
     void fileDoubleClicked (const File& file);
 
-    juce_UseDebuggingNewOperator
-
 private:
     class ContentComponent  : public Component
     {
     public:
-        ContentComponent();
-        ~ContentComponent();
+        ContentComponent (const String& name, const String& instructions, FileBrowserComponent& chooserComponent);
 
         void paint (Graphics& g);
         void resized();
@@ -154,17 +151,17 @@ private:
         String instructions;
         GlyphArrangement text;
 
-        FileBrowserComponent* chooserComponent;
-        FilePreviewComponent* previewComponent;
-        TextButton* okButton;
-        TextButton* cancelButton;
+        FileBrowserComponent& chooserComponent;
+        TextButton okButton, cancelButton, newFolderButton;
     };
 
     ContentComponent* content;
     const bool warnAboutOverwritingExistingFiles;
 
-    FileChooserDialogBox (const FileChooserDialogBox&);
-    FileChooserDialogBox& operator= (const FileChooserDialogBox&);
+    void okButtonPressed();
+    void createNewFolder();
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FileChooserDialogBox);
 };
 
 

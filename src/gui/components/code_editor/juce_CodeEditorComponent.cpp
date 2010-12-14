@@ -44,10 +44,6 @@ public:
         setInterceptsMouseClicks (false, false);
     }
 
-    ~CaretComponent()
-    {
-    }
-
     void paint (Graphics& g)
     {
         g.fillAll (findColour (CodeEditorComponent::caretColourId));
@@ -69,10 +65,9 @@ public:
 private:
     CodeEditorComponent& owner;
 
-    CaretComponent (const CaretComponent&);
-    CaretComponent& operator= (const CaretComponent&);
-
     bool shouldBeShown() const      { return owner.hasKeyboardFocus (true); }
+
+    JUCE_DECLARE_NON_COPYABLE (CaretComponent);
 };
 
 //==============================================================================
@@ -81,10 +76,6 @@ class CodeEditorComponent::CodeEditorLine
 public:
     CodeEditorLine() throw()
        : highlightColumnStart (0), highlightColumnEnd (0)
-    {
-    }
-
-    ~CodeEditorLine() throw()
     {
     }
 
@@ -155,7 +146,7 @@ public:
 
     void draw (CodeEditorComponent& owner, Graphics& g, const Font& font,
                float x, const int y, const int baselineOffset, const int lineHeight,
-               const Colour& highlightColour) const throw()
+               const Colour& highlightColour) const
     {
         if (highlightColumnStart < highlightColumnEnd)
         {
@@ -191,10 +182,6 @@ public:
 private:
     struct SyntaxToken
     {
-        String text;
-        int tokenType;
-        float width;
-
         SyntaxToken (const String& text_, const int type) throw()
             : text (text_), tokenType (type), width (-1.0f)
         {
@@ -204,6 +191,10 @@ private:
         {
             return text != other.text || tokenType != other.tokenType;
         }
+
+        String text;
+        int tokenType;
+        float width;
     };
 
     Array <SyntaxToken> tokens;
@@ -244,7 +235,7 @@ private:
         source = lastIterator;
     }
 
-    static void replaceTabsWithSpaces (Array <SyntaxToken>& tokens, const int spacesPerTab) throw()
+    static void replaceTabsWithSpaces (Array <SyntaxToken>& tokens, const int spacesPerTab)
     {
         int x = 0;
         for (int i = 0; i < tokens.size(); ++i)
@@ -296,6 +287,8 @@ CodeEditorComponent::CodeEditorComponent (CodeDocument& document_,
       columnToTryToMaintain (-1),
       useSpacesForTabs (false),
       xOffset (0),
+      verticalScrollBar (true),
+      horizontalScrollBar (false),
       codeTokeniser (codeTokeniser_)
 {
     caretPos = CodeDocument::Position (&document_, 0, 0);
@@ -311,11 +304,11 @@ CodeEditorComponent::CodeEditorComponent (CodeDocument& document_,
     setMouseCursor (MouseCursor (MouseCursor::IBeamCursor));
     setWantsKeyboardFocus (true);
 
-    addAndMakeVisible (verticalScrollBar = new ScrollBar (true));
-    verticalScrollBar->setSingleStepSize (1.0);
+    addAndMakeVisible (&verticalScrollBar);
+    verticalScrollBar.setSingleStepSize (1.0);
 
-    addAndMakeVisible (horizontalScrollBar = new ScrollBar (false));
-    horizontalScrollBar->setSingleStepSize (1.0);
+    addAndMakeVisible (&horizontalScrollBar);
+    horizontalScrollBar.setSingleStepSize (1.0);
 
     addAndMakeVisible (caret = new CaretComponent (*this));
 
@@ -325,15 +318,14 @@ CodeEditorComponent::CodeEditorComponent (CodeDocument& document_,
 
     resetToDefaultColours();
 
-    verticalScrollBar->addListener (this);
-    horizontalScrollBar->addListener (this);
+    verticalScrollBar.addListener (this);
+    horizontalScrollBar.addListener (this);
     document.addListener (this);
 }
 
 CodeEditorComponent::~CodeEditorComponent()
 {
     document.removeListener (this);
-    deleteAllChildren();
 }
 
 void CodeEditorComponent::loadContent (const String& newContent)
@@ -383,8 +375,8 @@ void CodeEditorComponent::resized()
     rebuildLineTokens();
     caret->updatePosition();
 
-    verticalScrollBar->setBounds (getWidth() - scrollbarThickness, 0, scrollbarThickness, getHeight() - scrollbarThickness);
-    horizontalScrollBar->setBounds (gutter, getHeight() - scrollbarThickness, getWidth() - scrollbarThickness - gutter, scrollbarThickness);
+    verticalScrollBar.setBounds (getWidth() - scrollbarThickness, 0, scrollbarThickness, getHeight() - scrollbarThickness);
+    horizontalScrollBar.setBounds (gutter, getHeight() - scrollbarThickness, getWidth() - scrollbarThickness - gutter, scrollbarThickness);
     updateScrollBars();
 }
 
@@ -394,7 +386,7 @@ void CodeEditorComponent::paint (Graphics& g)
 
     g.fillAll (findColour (CodeEditorComponent::backgroundColourId));
 
-    g.reduceClipRegion (gutter, 0, verticalScrollBar->getX() - gutter, horizontalScrollBar->getY());
+    g.reduceClipRegion (gutter, 0, verticalScrollBar.getX() - gutter, horizontalScrollBar.getY());
 
     g.setFont (font);
     const int baselineOffset = (int) font.getAscent();
@@ -414,7 +406,7 @@ void CodeEditorComponent::paint (Graphics& g)
     }
 }
 
-void CodeEditorComponent::setScrollbarThickness (const int thickness) throw()
+void CodeEditorComponent::setScrollbarThickness (const int thickness)
 {
     if (scrollbarThickness != thickness)
     {
@@ -468,7 +460,7 @@ void CodeEditorComponent::rebuildLineTokens()
     if (minLineToRepaint <= maxLineToRepaint)
     {
         repaint (gutter, lineHeight * minLineToRepaint - 1,
-                 verticalScrollBar->getX() - gutter,
+                 verticalScrollBar.getX() - gutter,
                  lineHeight * (1 + maxLineToRepaint - minLineToRepaint) + 2);
     }
 }
@@ -540,11 +532,11 @@ void CodeEditorComponent::deselectAll()
 
 void CodeEditorComponent::updateScrollBars()
 {
-    verticalScrollBar->setRangeLimits (0, jmax (document.getNumLines(), firstLineOnScreen + linesOnScreen));
-    verticalScrollBar->setCurrentRange (firstLineOnScreen, linesOnScreen);
+    verticalScrollBar.setRangeLimits (0, jmax (document.getNumLines(), firstLineOnScreen + linesOnScreen));
+    verticalScrollBar.setCurrentRange (firstLineOnScreen, linesOnScreen);
 
-    horizontalScrollBar->setRangeLimits (0, jmax ((double) document.getMaximumLineLength(), xOffset + columnsOnScreen));
-    horizontalScrollBar->setCurrentRange (xOffset, columnsOnScreen);
+    horizontalScrollBar.setRangeLimits (0, jmax ((double) document.getMaximumLineLength(), xOffset + columnsOnScreen));
+    horizontalScrollBar.setCurrentRange (xOffset, columnsOnScreen);
 }
 
 void CodeEditorComponent::scrollToLineInternal (int newFirstLineOnScreen)
@@ -605,7 +597,7 @@ void CodeEditorComponent::scrollToKeepCaretOnScreen()
         scrollToColumn (column);
 }
 
-const Rectangle<int> CodeEditorComponent::getCharacterBounds (const CodeDocument::Position& pos) const throw()
+const Rectangle<int> CodeEditorComponent::getCharacterBounds (const CodeDocument::Position& pos) const
 {
     return Rectangle<int> (roundToInt ((gutter - xOffset * charWidth) + indexToColumn (pos.getLineNumber(), pos.getIndexInLine()) * charWidth),
                            (pos.getLineNumber() - firstLineOnScreen) * lineHeight,
@@ -781,22 +773,25 @@ void CodeEditorComponent::goToStartOfDocument (const bool selecting)
     moveCaretTo (CodeDocument::Position (&document, 0, 0), selecting);
 }
 
-static int findFirstNonWhitespaceChar (const String& line) throw()
+namespace CodeEditorHelpers
 {
-    const int len = line.length();
+    int findFirstNonWhitespaceChar (const String& line) throw()
+    {
+        const int len = line.length();
 
-    for (int i = 0; i < len; ++i)
-        if (! CharacterFunctions::isWhitespace (line [i]))
-            return i;
+        for (int i = 0; i < len; ++i)
+            if (! CharacterFunctions::isWhitespace (line [i]))
+                return i;
 
-    return 0;
+        return 0;
+    }
 }
 
 void CodeEditorComponent::goToStartOfLine (const bool selecting)
 {
     newTransaction();
 
-    int index = findFirstNonWhitespaceChar (caretPos.getLineText());
+    int index = CodeEditorHelpers::findFirstNonWhitespaceChar (caretPos.getLineText());
 
     if (index >= caretPos.getIndexInLine() && caretPos.getIndexInLine() > 0)
         index = 0;
@@ -1079,11 +1074,11 @@ void CodeEditorComponent::mouseDoubleClick (const MouseEvent& e)
 
 void CodeEditorComponent::mouseWheelMove (const MouseEvent& e, float wheelIncrementX, float wheelIncrementY)
 {
-    if ((verticalScrollBar->isVisible() && wheelIncrementY != 0)
-         || (horizontalScrollBar->isVisible() && wheelIncrementX != 0))
+    if ((verticalScrollBar.isVisible() && wheelIncrementY != 0)
+         || (horizontalScrollBar.isVisible() && wheelIncrementX != 0))
     {
-        verticalScrollBar->mouseWheelMove (e, 0, wheelIncrementY);
-        horizontalScrollBar->mouseWheelMove (e, wheelIncrementX, 0);
+        verticalScrollBar.mouseWheelMove (e, 0, wheelIncrementY);
+        horizontalScrollBar.mouseWheelMove (e, wheelIncrementX, 0);
     }
     else
     {
@@ -1093,7 +1088,7 @@ void CodeEditorComponent::mouseWheelMove (const MouseEvent& e, float wheelIncrem
 
 void CodeEditorComponent::scrollBarMoved (ScrollBar* scrollBarThatHasMoved, double newRangeStart)
 {
-    if (scrollBarThatHasMoved == verticalScrollBar)
+    if (scrollBarThatHasMoved == &verticalScrollBar)
         scrollToLineInternal ((int) newRangeStart);
     else
         scrollToColumnInternal (newRangeStart);
@@ -1111,7 +1106,7 @@ void CodeEditorComponent::focusLost (FocusChangeType)
 }
 
 //==============================================================================
-void CodeEditorComponent::setTabSize (const int numSpaces, const bool insertSpaces) throw()
+void CodeEditorComponent::setTabSize (const int numSpaces, const bool insertSpaces)
 {
     useSpacesForTabs = insertSpaces;
 
@@ -1190,15 +1185,15 @@ void CodeEditorComponent::setColourForTokenType (const int tokenType, const Colo
     repaint();
 }
 
-const Colour CodeEditorComponent::getColourForTokenType (const int tokenType) const throw()
+const Colour CodeEditorComponent::getColourForTokenType (const int tokenType) const
 {
-    if (((unsigned int) tokenType) >= (unsigned int) coloursForTokenCategories.size())
+    if (! isPositiveAndBelow (tokenType, coloursForTokenCategories.size()))
         return findColour (CodeEditorComponent::defaultTextColourId);
 
     return coloursForTokenCategories.getReference (tokenType);
 }
 
-void CodeEditorComponent::clearCachedIterators (const int firstLineToBeInvalid) throw()
+void CodeEditorComponent::clearCachedIterators (const int firstLineToBeInvalid)
 {
     int i;
     for (i = cachedIterators.size(); --i >= 0;)

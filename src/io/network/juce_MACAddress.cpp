@@ -23,32 +23,66 @@
   ==============================================================================
 */
 
-#include "../../../core/juce_StandardHeader.h"
+#include "../../core/juce_StandardHeader.h"
 
 BEGIN_JUCE_NAMESPACE
 
-#include "juce_ReduceOpacityEffect.h"
+#include "juce_MACAddress.h"
 
 
 //==============================================================================
-ReduceOpacityEffect::ReduceOpacityEffect (const float opacity_)
-    : opacity (opacity_)
+MACAddress::MACAddress()
+    : asInt64 (0)
 {
 }
 
-ReduceOpacityEffect::~ReduceOpacityEffect()
+MACAddress::MACAddress (const MACAddress& other)
+    : asInt64 (other.asInt64)
 {
 }
 
-void ReduceOpacityEffect::setOpacity (const float newOpacity)
+MACAddress& MACAddress::operator= (const MACAddress& other)
 {
-    opacity = jlimit (0.0f, 1.0f, newOpacity);
+    asInt64 = other.asInt64;
+    return *this;
 }
 
-void ReduceOpacityEffect::applyEffect (Image& image, Graphics& g)
+MACAddress::MACAddress (const uint8 bytes[6])
+    : asInt64 (0)
 {
-    g.setOpacity (opacity);
-    g.drawImageAt (image, 0, 0);
+    memcpy (asBytes, bytes, sizeof (asBytes));
 }
+
+const String MACAddress::toString() const
+{
+    String s;
+    s.preallocateStorage (18);
+
+    for (int i = 0; i < numElementsInArray (asBytes); ++i)
+    {
+        s << String::toHexString ((int) asBytes[i]).paddedLeft ('0', 2);
+
+        if (i < numElementsInArray (asBytes) - 1)
+            s << '-';
+    }
+
+    return s;
+}
+
+int64 MACAddress::toInt64() const throw()
+{
+    int64 n = 0;
+
+    for (int i = numElementsInArray (asBytes); --i >= 0;)
+        n = (n << 8) | asBytes[i];
+
+    return n;
+}
+
+bool MACAddress::isNull() const throw()                                 { return asInt64 == 0; }
+
+bool MACAddress::operator== (const MACAddress& other) const throw()     { return asInt64 == other.asInt64; }
+bool MACAddress::operator!= (const MACAddress& other) const throw()     { return asInt64 != other.asInt64; }
+
 
 END_JUCE_NAMESPACE

@@ -65,8 +65,7 @@ public:
                                     called (unless the source is previously removed
                                     with the removeInputSource method)
     */
-    void addInputSource (AudioSource* newInput,
-                         const bool deleteWhenRemoved);
+    void addInputSource (AudioSource* newInput, bool deleteWhenRemoved);
 
     /** Removes an input source.
 
@@ -76,8 +75,7 @@ public:
         @param input            the source to remove
         @param deleteSource     whether to delete this source after it's been removed
     */
-    void removeInputSource (AudioSource* input,
-                            const bool deleteSource);
+    void removeInputSource (AudioSource* input, bool deleteSource);
 
     /** Removes all the input sources.
 
@@ -106,9 +104,6 @@ public:
     void getNextAudioBlock (const AudioSourceChannelInfo& bufferToFill);
 
 
-    //==============================================================================
-    juce_UseDebuggingNewOperator
-
 private:
     //==============================================================================
     Array <AudioSource*> inputs;
@@ -118,8 +113,7 @@ private:
     double currentSampleRate;
     int bufferSizeExpected;
 
-    MixerAudioSource (const MixerAudioSource&);
-    MixerAudioSource& operator= (const MixerAudioSource&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MixerAudioSource);
 };
 
 

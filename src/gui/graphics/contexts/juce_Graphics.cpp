@@ -34,15 +34,18 @@ BEGIN_JUCE_NAMESPACE
 
 
 //==============================================================================
-template <typename Type>
-static bool areCoordsSensibleNumbers (Type x, Type y, Type w, Type h)
+namespace
 {
-    const int maxVal = 0x3fffffff;
+    template <typename Type>
+    bool areCoordsSensibleNumbers (Type x, Type y, Type w, Type h)
+    {
+        const int maxVal = 0x3fffffff;
 
-    return (int) x >= -maxVal && (int) x <= maxVal
-        && (int) y >= -maxVal && (int) y <= maxVal
-        && (int) w >= -maxVal && (int) w <= maxVal
-        && (int) h >= -maxVal && (int) h <= maxVal;
+        return (int) x >= -maxVal && (int) x <= maxVal
+            && (int) y >= -maxVal && (int) y <= maxVal
+            && (int) w >= -maxVal && (int) w <= maxVal
+            && (int) h >= -maxVal && (int) h <= maxVal;
+    }
 }
 
 //==============================================================================
@@ -86,10 +89,15 @@ bool Graphics::isVectorDevice() const
     return context->isVectorDevice();
 }
 
-bool Graphics::reduceClipRegion (const int x, const int y, const int w, const int h)
+bool Graphics::reduceClipRegion (const Rectangle<int>& area)
 {
     saveStateIfPending();
-    return context->clipToRectangle (Rectangle<int> (x, y, w, h));
+    return context->clipToRectangle (area);
+}
+
+bool Graphics::reduceClipRegion (const int x, const int y, const int w, const int h)
+{
+    return reduceClipRegion (Rectangle<int> (x, y, w, h));
 }
 
 bool Graphics::reduceClipRegion (const RectangleList& clipRegion)
@@ -157,9 +165,26 @@ void Graphics::setOrigin (const int newOriginX, const int newOriginY)
     context->setOrigin (newOriginX, newOriginY);
 }
 
+void Graphics::addTransform (const AffineTransform& transform)
+{
+    saveStateIfPending();
+    context->addTransform (transform);
+}
+
 bool Graphics::clipRegionIntersects (const Rectangle<int>& area) const
 {
     return context->clipRegionIntersects (area);
+}
+
+void Graphics::beginTransparencyLayer (float layerOpacity)
+{
+    saveStateIfPending();
+    context->beginTransparencyLayer (layerOpacity);
+}
+
+void Graphics::endTransparencyLayer()
+{
+    context->endTransparencyLayer();
 }
 
 //==============================================================================
@@ -692,6 +717,18 @@ void Graphics::drawImageTransformed (const Image& imageToDraw,
             context->drawImage (imageToDraw, transform, false);
         }
     }
+}
+
+//==============================================================================
+Graphics::ScopedSaveState::ScopedSaveState (Graphics& g)
+    : context (g)
+{
+    context.saveState();
+}
+
+Graphics::ScopedSaveState::~ScopedSaveState()
+{
+    context.restoreState();
 }
 
 

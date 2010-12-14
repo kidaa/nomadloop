@@ -28,6 +28,7 @@
 
 #include "../text/juce_StringPairArray.h"
 #include "../text/juce_XmlElement.h"
+#include "../containers/juce_Variant.h"
 
 
 //==============================================================================
@@ -49,15 +50,15 @@ public:
         @param ignoreCaseOfKeyNames         if true, the names of properties are compared in a
                                             case-insensitive way
     */
-    PropertySet (const bool ignoreCaseOfKeyNames = false) throw();
+    PropertySet (bool ignoreCaseOfKeyNames = false);
 
     /** Creates a copy of another PropertySet.
     */
-    PropertySet (const PropertySet& other) throw();
+    PropertySet (const PropertySet& other);
 
     /** Copies another PropertySet over this one.
     */
-    PropertySet& operator= (const PropertySet& other) throw();
+    PropertySet& operator= (const PropertySet& other);
 
     /** Destructor. */
     virtual ~PropertySet();
@@ -128,33 +129,12 @@ public:
     XmlElement* getXmlValue (const String& keyName) const;
 
     //==============================================================================
-    /** Sets a named property as a string.
+    /** Sets a named property.
 
         @param keyName      the name of the property to set. (This mustn't be an empty string)
         @param value        the new value to set it to
     */
-    void setValue (const String& keyName, const String& value) throw();
-
-    /** Sets a named property to an integer.
-
-        @param keyName      the name of the property to set. (This mustn't be an empty string)
-        @param value        the new value to set it to
-    */
-    void setValue (const String& keyName, const int value) throw();
-
-    /** Sets a named property to a double.
-
-        @param keyName      the name of the property to set. (This mustn't be an empty string)
-        @param value        the new value to set it to
-    */
-    void setValue (const String& keyName, const double value) throw();
-
-    /** Sets a named property to a boolean.
-
-        @param keyName      the name of the property to set. (This mustn't be an empty string)
-        @param value        the new value to set it to
-    */
-    void setValue (const String& keyName, const bool value) throw();
+    void setValue (const String& keyName, const var& value);
 
     /** Sets a named property to an XML element.
 
@@ -163,14 +143,14 @@ public:
                             an empty string
         @see getXmlValue
     */
-    void setValue (const String& keyName, const XmlElement* const xml);
+    void setValue (const String& keyName, const XmlElement* xml);
 
     //==============================================================================
     /** Deletes a property.
 
         @param keyName      the name of the property to delete. (This mustn't be an empty string)
     */
-    void removeValue (const String& keyName) throw();
+    void removeValue (const String& keyName);
 
     /** Returns true if the properies include the given key. */
     bool containsKey (const String& keyName) const throw();
@@ -192,7 +172,7 @@ public:
 
         @see restoreFromXml
     */
-    XmlElement* createXml (const String& nodeName) const throw();
+    XmlElement* createXml (const String& nodeName) const;
 
     /** Reloads a set of properties that were previously stored as XML.
 
@@ -200,7 +180,7 @@ public:
 
         @see createXml
     */
-    void restoreFromXml (const XmlElement& xml) throw();
+    void restoreFromXml (const XmlElement& xml);
 
     //==============================================================================
     /** Sets up a second PopertySet that will be used to look up any values that aren't
@@ -222,16 +202,10 @@ public:
     */
     PropertySet* getFallbackPropertySet() const throw()                 { return fallbackProperties; }
 
-    //==============================================================================
-    juce_UseDebuggingNewOperator
-
-
 protected:
     //==============================================================================
-    /** Subclasses can override this to be told when one of the properies has been changed.
-    */
+    /** Subclasses can override this to be told when one of the properies has been changed. */
     virtual void propertyChanged();
-
 
 private:
     //==============================================================================
@@ -239,6 +213,8 @@ private:
     PropertySet* fallbackProperties;
     CriticalSection lock;
     bool ignoreCaseOfKeys;
+
+    JUCE_LEAK_DETECTOR (PropertySet);
 };
 
 

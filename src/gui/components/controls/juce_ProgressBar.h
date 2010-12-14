@@ -70,7 +70,7 @@ public:
         By default this is on, and the progress bar will display a text string showing
         its current percentage.
     */
-    void setPercentageDisplay (const bool shouldDisplayPercentage);
+    void setPercentageDisplay (bool shouldDisplayPercentage);
 
     /** Gives the progress bar a string to display inside it.
 
@@ -95,10 +95,8 @@ public:
                                                              classes will probably use variations on this colour. */
     };
 
-    //==============================================================================
-    juce_UseDebuggingNewOperator
-
 protected:
+    //==============================================================================
     /** @internal */
     void paint (Graphics& g);
     /** @internal */
@@ -117,8 +115,7 @@ private:
 
     void timerCallback();
 
-    ProgressBar (const ProgressBar&);
-    ProgressBar& operator= (const ProgressBar&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ProgressBar);
 };
 
 

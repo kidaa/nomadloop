@@ -153,13 +153,14 @@ public:
     void ejectDisk();
 
     //==============================================================================
-    static const int framesPerSecond = 75;
-    static const int samplesPerFrame = 44100 / framesPerSecond;
-
-    //==============================================================================
-    juce_UseDebuggingNewOperator
+    enum
+    {
+        framesPerSecond = 75,
+        samplesPerFrame = 44100 / framesPerSecond
+    };
 
 private:
+    //==============================================================================
     Array<int> trackStartSamples;
 
 #if JUCE_MAC
@@ -182,8 +183,7 @@ private:
     AudioCDReader();
 #endif
 
-    AudioCDReader (const AudioCDReader&);
-    AudioCDReader& operator= (const AudioCDReader&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioCDReader);
 };
 
 #endif

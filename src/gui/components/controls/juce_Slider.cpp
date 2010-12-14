@@ -77,16 +77,12 @@ public:
         BubbleComponent::setPosition (owner);
     }
 
-    //==============================================================================
-    juce_UseDebuggingNewOperator
-
 private:
     Slider* owner;
     Font font;
     String text;
 
-    SliderPopupDisplayComponent (const SliderPopupDisplayComponent&);
-    SliderPopupDisplayComponent& operator= (const SliderPopupDisplayComponent&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SliderPopupDisplayComponent);
 };
 
 //==============================================================================
@@ -126,9 +122,6 @@ Slider::Slider (const String& name)
     menuShown (false),
     scrollWheelEnabled (true),
     snapsToMousePos (true),
-    valueBox (0),
-    incButton (0),
-    decButton (0),
     popupDisplay (0),
     parentForPopupDisplay (0)
 {
@@ -149,7 +142,6 @@ Slider::~Slider()
     valueMin.removeListener (this);
     valueMax.removeListener (this);
     popupDisplay = 0;
-    deleteAllChildren();
 }
 
 
@@ -180,12 +172,12 @@ void Slider::sendDragEnd()
     listeners.callChecked (checker, &SliderListener::sliderDragEnded, this);
 }
 
-void Slider::addListener (Listener* const listener)
+void Slider::addListener (SliderListener* const listener)
 {
     listeners.add (listener);
 }
 
-void Slider::removeListener (Listener* const listener)
+void Slider::removeListener (SliderListener* const listener)
 {
     listeners.remove (listener);
 }
@@ -335,16 +327,14 @@ void Slider::colourChanged()
 
 void Slider::lookAndFeelChanged()
 {
-    const String previousTextBoxContent (valueBox != 0 ? valueBox->getText()
-                                                       : getTextFromValue (currentValue.getValue()));
-
-    deleteAllChildren();
-    valueBox = 0;
-
     LookAndFeel& lf = getLookAndFeel();
 
     if (textBoxPos != NoTextBox)
     {
+        const String previousTextBoxContent (valueBox != 0 ? valueBox->getText()
+                                                           : getTextFromValue (currentValue.getValue()));
+
+        valueBox = 0;
         addAndMakeVisible (valueBox = getLookAndFeel().createSliderTextBox (*this));
 
         valueBox->setWantsKeyboardFocus (false);
@@ -357,6 +347,10 @@ void Slider::lookAndFeelChanged()
             valueBox->addMouseListener (this, false);
 
         valueBox->setTooltip (getTooltip());
+    }
+    else
+    {
+        valueBox = 0;
     }
 
     if (style == IncDecButtons)
@@ -383,6 +377,11 @@ void Slider::lookAndFeelChanged()
 
         incButton->setTooltip (getTooltip());
         decButton->setTooltip (getTooltip());
+    }
+    else
+    {
+        incButton = 0;
+        decButton = 0;
     }
 
     setComponentEffect (lf.getSliderEffect());
@@ -1172,8 +1171,8 @@ void Slider::restoreMouseIfHidden()
         {
             const int pixelPos = (int) getLinearSliderPos (pos);
 
-            mousePos = relativePositionToGlobal (Point<int> (isHorizontal() ? pixelPos : (getWidth() / 2),
-                                                             isVertical()   ? pixelPos : (getHeight() / 2)));
+            mousePos = localPointToGlobal (Point<int> (isHorizontal() ? pixelPos : (getWidth() / 2),
+                                                       isVertical()   ? pixelPos : (getHeight() / 2)));
         }
 
         Desktop::setMousePosition (mousePos);
@@ -1191,11 +1190,14 @@ void Slider::modifierKeysChanged (const ModifierKeys& modifiers)
     }
 }
 
-static double smallestAngleBetween (double a1, double a2)
+namespace SliderHelpers
 {
-    return jmin (std::abs (a1 - a2),
-                 std::abs (a1 + double_Pi * 2.0 - a2),
-                 std::abs (a2 + double_Pi * 2.0 - a1));
+    double smallestAngleBetween (double a1, double a2) throw()
+    {
+        return jmin (std::abs (a1 - a2),
+                     std::abs (a1 + double_Pi * 2.0 - a2),
+                     std::abs (a2 + double_Pi * 2.0 - a1));
+    }
 }
 
 void Slider::mouseDrag (const MouseEvent& e)
@@ -1237,7 +1239,8 @@ void Slider::mouseDrag (const MouseEvent& e)
 
                     if (angle > rotaryEnd)
                     {
-                        if (smallestAngleBetween (angle, rotaryStart) <= smallestAngleBetween (angle, rotaryEnd))
+                        if (SliderHelpers::smallestAngleBetween (angle, rotaryStart)
+                             <= SliderHelpers::smallestAngleBetween (angle, rotaryEnd))
                             angle = rotaryStart;
                         else
                             angle = rotaryEnd;

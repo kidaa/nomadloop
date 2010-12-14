@@ -34,6 +34,8 @@
 
 #if JUCE_LINUX
 
+#undef JUCE_BUILD_NATIVE
+#define JUCE_BUILD_NATIVE 1
 #include "linux/juce_linux_NativeIncludes.h"
 
 BEGIN_JUCE_NAMESPACE
@@ -61,6 +63,7 @@ BEGIN_JUCE_NAMESPACE
 #include "../io/files/juce_FileOutputStream.h"
 #include "../io/files/juce_DirectoryIterator.h"
 #include "../io/network/juce_URL.h"
+#include "../io/network/juce_MACAddress.h"
 #include "../io/streams/juce_MemoryInputStream.h"
 #include "../io/streams/juce_MemoryOutputStream.h"
 #include "../events/juce_MessageManager.h"

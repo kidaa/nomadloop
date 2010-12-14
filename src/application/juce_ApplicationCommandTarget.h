@@ -28,6 +28,7 @@
 
 #include "../gui/components/juce_Component.h"
 #include "juce_ApplicationCommandInfo.h"
+#include "../events/juce_MessageListener.h"
 
 
 //==============================================================================
@@ -61,7 +62,7 @@ public:
     struct JUCE_API  InvocationInfo
     {
         //==============================================================================
-        InvocationInfo (const CommandID commandID) throw();
+        InvocationInfo (const CommandID commandID);
 
         //==============================================================================
         /** The UID of the command that should be performed. */
@@ -232,15 +233,13 @@ public:
     */
     ApplicationCommandTarget* findFirstTargetParentComponent();
 
-    //==============================================================================
-    juce_UseDebuggingNewOperator
-
 private:
+    //==============================================================================
     // (for async invocation of commands)
     class CommandTargetMessageInvoker  : public MessageListener
     {
     public:
-        CommandTargetMessageInvoker (ApplicationCommandTarget* const owner);
+        CommandTargetMessageInvoker (ApplicationCommandTarget* owner);
         ~CommandTargetMessageInvoker();
 
         void handleMessage (const Message& message);
@@ -248,17 +247,15 @@ private:
     private:
         ApplicationCommandTarget* const owner;
 
-        CommandTargetMessageInvoker (const CommandTargetMessageInvoker&);
-        CommandTargetMessageInvoker& operator= (const CommandTargetMessageInvoker&);
+        JUCE_DECLARE_NON_COPYABLE (CommandTargetMessageInvoker);
     };
 
     ScopedPointer <CommandTargetMessageInvoker> messageInvoker;
 
     friend class CommandTargetMessageInvoker;
-    bool tryToInvoke (const InvocationInfo& info, const bool async);
+    bool tryToInvoke (const InvocationInfo& info, bool async);
 
-    ApplicationCommandTarget (const ApplicationCommandTarget&);
-    ApplicationCommandTarget& operator= (const ApplicationCommandTarget&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ApplicationCommandTarget);
 };
 
 

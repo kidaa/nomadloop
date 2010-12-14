@@ -120,28 +120,32 @@ void ComponentPeer::handlePaint (LowLevelGraphicsContext& contextToPaintTo)
 {
     Graphics g (&contextToPaintTo);
 
-#if JUCE_ENABLE_REPAINT_DEBUGGING
+  #if JUCE_ENABLE_REPAINT_DEBUGGING
     g.saveState();
-#endif
+  #endif
 
     JUCE_TRY
     {
-        component->paintEntireComponent (g);
+        component->paintEntireComponent (g, true);
     }
     JUCE_CATCH_EXCEPTION
 
-#if JUCE_ENABLE_REPAINT_DEBUGGING
+  #if JUCE_ENABLE_REPAINT_DEBUGGING
     // enabling this code will fill all areas that get repainted with a colour overlay, to show
     // clearly when things are being repainted.
-    {
-        g.restoreState();
+    g.restoreState();
 
-        g.fillAll (Colour ((uint8) Random::getSystemRandom().nextInt (255),
-                           (uint8) Random::getSystemRandom().nextInt (255),
-                           (uint8) Random::getSystemRandom().nextInt (255),
-                           (uint8) 0x50));
-    }
-#endif
+    g.fillAll (Colour ((uint8) Random::getSystemRandom().nextInt (255),
+                       (uint8) Random::getSystemRandom().nextInt (255),
+                       (uint8) Random::getSystemRandom().nextInt (255),
+                       (uint8) 0x50));
+  #endif
+
+    /** If this fails, it's probably be because your CPU floating-point precision mode has
+        been set to low.. This setting is sometimes changed by things like Direct3D, and can
+        mess up a lot of the calculations that the library needs to do.
+    */
+    jassert (roundToInt (10.1f) == 10);
 }
 
 bool ComponentPeer::handleKeyPress (const int keyCode,
@@ -295,7 +299,6 @@ void ComponentPeer::setConstrainer (ComponentBoundsConstrainer* const newConstra
 
 void ComponentPeer::handleMovedOrResized()
 {
-    jassert (component->isValidComponent());
     updateCurrentModifiers();
 
     const bool nowMinimised = isMinimised();
@@ -348,7 +351,7 @@ void ComponentPeer::handleFocusGain()
         if (! component->isCurrentlyBlockedByAnotherModalComponent())
             component->grabKeyboardFocus();
         else
-            Component::bringModalComponentToFront();
+            ModalComponentManager::getInstance()->bringModalComponentsToFront();
     }
 }
 
@@ -394,22 +397,35 @@ const Rectangle<int>& ComponentPeer::getNonFullScreenBounds() const throw()
     return lastNonFullscreenBounds;
 }
 
-//==============================================================================
-static FileDragAndDropTarget* findDragAndDropTarget (Component* c,
-                                                     const StringArray& files,
-                                                     FileDragAndDropTarget* const lastOne)
+const Rectangle<int> ComponentPeer::localToGlobal (const Rectangle<int>& relativePosition)
 {
-    while (c != 0)
+    return relativePosition.withPosition (localToGlobal (relativePosition.getPosition()));
+}
+
+const Rectangle<int> ComponentPeer::globalToLocal (const Rectangle<int>& screenPosition)
+{
+    return screenPosition.withPosition (globalToLocal (screenPosition.getPosition()));
+}
+
+//==============================================================================
+namespace ComponentPeerHelpers
+{
+    FileDragAndDropTarget* findDragAndDropTarget (Component* c,
+                                                  const StringArray& files,
+                                                  FileDragAndDropTarget* const lastOne)
     {
-        FileDragAndDropTarget* const t = dynamic_cast <FileDragAndDropTarget*> (c);
+        while (c != 0)
+        {
+            FileDragAndDropTarget* const t = dynamic_cast <FileDragAndDropTarget*> (c);
 
-        if (t != 0 && (t == lastOne || t->isInterestedInFileDrag (files)))
-            return t;
+            if (t != 0 && (t == lastOne || t->isInterestedInFileDrag (files)))
+                return t;
 
-        c = c->getParentComponent();
+            c = c->getParentComponent();
+        }
+
+        return 0;
     }
-
-    return 0;
 }
 
 void ComponentPeer::handleFileDragMove (const StringArray& files, const Point<int>& position)
@@ -426,7 +442,7 @@ void ComponentPeer::handleFileDragMove (const StringArray& files, const Point<in
     if (compUnderMouse != lastDragAndDropCompUnderMouse)
     {
         lastDragAndDropCompUnderMouse = compUnderMouse;
-        newTarget = findDragAndDropTarget (compUnderMouse, files, lastTarget);
+        newTarget = ComponentPeerHelpers::findDragAndDropTarget (compUnderMouse, files, lastTarget);
 
         if (newTarget != lastTarget)
         {
@@ -438,7 +454,7 @@ void ComponentPeer::handleFileDragMove (const StringArray& files, const Point<in
             if (newTarget != 0)
             {
                 dragAndDropTargetComponent = dynamic_cast <Component*> (newTarget);
-                const Point<int> pos (component->relativePositionToOtherComponent (dragAndDropTargetComponent, position));
+                const Point<int> pos (dragAndDropTargetComponent->getLocalPoint (component, position));
                 newTarget->fileDragEnter (files, pos.getX(), pos.getY());
             }
         }
@@ -451,7 +467,7 @@ void ComponentPeer::handleFileDragMove (const StringArray& files, const Point<in
     if (newTarget != 0)
     {
         Component* const targetComp = dynamic_cast <Component*> (newTarget);
-        const Point<int> pos (component->relativePositionToOtherComponent (targetComp, position));
+        const Point<int> pos (targetComp->getLocalPoint (component, position));
 
         newTarget->fileDragMove (files, pos.getX(), pos.getY());
     }
@@ -489,8 +505,33 @@ void ComponentPeer::handleFileDragDrop (const StringArray& files, const Point<in
                     return;
             }
 
-            const Point<int> pos (component->relativePositionToOtherComponent (targetComp, position));
-            target->filesDropped (files, pos.getX(), pos.getY());
+            // We'll use an async message to deliver the drop, because if the target decides
+            // to run a modal loop, it can gum-up the operating system..
+            class AsyncFileDropMessage  : public CallbackMessage
+            {
+            public:
+                AsyncFileDropMessage (Component* target_, FileDragAndDropTarget* dropTarget_,
+                                      const Point<int>& position_, const StringArray& files_)
+                    : target (target_), dropTarget (dropTarget_), position (position_), files (files_)
+                {
+                }
+
+                void messageCallback()
+                {
+                    if (target != 0)
+                        dropTarget->filesDropped (files, position.getX(), position.getY());
+                }
+
+            private:
+                Component::SafePointer<Component> target;
+                FileDragAndDropTarget* dropTarget;
+                Point<int> position;
+                StringArray files;
+
+                // (NB: don't make this non-copyable, which messes up in VC)
+            };
+
+            (new AsyncFileDropMessage (targetComp, target, targetComp->getLocalPoint (component, position), files))->post();
         }
     }
 }
@@ -499,14 +540,7 @@ void ComponentPeer::handleFileDragDrop (const StringArray& files, const Point<in
 void ComponentPeer::handleUserClosingWindow()
 {
     updateCurrentModifiers();
-
     component->userTriedToCloseWindow();
-}
-
-//==============================================================================
-void ComponentPeer::bringModalComponentToFront()
-{
-    Component::bringModalComponentToFront();
 }
 
 //==============================================================================
@@ -521,7 +555,7 @@ void ComponentPeer::addMaskedRegion (int x, int y, int w, int h)
 }
 
 //==============================================================================
-const StringArray ComponentPeer::getAvailableRenderingEngines() throw()
+const StringArray ComponentPeer::getAvailableRenderingEngines()
 {
     StringArray s;
     s.add ("Software Renderer");
@@ -533,7 +567,7 @@ int ComponentPeer::getCurrentRenderingEngine() throw()
     return 0;
 }
 
-void ComponentPeer::setCurrentRenderingEngine (int /*index*/) throw()
+void ComponentPeer::setCurrentRenderingEngine (int /*index*/)
 {
 }
 

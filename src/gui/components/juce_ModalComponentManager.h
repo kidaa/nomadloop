@@ -106,6 +106,9 @@ public:
     */
     void attachCallback (Component* component, Callback* callback);
 
+    /** Brings any modal components to the front. */
+    void bringModalComponentsToFront();
+
     /** Runs the event loop until the currently topmost modal component is dismissed, and
         returns the exit code for that component.
     */
@@ -138,6 +141,7 @@ private:
     void endModal (Component* component, int returnValue);
     void endModal (Component* component);
 
+    JUCE_DECLARE_NON_COPYABLE (ModalComponentManager);
 };
 
 

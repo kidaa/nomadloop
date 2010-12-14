@@ -28,11 +28,12 @@
 
 #include "../jucer_Headers.h"
 #include "jucer_MainWindow.h"
+#include "jucer_JuceUpdater.h"
 #include "../Project/jucer_NewProjectWizard.h"
 
 
 //==============================================================================
-class JucerApplication : public JUCEApplication
+class JucerApplication   : public JUCEApplication
 {
 public:
     //==============================================================================
@@ -75,18 +76,18 @@ public:
                 openFile (projects.getReference(i));
         }
 
-#if JUCE_MAC
+      #if JUCE_MAC
         MenuBarModel::setMacMainMenu (menuModel);
-#endif
+      #endif
 
         main->setVisible (true);
     }
 
     void shutdown()
     {
-#if JUCE_MAC
+      #if JUCE_MAC
         MenuBarModel::setMacMainMenu (0);
-#endif
+      #endif
         menuModel = 0;
 
         StoredSettings::deleteInstance();
@@ -115,10 +116,10 @@ public:
         jassert (mainWindows.contains (w));
         mainWindows.removeObject (w);
 
-#if ! JUCE_MAC
+      #if ! JUCE_MAC
         if (mainWindows.size() == 0)
             systemRequestedQuit();
-#endif
+      #endif
 
         updateRecentProjectList();
     }
@@ -136,11 +137,11 @@ public:
 
     bool moreThanOneInstanceAllowed()
     {
-#ifndef JUCE_LINUX
+      #ifndef JUCE_LINUX
         return false;
-#else
+      #else
         return true; //xxx should be false but doesn't work on linux..
-#endif
+      #endif
     }
 
     void anotherInstanceStarted (const String& commandLine)
@@ -161,7 +162,7 @@ public:
 
         const StringArray getMenuBarNames()
         {
-            const char* const names[] = { "File", "Edit", "View", "Window", 0 };
+            const char* const names[] = { "File", "Edit", "View", "Window", "Update", 0 };
             return StringArray ((const char**) names);
         }
 
@@ -188,7 +189,8 @@ public:
                 menu.addCommandItem (commandManager, CommandIDs::saveProject);
                 menu.addCommandItem (commandManager, CommandIDs::saveProjectAs);
                 menu.addSeparator();
-                menu.addCommandItem (commandManager, CommandIDs::openProjectInIDE);
+                menu.addCommandItem (commandManager, CommandIDs::openInIDE);
+                menu.addCommandItem (commandManager, CommandIDs::saveAndOpenInIDE);
 
                 #if ! JUCE_MAC
                   menu.addSeparator();
@@ -251,6 +253,10 @@ public:
                 menu.addSeparator();
                 menu.addCommandItem (commandManager, CommandIDs::closeAllDocuments);
             }
+            else if (topLevelMenuIndex == 4)  // "Juce" menu
+            {
+                menu.addCommandItem (commandManager, CommandIDs::showJuceVersion);
+            }
 
             return menu;
         }
@@ -287,7 +293,8 @@ public:
                                   CommandIDs::open,
                                   CommandIDs::showPrefs,
                                   CommandIDs::closeAllDocuments,
-                                  CommandIDs::saveAll };
+                                  CommandIDs::saveAll,
+                                  CommandIDs::showJuceVersion };
 
         commands.addArray (ids, numElementsInArray (ids));
     }
@@ -321,6 +328,10 @@ public:
             result.setActive (OpenDocumentManager::getInstance()->anyFilesNeedSaving());
             break;
 
+        case CommandIDs::showJuceVersion:
+            result.setInfo ("Download the latest JUCE version", "Checks online for any Juce updates", CommandCategories::general, 0);
+            break;
+
         default:
             JUCEApplication::getCommandInfo (commandID, result);
             break;
@@ -336,6 +347,7 @@ public:
             case CommandIDs::showPrefs:         showPrefsPanel(); break;
             case CommandIDs::saveAll:           OpenDocumentManager::getInstance()->saveAll(); break;
             case CommandIDs::closeAllDocuments: closeAllDocuments (true); break;
+            case CommandIDs::showJuceVersion:   JuceUpdater::show (mainWindows[0]); break;
             default:                            return JUCEApplication::perform (info);
         }
 
@@ -354,11 +366,14 @@ public:
         ScopedPointer <Project> newProj (NewProjectWizard::runNewProjectWizard (mw));
 
         if (newProj != 0)
+        {
             mw->setProject (newProj.release());
+            mw->setVisible (true);
+        }
         else
+        {
             closeWindow (mw);
-
-        mw->setVisible (true);
+        }
     }
 
     void askUserToOpenFile()
@@ -371,6 +386,16 @@ public:
 
     bool openFile (const File& file)
     {
+        for (int j = mainWindows.size(); --j >= 0;)
+        {
+            if (mainWindows.getUnchecked(j)->getProject() != 0
+                 && mainWindows.getUnchecked(j)->getProject()->getFile() == file)
+            {
+                mainWindows.getUnchecked(j)->toFront (true);
+                return true;
+            }
+        }
+
         if (file.hasFileExtension (Project::projectFileExtension))
         {
             ScopedPointer <Project> newDoc (new Project (file));

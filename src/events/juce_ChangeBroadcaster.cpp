@@ -36,6 +36,8 @@ ChangeBroadcaster::ChangeBroadcaster() throw()
 {
     // are you trying to create this object before or after juce has been intialised??
     jassert (MessageManager::instance != 0);
+
+    callback.owner = this;
 }
 
 ChangeBroadcaster::~ChangeBroadcaster()
@@ -44,37 +46,68 @@ ChangeBroadcaster::~ChangeBroadcaster()
     jassert (MessageManager::instance != 0);
 }
 
-void ChangeBroadcaster::addChangeListener (ChangeListener* const listener) throw()
+void ChangeBroadcaster::addChangeListener (ChangeListener* const listener)
 {
-    changeListenerList.addChangeListener (listener);
+    // Listeners can only be safely added when the event thread is locked
+    // You can  use a MessageManagerLock if you need to call this from another thread.
+    jassert (MessageManager::getInstance()->currentThreadHasLockedMessageManager());
+
+    changeListeners.add (listener);
 }
 
-void ChangeBroadcaster::removeChangeListener (ChangeListener* const listener) throw()
+void ChangeBroadcaster::removeChangeListener (ChangeListener* const listener)
 {
-    jassert (changeListenerList.isValidMessageListener());
+    // Listeners can only be safely added when the event thread is locked
+    // You can  use a MessageManagerLock if you need to call this from another thread.
+    jassert (MessageManager::getInstance()->currentThreadHasLockedMessageManager());
 
-    if (changeListenerList.isValidMessageListener())
-        changeListenerList.removeChangeListener (listener);
+    changeListeners.remove (listener);
 }
 
-void ChangeBroadcaster::removeAllChangeListeners() throw()
+void ChangeBroadcaster::removeAllChangeListeners()
 {
-    changeListenerList.removeAllChangeListeners();
+    // Listeners can only be safely added when the event thread is locked
+    // You can  use a MessageManagerLock if you need to call this from another thread.
+    jassert (MessageManager::getInstance()->currentThreadHasLockedMessageManager());
+
+    changeListeners.clear();
 }
 
-void ChangeBroadcaster::sendChangeMessage (void* objectThatHasChanged) throw()
+void ChangeBroadcaster::sendChangeMessage()
 {
-    changeListenerList.sendChangeMessage (objectThatHasChanged);
+    if (changeListeners.size() > 0)
+        callback.triggerAsyncUpdate();
 }
 
-void ChangeBroadcaster::sendSynchronousChangeMessage (void* objectThatHasChanged)
+void ChangeBroadcaster::sendSynchronousChangeMessage()
 {
-    changeListenerList.sendSynchronousChangeMessage (objectThatHasChanged);
+    // This can only be called by the event thread.
+    jassert (MessageManager::getInstance()->isThisTheMessageThread());
+
+    callback.cancelPendingUpdate();
+    callListeners();
 }
 
 void ChangeBroadcaster::dispatchPendingMessages()
 {
-    changeListenerList.dispatchPendingMessages();
+    callback.handleUpdateNowIfNeeded();
+}
+
+void ChangeBroadcaster::callListeners()
+{
+    changeListeners.call (&ChangeListener::changeListenerCallback, this);
+}
+
+//==============================================================================
+ChangeBroadcaster::ChangeBroadcasterCallback::ChangeBroadcasterCallback()
+    : owner (0)
+{
+}
+
+void ChangeBroadcaster::ChangeBroadcasterCallback::handleAsyncUpdate()
+{
+    jassert (owner != 0);
+    owner->callListeners();
 }
 
 

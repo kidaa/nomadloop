@@ -115,7 +115,6 @@ public:
 //==============================================================================
 MultiDocumentPanel::MultiDocumentPanel()
     : mode (MaximisedWindowsWithTabs),
-      tabComponent (0),
       backgroundColour (Colours::lightblue),
       maximumNumDocuments (0),
       numDocsBeforeTabsUsed (0)
@@ -129,9 +128,12 @@ MultiDocumentPanel::~MultiDocumentPanel()
 }
 
 //==============================================================================
-static bool shouldDeleteComp (Component* const c)
+namespace MultiDocHelpers
 {
-    return c->getProperties() ["mdiDocumentDelete_"];
+    bool shouldDeleteComp (Component* const c)
+    {
+        return c->getProperties() ["mdiDocumentDelete_"];
+    }
 }
 
 bool MultiDocumentPanel::closeAllDocuments (const bool checkItsOkToCloseFirst)
@@ -251,7 +253,7 @@ bool MultiDocumentPanel::closeDocument (Component* component,
 
         component->removeComponentListener (this);
 
-        const bool shouldDelete = shouldDeleteComp (component);
+        const bool shouldDelete = MultiDocHelpers::shouldDeleteComp (component);
         component->getProperties().remove ("mdiDocumentDelete_");
         component->getProperties().remove ("mdiDocumentBkg_");
 
@@ -309,7 +311,7 @@ bool MultiDocumentPanel::closeDocument (Component* component,
                 delete component;
 
             if (tabComponent != 0 && tabComponent->getNumTabs() <= numDocsBeforeTabsUsed)
-                deleteAndZero (tabComponent);
+                tabComponent = 0;
 
             components.removeValue (component);
 
@@ -410,7 +412,7 @@ void MultiDocumentPanel::setLayoutMode (const LayoutMode newLayoutMode)
 
         if (mode == FloatingWindows)
         {
-            deleteAndZero (tabComponent);
+            tabComponent = 0;
         }
         else
         {
@@ -438,7 +440,7 @@ void MultiDocumentPanel::setLayoutMode (const LayoutMode newLayoutMode)
 
             addDocument (c,
                          Colour ((int) c->getProperties().getWithDefault ("mdiDocumentBkg_", (int) Colours::white.getARGB())),
-                         shouldDeleteComp (c));
+                         MultiDocHelpers::shouldDeleteComp (c));
         }
     }
 }

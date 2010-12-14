@@ -103,6 +103,7 @@
  #include "../src/core/juce_SystemStats.cpp"
  #include "../src/core/juce_Time.cpp"
  #include "../src/core/juce_Initialisation.cpp"
+ #include "../src/containers/juce_AbstractFifo.cpp"
  #include "../src/containers/juce_BigInteger.cpp"
  #include "../src/containers/juce_MemoryBlock.cpp"
  #include "../src/containers/juce_PropertySet.cpp"
@@ -110,6 +111,7 @@
  #include "../src/containers/juce_Variant.cpp"
  #include "../src/containers/juce_NamedValueSet.cpp"
  #include "../src/containers/juce_DynamicObject.cpp"
+ #include "../src/containers/juce_Expression.cpp"
  #include "../src/cryptography/juce_BlowFish.cpp"
  #include "../src/cryptography/juce_MD5.cpp"
  #include "../src/cryptography/juce_Primes.cpp"
@@ -125,6 +127,7 @@
  #include "../src/io/files/juce_TemporaryFile.cpp"
  #include "../src/io/network/juce_Socket.cpp"
  #include "../src/io/network/juce_URL.cpp"
+ #include "../src/io/network/juce_MACAddress.cpp"
  #include "../src/io/streams/juce_BufferedInputStream.cpp"
  #include "../src/io/streams/juce_FileInputSource.cpp"
  #include "../src/io/streams/juce_MemoryInputStream.cpp"
@@ -146,6 +149,7 @@
  #include "../src/threads/juce_ThreadPool.cpp"
  #include "../src/threads/juce_TimeSliceThread.cpp"
  #include "../src/utilities/juce_DeletedAtShutdown.cpp"
+ #include "../src/utilities/juce_UnitTest.cpp"
 #endif
 
 #if JUCE_BUILD_MISC
@@ -162,6 +166,8 @@
  #include "../src/utilities/juce_UndoManager.cpp"
  #include "../src/audio/audio_file_formats/juce_AiffAudioFormat.cpp"
  #include "../src/audio/audio_file_formats/juce_AudioFormat.cpp"
+ #include "../src/audio/audio_file_formats/juce_AudioFormatReader.cpp"
+ #include "../src/audio/audio_file_formats/juce_AudioFormatWriter.cpp"
  #include "../src/audio/audio_file_formats/juce_AudioFormatManager.cpp"
  #include "../src/audio/audio_file_formats/juce_AudioSubsectionReader.cpp"
  #include "../src/audio/audio_file_formats/juce_AudioThumbnail.cpp"
@@ -208,10 +214,8 @@
  #include "../src/audio/synthesisers/juce_Sampler.cpp"
  #include "../src/audio/synthesisers/juce_Synthesiser.cpp"
  #include "../src/events/juce_ActionBroadcaster.cpp"
- #include "../src/events/juce_ActionListenerList.cpp"
  #include "../src/events/juce_AsyncUpdater.cpp"
  #include "../src/events/juce_ChangeBroadcaster.cpp"
- #include "../src/events/juce_ChangeListenerList.cpp"
  #include "../src/events/juce_InterprocessConnection.cpp"
  #include "../src/events/juce_InterprocessConnectionServer.cpp"
  #include "../src/events/juce_Message.cpp"
@@ -336,14 +340,15 @@
  #include "../src/gui/graphics/contexts/juce_LowLevelGraphicsSoftwareRenderer.cpp"
  #include "../src/gui/graphics/contexts/juce_RectanglePlacement.cpp"
  #include "../src/gui/graphics/drawables/juce_Drawable.cpp"
+ #include "../src/gui/graphics/drawables/juce_DrawableShape.cpp"
  #include "../src/gui/graphics/drawables/juce_DrawableComposite.cpp"
  #include "../src/gui/graphics/drawables/juce_DrawableImage.cpp"
  #include "../src/gui/graphics/drawables/juce_DrawablePath.cpp"
+ #include "../src/gui/graphics/drawables/juce_DrawableRectangle.cpp"
  #include "../src/gui/graphics/drawables/juce_DrawableText.cpp"
  #include "../src/gui/graphics/drawables/juce_SVGParser.cpp"
  #include "../src/gui/graphics/effects/juce_DropShadowEffect.cpp"
  #include "../src/gui/graphics/effects/juce_GlowEffect.cpp"
- #include "../src/gui/graphics/effects/juce_ReduceOpacityEffect.cpp"
  #include "../src/gui/graphics/fonts/juce_Font.cpp"
  #include "../src/gui/graphics/fonts/juce_GlyphArrangement.cpp"
  #include "../src/gui/graphics/fonts/juce_TextLayout.cpp"
@@ -382,6 +387,13 @@
 
 //==============================================================================
 #if JUCE_BUILD_NATIVE
+
+ // Non-public headers that are needed by more than one platform must be included
+ // before the platform-specific sections..
+ BEGIN_JUCE_NAMESPACE
+  #include "../src/native/common/juce_MidiDataConcatenator.h"
+ END_JUCE_NAMESPACE
+
  #if JUCE_WINDOWS
   #include "../src/native/juce_win32_NativeCode.cpp"
  #endif

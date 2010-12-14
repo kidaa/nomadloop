@@ -33,6 +33,10 @@ const String hexString8Digits (int value);
 const String createAlphaNumericUID();
 const String createGUID (const String& seed); // Turns a seed into a windows GUID
 
+const StringPairArray parsePreprocessorDefs (const String& defs);
+const StringPairArray mergePreprocessorDefs (StringPairArray inheritedDefs, const StringPairArray& overridingDefs);
+const String replacePreprocessorDefs (const StringPairArray& definitions, String sourceString);
+
 //==============================================================================
 int indexOfLineStartingWith (const StringArray& lines, const String& text, int startIndex);
 
@@ -50,14 +54,14 @@ public:
     PropertyPanelWithTooltips();
     ~PropertyPanelWithTooltips();
 
-    PropertyPanel* getPanel() const        { return panel; }
+    PropertyPanel& getPanel() throw()        { return panel; }
 
     void paint (Graphics& g);
     void resized();
     void timerCallback();
 
 private:
-    PropertyPanel* panel;
+    PropertyPanel panel;
     TextLayout layout;
     Component* lastComp;
     String lastTip;
@@ -130,11 +134,62 @@ public:
     {
     }
 
-    juce_UseDebuggingNewOperator
+private:
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (JucerToolbarButton);
+};
+
+
+//==============================================================================
+class DrawableComponent    : public Component,
+                             public ValueTree::Listener
+{
+public:
+    DrawableComponent (const ValueTree& drawable_)
+    {
+        setDrawable (drawable_);
+    }
+
+    ~DrawableComponent()
+    {
+    }
+
+    void setDrawable (const ValueTree& newDrawable)
+    {
+        drawable.removeListener (this);
+        drawable = newDrawable;
+        drawable.addListener (this);
+        drawableObject = Drawable::createFromValueTree (drawable, 0); // xxx image provider missing
+        addAndMakeVisible (drawableObject);
+        resized();
+        repaint();
+    }
+
+    void resized()
+    {
+/*        DrawableComposite* dc = dynamic_cast <DrawableComposite*> (static_cast <Drawable*> (drawableObject));
+
+        if (dc != 0)
+        {
+            const RelativeCoordinate origin, right (getWidth()), bottom (getHeight());
+
+            dc->setContentArea (RelativeRectangle (origin, right, origin, bottom));
+            //dc->resetBoundingBoxToContentArea();
+        }*/
+    }
+
+    void valueTreePropertyChanged (ValueTree&, const Identifier&)       { updateGraphics(); }
+    void valueTreeChildrenChanged (ValueTree&)                          { updateGraphics(); }
+    void valueTreeParentChanged (ValueTree&)                            { updateGraphics(); }
 
 private:
-    JucerToolbarButton (const JucerToolbarButton&);
-    JucerToolbarButton& operator= (const JucerToolbarButton&);
+    ValueTree drawable;
+    ScopedPointer<Drawable> drawableObject;
+
+    void updateGraphics()
+    {
+        if (drawableObject != 0)
+            drawableObject->refreshFromValueTree (drawable, 0);
+    }
 };
 
 
@@ -142,7 +197,7 @@ private:
 /**
 */
 class RelativeRectangleLayoutManager    : public ComponentListener,
-                                          public RelativeCoordinate::NamedCoordinateFinder,
+                                          public Expression::EvaluationContext,
                                           public AsyncUpdater
 {
 public:
@@ -169,15 +224,13 @@ public:
 
     //==============================================================================
     /** @internal */
-    const RelativeCoordinate findNamedCoordinate (const String& objectName, const String& edge) const;
+    const Expression getSymbolValue (const String& symbol, const String& member) const;
     /** @internal */
     void componentMovedOrResized (Component& component, bool wasMoved, bool wasResized);
     /** @internal */
     void componentBeingDeleted (Component& component);
     /** @internal */
     void handleAsyncUpdate();
-
-    juce_UseDebuggingNewOperator
 
 private:
     //==============================================================================
@@ -202,6 +255,5 @@ private:
     OwnedArray <ComponentPosition> components;
     OwnedArray <MarkerPosition> markers;
 
-    RelativeRectangleLayoutManager (const RelativeRectangleLayoutManager&);
-    RelativeRectangleLayoutManager& operator= (const RelativeRectangleLayoutManager&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (RelativeRectangleLayoutManager);
 };

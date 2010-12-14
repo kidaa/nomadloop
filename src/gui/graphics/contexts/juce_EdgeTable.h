@@ -79,10 +79,10 @@ public:
     ~EdgeTable();
 
     //==============================================================================
-    void clipToRectangle (const Rectangle<int>& r) throw();
-    void excludeRectangle (const Rectangle<int>& r) throw();
+    void clipToRectangle (const Rectangle<int>& r);
+    void excludeRectangle (const Rectangle<int>& r);
     void clipToEdgeTable (const EdgeTable& other);
-    void clipLineToMask (int x, int y, const uint8* mask, int maskStride, int numPixels) throw();
+    void clipLineToMask (int x, int y, const uint8* mask, int maskStride, int numPixels);
     bool isEmpty() throw();
     const Rectangle<int>& getMaximumBounds() const throw()       { return bounds; }
     void translate (float dx, int dy) throw();
@@ -92,7 +92,7 @@ public:
         This will shrink the table down to use as little memory as possible - useful for
         read-only tables that get stored and re-used for rendering.
     */
-    void optimiseTable() throw();
+    void optimiseTable();
 
 
     //==============================================================================
@@ -133,7 +133,7 @@ public:
                 while (--numPoints >= 0)
                 {
                     const int level = *++line;
-                    jassert (((unsigned int) level) < (unsigned int) 256);
+                    jassert (isPositiveAndBelow (level, (int) 256));
                     const int endX = *++line;
                     jassert (endX >= x);
                     const int endOfRun = (endX >> 8);
@@ -148,13 +148,13 @@ public:
                     {
                         // plot the fist pixel of this segment, including any accumulated
                         // levels from smaller segments that haven't been drawn yet
-                        levelAccumulator += (0xff - (x & 0xff)) * level;
+                        levelAccumulator += (0x100 - (x & 0xff)) * level;
                         levelAccumulator >>= 8;
                         x >>= 8;
 
                         if (levelAccumulator > 0)
                         {
-                            if (levelAccumulator >> 8)
+                            if (levelAccumulator >= 255)
                                 iterationCallback.handleEdgeTablePixelFull (x);
                             else
                                 iterationCallback.handleEdgeTablePixel (x, levelAccumulator);
@@ -184,7 +184,7 @@ public:
                     x >>= 8;
                     jassert (x >= bounds.getX() && x < bounds.getRight());
 
-                    if (levelAccumulator >> 8)
+                    if (levelAccumulator >= 255)
                         iterationCallback.handleEdgeTablePixelFull (x);
                     else
                         iterationCallback.handleEdgeTablePixel (x, levelAccumulator);
@@ -193,22 +193,22 @@ public:
         }
     }
 
-    //==============================================================================
-    juce_UseDebuggingNewOperator
-
 private:
+    //==============================================================================
     // table line format: number of points; point0 x, point0 levelDelta, point1 x, point1 levelDelta, etc
     HeapBlock<int> table;
     Rectangle<int> bounds;
     int maxEdgesPerLine, lineStrideElements;
     bool needToCheckEmptinesss;
 
-    void addEdgePoint (int x, int y, int winding) throw();
-    void remapTableForNumEdges (int newNumEdgesPerLine) throw();
-    void intersectWithEdgeTableLine (int y, const int* otherLine) throw();
+    void addEdgePoint (int x, int y, int winding);
+    void remapTableForNumEdges (int newNumEdgesPerLine);
+    void intersectWithEdgeTableLine (int y, const int* otherLine);
     void clipEdgeTableLineToRange (int* line, int x1, int x2) throw();
     void sanitiseLevels (bool useNonZeroWinding) throw();
     static void copyEdgeTableData (int* dest, int destLineStride, const int* src, int srcLineStride, int numLines) throw();
+
+    JUCE_LEAK_DETECTOR (EdgeTable);
 };
 
 

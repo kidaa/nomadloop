@@ -81,9 +81,8 @@ public:
         */
         const uint32 id;
 
-        /** The actual processor object that this node represents.
-        */
-        AudioProcessor* const processor;
+        /** The actual processor object that this node represents. */
+        AudioProcessor* getProcessor() const throw()            { return processor; }
 
         /** A set of user-definable properties that are associated with this node.
 
@@ -98,12 +97,11 @@ public:
         */
         typedef ReferenceCountedObjectPtr <Node> Ptr;
 
-        //==============================================================================
-        juce_UseDebuggingNewOperator
-
     private:
+        //==============================================================================
         friend class AudioProcessorGraph;
 
+        const ScopedPointer<AudioProcessor> processor;
         bool isPrepared;
 
         Node (uint32 id, AudioProcessor* processor);
@@ -111,8 +109,7 @@ public:
         void prepare (double sampleRate, int blockSize, AudioProcessorGraph* graph);
         void unprepare();
 
-        Node (const Node&);
-        Node& operator= (const Node&);
+        JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Node);
     };
 
     //==============================================================================
@@ -152,10 +149,9 @@ public:
         */
         int destChannelIndex;
 
-        //==============================================================================
-        juce_UseDebuggingNewOperator
-
     private:
+        //==============================================================================
+        JUCE_LEAK_DETECTOR (Connection);
     };
 
     //==============================================================================
@@ -328,13 +324,14 @@ public:
         void releaseResources();
         void processBlock (AudioSampleBuffer& buffer, MidiBuffer& midiMessages);
 
-        const String getInputChannelName (const int channelIndex) const;
-        const String getOutputChannelName (const int channelIndex) const;
+        const String getInputChannelName (int channelIndex) const;
+        const String getOutputChannelName (int channelIndex) const;
         bool isInputChannelStereoPair (int index) const;
         bool isOutputChannelStereoPair (int index) const;
         bool acceptsMidi() const;
         bool producesMidi() const;
 
+        bool hasEditor() const;
         AudioProcessorEditor* createEditor();
 
         int getNumParameters();
@@ -355,14 +352,11 @@ public:
         /** @internal */
         void setParentGraph (AudioProcessorGraph* graph);
 
-        juce_UseDebuggingNewOperator
-
     private:
         const IODeviceType type;
         AudioProcessorGraph* graph;
 
-        AudioGraphIOProcessor (const AudioGraphIOProcessor&);
-        AudioGraphIOProcessor& operator= (const AudioGraphIOProcessor&);
+        JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioGraphIOProcessor);
     };
 
     //==============================================================================
@@ -374,14 +368,15 @@ public:
     void releaseResources();
     void processBlock (AudioSampleBuffer& buffer, MidiBuffer& midiMessages);
 
-    const String getInputChannelName (const int channelIndex) const;
-    const String getOutputChannelName (const int channelIndex) const;
+    const String getInputChannelName (int channelIndex) const;
+    const String getOutputChannelName (int channelIndex) const;
     bool isInputChannelStereoPair (int index) const;
     bool isOutputChannelStereoPair (int index) const;
 
     bool acceptsMidi() const;
     bool producesMidi() const;
 
+    bool hasEditor() const                          { return false; }
     AudioProcessorEditor* createEditor()            { return 0; }
 
     int getNumParameters()                          { return 0; }
@@ -402,10 +397,8 @@ public:
     /** @internal */
     void handleAsyncUpdate();
 
-    //==============================================================================
-    juce_UseDebuggingNewOperator
-
 private:
+    //==============================================================================
     ReferenceCountedArray <Node> nodes;
     OwnedArray <Connection> connections;
     int lastNodeId;
@@ -426,8 +419,7 @@ private:
 
     bool isAnInputTo (uint32 possibleInputId, uint32 possibleDestinationId, int recursionCheck) const;
 
-    AudioProcessorGraph (const AudioProcessorGraph&);
-    AudioProcessorGraph& operator= (const AudioProcessorGraph&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioProcessorGraph);
 };
 
 

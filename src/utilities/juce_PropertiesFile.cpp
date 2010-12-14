@@ -38,6 +38,7 @@ BEGIN_JUCE_NAMESPACE
 #include "../containers/juce_ScopedPointer.h"
 #include "../core/juce_SystemStats.h"
 #include "../threads/juce_InterProcessLock.h"
+#include "../threads/juce_ScopedLock.h"
 #include "../text/juce_XmlDocument.h"
 
 
@@ -198,8 +199,7 @@ bool PropertiesFile::save()
             e->setAttribute (PropertyFileConstants::nameAttribute, getAllProperties().getAllKeys() [i]);
 
             // if the value seems to contain xml, store it as such..
-            XmlDocument xmlContent (getAllProperties().getAllValues() [i]);
-            XmlElement* const childElement = xmlContent.getDocumentElement();
+            XmlElement* const childElement = XmlDocument::parse (getAllProperties().getAllValues() [i]);
 
             if (childElement != 0)
                 e->addChildElement (childElement);
@@ -276,7 +276,7 @@ void PropertiesFile::timerCallback()
 
 void PropertiesFile::propertyChanged()
 {
-    sendChangeMessage (this);
+    sendChangeMessage();
 
     needsWriting = true;
 

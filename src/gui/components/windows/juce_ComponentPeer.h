@@ -29,7 +29,6 @@
 #include "../juce_Component.h"
 #include "../mouse/juce_MouseCursor.h"
 #include "../keyboard/juce_TextInputTarget.h"
-#include "../../../events/juce_MessageListener.h"
 #include "../../../text/juce_StringArray.h"
 #include "../../graphics/geometry/juce_RectangleList.h"
 
@@ -152,10 +151,16 @@ public:
     virtual const Point<int> getScreenPosition() const = 0;
 
     /** Converts a position relative to the top-left of this component to screen co-ordinates. */
-    virtual const Point<int> relativePositionToGlobal (const Point<int>& relativePosition) = 0;
+    virtual const Point<int> localToGlobal (const Point<int>& relativePosition) = 0;
+
+    /** Converts a rectangle relative to the top-left of this component to screen co-ordinates. */
+    virtual const Rectangle<int> localToGlobal (const Rectangle<int>& relativePosition);
 
     /** Converts a screen co-ordinate to a position relative to the top-left of this component. */
-    virtual const Point<int> globalPositionToRelative (const Point<int>& screenPosition) = 0;
+    virtual const Point<int> globalToLocal (const Point<int>& screenPosition) = 0;
+
+    /** Converts a screen area to a position relative to the top-left of this component. */
+    virtual const Rectangle<int> globalToLocal (const Rectangle<int>& screenPosition);
 
     /** Minimises the window. */
     virtual void setMinimised (bool shouldBeMinimised) = 0;
@@ -291,6 +296,9 @@ public:
     */
     virtual void performAnyPendingRepaintsNow() = 0;
 
+    /** Changes the window's transparency. */
+    virtual void setAlpha (float newAlpha) = 0;
+
     //==============================================================================
     void handleMouseEvent (int touchIndex, const Point<int>& positionWithinPeer, const ModifierKeys& newMods, int64 time);
     void handleMouseWheel (int touchIndex, const Point<int>& positionWithinPeer, int64 time, float x, float y);
@@ -341,18 +349,14 @@ public:
     */
     static bool isValidPeer (const ComponentPeer* peer) throw();
 
-    //==============================================================================
-    static void bringModalComponentToFront();
 
     //==============================================================================
-    virtual const StringArray getAvailableRenderingEngines() throw();
+    virtual const StringArray getAvailableRenderingEngines();
     virtual int getCurrentRenderingEngine() throw();
-    virtual void setCurrentRenderingEngine (int index) throw();
-
-    //==============================================================================
-    juce_UseDebuggingNewOperator
+    virtual void setCurrentRenderingEngine (int index);
 
 protected:
+    //==============================================================================
     Component* const component;
     const int styleFlags;
     RectangleList maskedRegion;
@@ -369,14 +373,13 @@ private:
     bool fakeMouseMessageSent : 1, isWindowMinimised : 1;
 
     friend class Component;
+    friend class Desktop;
     static ComponentPeer* getPeerFor (const Component* component) throw();
 
     void setLastDragDropTarget (Component* comp);
 
-    ComponentPeer (const ComponentPeer&);
-    ComponentPeer& operator= (const ComponentPeer&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ComponentPeer);
 };
-
 
 
 #endif   // __JUCE_COMPONENTPEER_JUCEHEADER__

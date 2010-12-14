@@ -204,8 +204,6 @@ public:
     /** @internal */
     FilePreviewComponent* getPreviewComponent() const throw();
 
-    juce_UseDebuggingNewOperator
-
 protected:
     virtual const BigInteger getRoots (StringArray& rootNames, StringArray& rootPaths);
 
@@ -219,19 +217,19 @@ private:
     Array<File> chosenFiles;
     ListenerList <FileBrowserListener> listeners;
 
-    DirectoryContentsDisplayComponent* fileListComponent;
+    ScopedPointer<DirectoryContentsDisplayComponent> fileListComponent;
     FilePreviewComponent* previewComp;
-    ComboBox* currentPathBox;
-    TextEditor* filenameBox;
-    Button* goUpButton;
+    ComboBox currentPathBox;
+    TextEditor filenameBox;
+    Label fileLabel;
+    ScopedPointer<Button> goUpButton;
 
     TimeSliceThread thread;
 
     void sendListenerChangeMessage();
     bool isFileOrDirSuitable (const File& f) const;
 
-    FileBrowserComponent (const FileBrowserComponent&);
-    FileBrowserComponent& operator= (const FileBrowserComponent&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FileBrowserComponent);
 };
 
 

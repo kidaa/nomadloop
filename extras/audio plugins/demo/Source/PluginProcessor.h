@@ -32,10 +32,11 @@ public:
     void processBlock (AudioSampleBuffer& buffer, MidiBuffer& midiMessages);
 
     //==============================================================================
+    bool hasEditor() const                  { return true; }
     AudioProcessorEditor* createEditor();
 
     //==============================================================================
-    const String getName() const        { return JucePlugin_Name; }
+    const String getName() const            { return JucePlugin_Name; }
 
     int getNumParameters();
     float getParameter (int index);
@@ -43,8 +44,8 @@ public:
     const String getParameterName (int index);
     const String getParameterText (int index);
 
-    const String getInputChannelName (const int channelIndex) const;
-    const String getOutputChannelName (const int channelIndex) const;
+    const String getInputChannelName (int channelIndex) const;
+    const String getOutputChannelName (int channelIndex) const;
     bool isInputChannelStereoPair (int index) const;
     bool isOutputChannelStereoPair (int index) const;
 
@@ -52,11 +53,11 @@ public:
     bool producesMidi() const;
 
     //==============================================================================
-    int getNumPrograms()                                        { return 0; }
-    int getCurrentProgram()                                     { return 0; }
-    void setCurrentProgram (int index)                          { }
-    const String getProgramName (int index)                     { return String::empty; }
-    void changeProgramName (int index, const String& newName)   { }
+    int getNumPrograms()                                                { return 0; }
+    int getCurrentProgram()                                             { return 0; }
+    void setCurrentProgram (int /*index*/)                              { }
+    const String getProgramName (int /*index*/)                         { return String::empty; }
+    void changeProgramName (int /*index*/, const String& /*newName*/)   { }
 
     //==============================================================================
     void getStateInformation (MemoryBlock& destData);
@@ -91,15 +92,15 @@ public:
 
     float gain, delay;
 
-    //==============================================================================
-    juce_UseDebuggingNewOperator
-
 private:
+    //==============================================================================
     AudioSampleBuffer delayBuffer;
     int delayPosition;
 
     // the synth!
     Synthesiser synth;
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (JuceDemoPluginAudioProcessor);
 };
 
 #endif  // __PLUGINPROCESSOR_H_526ED7A9__

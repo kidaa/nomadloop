@@ -122,7 +122,7 @@ public:
         newList->addChangeListener (this);
     }
 
-    void changeListenerCallback (void*)
+    void changeListenerCallback (ChangeBroadcaster*)
     {
         clearSubItems();
 
@@ -153,7 +153,7 @@ public:
                                  file.getFileName(),
                                  &icon, fileSize, modTime,
                                  isDirectory, isSelected(),
-                                 indexInContentsList);
+                                 indexInContentsList, owner);
     }
 
     void itemClicked (const MouseEvent& e)
@@ -186,9 +186,6 @@ public:
     }
 
     const File file;
-
-    //==============================================================================
-    juce_UseDebuggingNewOperator
 
 private:
     FileTreeComponent& owner;
@@ -223,6 +220,8 @@ private:
             }
         }
     }
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FileListTreeItem);
 };
 
 //==============================================================================

@@ -58,7 +58,7 @@ public:
     explicit MD5 (const MemoryBlock& data);
 
     /** Creates a checksum for a block of binary data. */
-    MD5 (const void* data, const size_t numBytes);
+    MD5 (const void* data, size_t numBytes);
 
     /** Creates a checksum for a string.
 
@@ -100,10 +100,8 @@ public:
     bool operator!= (const MD5& other) const;
 
 
-    //==============================================================================
-    juce_UseDebuggingNewOperator
-
 private:
+    //==============================================================================
     uint8 result [16];
 
     struct ProcessContext
@@ -116,10 +114,12 @@ private:
 
         void processBlock (const void* data, size_t dataSize);
         void transform (const void* buffer);
-        void finish (void* const result);
+        void finish (void* result);
     };
 
     void processStream (InputStream& input, int64 numBytesToRead);
+
+    JUCE_LEAK_DETECTOR (MD5);
 };
 
 

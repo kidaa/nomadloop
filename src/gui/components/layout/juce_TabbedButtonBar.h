@@ -46,9 +46,7 @@ class JUCE_API  TabBarButton  : public Button
 public:
     //==============================================================================
     /** Creates the tab button. */
-    TabBarButton (const String& name,
-                  TabbedButtonBar* ownerBar,
-                  int tabIndex);
+    TabBarButton (const String& name, TabbedButtonBar& ownerBar);
 
     /** Destructor. */
     ~TabBarButton();
@@ -67,13 +65,11 @@ public:
     void clicked (const ModifierKeys& mods);
     bool hitTest (int x, int y);
 
-    //==============================================================================
-    juce_UseDebuggingNewOperator
-
 protected:
+    //==============================================================================
     friend class TabbedButtonBar;
-    TabbedButtonBar* const owner;
-    int tabIndex, overlapPixels;
+    TabbedButtonBar& owner;
+    int overlapPixels;
     DropShadowEffect shadow;
 
     /** Returns an area of the component that's safe to draw in.
@@ -81,11 +77,14 @@ protected:
         This deals with the orientation of the tabs, which affects which side is
         touching the tabbed box's content component.
     */
-    void getActiveArea (int& x, int& y, int& w, int& h);
+    const Rectangle<int> getActiveArea();
+
+    /** Returns this tab's index in its tab bar. */
+    int getIndex() const;
 
 private:
-    TabBarButton (const TabBarButton&);
-    TabBarButton& operator= (const TabBarButton&);
+    //==============================================================================
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (TabBarButton);
 };
 
 
@@ -104,8 +103,7 @@ private:
     @see TabbedComponent
 */
 class JUCE_API  TabbedButtonBar  : public Component,
-                                   public ChangeBroadcaster,
-                                   public ButtonListener // (can't use Button::Listener due to idiotic VC2005 bug)
+                                   public ChangeBroadcaster
 {
 public:
     //==============================================================================
@@ -145,6 +143,11 @@ public:
         @see setOrientation
     */
     Orientation getOrientation() const throw()                      { return orientation; }
+
+    /** Changes the minimum scale factor to which the tabs can be compressed when trying to
+        fit a lot of tabs on-screen.
+    */
+    void setMinimumTabScaleFactor (double newMinimumScale);
 
     //==============================================================================
     /** Deletes all the tabs from the bar.
@@ -196,7 +199,7 @@ public:
 
         This could be an empty string if none are selected.
     */
-    const String& getCurrentTabName() const throw()                     { return tabs [currentTabIndex]; }
+    const String getCurrentTabName() const;
 
     /** Returns the index of the currently selected tab.
 
@@ -211,6 +214,9 @@ public:
         out of range.
     */
     TabBarButton* getTabButton (int index) const;
+
+    /** Returns the index of a TabBarButton if it belongs to this bar. */
+    int indexOfTabButton (const TabBarButton* button) const;
 
     //==============================================================================
     /** Callback method to indicate the selected tab has been changed.
@@ -261,11 +267,7 @@ public:
     /** @internal */
     void resized();
     /** @internal */
-    void buttonClicked (Button* button);
-    /** @internal */
     void lookAndFeelChanged();
-
-    juce_UseDebuggingNewOperator
 
 protected:
     //==============================================================================
@@ -279,14 +281,27 @@ protected:
 private:
     Orientation orientation;
 
-    StringArray tabs;
-    Array <Colour> tabColours;
+    struct TabInfo
+    {
+        ScopedPointer<TabBarButton> component;
+        String name;
+        Colour colour;
+    };
+
+    OwnedArray <TabInfo> tabs;
+
+    double minimumScale;
     int currentTabIndex;
-    Component* behindFrontTab;
+
+    class BehindFrontTabComp;
+    friend class BehindFrontTabComp;
+    friend class ScopedPointer<BehindFrontTabComp>;
+    ScopedPointer<BehindFrontTabComp> behindFrontTab;
     ScopedPointer<Button> extraTabsButton;
 
-    TabbedButtonBar (const TabbedButtonBar&);
-    TabbedButtonBar& operator= (const TabbedButtonBar&);
+    void showExtraItemsMenu();
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (TabbedButtonBar);
 };
 
 

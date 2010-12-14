@@ -306,7 +306,6 @@ public:
         size = sizeof (lat);
         pa.mSelector = kAudioDevicePropertyLatency;
         pa.mScope = kAudioDevicePropertyScopeInput;
-        //if (AudioDeviceGetProperty (deviceID, 0, true, kAudioDevicePropertyLatency, &size, &lat) == noErr)
         if (AudioObjectGetPropertyData (deviceID, &pa, 0, 0, &size, &lat) == noErr)
             inputLatency = (int) lat;
 
@@ -404,7 +403,7 @@ public:
             HeapBlock <OSType> types;
             const int num = getAllDataSourcesForDevice (deviceID, types);
 
-            if (((unsigned int) index) < (unsigned int) num)
+            if (isPositiveAndBelow (index, num))
             {
                 AudioObjectPropertyAddress pa;
                 pa.mSelector = kAudioDevicePropertyDataSource;
@@ -756,8 +755,6 @@ public:
     }
 
     //==============================================================================
-    juce_UseDebuggingNewOperator
-
     int inputLatency, outputLatency;
     BigInteger activeInputChans, activeOutputChans;
     StringArray inChanNames, outChanNames;
@@ -791,9 +788,6 @@ private:
     int numInputChannelInfos, numOutputChannelInfos;
     HeapBlock <CallbackDetailsForChannel> inputChannelInfo, outputChannelInfo;
     HeapBlock <float*> tempInputBuffers, tempOutputBuffers;
-
-    CoreAudioInternal (const CoreAudioInternal&);
-    CoreAudioInternal& operator= (const CoreAudioInternal&);
 
     //==============================================================================
     static OSStatus audioIOProc (AudioDeviceID /*inDevice*/,
@@ -854,6 +848,8 @@ private:
 
         return 0;
     }
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (CoreAudioInternal);
 };
 
 
@@ -1076,8 +1072,6 @@ public:
 
     int inputIndex, outputIndex;
 
-    juce_UseDebuggingNewOperator
-
 private:
     ScopedPointer<CoreAudioInternal> internal;
     bool isOpen_, isStarted;
@@ -1102,8 +1096,7 @@ private:
         return noErr;
     }
 
-    CoreAudioIODevice (const CoreAudioIODevice&);
-    CoreAudioIODevice& operator= (const CoreAudioIODevice&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (CoreAudioIODevice);
 };
 
 //==============================================================================
@@ -1259,8 +1252,6 @@ public:
     }
 
     //==============================================================================
-    juce_UseDebuggingNewOperator
-
 private:
     StringArray inputDeviceNames, outputDeviceNames;
     Array <AudioDeviceID> inputIds, outputIds;
@@ -1297,8 +1288,7 @@ private:
         return total;
     }
 
-    CoreAudioIODeviceType (const CoreAudioIODeviceType&);
-    CoreAudioIODeviceType& operator= (const CoreAudioIODeviceType&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (CoreAudioIODeviceType);
 };
 
 //==============================================================================

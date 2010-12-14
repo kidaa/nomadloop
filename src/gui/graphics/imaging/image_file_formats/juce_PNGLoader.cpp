@@ -110,19 +110,19 @@ namespace PNGHelpers
 {
     using namespace pnglibNamespace;
 
-    static void readCallback (png_structp png, png_bytep data, png_size_t length)
+    void JUCE_CDECL readCallback (png_structp png, png_bytep data, png_size_t length)
     {
         static_cast<InputStream*> (png_get_io_ptr (png))->read (data, (int) length);
     }
 
-    static void writeDataCallback (png_structp png, png_bytep data, png_size_t length)
+    void JUCE_CDECL writeDataCallback (png_structp png, png_bytep data, png_size_t length)
     {
         static_cast<OutputStream*> (png_get_io_ptr (png))->write (data, (int) length);
     }
 
     struct PNGErrorStruct {};
 
-    static void errorCallback (png_structp, png_const_charp)
+    void JUCE_CDECL errorCallback (png_structp, png_const_charp)
     {
         throw PNGErrorStruct();
     }
@@ -148,8 +148,15 @@ bool PNGImageFormat::canUnderstand (InputStream& in)
             && header[3] == 'G';
 }
 
+#if (JUCE_MAC || JUCE_IOS) && USE_COREGRAPHICS_RENDERING && ! DONT_USE_COREIMAGE_LOADER
+  const Image juce_loadWithCoreImage (InputStream& input);
+#endif
+
 const Image PNGImageFormat::decodeImage (InputStream& in)
 {
+#if (JUCE_MAC || JUCE_IOS) && USE_COREGRAPHICS_RENDERING && ! DONT_USE_COREIMAGE_LOADER
+    return juce_loadWithCoreImage (in);
+#else
     using namespace pnglibNamespace;
     Image image;
 
@@ -221,6 +228,7 @@ const Image PNGImageFormat::decodeImage (InputStream& in)
         image = Image (hasAlphaChan ? Image::ARGB : Image::RGB,
                        (int) width, (int) height, hasAlphaChan);
 
+        image.getProperties()->set ("originalImageHadAlpha", image.hasAlphaChannel());
         hasAlphaChan = image.hasAlphaChannel(); // (the native image creator may not give back what we expect)
 
         const Image::BitmapData destData (image, true);
@@ -257,6 +265,7 @@ const Image PNGImageFormat::decodeImage (InputStream& in)
     }
 
     return image;
+#endif
 }
 
 bool PNGImageFormat::writeImageToStream (const Image& image, OutputStream& out)
@@ -333,7 +342,8 @@ bool PNGImageFormat::writeImageToStream (const Image& image, OutputStream& out)
             }
         }
 
-        png_write_rows (pngWriteStruct, &rowData, 1);
+        png_bytep rowPtr = rowData;
+        png_write_rows (pngWriteStruct, &rowPtr, 1);
     }
 
     png_write_end (pngWriteStruct, pngInfoStruct);

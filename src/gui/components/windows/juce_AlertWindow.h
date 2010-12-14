@@ -28,7 +28,10 @@
 
 #include "juce_TopLevelWindow.h"
 #include "../../graphics/fonts/juce_TextLayout.h"
+#include "../buttons/juce_TextButton.h"
 #include "../controls/juce_ComboBox.h"
+#include "../controls/juce_TextEditor.h"
+#include "../controls/juce_ProgressBar.h"
 #include "../mouse/juce_ComponentDragger.h"
 
 
@@ -141,6 +144,9 @@ public:
         @see addTextEditor
     */
     const String getTextEditorContents (const String& nameOfTextEditor) const;
+
+    /** Returns a pointer to a textbox that was added with addTextEditor(). */
+    TextEditor* getTextEditor (const String& nameOfTextEditor) const;
 
     //==============================================================================
     /** Adds a drop-down list of choices to the box.
@@ -334,10 +340,8 @@ public:
         outlineColourId             = 0x1001820   /**< An optional colour to use to draw a border around the window. */
     };
 
-    //==============================================================================
-    juce_UseDebuggingNewOperator
-
 protected:
+    //==============================================================================
     /** @internal */
     void paint (Graphics& g);
     /** @internal */
@@ -356,23 +360,27 @@ protected:
     int getDesktopWindowStyleFlags() const;
 
 private:
+    //==============================================================================
     String text;
     TextLayout textLayout;
     AlertIconType alertIconType;
     ComponentBoundsConstrainer constrainer;
     ComponentDragger dragger;
     Rectangle<int> textArea;
-    Array<void*> buttons, textBoxes, comboBoxes;
-    Array<void*> progressBars, customComps, textBlocks, allComps;
+    OwnedArray<TextButton> buttons;
+    OwnedArray<TextEditor> textBoxes;
+    OwnedArray<ComboBox> comboBoxes;
+    OwnedArray<ProgressBar> progressBars;
+    Array<Component*> customComps;
+    OwnedArray<Component> textBlocks;
+    Array<Component*> allComps;
     StringArray textboxNames, comboBoxNames;
     Font font;
     Component* associatedComponent;
 
     void updateLayout (bool onlyIncreaseSize);
 
-    // disable copy constructor
-    AlertWindow (const AlertWindow&);
-    AlertWindow& operator= (const AlertWindow&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AlertWindow);
 };
 
 #endif   // __JUCE_ALERTWINDOW_JUCEHEADER__

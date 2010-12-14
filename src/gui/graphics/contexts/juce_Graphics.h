@@ -33,6 +33,7 @@
 #include "../colour/juce_Colours.h"
 #include "../colour/juce_ColourGradient.h"
 #include "juce_RectanglePlacement.h"
+#include "../../../containers/juce_ScopedPointer.h"
 class LowLevelGraphicsContext;
 class Image;
 class FillType;
@@ -92,7 +93,7 @@ public:
 
         A value of 0.0 is completely transparent, 1.0 is completely opaque.
     */
-    void setOpacity (const float newOpacity);
+    void setOpacity (float newOpacity);
 
     /** Sets the context to use a gradient for its fill pattern.
     */
@@ -562,6 +563,13 @@ public:
     */
     bool reduceClipRegion (int x, int y, int width, int height);
 
+    /** Intersects the current clipping region with another region.
+
+        @returns true if the resulting clipping region is non-zero in size
+        @see setOrigin, clipRegionIntersects
+    */
+    bool reduceClipRegion (const Rectangle<int>& area);
+
     /** Intersects the current clipping region with a rectangle list region.
 
         @returns true if the resulting clipping region is non-zero in size
@@ -595,15 +603,51 @@ public:
     /** Returns true if no drawing can be done because the clip region is zero. */
     bool isClipEmpty() const;
 
+    //==============================================================================
     /** Saves the current graphics state on an internal stack.
-
         To restore the state, use restoreState().
+        @see ScopedSaveState
     */
     void saveState();
 
     /** Restores a graphics state that was previously saved with saveState().
+        @see ScopedSaveState
     */
     void restoreState();
+
+    /** Uses RAII to save and restore the state of a graphics context.
+        On construction, this calls Graphics::saveState(), and on destruction it calls
+        Graphics::restoreState() on the Graphics object that you supply.
+    */
+    class ScopedSaveState
+    {
+    public:
+        ScopedSaveState (Graphics& g);
+        ~ScopedSaveState();
+
+    private:
+        Graphics& context;
+
+        JUCE_DECLARE_NON_COPYABLE (ScopedSaveState);
+    };
+
+    //==============================================================================
+    /** Begins rendering to an off-screen bitmap which will later be flattened onto the current
+        context with the given opacity.
+
+        The context uses an internal stack of temporary image layers to do this. When you've
+        finished drawing to the layer, call endTransparencyLayer() to complete the operation and
+        composite the finished layer. Every call to beginTransparencyLayer() MUST be matched
+        by a corresponding call to endTransparencyLayer()!
+
+        This call also saves the current state, and endTransparencyLayer() restores it.
+    */
+    void beginTransparencyLayer (float layerOpacity);
+
+    /** Completes a drawing operation to a temporary semi-transparent buffer.
+        See beginTransparencyLayer() for more details.
+    */
+    void endTransparencyLayer();
 
     /** Moves the position of the context's origin.
 
@@ -613,9 +657,19 @@ public:
         So if you call setOrigin (100, 100), then the position that was previously
         referred to as (100, 100) will subsequently be considered to be (0, 0).
 
-        @see reduceClipRegion
+        @see reduceClipRegion, addTransform
     */
     void setOrigin (int newOriginX, int newOriginY);
+
+    /** Adds a transformation which will be performed on all the graphics operations that
+        the context subsequently performs.
+
+        After calling this, all the coordinates that are passed into the context will be
+        transformed by this matrix.
+
+        @see setOrigin
+    */
+    void addTransform (const AffineTransform& transform);
 
     /** Resets the current colour, brush, and font to default settings. */
     void resetToDefaultState();
@@ -624,13 +678,11 @@ public:
     bool isVectorDevice() const;
 
     //==============================================================================
-    juce_UseDebuggingNewOperator
-
     /** Create a graphics that uses a given low-level renderer.
         For internal use only.
         NB. The context will NOT be deleted by this object when it is deleted.
     */
-    Graphics (LowLevelGraphicsContext* const internalContext) throw();
+    Graphics (LowLevelGraphicsContext* internalContext) throw();
 
     /** @internal */
     LowLevelGraphicsContext* getInternalContext() const throw()     { return context; }
@@ -643,8 +695,7 @@ private:
     bool saveStatePending;
     void saveStateIfPending();
 
-    Graphics (const Graphics&);
-    Graphics& operator= (const Graphics& other);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Graphics);
 };
 
 

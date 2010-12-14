@@ -120,36 +120,35 @@ ProjectTreeViewBase* ProjectTreeViewBase::findTreeViewItem (const Project::Item&
 }
 
 //==============================================================================
-class RenameMessage  : public CallbackMessage
-{
-public:
-    RenameMessage (TreeView* const tree_, const Project::Item& itemToRename_)
-        : tree (tree_), itemToRename (itemToRename_)  {}
-
-    ~RenameMessage() throw()   {}
-
-    void messageCallback()
-    {
-        if (tree->isValidComponent())
-        {
-            ProjectTreeViewBase* pg = dynamic_cast <ProjectTreeViewBase*> (tree->getRootItem());
-
-            if (pg != 0)
-            {
-                pg = pg->findTreeViewItem (itemToRename);
-
-                if (pg != 0)
-                    pg->showRenameBox();
-            }
-        }
-    }
-
-    TreeView* tree;
-    Project::Item itemToRename;
-};
-
 void ProjectTreeViewBase::triggerAsyncRename (const Project::Item& itemToRename)
 {
+    class RenameMessage  : public CallbackMessage
+    {
+    public:
+        RenameMessage (TreeView* const tree_, const Project::Item& itemToRename_)
+            : tree (tree_), itemToRename (itemToRename_)  {}
+
+        void messageCallback()
+        {
+            if (tree != 0)
+            {
+                ProjectTreeViewBase* pg = dynamic_cast <ProjectTreeViewBase*> (tree->getRootItem());
+
+                if (pg != 0)
+                {
+                    pg = pg->findTreeViewItem (itemToRename);
+
+                    if (pg != 0)
+                        pg->showRenameBox();
+                }
+            }
+        }
+
+    private:
+        Component::SafePointer<TreeView> tree;
+        Project::Item itemToRename;
+    };
+
     (new RenameMessage (getOwnerView(), itemToRename))->post();
 }
 
@@ -433,19 +432,8 @@ void ProjectTreeViewBase::showMultiSelectionPopupMenu()
 
     switch (m.show())
     {
-    case 6:     deleteAllSelectedItems(); break;
-    default:    break;
-    }
-}
-
-void ProjectTreeViewBase::itemClicked (const MouseEvent& e)
-{
-    if (e.mods.isPopupMenu())
-    {
-        if (getOwnerView()->getNumSelectedItems() > 1)
-            showMultiSelectionPopupMenu();
-        else
-            showPopupMenu();
+        case 6:     deleteAllSelectedItems(); break;
+        default:    break;
     }
 }
 

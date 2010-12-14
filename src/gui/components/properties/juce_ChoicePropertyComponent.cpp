@@ -32,7 +32,7 @@ BEGIN_JUCE_NAMESPACE
 
 //==============================================================================
 class ChoicePropertyComponent::RemapperValueSource    : public Value::ValueSource,
-                                                        public Value::Listener
+                                                        public ValueListener
 {
 public:
     RemapperValueSource (const Value& sourceValue_, const Array<var>& mappings_)
@@ -62,15 +62,12 @@ public:
         sendChangeMessage (true);
     }
 
-    //==============================================================================
-    juce_UseDebuggingNewOperator
-
 protected:
+    //==============================================================================
     Value sourceValue;
     Array<var> mappings;
 
-    RemapperValueSource (const RemapperValueSource&);
-    const RemapperValueSource& operator= (const RemapperValueSource&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (RemapperValueSource);
 };
 
 

@@ -306,16 +306,16 @@ public:
     void changed (const bool synchronous = false)
     {
         if (synchronous)
-            sendSynchronousChangeMessage (this);
+            sendSynchronousChangeMessage();
         else
-            sendChangeMessage (this);
+            sendChangeMessage();
     }
 
-    //==============================================================================
-    juce_UseDebuggingNewOperator
-
 private:
+    //==============================================================================
     Array <SelectableItemType> selectedItems;
+
+    JUCE_LEAK_DETECTOR (SelectedItemSet <SelectableItemType>);
 };
 
 

@@ -34,8 +34,7 @@ BEGIN_JUCE_NAMESPACE
 class MidiKeyboardUpDownButton  : public Button
 {
 public:
-    MidiKeyboardUpDownButton (MidiKeyboardComponent* const owner_,
-                              const int delta_)
+    MidiKeyboardUpDownButton (MidiKeyboardComponent& owner_, const int delta_)
         : Button (String::empty),
           owner (owner_),
           delta (delta_)
@@ -43,37 +42,30 @@ public:
         setOpaque (true);
     }
 
-    ~MidiKeyboardUpDownButton()
-    {
-    }
-
     void clicked()
     {
-        int note = owner->getLowestVisibleKey();
+        int note = owner.getLowestVisibleKey();
 
         if (delta < 0)
             note = (note - 1) / 12;
         else
             note = note / 12 + 1;
 
-        owner->setLowestVisibleKey (note * 12);
+        owner.setLowestVisibleKey (note * 12);
     }
 
-    void paintButton (Graphics& g,
-                      bool isMouseOverButton,
-                      bool isButtonDown)
+    void paintButton (Graphics& g, bool isMouseOverButton, bool isButtonDown)
     {
-        owner->drawUpDownButton (g, getWidth(), getHeight(),
-                                 isMouseOverButton, isButtonDown,
-                                 delta > 0);
+        owner.drawUpDownButton (g, getWidth(), getHeight(),
+                                isMouseOverButton, isButtonDown,
+                                delta > 0);
     }
 
 private:
-    MidiKeyboardComponent* const owner;
+    MidiKeyboardComponent& owner;
     const int delta;
 
-    MidiKeyboardUpDownButton (const MidiKeyboardUpDownButton&);
-    MidiKeyboardUpDownButton& operator= (const MidiKeyboardUpDownButton&);
+    JUCE_DECLARE_NON_COPYABLE (MidiKeyboardUpDownButton);
 };
 
 //==============================================================================
@@ -98,8 +90,8 @@ MidiKeyboardComponent::MidiKeyboardComponent (MidiKeyboardState& state_,
       keyMappingOctave (6),
       octaveNumForMiddleC (3)
 {
-    addChildComponent (scrollDown = new MidiKeyboardUpDownButton (this, -1));
-    addChildComponent (scrollUp   = new MidiKeyboardUpDownButton (this, 1));
+    addChildComponent (scrollDown = new MidiKeyboardUpDownButton (*this, -1));
+    addChildComponent (scrollUp   = new MidiKeyboardUpDownButton (*this, 1));
 
     // initialise with a default set of querty key-mappings..
     const char* const keymap = "awsedftgyhujkolp;";
@@ -117,8 +109,6 @@ MidiKeyboardComponent::~MidiKeyboardComponent()
 {
     state.removeListener (this);
     jassert (mouseDownNote < 0 && keysPressed.countNumberOfSetBits() == 0); // leaving stuck notes!
-
-    deleteAllChildren();
 }
 
 //==============================================================================
@@ -160,7 +150,7 @@ void MidiKeyboardComponent::setLowestVisibleKey (int noteNumber)
     if (noteNumber != firstKey)
     {
         firstKey = noteNumber;
-        sendChangeMessage (this);
+        sendChangeMessage();
         resized();
     }
 }
@@ -253,7 +243,7 @@ const uint8 MidiKeyboardComponent::blackNotes[] = { 1, 3, 6, 8, 10 };
 
 int MidiKeyboardComponent::xyToNote (const Point<int>& pos, float& mousePositionVelocity)
 {
-    if (! reallyContains (pos.getX(), pos.getY(), false))
+    if (! reallyContains (pos, false))
         return -1;
 
     Point<int> p (pos);
@@ -607,7 +597,7 @@ void MidiKeyboardComponent::resized()
             if (kx2 - kx1 <= w)
             {
                 firstKey = rangeStart;
-                sendChangeMessage (this);
+                sendChangeMessage();
                 repaint();
             }
         }
@@ -650,7 +640,7 @@ void MidiKeyboardComponent::resized()
             if (lastStartKey >= 0 && firstKey > lastStartKey)
             {
                 firstKey = jlimit (rangeStart, rangeEnd, lastStartKey);
-                sendChangeMessage (this);
+                sendChangeMessage();
             }
 
             int newOffset = 0;

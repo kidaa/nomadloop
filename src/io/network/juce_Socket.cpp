@@ -72,20 +72,20 @@ namespace SocketHelpers
 {
     typedef int (__stdcall juce_CloseWin32SocketLibCall) (void);
     static juce_CloseWin32SocketLibCall* juce_CloseWin32SocketLib = 0;
-}
 
-static void initWin32Sockets()
-{
-    static CriticalSection lock;
-    const ScopedLock sl (lock);
-
-    if (SocketHelpers::juce_CloseWin32SocketLib == 0)
+    void initWin32Sockets()
     {
-        WSADATA wsaData;
-        const WORD wVersionRequested = MAKEWORD (1, 1);
-        WSAStartup (wVersionRequested, &wsaData);
+        static CriticalSection lock;
+        const ScopedLock sl (lock);
 
-        SocketHelpers::juce_CloseWin32SocketLib = &WSACleanup;
+        if (SocketHelpers::juce_CloseWin32SocketLib == 0)
+        {
+            WSADATA wsaData;
+            const WORD wVersionRequested = MAKEWORD (1, 1);
+            WSAStartup (wVersionRequested, &wsaData);
+
+            SocketHelpers::juce_CloseWin32SocketLib = &WSACleanup;
+        }
     }
 }
 
@@ -100,7 +100,7 @@ void juce_shutdownWin32Sockets()
 //==============================================================================
 namespace SocketHelpers
 {
-    static bool resetSocketOptions (const int handle, const bool isDatagram, const bool allowBroadcast) throw()
+    bool resetSocketOptions (const int handle, const bool isDatagram, const bool allowBroadcast) throw()
     {
         const int sndBufSize = 65536;
         const int rcvBufSize = 65536;
@@ -113,7 +113,7 @@ namespace SocketHelpers
                                : (setsockopt (handle, IPPROTO_TCP, TCP_NODELAY, (const char*) &one, sizeof (one)) == 0));
     }
 
-    static bool bindSocketToPort (const int handle, const int port) throw()
+    bool bindSocketToPort (const int handle, const int port) throw()
     {
         if (handle <= 0 || port <= 0)
             return false;
@@ -127,10 +127,10 @@ namespace SocketHelpers
         return bind (handle, (struct sockaddr*) &servTmpAddr, sizeof (struct sockaddr_in)) >= 0;
     }
 
-    static int readSocket (const int handle,
-                           void* const destBuffer, const int maxBytesToRead,
-                           bool volatile& connected,
-                           const bool blockUntilSpecifiedAmountHasArrived) throw()
+    int readSocket (const int handle,
+                    void* const destBuffer, const int maxBytesToRead,
+                    bool volatile& connected,
+                    const bool blockUntilSpecifiedAmountHasArrived) throw()
     {
         int bytesRead = 0;
 
@@ -139,9 +139,9 @@ namespace SocketHelpers
             int bytesThisTime;
 
     #if JUCE_WINDOWS
-            bytesThisTime = recv (handle, ((char*) destBuffer) + bytesRead, maxBytesToRead - bytesRead, 0);
+            bytesThisTime = recv (handle, static_cast<char*> (destBuffer) + bytesRead, maxBytesToRead - bytesRead, 0);
     #else
-            while ((bytesThisTime = (int) ::read (handle, ((char*) destBuffer) + bytesRead, maxBytesToRead - bytesRead)) < 0
+            while ((bytesThisTime = (int) ::read (handle, addBytesToPointer (destBuffer, bytesRead), maxBytesToRead - bytesRead)) < 0
                      && errno == EINTR
                      && connected)
             {
@@ -165,8 +165,7 @@ namespace SocketHelpers
         return bytesRead;
     }
 
-    static int waitForReadiness (const int handle, const bool forReading,
-                                 const int timeoutMsecs) throw()
+    int waitForReadiness (const int handle, const bool forReading, const int timeoutMsecs) throw()
     {
         struct timeval timeout;
         struct timeval* timeoutp;
@@ -223,7 +222,7 @@ namespace SocketHelpers
         return 0;
     }
 
-    static bool setSocketBlockingState (const int handle, const bool shouldBlock) throw()
+    bool setSocketBlockingState (const int handle, const bool shouldBlock) throw()
     {
     #if JUCE_WINDOWS
         u_long nonBlocking = shouldBlock ? 0 : 1;
@@ -248,12 +247,12 @@ namespace SocketHelpers
         return true;
     }
 
-    static bool connectSocket (int volatile& handle,
-                               const bool isDatagram,
-                               void** serverAddress,
-                               const String& hostName,
-                               const int portNumber,
-                               const int timeOutMillisecs) throw()
+    bool connectSocket (int volatile& handle,
+                        const bool isDatagram,
+                        void** serverAddress,
+                        const String& hostName,
+                        const int portNumber,
+                        const int timeOutMillisecs) throw()
     {
         struct hostent* const hostEnt = gethostbyname (hostName.toUTF8());
 
@@ -320,7 +319,7 @@ StreamingSocket::StreamingSocket()
       isListener (false)
 {
 #if JUCE_WINDOWS
-    initWin32Sockets();
+    SocketHelpers::initWin32Sockets();
 #endif
 }
 
@@ -334,7 +333,7 @@ StreamingSocket::StreamingSocket (const String& hostName_,
       isListener (false)
 {
 #if JUCE_WINDOWS
-    initWin32Sockets();
+    SocketHelpers::initWin32Sockets();
 #endif
 
     SocketHelpers::resetSocketOptions (handle_, false, false);
@@ -518,7 +517,7 @@ DatagramSocket::DatagramSocket (const int localPortNumber, const bool allowBroad
       serverAddress (0)
 {
 #if JUCE_WINDOWS
-    initWin32Sockets();
+    SocketHelpers::initWin32Sockets();
 #endif
 
     handle = (int) socket (AF_INET, SOCK_DGRAM, 0);
@@ -535,7 +534,7 @@ DatagramSocket::DatagramSocket (const String& hostName_, const int portNumber_,
       serverAddress (0)
 {
 #if JUCE_WINDOWS
-    initWin32Sockets();
+    SocketHelpers::initWin32Sockets();
 #endif
 
     SocketHelpers::resetSocketOptions (handle_, true, allowBroadcast);
@@ -546,7 +545,7 @@ DatagramSocket::~DatagramSocket()
 {
     close();
 
-    delete ((struct sockaddr_in*) serverAddress);
+    delete static_cast <struct sockaddr_in*> (serverAddress);
     serverAddress = 0;
 }
 

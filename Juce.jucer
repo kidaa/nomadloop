@@ -81,8 +81,12 @@
                 resource="0" file="src/audio/audio_file_formats/juce_AudioFormatManager.cpp"/>
           <FILE id="cz5oBf3fx" name="juce_AudioFormatManager.h" compile="0" resource="0"
                 file="src/audio/audio_file_formats/juce_AudioFormatManager.h"/>
+          <FILE id="0TiI3po" name="juce_AudioFormatReader.cpp" compile="1" resource="0"
+                file="src/audio/audio_file_formats/juce_AudioFormatReader.cpp"/>
           <FILE id="x3bpEuQrJ" name="juce_AudioFormatReader.h" compile="0" resource="0"
                 file="src/audio/audio_file_formats/juce_AudioFormatReader.h"/>
+          <FILE id="G8yVpHF" name="juce_AudioFormatWriter.cpp" compile="1" resource="0"
+                file="src/audio/audio_file_formats/juce_AudioFormatWriter.cpp"/>
           <FILE id="eCeRZdLR" name="juce_AudioFormatWriter.h" compile="0" resource="0"
                 file="src/audio/audio_file_formats/juce_AudioFormatWriter.h"/>
           <FILE id="Fo4wJzEFh" name="juce_AudioSubsectionReader.cpp" compile="1"
@@ -185,6 +189,8 @@
                 resource="0" file="src/audio/dsp/juce_AudioSampleBuffer.cpp"/>
           <FILE id="ALRRctFtO" name="juce_AudioSampleBuffer.h" compile="0" resource="0"
                 file="src/audio/dsp/juce_AudioSampleBuffer.h"/>
+          <FILE id="vERxbEd" name="juce_Decibels.h" compile="0" resource="0"
+                file="src/audio/dsp/juce_Decibels.h"/>
           <FILE id="GlESUU1V" name="juce_IIRFilter.cpp" compile="1" resource="0"
                 file="src/audio/dsp/juce_IIRFilter.cpp"/>
           <FILE id="Vu9xVqUfN" name="juce_IIRFilter.h" compile="0" resource="0"
@@ -346,6 +352,10 @@
         </GROUP>
       </GROUP>
       <GROUP id="jDNvJtXHE" name="containers">
+        <FILE id="ChnNms" name="juce_AbstractFifo.cpp" compile="1" resource="0"
+              file="src/containers/juce_AbstractFifo.cpp"/>
+        <FILE id="llcRKU5" name="juce_AbstractFifo.h" compile="0" resource="0"
+              file="src/containers/juce_AbstractFifo.h"/>
         <FILE id="MMVvnl2oo" name="juce_Array.h" compile="0" resource="0" file="src/containers/juce_Array.h"/>
         <FILE id="I2LILZNlU" name="juce_ArrayAllocationBase.h" compile="0"
               resource="0" file="src/containers/juce_ArrayAllocationBase.h"/>
@@ -359,6 +369,10 @@
               file="src/containers/juce_DynamicObject.h"/>
         <FILE id="RNHQjBFmS" name="juce_ElementComparator.h" compile="0" resource="0"
               file="src/containers/juce_ElementComparator.h"/>
+        <FILE id="01ekjVT" name="juce_Expression.cpp" compile="1" resource="0"
+              file="src/containers/juce_Expression.cpp"/>
+        <FILE id="MpE62KG" name="juce_Expression.h" compile="0" resource="0"
+              file="src/containers/juce_Expression.h"/>
         <FILE id="ssHjnrvya" name="juce_HeapBlock.h" compile="0" resource="0"
               file="src/containers/juce_HeapBlock.h"/>
         <FILE id="3Wo76GZwg" name="juce_Identifier.cpp" compile="1" resource="0"
@@ -415,6 +429,8 @@
               file="src/core/juce_Initialisation.cpp"/>
         <FILE id="nsfdNZAs" name="juce_Initialisation.h" compile="0" resource="0"
               file="src/core/juce_Initialisation.h"/>
+        <FILE id="hRYAldz" name="juce_LeakedObjectDetector.h" compile="0" resource="0"
+              file="src/core/juce_LeakedObjectDetector.h"/>
         <FILE id="43AWfo8b2" name="juce_Logger.cpp" compile="1" resource="0"
               file="src/core/juce_Logger.cpp"/>
         <FILE id="KrXxapCit" name="juce_Logger.h" compile="0" resource="0"
@@ -479,10 +495,6 @@
               file="src/events/juce_ActionBroadcaster.h"/>
         <FILE id="Ux4rL61r9" name="juce_ActionListener.h" compile="0" resource="0"
               file="src/events/juce_ActionListener.h"/>
-        <FILE id="F703c1Yid" name="juce_ActionListenerList.cpp" compile="1"
-              resource="0" file="src/events/juce_ActionListenerList.cpp"/>
-        <FILE id="OTsKfiFYq" name="juce_ActionListenerList.h" compile="0" resource="0"
-              file="src/events/juce_ActionListenerList.h"/>
         <FILE id="LgjeCwe5N" name="juce_AsyncUpdater.cpp" compile="1" resource="0"
               file="src/events/juce_AsyncUpdater.cpp"/>
         <FILE id="TABmiJS44" name="juce_AsyncUpdater.h" compile="0" resource="0"
@@ -495,10 +507,6 @@
               file="src/events/juce_ChangeBroadcaster.h"/>
         <FILE id="NAVM1VUrE" name="juce_ChangeListener.h" compile="0" resource="0"
               file="src/events/juce_ChangeListener.h"/>
-        <FILE id="i5XTQIbi" name="juce_ChangeListenerList.cpp" compile="1"
-              resource="0" file="src/events/juce_ChangeListenerList.cpp"/>
-        <FILE id="8NN9Zgr8a" name="juce_ChangeListenerList.h" compile="0" resource="0"
-              file="src/events/juce_ChangeListenerList.h"/>
         <FILE id="RxIz7qEOV" name="juce_InterprocessConnection.cpp" compile="1"
               resource="0" file="src/events/juce_InterprocessConnection.cpp"/>
         <FILE id="qOQS6siYg" name="juce_InterprocessConnection.h" compile="0"
@@ -1045,6 +1053,14 @@
                   file="src/gui/graphics/drawables/juce_DrawablePath.cpp"/>
             <FILE id="kCwPUxGn" name="juce_DrawablePath.h" compile="0" resource="0"
                   file="src/gui/graphics/drawables/juce_DrawablePath.h"/>
+            <FILE id="dhwj8Vp" name="juce_DrawableRectangle.cpp" compile="1" resource="0"
+                  file="src/gui/graphics/drawables/juce_DrawableRectangle.cpp"/>
+            <FILE id="4NWl38N" name="juce_DrawableRectangle.h" compile="0" resource="0"
+                  file="src/gui/graphics/drawables/juce_DrawableRectangle.h"/>
+            <FILE id="D0V36hB" name="juce_DrawableShape.cpp" compile="1" resource="0"
+                  file="src/gui/graphics/drawables/juce_DrawableShape.cpp"/>
+            <FILE id="pEOXc23" name="juce_DrawableShape.h" compile="0" resource="0"
+                  file="src/gui/graphics/drawables/juce_DrawableShape.h"/>
             <FILE id="V1TBbJfVS" name="juce_DrawableText.cpp" compile="1" resource="0"
                   file="src/gui/graphics/drawables/juce_DrawableText.cpp"/>
             <FILE id="Z7WEXaWaD" name="juce_DrawableText.h" compile="0" resource="0"
@@ -1063,10 +1079,6 @@
                   file="src/gui/graphics/effects/juce_GlowEffect.h"/>
             <FILE id="raUYTlokJ" name="juce_ImageEffectFilter.h" compile="0" resource="0"
                   file="src/gui/graphics/effects/juce_ImageEffectFilter.h"/>
-            <FILE id="TTo5FPVpI" name="juce_ReduceOpacityEffect.cpp" compile="1"
-                  resource="0" file="src/gui/graphics/effects/juce_ReduceOpacityEffect.cpp"/>
-            <FILE id="TyJK1WbMk" name="juce_ReduceOpacityEffect.h" compile="0"
-                  resource="0" file="src/gui/graphics/effects/juce_ReduceOpacityEffect.h"/>
           </GROUP>
           <GROUP id="nw92NleR1" name="fonts">
             <FILE id="2zj67pVi" name="juce_Font.cpp" compile="1" resource="0" file="src/gui/graphics/fonts/juce_Font.cpp"/>
@@ -1125,8 +1137,6 @@
             <GROUP id="UpDEgf4Fr" name="image_file_formats">
               <FILE id="82P2bqp" name="juce_GIFLoader.cpp" compile="1" resource="0"
                     file="src/gui/graphics/imaging/image_file_formats/juce_GIFLoader.cpp"/>
-              <FILE id="mvmvVPw1S" name="juce_GIFLoader.h" compile="0" resource="0"
-                    file="src/gui/graphics/imaging/image_file_formats/juce_GIFLoader.h"/>
               <FILE id="SuwswXcCp" name="juce_JPEGLoader.cpp" compile="1" resource="0"
                     file="src/gui/graphics/imaging/image_file_formats/juce_JPEGLoader.cpp"/>
               <FILE id="GbTEpJRyd" name="juce_PNGLoader.cpp" compile="1" resource="0"
@@ -1187,6 +1197,10 @@
                 file="src/io/files/juce_ZipFile.h"/>
         </GROUP>
         <GROUP id="bOzVjzYUR" name="network">
+          <FILE id="vyRckg9" name="juce_MACAddress.cpp" compile="1" resource="0"
+                file="src/io/network/juce_MACAddress.cpp"/>
+          <FILE id="WzxXWpV" name="juce_MACAddress.h" compile="0" resource="0"
+                file="src/io/network/juce_MACAddress.h"/>
           <FILE id="HAyAhTsrK" name="juce_Socket.cpp" compile="1" resource="0"
                 file="src/io/network/juce_Socket.cpp"/>
           <FILE id="HBCQxvfwV" name="juce_Socket.h" compile="0" resource="0"
@@ -1243,6 +1257,8 @@
         <FILE id="z5G75xgix" name="juce_win32_NativeCode.cpp" compile="1" resource="0"
               file="src/native/juce_win32_NativeCode.cpp"/>
         <GROUP id="yPi7BU95s" name="common">
+          <FILE id="2wc3bGX" name="juce_MidiDataConcatenator.h" compile="0" resource="0"
+                file="src/native/common/juce_MidiDataConcatenator.h"/>
           <FILE id="n92kYqkP1" name="juce_posix_NamedPipe.cpp" compile="1" resource="0"
                 file="src/native/common/juce_posix_NamedPipe.cpp"/>
           <FILE id="H4ShC0AEe" name="juce_posix_SharedCode.h" compile="0" resource="0"
@@ -1355,6 +1371,8 @@
                 resource="0" file="src/native/windows/juce_win32_AutoLinkLibraries.h"/>
           <FILE id="Ay6VgqxOG" name="juce_win32_CameraDevice.cpp" compile="1"
                 resource="0" file="src/native/windows/juce_win32_CameraDevice.cpp"/>
+          <FILE id="c4BNPC" name="juce_win32_Direct2DGraphicsContext.cpp" compile="1"
+                resource="0" file="src/native/windows/juce_win32_Direct2DGraphicsContext.cpp"/>
           <FILE id="CVNbte6ov" name="juce_win32_DirectSound.cpp" compile="1"
                 resource="0" file="src/native/windows/juce_win32_DirectSound.cpp"/>
           <FILE id="4w3jvZBLt" name="juce_win32_DynamicLibraryLoader.cpp" compile="1"
@@ -1490,6 +1508,10 @@
               file="src/utilities/juce_UndoManager.cpp"/>
         <FILE id="ZMxSjySn" name="juce_UndoManager.h" compile="0" resource="0"
               file="src/utilities/juce_UndoManager.h"/>
+        <FILE id="6QJ8o3k" name="juce_UnitTest.cpp" compile="1" resource="0"
+              file="src/utilities/juce_UnitTest.cpp"/>
+        <FILE id="PQBhHBA" name="juce_UnitTest.h" compile="0" resource="0"
+              file="src/utilities/juce_UnitTest.h"/>
       </GROUP>
       <FILE id="Jp7xh1cg9" name="juce.h" compile="0" resource="0" file="juce.h"/>
       <FILE id="G2j0wJTna" name="juce_Config.h" compile="0" resource="0"
@@ -1504,5 +1526,6 @@
                JUCE_USE_XINERAMA="default" JUCE_USE_XSHM="default" JUCE_USE_XRENDER="default"
                JUCE_PLUGINHOST_VST="default" JUCE_PLUGINHOST_AU="default" JUCE_ONLY_BUILD_CORE_LIBRARY="default"
                JUCE_WEB_BROWSER="default" JUCE_SUPPORT_CARBON="default" JUCE_CHECK_MEMORY_LEAKS="default"
-               JUCE_CATCH_UNHANDLED_EXCEPTIONS="default" JUCE_USE_XCURSOR="default"/>
+               JUCE_CATCH_UNHANDLED_EXCEPTIONS="default" JUCE_USE_XCURSOR="default"
+               JUCE_DIRECT2D="default"/>
 </JUCERPROJECT>

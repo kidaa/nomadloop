@@ -76,6 +76,77 @@ const String createGUID (const String& seed)
 }
 
 //==============================================================================
+static void skipWhitespace (const String& s, int& i)
+{
+    while (CharacterFunctions::isWhitespace (s[i]))
+        ++i;
+}
+
+const StringPairArray parsePreprocessorDefs (const String& s)
+{
+    StringPairArray result;
+    int i = 0;
+
+    while (s[i] != 0)
+    {
+        String token, value;
+        skipWhitespace (s, i);
+
+        while (s[i] != 0 && s[i] != '=' && ! CharacterFunctions::isWhitespace (s[i]))
+            token << s[i++];
+
+        skipWhitespace (s, i);
+
+        if (s[i] == '=')
+        {
+            ++i;
+
+            skipWhitespace (s, i);
+
+            while (s[i] != 0 && ! CharacterFunctions::isWhitespace (s[i]))
+            {
+                if (s[i] == ',')
+                {
+                    ++i;
+                    break;
+                }
+
+                if (s[i] == '\\' && (s[i + 1] == ' ' || s[i + 1] == ','))
+                    ++i;
+
+                value << s[i++];
+            }
+        }
+
+        if (token.isNotEmpty())
+            result.set (token, value);
+    }
+
+    return result;
+}
+
+const StringPairArray mergePreprocessorDefs (StringPairArray inheritedDefs, const StringPairArray& overridingDefs)
+{
+    for (int i = 0; i < overridingDefs.size(); ++i)
+        inheritedDefs.set (overridingDefs.getAllKeys()[i], overridingDefs.getAllValues()[i]);
+
+    return inheritedDefs;
+}
+
+const String replacePreprocessorDefs (const StringPairArray& definitions, String sourceString)
+{
+    for (int i = 0; i < definitions.size(); ++i)
+    {
+        const String key (definitions.getAllKeys()[i]);
+        const String value (definitions.getAllValues()[i]);
+
+        sourceString = sourceString.replace ("${" + key + "}", value);
+    }
+
+    return sourceString;
+}
+
+//==============================================================================
 void autoScrollForMouseEvent (const MouseEvent& e, bool scrollX, bool scrollY)
 {
     Viewport* const viewport = e.eventComponent->findParentComponentOfClass ((Viewport*) 0);
@@ -148,13 +219,12 @@ int indexOfLineStartingWith (const StringArray& lines, const String& text, int s
 PropertyPanelWithTooltips::PropertyPanelWithTooltips()
     : lastComp (0)
 {
-    addAndMakeVisible (panel = new PropertyPanel());
+    addAndMakeVisible (&panel);
     startTimer (150);
 }
 
 PropertyPanelWithTooltips::~PropertyPanelWithTooltips()
 {
-    deleteAllChildren();
 }
 
 void PropertyPanelWithTooltips::paint (Graphics& g)
@@ -168,19 +238,22 @@ void PropertyPanelWithTooltips::paint (Graphics& g)
     if (tl.getNumLines() > 3)
         tl.layout (getWidth() - 10, Justification::left, false); // too big, so just squash it in..
 
-    tl.drawWithin (g, 5, panel->getBottom() + 2, getWidth() - 10,
-                   getHeight() - panel->getBottom() - 4,
+    tl.drawWithin (g, 5, panel.getBottom() + 2, getWidth() - 10,
+                   getHeight() - panel.getBottom() - 4,
                    Justification::centredLeft);
 }
 
 void PropertyPanelWithTooltips::resized()
 {
-    panel->setBounds (0, 0, getWidth(), jmax (getHeight() - 60, proportionOfHeight (0.6f)));
+    panel.setBounds (0, 0, getWidth(), jmax (getHeight() - 60, proportionOfHeight (0.6f)));
 }
 
 void PropertyPanelWithTooltips::timerCallback()
 {
-    Component* const newComp = Desktop::getInstance().getMainMouseSource().getComponentUnderMouse();
+    Component* newComp = Desktop::getInstance().getMainMouseSource().getComponentUnderMouse();
+
+    if (newComp != 0 && newComp->getTopLevelComponent() != getTopLevelComponent())
+        newComp = 0;
 
     if (newComp != lastComp)
     {
@@ -191,7 +264,7 @@ void PropertyPanelWithTooltips::timerCallback()
         if (newTip != lastTip)
         {
             lastTip = newTip;
-            repaint (0, panel->getBottom(), getWidth(), getHeight());
+            repaint (0, panel.getBottom(), getWidth(), getHeight());
         }
     }
 }
@@ -333,12 +406,12 @@ void RelativeRectangleLayoutManager::applyLayout()
     }
 }
 
-const RelativeCoordinate RelativeRectangleLayoutManager::findNamedCoordinate (const String& objectName, const String& edge) const
+const Expression RelativeRectangleLayoutManager::getSymbolValue (const String& objectName, const String& edge) const
 {
     if (objectName == RelativeCoordinate::Strings::parent)
     {
-        if (edge == RelativeCoordinate::Strings::right)     return RelativeCoordinate ((double) parent->getWidth());
-        if (edge == RelativeCoordinate::Strings::bottom)    return RelativeCoordinate ((double) parent->getHeight());
+        if (edge == RelativeCoordinate::Strings::right)     return Expression ((double) parent->getWidth());
+        if (edge == RelativeCoordinate::Strings::bottom)    return Expression ((double) parent->getHeight());
     }
 
     if (objectName.isNotEmpty() && edge.isNotEmpty())
@@ -349,10 +422,10 @@ const RelativeCoordinate RelativeRectangleLayoutManager::findNamedCoordinate (co
 
             if (c->name == objectName)
             {
-                if (edge == RelativeCoordinate::Strings::left)   return c->coords.left;
-                if (edge == RelativeCoordinate::Strings::right)  return c->coords.right;
-                if (edge == RelativeCoordinate::Strings::top)    return c->coords.top;
-                if (edge == RelativeCoordinate::Strings::bottom) return c->coords.bottom;
+                if (edge == RelativeCoordinate::Strings::left)   return c->coords.left.getExpression();
+                if (edge == RelativeCoordinate::Strings::right)  return c->coords.right.getExpression();
+                if (edge == RelativeCoordinate::Strings::top)    return c->coords.top.getExpression();
+                if (edge == RelativeCoordinate::Strings::bottom) return c->coords.bottom.getExpression();
             }
         }
     }
@@ -362,10 +435,10 @@ const RelativeCoordinate RelativeRectangleLayoutManager::findNamedCoordinate (co
         MarkerPosition* m = markers.getUnchecked(i);
 
         if (m->markerName == objectName)
-            return m->position;
+            return m->position.getExpression();
     }
 
-    return RelativeCoordinate();
+    return Expression();
 }
 
 void RelativeRectangleLayoutManager::componentMovedOrResized (Component& component, bool wasMoved, bool wasResized)

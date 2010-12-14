@@ -497,7 +497,7 @@ public:
         @see getFirstChildElement, getNextElement, getNumChildElements,
              getChildElement, removeChildElement
     */
-    void addChildElement (XmlElement* const newChildElement) throw();
+    void addChildElement (XmlElement* newChildElement) throw();
 
     /** Inserts an element into this element's list of children.
 
@@ -561,7 +561,7 @@ public:
     void deleteAllChildElementsWithTagName (const String& tagName) throw();
 
     /** Returns true if the given element is a child of this one. */
-    bool containsChildElement (const XmlElement* const possibleChild) const throw();
+    bool containsChildElement (const XmlElement* possibleChild) const throw();
 
     /** Recursively searches all sub-elements to find one that contains the specified
         child element.
@@ -629,6 +629,9 @@ public:
         "hello" string, you could either call getText on the (unnamed) sub-element, or
         use getAllSubText() to do this automatically.
 
+        Note that leading and trailing whitespace will be included in the string - to remove
+        if, just call String::trim() on the result.
+
         @see isTextElement, getAllSubText, getChildElementAllSubText
     */
     const String& getText() const throw();
@@ -645,8 +648,11 @@ public:
         This iterates all the child elements and when it finds text elements,
         it concatenates their text into a big string which it returns.
 
-        E.g. @code<xyz> hello <x></x> there </xyz>@endcode
-        if you called getAllSubText on the "xyz" element, it'd return "hello there".
+        E.g. @code<xyz>hello <x>there</x> world</xyz>@endcode
+        if you called getAllSubText on the "xyz" element, it'd return "hello there world".
+
+        Note that leading and trailing whitespace will be included in the string - to remove
+        if, just call String::trim() on the result.
 
         @see isTextElement, getChildElementAllSubText, getText, addTextElement
     */
@@ -679,10 +685,7 @@ public:
     */
     static XmlElement* createTextElement (const String& text);
 
-
     //==============================================================================
-    juce_UseDebuggingNewOperator
-
 private:
     friend class XmlDocument;
 
@@ -698,6 +701,8 @@ private:
         String name, value;
         XmlAttributeNode* next;
 
+        bool hasName (const String& name) const throw();
+
     private:
         XmlAttributeNode& operator= (const XmlAttributeNode&);
     };
@@ -708,7 +713,9 @@ private:
     void copyChildrenAndAttributesFrom (const XmlElement& other);
     void writeElementAsText (OutputStream& out, int indentationLevel, int lineWrapLength) const;
     void getChildElementsAsArray (XmlElement**) const throw();
-    void reorderChildElements (XmlElement** const, const int) throw();
+    void reorderChildElements (XmlElement**, int) throw();
+
+    JUCE_LEAK_DETECTOR (XmlElement);
 };
 
 

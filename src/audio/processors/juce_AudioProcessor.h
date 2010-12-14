@@ -199,14 +199,14 @@ public:
         The host might not supply very useful names for channels, and this might be
         something like "1", "2", "left", "right", etc.
     */
-    virtual const String getInputChannelName (const int channelIndex) const = 0;
+    virtual const String getInputChannelName (int channelIndex) const = 0;
 
     /** Returns the name of one of the output channels, as returned by the host.
 
         The host might not supply very useful names for channels, and this might be
         something like "1", "2", "left", "right", etc.
     */
-    virtual const String getOutputChannelName (const int channelIndex) const = 0;
+    virtual const String getOutputChannelName (int channelIndex) const = 0;
 
     /** Returns true if the specified channel is part of a stereo pair with its neighbour. */
     virtual bool isInputChannelStereoPair (int index) const = 0;
@@ -227,7 +227,7 @@ public:
         The filter should call this as soon as it can during initialisation, and can call it
         later if the value changes.
     */
-    void setLatencySamples (const int newLatency);
+    void setLatencySamples (int newLatency);
 
     /** Returns true if the processor wants midi messages. */
     virtual bool acceptsMidi() const = 0;
@@ -277,7 +277,7 @@ public:
 
         @see getCallbackLock
     */
-    void suspendProcessing (const bool shouldBeSuspended);
+    void suspendProcessing (bool shouldBeSuspended);
 
     /** Returns true if processing is currently suspended.
         @see suspendProcessing
@@ -309,7 +309,7 @@ public:
 
         Whatever value is passed-in will be
     */
-    void setNonRealtime (const bool isNonRealtime) throw();
+    void setNonRealtime (bool isNonRealtime) throw();
 
     //==============================================================================
     /** Creates the filter's UI.
@@ -318,7 +318,8 @@ public:
         a generic UI that lets the user twiddle the parameters directly.
 
         If you do want to pass back a component, the component should be created and set to
-        the correct size before returning it.
+        the correct size before returning it. If you implement this method, you must
+        also implement the hasEditor() method and make it return true.
 
         Remember not to do anything silly like allowing your filter to keep a pointer to
         the component that gets created - it could be deleted later without any warning, which
@@ -335,8 +336,15 @@ public:
           not open one at all. Your filter mustn't rely on it being there.
         - An editor object may be deleted and a replacement one created again at any time.
         - It's safe to assume that an editor will be deleted before its filter.
+
+        @see hasEditor
     */
     virtual AudioProcessorEditor* createEditor() = 0;
+
+    /** Your filter must override this and return true if it can create an editor component.
+        @see createEditor
+    */
+    virtual bool hasEditor() const = 0;
 
     //==============================================================================
     /** Returns the active editor, if there is one.
@@ -523,25 +531,26 @@ public:
 
     //==============================================================================
     /** Adds a listener that will be called when an aspect of this processor changes. */
-    void addListener (AudioProcessorListener* const newListener) throw();
+    void addListener (AudioProcessorListener* newListener);
 
     /** Removes a previously added listener. */
-    void removeListener (AudioProcessorListener* const listenerToRemove) throw();
+    void removeListener (AudioProcessorListener* listenerToRemove);
+
+    //==============================================================================
+    /** Tells the processor to use this playhead object.
+        The processor will not take ownership of the object, so the caller must delete it when
+        it is no longer being used.
+    */
+    void setPlayHead (AudioPlayHead* newPlayHead) throw();
 
     //==============================================================================
     /** Not for public use - this is called before deleting an editor component. */
-    void editorBeingDeleted (AudioProcessorEditor* const editor) throw();
-
-    /** Not for public use - this is called to initialise the processor. */
-    void setPlayHead (AudioPlayHead* const newPlayHead) throw();
+    void editorBeingDeleted (AudioProcessorEditor* editor) throw();
 
     /** Not for public use - this is called to initialise the processor before playing. */
-    void setPlayConfigDetails (const int numIns, const int numOuts,
-                               const double sampleRate,
-                               const int blockSize) throw();
-
-    //==============================================================================
-    juce_UseDebuggingNewOperator
+    void setPlayConfigDetails (int numIns, int numOuts,
+                               double sampleRate,
+                               int blockSize) throw();
 
 protected:
     //==============================================================================
@@ -561,14 +570,13 @@ protected:
         This might return 0 if the data's unsuitable or corrupted. Otherwise it will return
         an XmlElement object that the caller must delete when no longer needed.
     */
-    static XmlElement* getXmlFromBinary (const void* data,
-                                         const int sizeInBytes);
+    static XmlElement* getXmlFromBinary (const void* data, int sizeInBytes);
 
     /** @internal */
     AudioPlayHead* playHead;
 
     /** @internal */
-    void sendParamChangeMessageToListeners (const int parameterIndex, const float newValue);
+    void sendParamChangeMessageToListeners (int parameterIndex, float newValue);
 
 private:
     Array <AudioProcessorListener*> listeners;
@@ -582,8 +590,7 @@ private:
     BigInteger changingParams;
 #endif
 
-    AudioProcessor (const AudioProcessor&);
-    AudioProcessor& operator= (const AudioProcessor&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioProcessor);
 };
 
 

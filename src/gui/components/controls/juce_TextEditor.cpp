@@ -43,7 +43,7 @@ struct TextAtom
     //==============================================================================
     String atomText;
     float width;
-    uint16 numChars;
+    int numChars;
 
     //==============================================================================
     bool isWhitespace() const       { return CharacterFunctions::isWhitespace (atomText[0]); }
@@ -263,8 +263,6 @@ public:
     }
 
     //==============================================================================
-    juce_UseDebuggingNewOperator
-
     Font font;
     Colour colour;
 
@@ -330,6 +328,7 @@ private:
     }
 
     UniformTextSection& operator= (const UniformTextSection& other);
+    JUCE_LEAK_DETECTOR (UniformTextSection);
 };
 
 //==============================================================================
@@ -718,8 +717,6 @@ public:
     }
 
     //==============================================================================
-    juce_UseDebuggingNewOperator
-
     int indexInText;
     float lineY, lineHeight, maxDescent;
     float atomX, atomRight;
@@ -753,21 +750,14 @@ private:
     {
         return (x - 0.0001f) >= wordWrapWidth;
     }
+
+    JUCE_LEAK_DETECTOR (Iterator);
 };
 
 
 //==============================================================================
 class TextEditor::InsertAction  : public UndoableAction
 {
-    TextEditor& owner;
-    const String text;
-    const int insertIndex, oldCaretPos, newCaretPos;
-    const Font font;
-    const Colour colour;
-
-    InsertAction (const InsertAction&);
-    InsertAction& operator= (const InsertAction&);
-
 public:
     InsertAction (TextEditor& owner_,
                   const String& text_,
@@ -783,10 +773,6 @@ public:
           newCaretPos (newCaretPos_),
           font (font_),
           colour (colour_)
-    {
-    }
-
-    ~InsertAction()
     {
     }
 
@@ -806,19 +792,20 @@ public:
     {
         return text.length() + 16;
     }
+
+private:
+    TextEditor& owner;
+    const String text;
+    const int insertIndex, oldCaretPos, newCaretPos;
+    const Font font;
+    const Colour colour;
+
+    JUCE_DECLARE_NON_COPYABLE (InsertAction);
 };
 
 //==============================================================================
 class TextEditor::RemoveAction  : public UndoableAction
 {
-    TextEditor& owner;
-    const Range<int> range;
-    const int oldCaretPos, newCaretPos;
-    Array <UniformTextSection*> removedSections;
-
-    RemoveAction (const RemoveAction&);
-    RemoveAction& operator= (const RemoveAction&);
-
 public:
     RemoveAction (TextEditor& owner_,
                   const Range<int> range_,
@@ -865,12 +852,20 @@ public:
 
         return n + 16;
     }
+
+private:
+    TextEditor& owner;
+    const Range<int> range;
+    const int oldCaretPos, newCaretPos;
+    Array <UniformTextSection*> removedSections;
+
+    JUCE_DECLARE_NON_COPYABLE (RemoveAction);
 };
 
 //==============================================================================
 class TextEditor::TextHolderComponent  : public Component,
                                          public Timer,
-                                         public Value::Listener
+                                         public ValueListener
 {
 public:
     TextHolderComponent (TextEditor& owner_)
@@ -910,8 +905,7 @@ public:
 private:
     TextEditor& owner;
 
-    TextHolderComponent (const TextHolderComponent&);
-    TextHolderComponent& operator= (const TextHolderComponent&);
+    JUCE_DECLARE_NON_COPYABLE (TextHolderComponent);
 };
 
 //==============================================================================
@@ -950,8 +944,7 @@ private:
     float lastWordWrapWidth;
     bool rentrant;
 
-    TextEditorViewport (const TextEditorViewport&);
-    TextEditorViewport& operator= (const TextEditorViewport&);
+    JUCE_DECLARE_NON_COPYABLE (TextEditorViewport);
 };
 
 //==============================================================================
@@ -965,6 +958,12 @@ namespace TextEditorDefs
     const int focusLossMessageId  = 0x10003004;
 
     const int maxActionsPerTransaction = 100;
+
+    int getCharacterCategory (const juce_wchar character)
+    {
+        return CharacterFunctions::isLetterOrDigit (character)
+                    ? 2 : (CharacterFunctions::isWhitespace (character) ? 0 : 1);
+    }
 }
 
 //==============================================================================
@@ -1274,12 +1273,12 @@ void TextEditor::escapePressed()
     postCommandMessage (TextEditorDefs::escapeKeyMessageId);
 }
 
-void TextEditor::addListener (Listener* const newListener)
+void TextEditor::addListener (TextEditorListener* const newListener)
 {
     listeners.add (newListener);
 }
 
-void TextEditor::removeListener (Listener* const listenerToRemove)
+void TextEditor::removeListener (TextEditorListener* const listenerToRemove)
 {
     listeners.remove (listenerToRemove);
 }
@@ -1603,12 +1602,6 @@ void TextEditor::insertTextAtCaret (const String& newText_)
     if (allowedCharacters.isNotEmpty())
         newText = newText.retainCharacters (allowedCharacters);
 
-    if ((! returnKeyStartsNewLine) && newText == "\n")
-    {
-        returnPressed();
-        return;
-    }
-
     if (! isMultiLine())
         newText = newText.replaceCharacters ("\r\n", "  ");
     else
@@ -1790,8 +1783,7 @@ public:
 private:
     Component::SafePointer<TextEditor> editor;
 
-    TextEditorMenuPerformer (const TextEditorMenuPerformer&);
-    TextEditorMenuPerformer& operator= (const TextEditorMenuPerformer&);
+    JUCE_DECLARE_NON_COPYABLE (TextEditorMenuPerformer);
 };
 
 
@@ -2045,7 +2037,11 @@ bool TextEditor::keyPressed (const KeyPress& key)
     else if (key == KeyPress::returnKey)
     {
         newTransaction();
-        insertTextAtCaret ("\n");
+
+        if (returnKeyStartsNewLine)
+            insertTextAtCaret ("\n");
+        else
+            returnPressed();
     }
     else if (key.isKeyCode (KeyPress::escapeKey))
     {
@@ -2207,19 +2203,19 @@ void TextEditor::handleCommandMessage (const int commandId)
     switch (commandId)
     {
     case TextEditorDefs::textChangeMessageId:
-        listeners.callChecked (checker, &TextEditor::Listener::textEditorTextChanged, (TextEditor&) *this);
+        listeners.callChecked (checker, &TextEditorListener::textEditorTextChanged, (TextEditor&) *this);
         break;
 
     case TextEditorDefs::returnKeyMessageId:
-        listeners.callChecked (checker, &TextEditor::Listener::textEditorReturnKeyPressed, (TextEditor&) *this);
+        listeners.callChecked (checker, &TextEditorListener::textEditorReturnKeyPressed, (TextEditor&) *this);
         break;
 
     case TextEditorDefs::escapeKeyMessageId:
-        listeners.callChecked (checker, &TextEditor::Listener::textEditorEscapeKeyPressed, (TextEditor&) *this);
+        listeners.callChecked (checker, &TextEditorListener::textEditorEscapeKeyPressed, (TextEditor&) *this);
         break;
 
     case TextEditorDefs::focusLossMessageId:
-        listeners.callChecked (checker, &TextEditor::Listener::textEditorFocusLost, (TextEditor&) *this);
+        listeners.callChecked (checker, &TextEditorListener::textEditorFocusLost, (TextEditor&) *this);
         break;
 
     default:
@@ -2559,12 +2555,6 @@ int TextEditor::indexAtPosition (const float x, const float y)
 }
 
 //==============================================================================
-static int getCharacterCategory (const juce_wchar character)
-{
-    return CharacterFunctions::isLetterOrDigit (character)
-                ? 2 : (CharacterFunctions::isWhitespace (character) ? 0 : 1);
-}
-
 int TextEditor::findWordBreakAfter (const int position) const
 {
     const String t (getTextInRange (Range<int> (position, position + 512)));
@@ -2574,9 +2564,9 @@ int TextEditor::findWordBreakAfter (const int position) const
     while (i < totalLength && CharacterFunctions::isWhitespace (t[i]))
         ++i;
 
-    const int type = getCharacterCategory (t[i]);
+    const int type = TextEditorDefs::getCharacterCategory (t[i]);
 
-    while (i < totalLength && type == getCharacterCategory (t[i]))
+    while (i < totalLength && type == TextEditorDefs::getCharacterCategory (t[i]))
         ++i;
 
     while (i < totalLength && CharacterFunctions::isWhitespace (t[i]))
@@ -2600,9 +2590,9 @@ int TextEditor::findWordBreakBefore (const int position) const
 
     if (i > 0)
     {
-        const int type = getCharacterCategory (t [i - 1]);
+        const int type = TextEditorDefs::getCharacterCategory (t [i - 1]);
 
-        while (i > 0 && type == getCharacterCategory (t [i - 1]))
+        while (i > 0 && type == TextEditorDefs::getCharacterCategory (t [i - 1]))
             --i;
     }
 

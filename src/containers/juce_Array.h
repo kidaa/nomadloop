@@ -33,15 +33,15 @@
 
 //==============================================================================
 /**
-    Holds a list of simple objects, such as ints, doubles, or pointers.
+    Holds a resizable array of primitive or copy-by-value objects.
 
     Examples of arrays are: Array<int>, Array<Rectangle> or Array<MyClass*>
 
-    The array can be used to hold simple, non-polymorphic objects as well as primitive types - to
+    The Array class can be used to hold simple, non-polymorphic objects as well as primitive types - to
     do so, the class must fulfil these requirements:
-    - it must have a copy constructor and operator=
-    - it must be able to be relocated in memory by a memcpy without this causing a problem - so no
-      objects whose functionality relies on pointers or references to themselves can be used.
+    - it must have a copy constructor and assignment operator
+    - it must be able to be relocated in memory by a memcpy without this causing any problems - so
+      objects whose functionality relies on external pointers or references to themselves can be used.
 
     You can of course have an array of pointers to any kind of object, e.g. Array <MyClass*>, but if
     you do this, the array doesn't take any ownership of the objects - see the OwnedArray class or the
@@ -60,7 +60,7 @@ template <typename ElementType,
 class Array
 {
 private:
-  #if defined (_MSC_VER) && _MSC_VER <= 1400
+  #if JUCE_VC8_OR_EARLIER
     typedef const ElementType& ParameterType;
   #else
     typedef PARAMETER_TYPE (ElementType) ParameterType;
@@ -221,8 +221,8 @@ public:
     inline ElementType operator[] (const int index) const
     {
         const ScopedLockType lock (getLock());
-        return (((unsigned int) index) < (unsigned int) numUsed) ? data.elements [index]
-                                                                 : ElementType();
+        return isPositiveAndBelow (index, numUsed) ? data.elements [index]
+                                                   : ElementType();
     }
 
     /** Returns one of the elements in the array, without checking the index passed in.
@@ -237,7 +237,7 @@ public:
     inline const ElementType getUnchecked (const int index) const
     {
         const ScopedLockType lock (getLock());
-        jassert (((unsigned int) index) < (unsigned int) numUsed);
+        jassert (isPositiveAndBelow (index, numUsed));
         return data.elements [index];
     }
 
@@ -253,7 +253,7 @@ public:
     inline ElementType& getReference (const int index) const throw()
     {
         const ScopedLockType lock (getLock());
-        jassert (((unsigned int) index) < (unsigned int) numUsed);
+        jassert (isPositiveAndBelow (index, numUsed));
         return data.elements [index];
     }
 
@@ -366,7 +366,7 @@ public:
         const ScopedLockType lock (getLock());
         data.ensureAllocatedSize (numUsed + 1);
 
-        if (((unsigned int) indexToInsertAt) < (unsigned int) numUsed)
+        if (isPositiveAndBelow (indexToInsertAt, numUsed))
         {
             ElementType* const insertPos = data.elements + indexToInsertAt;
             const int numberToMove = numUsed - indexToInsertAt;
@@ -404,7 +404,7 @@ public:
             data.ensureAllocatedSize (numUsed + numberOfTimesToInsertIt);
             ElementType* insertPos;
 
-            if (((unsigned int) indexToInsertAt) < (unsigned int) numUsed)
+            if (isPositiveAndBelow (indexToInsertAt, numUsed))
             {
                 insertPos = data.elements + indexToInsertAt;
                 const int numberToMove = numUsed - indexToInsertAt;
@@ -444,7 +444,7 @@ public:
             data.ensureAllocatedSize (numUsed + numberOfElements);
             ElementType* insertPos;
 
-            if (((unsigned int) indexToInsertAt) < (unsigned int) numUsed)
+            if (isPositiveAndBelow (indexToInsertAt, numUsed))
             {
                 insertPos = data.elements + indexToInsertAt;
                 const int numberToMove = numUsed - indexToInsertAt;
@@ -492,7 +492,7 @@ public:
         jassert (indexToChange >= 0);
         const ScopedLockType lock (getLock());
 
-        if (((unsigned int) indexToChange) < (unsigned int) numUsed)
+        if (isPositiveAndBelow (indexToChange, numUsed))
         {
             data.elements [indexToChange] = newValue;
         }
@@ -515,7 +515,7 @@ public:
     void setUnchecked (const int indexToChange, ParameterType newValue)
     {
         const ScopedLockType lock (getLock());
-        jassert (((unsigned int) indexToChange) < (unsigned int) numUsed);
+        jassert (isPositiveAndBelow (indexToChange, numUsed));
         data.elements [indexToChange] = newValue;
     }
 
@@ -570,19 +570,22 @@ public:
                    int numElementsToAdd = -1)
     {
         const typename OtherArrayType::ScopedLockType lock1 (arrayToAddFrom.getLock());
-        const ScopedLockType lock2 (getLock());
 
-        if (startIndex < 0)
         {
-            jassertfalse;
-            startIndex = 0;
+            const ScopedLockType lock2 (getLock());
+
+            if (startIndex < 0)
+            {
+                jassertfalse;
+                startIndex = 0;
+            }
+
+            if (numElementsToAdd < 0 || startIndex + numElementsToAdd > arrayToAddFrom.size())
+                numElementsToAdd = arrayToAddFrom.size() - startIndex;
+
+            while (--numElementsToAdd >= 0)
+                add (arrayToAddFrom.getUnchecked (startIndex++));
         }
-
-        if (numElementsToAdd < 0 || startIndex + numElementsToAdd > arrayToAddFrom.size())
-            numElementsToAdd = arrayToAddFrom.size() - startIndex;
-
-        while (--numElementsToAdd >= 0)
-            add (arrayToAddFrom.getUnchecked (startIndex++));
     }
 
     /** Inserts a new element into the array, assuming that the array is sorted.
@@ -679,7 +682,7 @@ public:
     {
         const ScopedLockType lock (getLock());
 
-        if (((unsigned int) indexToRemove) < (unsigned int) numUsed)
+        if (isPositiveAndBelow (indexToRemove, numUsed))
         {
             --numUsed;
 
@@ -776,7 +779,7 @@ public:
         if (howManyToRemove > numUsed)
             howManyToRemove = numUsed;
 
-        for (int i = 0; i < howManyToRemove; ++i)
+        for (int i = 1; i <= howManyToRemove; ++i)
             data.elements [numUsed - i].~ElementType();
 
         numUsed -= howManyToRemove;
@@ -852,8 +855,8 @@ public:
     {
         const ScopedLockType lock (getLock());
 
-        if (((unsigned int) index1) < (unsigned int) numUsed
-            && ((unsigned int) index2) < (unsigned int) numUsed)
+        if (isPositiveAndBelow (index1, numUsed)
+             && isPositiveAndBelow (index2, numUsed))
         {
             swapVariables (data.elements [index1],
                            data.elements [index2]);
@@ -880,9 +883,9 @@ public:
         {
             const ScopedLockType lock (getLock());
 
-            if (((unsigned int) currentIndex) < (unsigned int) numUsed)
+            if (isPositiveAndBelow (currentIndex, numUsed))
             {
-                if (((unsigned int) newIndex) >= (unsigned int) numUsed)
+                if (! isPositiveAndBelow (newIndex, numUsed))
                     newIndex = numUsed - 1;
 
                 char tempCopy [sizeof (ElementType)];
@@ -978,10 +981,9 @@ public:
     /** Returns the type of scoped lock to use for locking this array */
     typedef typename TypeOfCriticalSectionToUse::ScopedLockType ScopedLockType;
 
-    //==============================================================================
-    juce_UseDebuggingNewOperator
 
 private:
+    //==============================================================================
     ArrayAllocationBase <ElementType, TypeOfCriticalSectionToUse> data;
     int numUsed;
 };

@@ -175,8 +175,8 @@ public:
         The model pointer passed-in can be null, in which case you can set it later
         with setModel().
     */
-    ListBox (const String& componentName,
-             ListBoxModel* model);
+    ListBox (const String& componentName = String::empty,
+             ListBoxModel* model = 0);
 
     /** Destructor. */
     ~ListBox();
@@ -525,7 +525,7 @@ public:
 
         @see Component::createComponentSnapshot
     */
-    const Image createSnapshotOfSelectedRows (int& x, int& y);
+    virtual const Image createSnapshotOfSelectedRows (int& x, int& y);
 
     /** Returns the viewport that this ListBox uses.
 
@@ -561,8 +561,6 @@ public:
     /** @internal */
     void startDragAndDrop (const MouseEvent& e, const String& dragDescription);
 
-    juce_UseDebuggingNewOperator
-
 private:
     //==============================================================================
     friend class ListViewport;
@@ -581,8 +579,7 @@ private:
                             bool deselectOthersFirst,
                             bool isMouseClick);
 
-    ListBox (const ListBox&);
-    ListBox& operator= (const ListBox&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ListBox);
 };
 
 

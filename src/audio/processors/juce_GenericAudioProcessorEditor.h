@@ -44,22 +44,18 @@ class JUCE_API  GenericAudioProcessorEditor      : public AudioProcessorEditor
 {
 public:
     //==============================================================================
-    GenericAudioProcessorEditor (AudioProcessor* const owner);
+    GenericAudioProcessorEditor (AudioProcessor* owner);
     ~GenericAudioProcessorEditor();
 
     //==============================================================================
     void paint (Graphics& g);
     void resized();
 
-
-    //==============================================================================
-    juce_UseDebuggingNewOperator
-
 private:
-    PropertyPanel* panel;
+    //==============================================================================
+    PropertyPanel panel;
 
-    GenericAudioProcessorEditor (const GenericAudioProcessorEditor&);
-    GenericAudioProcessorEditor& operator= (const GenericAudioProcessorEditor&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (GenericAudioProcessorEditor);
 };
 
 

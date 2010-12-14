@@ -87,27 +87,23 @@ public:
 
     //==============================================================================
     /** @internal */
-    void render (const Drawable::RenderingContext& context) const;
-    /** @internal */
-    const Rectangle<float> getBounds() const;
-    /** @internal */
-    bool hitTest (float x, float y) const;
+    void paint (Graphics& g);
     /** @internal */
     Drawable* createCopy() const;
     /** @internal */
-    void invalidatePoints();
-    /** @internal */
-    const Rectangle<float> refreshFromValueTree (const ValueTree& tree, ImageProvider* imageProvider);
+    void refreshFromValueTree (const ValueTree& tree, ImageProvider* imageProvider);
     /** @internal */
     const ValueTree createValueTree (ImageProvider* imageProvider) const;
     /** @internal */
     static const Identifier valueTreeType;
     /** @internal */
     const Identifier getValueTreeType() const    { return valueTreeType; }
+    /** @internal */
+    const Rectangle<float> getDrawableBounds() const;
 
     //==============================================================================
     /** Internally-used class for wrapping a DrawableText's state into a ValueTree. */
-    class ValueTreeWrapper   : public ValueTreeWrapperBase
+    class ValueTreeWrapper   : public Drawable::ValueTreeWrapperBase
     {
     public:
         ValueTreeWrapper (const ValueTree& state);
@@ -135,10 +131,8 @@ public:
         static const Identifier text, colour, font, justification, topLeft, topRight, bottomLeft, fontSizeAnchor;
     };
 
-    //==============================================================================
-    juce_UseDebuggingNewOperator
-
 private:
+    //==============================================================================
     RelativeParallelogram bounds;
     RelativePoint fontSizeControlPoint;
     Font font;
@@ -146,7 +140,10 @@ private:
     Colour colour;
     Justification justification;
 
+    void refreshBounds();
+
     DrawableText& operator= (const DrawableText&);
+    JUCE_LEAK_DETECTOR (DrawableText);
 };
 
 

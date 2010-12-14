@@ -137,6 +137,7 @@ public:
 
     static void copyChars (juce_wchar* const dest, const juce_wchar* const src, const size_t numChars) throw()
     {
+        jassert (src != 0 && dest != 0);
         memcpy (dest, src, numChars * sizeof (juce_wchar));
         dest [numChars] = 0;
     }
@@ -211,12 +212,14 @@ String& String::operator= (const String& other) throw()
 {
     juce_wchar* const newText = other.text;
     StringHolder::retain (newText);
-    StringHolder::release (reinterpret_cast <Atomic<juce_wchar*>*> (&text)->exchange (newText));
+    StringHolder::release (reinterpret_cast <Atomic<juce_wchar*>&> (text).exchange (newText));
     return *this;
 }
 
-String::String (const size_t numChars, const int /*dummyVariable*/)
-    : text (StringHolder::createUninitialised (numChars))
+inline String::Preallocation::Preallocation (const size_t numChars_) : numChars (numChars_) {}
+
+String::String (const Preallocation& preallocationSize)
+    : text (StringHolder::createUninitialised (preallocationSize.numChars))
 {
 }
 
@@ -271,7 +274,7 @@ String::String (const juce_wchar* const t, const size_t maxChars)
 
 const String String::charToString (const juce_wchar character)
 {
-    String result ((size_t) 1, (int) 0);
+    String result (Preallocation (1));
     result.text[0] = character;
     result.text[1] = 0;
     return result;
@@ -281,7 +284,7 @@ const String String::charToString (const juce_wchar character)
 namespace NumberToStringConverters
 {
     // pass in a pointer to the END of a buffer..
-    static juce_wchar* int64ToString (juce_wchar* t, const int64 n) throw()
+    juce_wchar* int64ToString (juce_wchar* t, const int64 n) throw()
     {
         *--t = 0;
         int64 v = (n >= 0) ? n : -n;
@@ -299,7 +302,7 @@ namespace NumberToStringConverters
         return t;
     }
 
-    static juce_wchar* uint64ToString (juce_wchar* t, int64 v) throw()
+    juce_wchar* uint64ToString (juce_wchar* t, int64 v) throw()
     {
         *--t = 0;
 
@@ -313,7 +316,7 @@ namespace NumberToStringConverters
         return t;
     }
 
-    static juce_wchar* intToString (juce_wchar* t, const int n) throw()
+    juce_wchar* intToString (juce_wchar* t, const int n) throw()
     {
         if (n == (int) 0x80000000) // (would cause an overflow)
             return int64ToString (t, n);
@@ -334,7 +337,7 @@ namespace NumberToStringConverters
         return t;
     }
 
-    static juce_wchar* uintToString (juce_wchar* t, unsigned int v) throw()
+    juce_wchar* uintToString (juce_wchar* t, unsigned int v) throw()
     {
         *--t = 0;
 
@@ -348,17 +351,17 @@ namespace NumberToStringConverters
         return t;
     }
 
-    static juce_wchar getDecimalPoint()
+    juce_wchar getDecimalPoint()
     {
-#if JUCE_WINDOWS && _MSC_VER < 1400
+      #if JUCE_VC7_OR_EARLIER
         static juce_wchar dp = std::_USE (std::locale(), std::numpunct <wchar_t>).decimal_point();
-#else
+      #else
         static juce_wchar dp = std::use_facet <std::numpunct <wchar_t> > (std::locale()).decimal_point();
-#endif
+      #endif
         return dp;
     }
 
-    static juce_wchar* doubleToString (juce_wchar* buffer, int numChars, double n, int numDecPlaces, size_t& len) throw()
+    juce_wchar* doubleToString (juce_wchar* buffer, int numChars, double n, int numDecPlaces, size_t& len) throw()
     {
         if (numDecPlaces > 0 && n > -1.0e20 && n < 1.0e20)
         {
@@ -386,15 +389,15 @@ namespace NumberToStringConverters
         }
         else
         {
-#if JUCE_WINDOWS
-  #if _MSC_VER <= 1400
+        #if JUCE_WINDOWS
+          #if JUCE_VC7_OR_EARLIER || JUCE_MINGW
             len = _snwprintf (buffer, numChars, L"%.9g", n);
-  #else
+          #else
             len = _snwprintf_s (buffer, numChars, _TRUNCATE, L"%.9g", n);
-  #endif
-#else
+          #endif
+        #else
             len = swprintf (buffer, numChars, L"%.9g", n);
-#endif
+        #endif
             return buffer;
         }
     }
@@ -494,52 +497,52 @@ int64 String::hashCode64() const throw()
 }
 
 //==============================================================================
-bool JUCE_PUBLIC_FUNCTION operator== (const String& string1, const String& string2) throw()
+JUCE_API bool JUCE_CALLTYPE operator== (const String& string1, const String& string2) throw()
 {
     return string1.compare (string2) == 0;
 }
 
-bool JUCE_PUBLIC_FUNCTION operator== (const String& string1, const char* string2) throw()
+JUCE_API bool JUCE_CALLTYPE operator== (const String& string1, const char* string2) throw()
 {
     return string1.compare (string2) == 0;
 }
 
-bool JUCE_PUBLIC_FUNCTION operator== (const String& string1, const juce_wchar* string2) throw()
+JUCE_API bool JUCE_CALLTYPE operator== (const String& string1, const juce_wchar* string2) throw()
 {
     return string1.compare (string2) == 0;
 }
 
-bool JUCE_PUBLIC_FUNCTION operator!= (const String& string1, const String& string2) throw()
+JUCE_API bool JUCE_CALLTYPE operator!= (const String& string1, const String& string2) throw()
 {
     return string1.compare (string2) != 0;
 }
 
-bool JUCE_PUBLIC_FUNCTION operator!= (const String& string1, const char* string2) throw()
+JUCE_API bool JUCE_CALLTYPE operator!= (const String& string1, const char* string2) throw()
 {
     return string1.compare (string2) != 0;
 }
 
-bool JUCE_PUBLIC_FUNCTION operator!= (const String& string1, const juce_wchar* string2) throw()
+JUCE_API bool JUCE_CALLTYPE operator!= (const String& string1, const juce_wchar* string2) throw()
 {
     return string1.compare (string2) != 0;
 }
 
-bool JUCE_PUBLIC_FUNCTION operator>  (const String& string1, const String& string2) throw()
+JUCE_API bool JUCE_CALLTYPE operator>  (const String& string1, const String& string2) throw()
 {
     return string1.compare (string2) > 0;
 }
 
-bool JUCE_PUBLIC_FUNCTION operator<  (const String& string1, const String& string2) throw()
+JUCE_API bool JUCE_CALLTYPE operator<  (const String& string1, const String& string2) throw()
 {
     return string1.compare (string2) < 0;
 }
 
-bool JUCE_PUBLIC_FUNCTION operator>= (const String& string1, const String& string2) throw()
+JUCE_API bool JUCE_CALLTYPE operator>= (const String& string1, const String& string2) throw()
 {
     return string1.compare (string2) >= 0;
 }
 
-bool JUCE_PUBLIC_FUNCTION operator<= (const String& string1, const String& string2) throw()
+JUCE_API bool JUCE_CALLTYPE operator<= (const String& string1, const String& string2) throw()
 {
     return string1.compare (string2) <= 0;
 }
@@ -658,114 +661,114 @@ void String::append (const juce_wchar* const other, const int howMany)
 }
 
 //==============================================================================
-const String JUCE_PUBLIC_FUNCTION operator+ (const char* const string1, const String& string2)
+JUCE_API const String JUCE_CALLTYPE operator+ (const char* const string1, const String& string2)
 {
     String s (string1);
     return s += string2;
 }
 
-const String JUCE_PUBLIC_FUNCTION operator+ (const juce_wchar* const string1, const String& string2)
+JUCE_API const String JUCE_CALLTYPE operator+ (const juce_wchar* const string1, const String& string2)
 {
     String s (string1);
     return s += string2;
 }
 
-const String JUCE_PUBLIC_FUNCTION operator+ (const char string1, const String& string2)
+JUCE_API const String JUCE_CALLTYPE operator+ (const char string1, const String& string2)
 {
     return String::charToString (string1) + string2;
 }
 
-const String JUCE_PUBLIC_FUNCTION operator+ (const juce_wchar string1, const String& string2)
+JUCE_API const String JUCE_CALLTYPE operator+ (const juce_wchar string1, const String& string2)
 {
     return String::charToString (string1) + string2;
 }
 
-const String JUCE_PUBLIC_FUNCTION operator+ (String string1, const String& string2)
+JUCE_API const String JUCE_CALLTYPE operator+ (String string1, const String& string2)
 {
     return string1 += string2;
 }
 
-const String JUCE_PUBLIC_FUNCTION operator+ (String string1, const char* const string2)
+JUCE_API const String JUCE_CALLTYPE operator+ (String string1, const char* const string2)
 {
     return string1 += string2;
 }
 
-const String JUCE_PUBLIC_FUNCTION operator+ (String string1, const juce_wchar* const string2)
+JUCE_API const String JUCE_CALLTYPE operator+ (String string1, const juce_wchar* const string2)
 {
     return string1 += string2;
 }
 
-const String JUCE_PUBLIC_FUNCTION operator+ (String string1, const char string2)
+JUCE_API const String JUCE_CALLTYPE operator+ (String string1, const char string2)
 {
     return string1 += string2;
 }
 
-const String JUCE_PUBLIC_FUNCTION operator+ (String string1, const juce_wchar string2)
+JUCE_API const String JUCE_CALLTYPE operator+ (String string1, const juce_wchar string2)
 {
     return string1 += string2;
 }
 
-String& JUCE_PUBLIC_FUNCTION operator<< (String& string1, const char characterToAppend)
+JUCE_API String& JUCE_CALLTYPE operator<< (String& string1, const char characterToAppend)
 {
     return string1 += characterToAppend;
 }
 
-String& JUCE_PUBLIC_FUNCTION operator<< (String& string1, const juce_wchar characterToAppend)
+JUCE_API String& JUCE_CALLTYPE operator<< (String& string1, const juce_wchar characterToAppend)
 {
     return string1 += characterToAppend;
 }
 
-String& JUCE_PUBLIC_FUNCTION operator<< (String& string1, const char* const string2)
+JUCE_API String& JUCE_CALLTYPE operator<< (String& string1, const char* const string2)
 {
     return string1 += string2;
 }
 
-String& JUCE_PUBLIC_FUNCTION operator<< (String& string1, const juce_wchar* const string2)
+JUCE_API String& JUCE_CALLTYPE operator<< (String& string1, const juce_wchar* const string2)
 {
     return string1 += string2;
 }
 
-String& JUCE_PUBLIC_FUNCTION operator<< (String& string1, const String& string2)
+JUCE_API String& JUCE_CALLTYPE operator<< (String& string1, const String& string2)
 {
     return string1 += string2;
 }
 
-String& JUCE_PUBLIC_FUNCTION operator<< (String& string1, const short number)
+JUCE_API String& JUCE_CALLTYPE operator<< (String& string1, const short number)
 {
     return string1 += (int) number;
 }
 
-String& JUCE_PUBLIC_FUNCTION operator<< (String& string1, const int number)
+JUCE_API String& JUCE_CALLTYPE operator<< (String& string1, const int number)
 {
     return string1 += number;
 }
 
-String& JUCE_PUBLIC_FUNCTION operator<< (String& string1, const unsigned int number)
+JUCE_API String& JUCE_CALLTYPE operator<< (String& string1, const unsigned int number)
 {
     return string1 += number;
 }
 
-String& JUCE_PUBLIC_FUNCTION operator<< (String& string1, const long number)
+JUCE_API String& JUCE_CALLTYPE operator<< (String& string1, const long number)
 {
     return string1 += (int) number;
 }
 
-String& JUCE_PUBLIC_FUNCTION operator<< (String& string1, const unsigned long number)
+JUCE_API String& JUCE_CALLTYPE operator<< (String& string1, const unsigned long number)
 {
     return string1 += (unsigned int) number;
 }
 
-String& JUCE_PUBLIC_FUNCTION operator<< (String& string1, const float number)
+JUCE_API String& JUCE_CALLTYPE operator<< (String& string1, const float number)
 {
     return string1 += String (number);
 }
 
-String& JUCE_PUBLIC_FUNCTION operator<< (String& string1, const double number)
+JUCE_API String& JUCE_CALLTYPE operator<< (String& string1, const double number)
 {
     return string1 += String (number);
 }
 
-OutputStream& JUCE_PUBLIC_FUNCTION operator<< (OutputStream& stream, const String& text)
+JUCE_API OutputStream& JUCE_CALLTYPE operator<< (OutputStream& stream, const String& text)
 {
     // (This avoids using toUTF8() to prevent the memory bloat that it would leave behind
     // if lots of large, persistent strings were to be written to streams).
@@ -1028,46 +1031,49 @@ bool String::containsWholeWordIgnoreCase (const String& wordToLookFor) const thr
 }
 
 //==============================================================================
-static int indexOfMatch (const juce_wchar* const wildcard,
-                         const juce_wchar* const test,
-                         const bool ignoreCase) throw()
+namespace WildCardHelpers
 {
-    int start = 0;
-
-    while (test [start] != 0)
+    int indexOfMatch (const juce_wchar* const wildcard,
+                      const juce_wchar* const test,
+                      const bool ignoreCase) throw()
     {
-        int i = 0;
+        int start = 0;
 
-        for (;;)
+        while (test [start] != 0)
         {
-            const juce_wchar wc = wildcard [i];
-            const juce_wchar c = test [i + start];
+            int i = 0;
 
-            if (wc == c
-                 || (ignoreCase && CharacterFunctions::toLowerCase (wc) == CharacterFunctions::toLowerCase (c))
-                 || (wc == '?' && c != 0))
+            for (;;)
             {
-                if (wc == 0)
-                    return start;
+                const juce_wchar wc = wildcard [i];
+                const juce_wchar c = test [i + start];
 
-                ++i;
-            }
-            else
-            {
-                if (wc == '*' && (wildcard [i + 1] == 0
-                                   || indexOfMatch (wildcard + i + 1, test + start + i, ignoreCase) >= 0))
+                if (wc == c
+                     || (ignoreCase && CharacterFunctions::toLowerCase (wc) == CharacterFunctions::toLowerCase (c))
+                     || (wc == '?' && c != 0))
                 {
-                    return start;
-                }
+                    if (wc == 0)
+                        return start;
 
-                break;
+                    ++i;
+                }
+                else
+                {
+                    if (wc == '*' && (wildcard [i + 1] == 0
+                                       || indexOfMatch (wildcard + i + 1, test + start + i, ignoreCase) >= 0))
+                    {
+                        return start;
+                    }
+
+                    break;
+                }
             }
+
+            ++start;
         }
 
-        ++start;
+        return -1;
     }
-
-    return -1;
 }
 
 bool String::matchesWildcard (const String& wildcard, const bool ignoreCase) const throw()
@@ -1091,7 +1097,7 @@ bool String::matchesWildcard (const String& wildcard, const bool ignoreCase) con
         else
         {
             return wc == '*' && (wildcard [i + 1] == 0
-                                  || indexOfMatch (wildcard.text + i + 1, text + i, ignoreCase) >= 0);
+                                  || WildCardHelpers::indexOfMatch (wildcard.text + i + 1, text + i, ignoreCase) >= 0);
         }
     }
 }
@@ -1100,7 +1106,7 @@ bool String::matchesWildcard (const String& wildcard, const bool ignoreCase) con
 const String String::repeatedString (const String& stringToRepeat, int numberOfTimesToRepeat)
 {
     const int len = stringToRepeat.length();
-    String result ((size_t) (len * numberOfTimesToRepeat + 1), (int) 0);
+    String result (Preallocation (len * numberOfTimesToRepeat + 1));
     juce_wchar* n = result.text;
     *n = 0;
 
@@ -1121,7 +1127,7 @@ const String String::paddedLeft (const juce_wchar padCharacter, int minimumLengt
     if (len >= minimumLength || padCharacter == 0)
         return *this;
 
-    String result ((size_t) minimumLength + 1, (int) 0);
+    String result (Preallocation (minimumLength + 1));
     juce_wchar* n = result.text;
 
     minimumLength -= len;
@@ -1188,7 +1194,7 @@ const String String::replaceSection (int index, int numCharsToReplace, const Str
     if (newTotalLen <= 0)
         return String::empty;
 
-    String result ((size_t) newTotalLen, (int) 0);
+    String result (Preallocation ((size_t) newTotalLen));
 
     StringHolder::copyChars (result.text, text, index);
 
@@ -1258,7 +1264,7 @@ const String String::replaceCharacters (const String& charactersToReplace,
     {
         const int index = charactersToReplace.indexOfChar (*t);
 
-        if (((unsigned int) index) < (unsigned int) len2)
+        if (isPositiveAndBelow (index, len2))
             *t = charactersToInsertInstead [index];
 
         ++t;
@@ -1329,7 +1335,7 @@ const String String::toLowerCase() const
 //==============================================================================
 juce_wchar& String::operator[] (const int index)
 {
-    jassert (((unsigned int) index) <= (unsigned int) length());
+    jassert (isPositiveAndNotGreaterThan (index, length()));
     text = StringHolder::makeUnique (text);
     return text [index];
 }
@@ -1562,7 +1568,7 @@ const String String::retainCharacters (const String& charactersToRetain) const
     if (isEmpty())
         return empty;
 
-    String result (StringHolder::getAllocatedNumChars (text), (int) 0);
+    String result (Preallocation (StringHolder::getAllocatedNumChars (text)));
     juce_wchar* dst = result.text;
     const juce_wchar* src = text;
 
@@ -1583,7 +1589,7 @@ const String String::removeCharacters (const String& charactersToRemove) const
     if (isEmpty())
         return empty;
 
-    String result (StringHolder::getAllocatedNumChars (text), (int) 0);
+    String result (Preallocation (StringHolder::getAllocatedNumChars (text)));
     juce_wchar* dst = result.text;
     const juce_wchar* src = text;
 
@@ -1671,7 +1677,7 @@ const String String::formatted (const juce_wchar* const pf, ... )
     va_start (args, pf);
 
     size_t bufferSize = 256;
-    String result (bufferSize, (int) 0);
+    String result (Preallocation ((size_t) bufferSize));
     result.text[0] = 0;
 
     for (;;)
@@ -1797,9 +1803,7 @@ const String String::toHexString (const short number)
     return toHexString ((int) (unsigned short) number);
 }
 
-const String String::toHexString (const unsigned char* data,
-                                  const int size,
-                                  const int groupSize)
+const String String::toHexString (const unsigned char* data, const int size, const int groupSize)
 {
     if (size <= 0)
         return empty;
@@ -1808,7 +1812,7 @@ const String String::toHexString (const unsigned char* data,
     if (groupSize > 0)
         numChars += size / groupSize;
 
-    String s ((size_t) numChars, (int) 0);
+    String s (Preallocation ((size_t) numChars));
 
     juce_wchar* d = s.text;
 
@@ -2063,7 +2067,7 @@ const String String::fromUTF8 (const char* const buffer, int bufferSizeBytes)
         if (buffer [numBytes] == 0)
             break;
 
-    String result ((size_t) numBytes + 1, (int) 0);
+    String result (Preallocation (numBytes + 1));
     juce_wchar* dest = result.text;
 
     size_t i = 0;
@@ -2157,7 +2161,10 @@ int String::copyToCString (char* destBuffer, const int maxBufferSizeBytes) const
 //==============================================================================
 void String::copyToUnicode (juce_wchar* const destBuffer, const int maxCharsToCopy) const throw()
 {
-    StringHolder::copyChars (destBuffer, text, jmin (maxCharsToCopy, length()));
+    jassert (destBuffer != 0 && maxCharsToCopy >= 0);
+
+    if (destBuffer != 0 && maxCharsToCopy >= 0)
+        StringHolder::copyChars (destBuffer, text, jmin (maxCharsToCopy, length()));
 }
 
 
@@ -2183,6 +2190,273 @@ void String::Concatenator::append (const String& s)
         nextIndex += len;
     }
 }
+
+#if JUCE_UNIT_TESTS
+
+#include "../utilities/juce_UnitTest.h"
+#include "../core/juce_Random.h"
+
+class StringTests  : public UnitTest
+{
+public:
+    StringTests() : UnitTest ("String class") {}
+
+    void runTest()
+    {
+        {
+            beginTest ("Basics");
+
+            expect (String().length() == 0);
+            expect (String() == String::empty);
+            String s1, s2 ("abcd");
+            expect (s1.isEmpty() && ! s1.isNotEmpty());
+            expect (s2.isNotEmpty() && ! s2.isEmpty());
+            expect (s2.length() == 4);
+            s1 = "abcd";
+            expect (s2 == s1 && s1 == s2);
+            expect (s1 == "abcd" && s1 == L"abcd");
+            expect (String ("abcd") == String (L"abcd"));
+            expect (String ("abcdefg", 4) == L"abcd");
+            expect (String ("abcdefg", 4) == String (L"abcdefg", 4));
+            expect (String::charToString ('x') == "x");
+            expect (String::charToString (0) == String::empty);
+            expect (s2 + "e" == "abcde" && s2 + 'e' == "abcde");
+            expect (s2 + L'e' == "abcde" && s2 + L"e" == "abcde");
+            expect (s1.equalsIgnoreCase ("abcD") && s1 < "abce" && s1 > "abbb");
+            expect (s1.startsWith ("ab") && s1.startsWith ("abcd") && ! s1.startsWith ("abcde"));
+            expect (s1.startsWithIgnoreCase ("aB") && s1.endsWithIgnoreCase ("CD"));
+            expect (s1.endsWith ("bcd") && ! s1.endsWith ("aabcd"));
+            expect (s1.indexOf (String::empty) == 0);
+            expect (s1.startsWith (String::empty) && s1.endsWith (String::empty) && s1.contains (String::empty));
+            expect (s1.contains ("cd") && s1.contains ("ab") && s1.contains ("abcd"));
+            expect (s1.containsChar ('a') && ! s1.containsChar (0));
+            expect (String ("abc foo bar").containsWholeWord ("abc") && String ("abc foo bar").containsWholeWord ("abc"));
+        }
+
+        {
+            beginTest ("Operations");
+
+            String s ("012345678");
+            expect (s.hashCode() != 0);
+            expect (s.hashCode64() != 0);
+            expect (s.hashCode() != (s + s).hashCode());
+            expect (s.hashCode64() != (s + s).hashCode64());
+            expect (s.compare (String ("012345678")) == 0);
+            expect (s.compare (String ("012345679")) < 0);
+            expect (s.compare (String ("012345676")) > 0);
+            expect (s.substring (2, 3) == String::charToString (s[2]));
+            expect (s.substring (0, 1) == String::charToString (s[0]));
+            expect (s.getLastCharacter() == s [s.length() - 1]);
+            expect (String::charToString (s.getLastCharacter()) == s.getLastCharacters (1));
+            expect (s.substring (0, 3) == L"012");
+            expect (s.substring (0, 100) == s);
+            expect (s.substring (-1, 100) == s);
+            expect (s.substring (3) == "345678");
+            expect (s.indexOf (L"45") == 4);
+            expect (String ("444445").indexOf ("45") == 4);
+            expect (String ("444445").lastIndexOfChar ('4') == 4);
+            expect (String ("45454545x").lastIndexOf (L"45") == 6);
+            expect (String ("45454545x").lastIndexOfAnyOf ("456") == 7);
+            expect (String ("45454545x").lastIndexOfAnyOf (L"456x") == 8);
+            expect (String ("abABaBaBa").lastIndexOfIgnoreCase ("Ab") == 6);
+            expect (s.indexOfChar (L'4') == 4);
+            expect (s + s == "012345678012345678");
+            expect (s.startsWith (s));
+            expect (s.startsWith (s.substring (0, 4)));
+            expect (s.startsWith (s.dropLastCharacters (4)));
+            expect (s.endsWith (s.substring (5)));
+            expect (s.endsWith (s));
+            expect (s.contains (s.substring (3, 6)));
+            expect (s.contains (s.substring (3)));
+            expect (s.startsWithChar (s[0]));
+            expect (s.endsWithChar (s.getLastCharacter()));
+            expect (s [s.length()] == 0);
+            expect (String ("abcdEFGH").toLowerCase() == String ("abcdefgh"));
+            expect (String ("abcdEFGH").toUpperCase() == String ("ABCDEFGH"));
+
+            String s2 ("123");
+            s2 << ((int) 4) << ((short) 5) << "678" << L"9" << '0';
+            s2 += "xyz";
+            expect (s2 == "1234567890xyz");
+
+            beginTest ("Numeric conversions");
+            expect (String::empty.getIntValue() == 0);
+            expect (String::empty.getDoubleValue() == 0.0);
+            expect (String::empty.getFloatValue() == 0.0f);
+            expect (s.getIntValue() == 12345678);
+            expect (s.getLargeIntValue() == (int64) 12345678);
+            expect (s.getDoubleValue() == 12345678.0);
+            expect (s.getFloatValue() == 12345678.0f);
+            expect (String (-1234).getIntValue() == -1234);
+            expect (String ((int64) -1234).getLargeIntValue() == -1234);
+            expect (String (-1234.56).getDoubleValue() == -1234.56);
+            expect (String (-1234.56f).getFloatValue() == -1234.56f);
+            expect (("xyz" + s).getTrailingIntValue() == s.getIntValue());
+            expect (s.getHexValue32() == 0x12345678);
+            expect (s.getHexValue64() == (int64) 0x12345678);
+            expect (String::toHexString (0x1234abcd).equalsIgnoreCase ("1234abcd"));
+            expect (String::toHexString ((int64) 0x1234abcd).equalsIgnoreCase ("1234abcd"));
+            expect (String::toHexString ((short) 0x12ab).equalsIgnoreCase ("12ab"));
+
+            unsigned char data[] = { 1, 2, 3, 4, 0xa, 0xb, 0xc, 0xd };
+            expect (String::toHexString (data, 8, 0).equalsIgnoreCase ("010203040a0b0c0d"));
+            expect (String::toHexString (data, 8, 1).equalsIgnoreCase ("01 02 03 04 0a 0b 0c 0d"));
+            expect (String::toHexString (data, 8, 2).equalsIgnoreCase ("0102 0304 0a0b 0c0d"));
+
+            beginTest ("Subsections");
+            String s3;
+            s3 = "abcdeFGHIJ";
+            expect (s3.equalsIgnoreCase ("ABCdeFGhiJ"));
+            expect (s3.compareIgnoreCase (L"ABCdeFGhiJ") == 0);
+            expect (s3.containsIgnoreCase (s3.substring (3)));
+            expect (s3.indexOfAnyOf ("xyzf", 2, true) == 5);
+            expect (s3.indexOfAnyOf (L"xyzf", 2, false) == -1);
+            expect (s3.indexOfAnyOf ("xyzF", 2, false) == 5);
+            expect (s3.containsAnyOf (L"zzzFs"));
+            expect (s3.startsWith ("abcd"));
+            expect (s3.startsWithIgnoreCase (L"abCD"));
+            expect (s3.startsWith (String::empty));
+            expect (s3.startsWithChar ('a'));
+            expect (s3.endsWith (String ("HIJ")));
+            expect (s3.endsWithIgnoreCase (L"Hij"));
+            expect (s3.endsWith (String::empty));
+            expect (s3.endsWithChar (L'J'));
+            expect (s3.indexOf ("HIJ") == 7);
+            expect (s3.indexOf (L"HIJK") == -1);
+            expect (s3.indexOfIgnoreCase ("hij") == 7);
+            expect (s3.indexOfIgnoreCase (L"hijk") == -1);
+
+            String s4 (s3);
+            s4.append (String ("xyz123"), 3);
+            expect (s4 == s3 + "xyz");
+
+            expect (String (1234) < String (1235));
+            expect (String (1235) > String (1234));
+            expect (String (1234) >= String (1234));
+            expect (String (1234) <= String (1234));
+            expect (String (1235) >= String (1234));
+            expect (String (1234) <= String (1235));
+
+            String s5 ("word word2 word3");
+            expect (s5.containsWholeWord (String ("word2")));
+            expect (s5.indexOfWholeWord ("word2") == 5);
+            expect (s5.containsWholeWord (L"word"));
+            expect (s5.containsWholeWord ("word3"));
+            expect (s5.containsWholeWord (s5));
+            expect (s5.containsWholeWordIgnoreCase (L"Word2"));
+            expect (s5.indexOfWholeWordIgnoreCase ("Word2") == 5);
+            expect (s5.containsWholeWordIgnoreCase (L"Word"));
+            expect (s5.containsWholeWordIgnoreCase ("Word3"));
+            expect (! s5.containsWholeWordIgnoreCase (L"Wordx"));
+            expect (!s5.containsWholeWordIgnoreCase ("xWord2"));
+            expect (s5.containsNonWhitespaceChars());
+            expect (! String (" \n\r\t").containsNonWhitespaceChars());
+
+            expect (s5.matchesWildcard (L"wor*", false));
+            expect (s5.matchesWildcard ("wOr*", true));
+            expect (s5.matchesWildcard (L"*word3", true));
+            expect (s5.matchesWildcard ("*word?", true));
+            expect (s5.matchesWildcard (L"Word*3", true));
+
+            expect (s5.fromFirstOccurrenceOf (String::empty, true, false) == s5);
+            expect (s5.fromFirstOccurrenceOf ("xword2", true, false) == s5.substring (100));
+            expect (s5.fromFirstOccurrenceOf (L"word2", true, false) == s5.substring (5));
+            expect (s5.fromFirstOccurrenceOf ("Word2", true, true) == s5.substring (5));
+            expect (s5.fromFirstOccurrenceOf ("word2", false, false) == s5.getLastCharacters (6));
+            expect (s5.fromFirstOccurrenceOf (L"Word2", false, true) == s5.getLastCharacters (6));
+
+            expect (s5.fromLastOccurrenceOf (String::empty, true, false) == s5);
+            expect (s5.fromLastOccurrenceOf (L"wordx", true, false) == s5);
+            expect (s5.fromLastOccurrenceOf ("word", true, false) == s5.getLastCharacters (5));
+            expect (s5.fromLastOccurrenceOf (L"worD", true, true) == s5.getLastCharacters (5));
+            expect (s5.fromLastOccurrenceOf ("word", false, false) == s5.getLastCharacters (1));
+            expect (s5.fromLastOccurrenceOf (L"worD", false, true) == s5.getLastCharacters (1));
+
+            expect (s5.upToFirstOccurrenceOf (String::empty, true, false).isEmpty());
+            expect (s5.upToFirstOccurrenceOf ("word4", true, false) == s5);
+            expect (s5.upToFirstOccurrenceOf (L"word2", true, false) == s5.substring (0, 10));
+            expect (s5.upToFirstOccurrenceOf ("Word2", true, true) == s5.substring (0, 10));
+            expect (s5.upToFirstOccurrenceOf (L"word2", false, false) == s5.substring (0, 5));
+            expect (s5.upToFirstOccurrenceOf ("Word2", false, true) == s5.substring (0, 5));
+
+            expect (s5.upToLastOccurrenceOf (String::empty, true, false) == s5);
+            expect (s5.upToLastOccurrenceOf ("zword", true, false) == s5);
+            expect (s5.upToLastOccurrenceOf ("word", true, false) == s5.dropLastCharacters (1));
+            expect (s5.dropLastCharacters(1).upToLastOccurrenceOf ("word", true, false) == s5.dropLastCharacters (1));
+            expect (s5.upToLastOccurrenceOf ("Word", true, true) == s5.dropLastCharacters (1));
+            expect (s5.upToLastOccurrenceOf ("word", false, false) == s5.dropLastCharacters (5));
+            expect (s5.upToLastOccurrenceOf ("Word", false, true) == s5.dropLastCharacters (5));
+
+            expect (s5.replace ("word", L"xyz", false) == String ("xyz xyz2 xyz3"));
+            expect (s5.replace (L"Word", "xyz", true) == "xyz xyz2 xyz3");
+            expect (s5.dropLastCharacters (1).replace ("Word", String ("xyz"), true) == L"xyz xyz2 xyz");
+            expect (s5.replace ("Word", "", true) == " 2 3");
+            expect (s5.replace ("Word2", L"xyz", true) == String ("word xyz word3"));
+            expect (s5.replaceCharacter (L'w', 'x') != s5);
+            expect (s5.replaceCharacter ('w', L'x').replaceCharacter ('x', 'w') == s5);
+            expect (s5.replaceCharacters ("wo", "xy") != s5);
+            expect (s5.replaceCharacters ("wo", "xy").replaceCharacters ("xy", L"wo") == s5);
+            expect (s5.retainCharacters ("1wordxya") == String ("wordwordword"));
+            expect (s5.retainCharacters (String::empty).isEmpty());
+            expect (s5.removeCharacters ("1wordxya") == " 2 3");
+            expect (s5.removeCharacters (String::empty) == s5);
+            expect (s5.initialSectionContainingOnly ("word") == L"word");
+            expect (s5.initialSectionNotContaining (String ("xyz ")) == String ("word"));
+            expect (! s5.isQuotedString());
+            expect (s5.quoted().isQuotedString());
+            expect (! s5.quoted().unquoted().isQuotedString());
+            expect (! String ("x'").isQuotedString());
+            expect (String ("'x").isQuotedString());
+
+            String s6 (" \t xyz  \t\r\n");
+            expect (s6.trim() == String ("xyz"));
+            expect (s6.trim().trim() == "xyz");
+            expect (s5.trim() == s5);
+            expect (s6.trimStart().trimEnd() == s6.trim());
+            expect (s6.trimStart().trimEnd() == s6.trimEnd().trimStart());
+            expect (s6.trimStart().trimStart().trimEnd().trimEnd() == s6.trimEnd().trimStart());
+            expect (s6.trimStart() != s6.trimEnd());
+            expect (("\t\r\n " + s6 + "\t\n \r").trim() == s6.trim());
+            expect (String::repeatedString ("xyz", 3) == L"xyzxyzxyz");
+        }
+
+        {
+            beginTest ("UTF8");
+
+            String s ("word word2 word3");
+
+            {
+                char buffer [100];
+                memset (buffer, 0xff, sizeof (buffer));
+                s.copyToUTF8 (buffer, 100);
+                expect (String::fromUTF8 (buffer, 100) == s);
+
+                juce_wchar bufferUnicode [100];
+                memset (bufferUnicode, 0xff, sizeof (bufferUnicode));
+                s.copyToUnicode (bufferUnicode, 100);
+                expect (String (bufferUnicode, 100) == s);
+            }
+
+            {
+                juce_wchar wideBuffer [50];
+                zerostruct (wideBuffer);
+
+                for (int i = 0; i < numElementsInArray (wideBuffer) - 1; ++i)
+                    wideBuffer[i] = (juce_wchar) (1 + Random::getSystemRandom().nextInt (std::numeric_limits<juce_wchar>::max() - 1));
+
+                String wide (wideBuffer);
+                expect (wide == (const juce_wchar*) wideBuffer);
+                expect (wide.length() == numElementsInArray (wideBuffer) - 1);
+                expect (String::fromUTF8 (wide.toUTF8()) == wide);
+                expect (String::fromUTF8 (wide.toUTF8()) == wideBuffer);
+            }
+        }
+    }
+};
+
+static StringTests stringUnitTests;
+
+#endif
 
 
 END_JUCE_NAMESPACE

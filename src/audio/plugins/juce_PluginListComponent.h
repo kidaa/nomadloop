@@ -76,25 +76,22 @@ public:
     /** @internal */
     void buttonClicked (Button* b);
     /** @internal */
-    void changeListenerCallback (void*);
+    void changeListenerCallback (ChangeBroadcaster*);
     /** @internal */
     void timerCallback();
 
-    //==============================================================================
-    juce_UseDebuggingNewOperator
-
 private:
+    //==============================================================================
     KnownPluginList& list;
     File deadMansPedalFile;
-    ListBox* listBox;
-    TextButton* optionsButton;
+    ListBox listBox;
+    TextButton optionsButton;
     PropertiesFile* propertiesToUse;
     int typeToScan;
 
     void scanFor (AudioPluginFormat* format);
 
-    PluginListComponent (const PluginListComponent&);
-    PluginListComponent& operator= (const PluginListComponent&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PluginListComponent);
 };
 
 

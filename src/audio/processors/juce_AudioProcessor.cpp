@@ -64,13 +64,13 @@ void AudioProcessor::setPlayHead (AudioPlayHead* const newPlayHead) throw()
     playHead = newPlayHead;
 }
 
-void AudioProcessor::addListener (AudioProcessorListener* const newListener) throw()
+void AudioProcessor::addListener (AudioProcessorListener* const newListener)
 {
     const ScopedLock sl (listenerLock);
     listeners.addIfNotAlreadyThere (newListener);
 }
 
-void AudioProcessor::removeListener (AudioProcessorListener* const listenerToRemove) throw()
+void AudioProcessor::removeListener (AudioProcessorListener* const listenerToRemove)
 {
     const ScopedLock sl (listenerLock);
     listeners.removeValue (listenerToRemove);
@@ -110,7 +110,7 @@ void AudioProcessor::setParameterNotifyingHost (const int parameterIndex,
 
 void AudioProcessor::sendParamChangeMessageToListeners (const int parameterIndex, const float newValue)
 {
-    jassert (((unsigned int) parameterIndex) < (unsigned int) getNumParameters());
+    jassert (isPositiveAndBelow (parameterIndex, getNumParameters()));
 
     for (int i = listeners.size(); --i >= 0;)
     {
@@ -128,7 +128,7 @@ void AudioProcessor::sendParamChangeMessageToListeners (const int parameterIndex
 
 void AudioProcessor::beginParameterChangeGesture (int parameterIndex)
 {
-    jassert (((unsigned int) parameterIndex) < (unsigned int) getNumParameters());
+    jassert (isPositiveAndBelow (parameterIndex, getNumParameters()));
 
 #if JUCE_DEBUG
     // This means you've called beginParameterChangeGesture twice in succession without a matching
@@ -153,7 +153,7 @@ void AudioProcessor::beginParameterChangeGesture (int parameterIndex)
 
 void AudioProcessor::endParameterChangeGesture (int parameterIndex)
 {
-    jassert (((unsigned int) parameterIndex) < (unsigned int) getNumParameters());
+    jassert (isPositiveAndBelow (parameterIndex, getNumParameters()));
 
 #if JUCE_DEBUG
     // This means you've called endParameterChangeGesture without having previously called
@@ -231,6 +231,9 @@ AudioProcessorEditor* AudioProcessor::createEditorIfNeeded()
 
     AudioProcessorEditor* const ed = createEditor();
 
+    // You must make your hasEditor() method return a consistent result!
+    jassert (hasEditor() == (ed != 0));
+
     if (ed != 0)
     {
         // you must give your editor comp a size before returning it..
@@ -266,7 +269,7 @@ void AudioProcessor::copyXmlToBinary (const XmlElement& xml,
 
     destData.setSize (stringLength + 10);
 
-    char* const d = (char*) destData.getData();
+    char* const d = static_cast<char*> (destData.getData());
     *(uint32*) d = ByteOrder::swapIfBigEndian ((const uint32) magicXmlNumber);
     *(uint32*) (d + 4) = ByteOrder::swapIfBigEndian ((const uint32) stringLength);
 
@@ -279,28 +282,19 @@ XmlElement* AudioProcessor::getXmlFromBinary (const void* data,
     if (sizeInBytes > 8
          && ByteOrder::littleEndianInt (data) == magicXmlNumber)
     {
-        const int stringLength = (int) ByteOrder::littleEndianInt (((const char*) data) + 4);
+        const int stringLength = (int) ByteOrder::littleEndianInt (addBytesToPointer (data, 4));
 
         if (stringLength > 0)
-        {
-            XmlDocument doc (String::fromUTF8 (((const char*) data) + 8,
-                                               jmin ((sizeInBytes - 8), stringLength)));
-
-            return doc.getDocumentElement();
-        }
+            return XmlDocument::parse (String::fromUTF8 (static_cast<const char*> (data) + 8,
+                                                         jmin ((sizeInBytes - 8), stringLength)));
     }
 
     return 0;
 }
 
 //==============================================================================
-void AudioProcessorListener::audioProcessorParameterChangeGestureBegin (AudioProcessor*, int)
-{
-}
-
-void AudioProcessorListener::audioProcessorParameterChangeGestureEnd (AudioProcessor*, int)
-{
-}
+void AudioProcessorListener::audioProcessorParameterChangeGestureBegin (AudioProcessor*, int) {}
+void AudioProcessorListener::audioProcessorParameterChangeGestureEnd (AudioProcessor*, int) {}
 
 //==============================================================================
 bool AudioPlayHead::CurrentPositionInfo::operator== (const CurrentPositionInfo& other) const throw()

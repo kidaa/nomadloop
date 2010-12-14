@@ -82,7 +82,7 @@
 #undef PACKED
 
 //==============================================================================
-#if JUCE_ASIO
+#if JUCE_ASIO && JUCE_BUILD_NATIVE
 /*
     This is very frustrating - we only need to use a handful of definitions from
     a couple of the header files in Steinberg's ASIO SDK, and it'd be easy to copy
@@ -108,11 +108,11 @@
     ASIO SDK installed, you can disable ASIO support by commenting-out the
     "#define JUCE_ASIO" line in juce_Config.h, and rebuild your Juce library.
  */
- #include "iasiodrv.h"
+ #include <iasiodrv.h>
 #endif
 
 //==============================================================================
-#if JUCE_USE_CDBURNER
+#if JUCE_USE_CDBURNER && JUCE_BUILD_NATIVE
 
  /* You'll need the Platform SDK for these headers - if you don't have it and don't
     need to use CD-burning, then you might just want to disable the JUCE_USE_CDBURNER
@@ -123,7 +123,7 @@
 #endif
 
 //==============================================================================
-#if JUCE_USE_CAMERA
+#if JUCE_USE_CAMERA && JUCE_BUILD_NATIVE
 
  /*  If you're using the camera classes, you'll need access to a few DirectShow headers.
 
@@ -147,7 +147,7 @@
 #endif
 
 //==============================================================================
-#if JUCE_WASAPI
+#if JUCE_WASAPI && JUCE_BUILD_NATIVE
  #include <MMReg.h>
  #include <mmdeviceapi.h>
  #include <Audioclient.h>
@@ -183,6 +183,11 @@
  #pragma warning (pop)
 #endif
 
+#if JUCE_DIRECT2D && JUCE_BUILD_NATIVE
+ #include <d2d1.h>
+ #include <dwrite.h>
+#endif
+
 //==============================================================================
 /** A simple COM smart pointer.
     Avoids having to include ATL just to get one of these.
@@ -194,35 +199,54 @@ public:
     ComSmartPtr() throw() : p (0)                               {}
     ComSmartPtr (ComClass* const p_) : p (p_)                   { if (p_ != 0) p_->AddRef(); }
     ComSmartPtr (const ComSmartPtr<ComClass>& p_) : p (p_.p)    { if (p != 0) p->AddRef(); }
-    ~ComSmartPtr()                                              { if (p != 0) p->Release(); }
+    ~ComSmartPtr()                                              { release(); }
 
     operator ComClass*() const throw()     { return p; }
     ComClass& operator*() const throw()    { return *p; }
-    ComClass** operator&() throw()         { return &p; }
     ComClass* operator->() const throw()   { return p; }
 
-    ComClass* operator= (ComClass* const newP)
+    ComSmartPtr& operator= (ComClass* const newP)
     {
         if (newP != 0)  newP->AddRef();
-        if (p != 0)     p->Release();
+        release();
         p = newP;
-        return newP;
+        return *this;
     }
 
-    ComClass* operator= (const ComSmartPtr<ComClass>& newP)  { return operator= (newP.p); }
+    ComSmartPtr& operator= (const ComSmartPtr<ComClass>& newP)  { return operator= (newP.p); }
 
-    HRESULT CoCreateInstance (REFCLSID rclsid, DWORD dwClsContext = CLSCTX_INPROC_SERVER)
+    // Releases and nullifies this pointer and returns its address
+    ComClass** resetAndGetPointerAddress()
     {
-#ifndef __MINGW32__
-        operator= (0);
-        return ::CoCreateInstance (rclsid, 0, dwClsContext, __uuidof (ComClass), (void**) &p);
-#else
-        return S_FALSE;
-#endif
+        release();
+        p = 0;
+        return &p;
+    }
+
+    HRESULT CoCreateInstance (REFCLSID classUUID, DWORD dwClsContext = CLSCTX_INPROC_SERVER)
+    {
+      #ifndef __MINGW32__
+        return ::CoCreateInstance (classUUID, 0, dwClsContext, __uuidof (ComClass), (void**) resetAndGetPointerAddress());
+      #else
+        return E_NOTIMPL;
+      #endif
+    }
+
+    template <class OtherComClass>
+    HRESULT QueryInterface (REFCLSID classUUID, ComSmartPtr<OtherComClass>& destObject) const
+    {
+        if (p == 0)
+            return E_POINTER;
+
+        return p->QueryInterface (classUUID, (void**) destObject.resetAndGetPointerAddress());
     }
 
 private:
     ComClass* p;
+
+    void release()  { if (p != 0) p->Release(); }
+
+    ComClass** operator&() throw(); // private to avoid it being used accidentally
 };
 
 //==============================================================================
@@ -235,9 +259,12 @@ public:
     ComBaseClassHelper()  : refCount (1) {}
     virtual ~ComBaseClassHelper() {}
 
-    HRESULT __stdcall QueryInterface (REFIID refId, void __RPC_FAR* __RPC_FAR* result)
+    HRESULT __stdcall QueryInterface (REFIID refId, void** result)
     {
+      #ifndef __MINGW32__
         if (refId == __uuidof (ComClass))   { AddRef(); *result = dynamic_cast <ComClass*> (this); return S_OK; }
+      #endif
+
         if (refId == IID_IUnknown)          { AddRef(); *result = dynamic_cast <IUnknown*> (this); return S_OK; }
 
         *result = 0;

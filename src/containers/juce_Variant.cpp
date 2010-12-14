@@ -63,7 +63,8 @@ public:
 class var::VariantType_Void  : public var::VariantType
 {
 public:
-    static const VariantType_Void* getInstance()             { static const VariantType_Void i; return &i; }
+    VariantType_Void() {}
+    static const VariantType_Void instance;
 
     bool isVoid() const throw()     { return true; }
     bool equals (const ValueUnion&, const ValueUnion&, const VariantType& otherType) const throw()  { return otherType.isVoid(); }
@@ -74,14 +75,14 @@ public:
 class var::VariantType_Int  : public var::VariantType
 {
 public:
-    static const VariantType_Int* getInstance()              { static const VariantType_Int i; return &i; }
+    VariantType_Int() {}
+    static const VariantType_Int instance;
 
-    int toInt (const ValueUnion& data) const                 { return data.intValue; };
-    double toDouble (const ValueUnion& data) const           { return (double) data.intValue; }
-    const String toString (const ValueUnion& data) const     { return String (data.intValue); }
-    bool toBool (const ValueUnion& data) const               { return data.intValue != 0; }
-
-    bool isInt() const throw()      { return true; }
+    int toInt (const ValueUnion& data) const                { return data.intValue; };
+    double toDouble (const ValueUnion& data) const          { return (double) data.intValue; }
+    const String toString (const ValueUnion& data) const    { return String (data.intValue); }
+    bool toBool (const ValueUnion& data) const              { return data.intValue != 0; }
+    bool isInt() const throw()                              { return true; }
 
     bool equals (const ValueUnion& data, const ValueUnion& otherData, const VariantType& otherType) const throw()
     {
@@ -100,14 +101,14 @@ public:
 class var::VariantType_Double   : public var::VariantType
 {
 public:
-    static const VariantType_Double* getInstance()           { static const VariantType_Double i; return &i; }
+    VariantType_Double() {}
+    static const VariantType_Double instance;
 
-    int toInt (const ValueUnion& data) const                 { return (int) data.doubleValue; };
-    double toDouble (const ValueUnion& data) const           { return data.doubleValue; }
-    const String toString (const ValueUnion& data) const     { return String (data.doubleValue); }
-    bool toBool (const ValueUnion& data) const               { return data.doubleValue != 0; }
-
-    bool isDouble() const throw()   { return true; }
+    int toInt (const ValueUnion& data) const                { return (int) data.doubleValue; };
+    double toDouble (const ValueUnion& data) const          { return data.doubleValue; }
+    const String toString (const ValueUnion& data) const    { return String (data.doubleValue); }
+    bool toBool (const ValueUnion& data) const              { return data.doubleValue != 0; }
+    bool isDouble() const throw()                           { return true; }
 
     bool equals (const ValueUnion& data, const ValueUnion& otherData, const VariantType& otherType) const throw()
     {
@@ -126,14 +127,14 @@ public:
 class var::VariantType_Bool   : public var::VariantType
 {
 public:
-    static const VariantType_Bool* getInstance()             { static const VariantType_Bool i; return &i; }
+    VariantType_Bool() {}
+    static const VariantType_Bool instance;
 
-    int toInt (const ValueUnion& data) const                 { return data.boolValue ? 1 : 0; };
-    double toDouble (const ValueUnion& data) const           { return data.boolValue ? 1.0 : 0.0; }
-    const String toString (const ValueUnion& data) const     { return String::charToString (data.boolValue ? '1' : '0'); }
-    bool toBool (const ValueUnion& data) const               { return data.boolValue; }
-
-    bool isBool() const throw()     { return true; }
+    int toInt (const ValueUnion& data) const                { return data.boolValue ? 1 : 0; };
+    double toDouble (const ValueUnion& data) const          { return data.boolValue ? 1.0 : 0.0; }
+    const String toString (const ValueUnion& data) const    { return String::charToString (data.boolValue ? '1' : '0'); }
+    bool toBool (const ValueUnion& data) const              { return data.boolValue; }
+    bool isBool() const throw()                             { return true; }
 
     bool equals (const ValueUnion& data, const ValueUnion& otherData, const VariantType& otherType) const throw()
     {
@@ -151,19 +152,19 @@ public:
 class var::VariantType_String   : public var::VariantType
 {
 public:
-    static const VariantType_String* getInstance()              { static const VariantType_String i; return &i; }
+    VariantType_String() {}
+    static const VariantType_String instance;
 
     void cleanUp (ValueUnion& data) const throw()                        { delete data.stringValue; }
     void createCopy (ValueUnion& dest, const ValueUnion& source) const   { dest.stringValue = new String (*source.stringValue); }
 
-    int toInt (const ValueUnion& data) const                    { return data.stringValue->getIntValue(); };
-    double toDouble (const ValueUnion& data) const              { return data.stringValue->getDoubleValue(); }
-    const String toString (const ValueUnion& data) const        { return *data.stringValue; }
-    bool toBool (const ValueUnion& data) const                  { return data.stringValue->getIntValue() != 0
-                                                                          || data.stringValue->trim().equalsIgnoreCase ("true")
-                                                                          || data.stringValue->trim().equalsIgnoreCase ("yes"); }
-
-    bool isString() const throw()   { return true; }
+    int toInt (const ValueUnion& data) const                { return data.stringValue->getIntValue(); };
+    double toDouble (const ValueUnion& data) const          { return data.stringValue->getDoubleValue(); }
+    const String toString (const ValueUnion& data) const    { return *data.stringValue; }
+    bool toBool (const ValueUnion& data) const              { return data.stringValue->getIntValue() != 0
+                                                                      || data.stringValue->trim().equalsIgnoreCase ("true")
+                                                                      || data.stringValue->trim().equalsIgnoreCase ("yes"); }
+    bool isString() const throw()                           { return true; }
 
     bool equals (const ValueUnion& data, const ValueUnion& otherData, const VariantType& otherType) const throw()
     {
@@ -185,7 +186,8 @@ public:
 class var::VariantType_Object   : public var::VariantType
 {
 public:
-    static const VariantType_Object* getInstance()          { static const VariantType_Object i; return &i; }
+    VariantType_Object() {}
+    static const VariantType_Object instance;
 
     void cleanUp (ValueUnion& data) const throw()                        { if (data.objectValue != 0) data.objectValue->decReferenceCount(); }
     void createCopy (ValueUnion& dest, const ValueUnion& source) const   { dest.objectValue = source.objectValue; if (dest.objectValue != 0) dest.objectValue->incReferenceCount(); }
@@ -193,8 +195,7 @@ public:
     const String toString (const ValueUnion& data) const    { return "Object 0x" + String::toHexString ((int) (pointer_sized_int) data.objectValue); }
     bool toBool (const ValueUnion& data) const              { return data.objectValue != 0; }
     DynamicObject* toObject (const ValueUnion& data) const  { return data.objectValue; }
-
-    bool isObject() const throw()   { return true; }
+    bool isObject() const throw()                           { return true; }
 
     bool equals (const ValueUnion& data, const ValueUnion& otherData, const VariantType& otherType) const throw()
     {
@@ -212,12 +213,12 @@ public:
 class var::VariantType_Method   : public var::VariantType
 {
 public:
-    static const VariantType_Method* getInstance()          { static const VariantType_Method i; return &i; }
+    VariantType_Method() {}
+    static const VariantType_Method instance;
 
     const String toString (const ValueUnion&) const         { return "Method"; }
     bool toBool (const ValueUnion& data) const              { return data.methodValue != 0; }
-
-    bool isMethod() const throw()   { return true; }
+    bool isMethod() const throw()                           { return true; }
 
     bool equals (const ValueUnion& data, const ValueUnion& otherData, const VariantType& otherType) const throw()
     {
@@ -231,10 +232,18 @@ public:
     }
 };
 
+//==============================================================================
+const var::VariantType_Void    var::VariantType_Void::instance;
+const var::VariantType_Int     var::VariantType_Int::instance;
+const var::VariantType_Bool    var::VariantType_Bool::instance;
+const var::VariantType_Double  var::VariantType_Double::instance;
+const var::VariantType_String  var::VariantType_String::instance;
+const var::VariantType_Object  var::VariantType_Object::instance;
+const var::VariantType_Method  var::VariantType_Method::instance;
+
 
 //==============================================================================
-var::var() throw()
-  : type (VariantType_Void::getInstance())
+var::var() throw()  : type (&VariantType_Void::instance)
 {
 }
 
@@ -251,37 +260,37 @@ var::var (const var& valueToCopy)  : type (valueToCopy.type)
     type->createCopy (value, valueToCopy.value);
 }
 
-var::var (const int value_) throw() : type (VariantType_Int::getInstance())
+var::var (const int value_) throw() : type (&VariantType_Int::instance)
 {
     value.intValue = value_;
 }
 
-var::var (const bool value_) throw()  : type (VariantType_Bool::getInstance())
+var::var (const bool value_) throw()  : type (&VariantType_Bool::instance)
 {
     value.boolValue = value_;
 }
 
-var::var (const double value_) throw()  : type (VariantType_Double::getInstance())
+var::var (const double value_) throw()  : type (&VariantType_Double::instance)
 {
     value.doubleValue = value_;
 }
 
-var::var (const String& value_)  : type (VariantType_String::getInstance())
+var::var (const String& value_)  : type (&VariantType_String::instance)
 {
     value.stringValue = new String (value_);
 }
 
-var::var (const char* const value_)  : type (VariantType_String::getInstance())
+var::var (const char* const value_)  : type (&VariantType_String::instance)
 {
     value.stringValue = new String (value_);
 }
 
-var::var (const juce_wchar* const value_)  : type (VariantType_String::getInstance())
+var::var (const juce_wchar* const value_)  : type (&VariantType_String::instance)
 {
     value.stringValue = new String (value_);
 }
 
-var::var (DynamicObject* const object)  : type (VariantType_Object::getInstance())
+var::var (DynamicObject* const object)  : type (&VariantType_Object::instance)
 {
     value.objectValue = object;
 
@@ -289,7 +298,7 @@ var::var (DynamicObject* const object)  : type (VariantType_Object::getInstance(
         object->incReferenceCount();
 }
 
-var::var (MethodFunction method_) throw()  : type (VariantType_Method::getInstance())
+var::var (MethodFunction method_) throw()  : type (&VariantType_Method::instance)
 {
     value.methodValue = method_;
 }

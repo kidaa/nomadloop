@@ -33,6 +33,9 @@
 #include "../../../containers/juce_Value.h"
 #include "../windows/juce_TooltipWindow.h"
 
+#if JUCE_VC6
+ #define Listener ButtonListener
+#endif
 
 //==============================================================================
 /**
@@ -47,7 +50,7 @@
 class JUCE_API  Button  : public Component,
                           public SettableTooltipClient,
                           public ApplicationCommandManagerListener,
-                          public Value::Listener,
+                          public ValueListener,
                           private KeyListener
 {
 protected:
@@ -175,7 +178,7 @@ public:
 
         @see Button::addButtonListener, Button::removeButtonListener
     */
-    class JUCE_API  Listener
+    class Listener
     {
     public:
         /** Destructor. */
@@ -375,8 +378,6 @@ public:
     */
     void setState (const ButtonState newState);
 
-    //==============================================================================
-    juce_UseDebuggingNewOperator
 
 protected:
     //==============================================================================
@@ -492,20 +493,23 @@ private:
     void repeatTimerCallback();
     RepeatTimer& getRepeatTimer();
 
-    ButtonState updateState (const MouseEvent* const e);
+    ButtonState updateState();
+    ButtonState updateState (bool isOver, bool isDown);
     bool isShortcutPressed() const;
-    void turnOffOtherButtonsInGroup (const bool sendChangeNotification);
+    void turnOffOtherButtonsInGroup (bool sendChangeNotification);
 
     void flashButtonState();
     void sendClickMessage (const ModifierKeys& modifiers);
     void sendStateMessage();
 
-    Button (const Button&);
-    Button& operator= (const Button&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Button);
 };
 
 /** This typedef is just for compatibility with old code - newer code should use Button::Listener instead. */
 typedef Button::Listener ButtonListener;
 
+#if JUCE_VC6
+ #undef Listener
+#endif
 
 #endif   // __JUCE_BUTTON_JUCEHEADER__

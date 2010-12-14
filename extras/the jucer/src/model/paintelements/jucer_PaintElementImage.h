@@ -76,7 +76,7 @@ public:
 
         if (image != 0)
         {
-            image->drawWithin (g, r.getX(), r.getY(), r.getWidth(), r.getHeight(),
+            image->drawWithin (g, r.toFloat(),
                                mode == stretched ? RectanglePlacement::stretchToFit
                                                  : (mode == proportionalReducingOnly ? (RectanglePlacement::centred | RectanglePlacement::onlyReduceInSize)
                                                                                      : RectanglePlacement::centred),
@@ -310,7 +310,7 @@ public:
             const Rectangle<int> parentArea (((PaintRoutineEditor*) getParentComponent())->getComponentArea());
 
             Rectangle<int> r (getCurrentBounds (parentArea));
-            Rectangle<float> bounds (image->getBounds());
+            Rectangle<float> bounds (image->getDrawableBounds());
 
             r.setSize ((int) (bounds.getWidth() + 0.999f), (int) (bounds.getHeight() + 0.999f));
 
@@ -455,7 +455,7 @@ private:
             return element->getOpacity();
         }
 
-        void changeListenerCallback (void*)
+        void changeListenerCallback (ChangeBroadcaster*)
         {
             refresh();
         }
@@ -494,7 +494,7 @@ private:
             return (int) element->getStretchMode();
         }
 
-        void changeListenerCallback (void*)
+        void changeListenerCallback (ChangeBroadcaster*)
         {
             refresh();
         }

@@ -33,21 +33,21 @@ BEGIN_JUCE_NAMESPACE
 
 
 //==============================================================================
-PropertySet::PropertySet (const bool ignoreCaseOfKeyNames) throw()
+PropertySet::PropertySet (const bool ignoreCaseOfKeyNames)
     : properties (ignoreCaseOfKeyNames),
       fallbackProperties (0),
       ignoreCaseOfKeys (ignoreCaseOfKeyNames)
 {
 }
 
-PropertySet::PropertySet (const PropertySet& other) throw()
+PropertySet::PropertySet (const PropertySet& other)
     : properties (other.properties),
       fallbackProperties (other.fallbackProperties),
       ignoreCaseOfKeys (other.ignoreCaseOfKeys)
 {
 }
 
-PropertySet& PropertySet::operator= (const PropertySet& other) throw()
+PropertySet& PropertySet::operator= (const PropertySet& other)
 {
     properties = other.properties;
     fallbackProperties = other.fallbackProperties;
@@ -127,18 +127,16 @@ bool PropertySet::getBoolValue (const String& keyName,
 
 XmlElement* PropertySet::getXmlValue (const String& keyName) const
 {
-    XmlDocument doc (getValue (keyName));
-
-    return doc.getDocumentElement();
+    return XmlDocument::parse (getValue (keyName));
 }
 
-void PropertySet::setValue (const String& keyName,
-                            const String& value) throw()
+void PropertySet::setValue (const String& keyName, const var& v)
 {
     jassert (keyName.isNotEmpty()); // shouldn't use an empty key name!
 
     if (keyName.isNotEmpty())
     {
+        const String value (v.toString());
         const ScopedLock sl (lock);
 
         const int index = properties.getAllKeys().indexOf (keyName, ignoreCaseOfKeys);
@@ -151,7 +149,7 @@ void PropertySet::setValue (const String& keyName,
     }
 }
 
-void PropertySet::removeValue (const String& keyName) throw()
+void PropertySet::removeValue (const String& keyName)
 {
     if (keyName.isNotEmpty())
     {
@@ -166,25 +164,10 @@ void PropertySet::removeValue (const String& keyName) throw()
     }
 }
 
-void PropertySet::setValue (const String& keyName, const int value) throw()
-{
-    setValue (keyName, String (value));
-}
-
-void PropertySet::setValue (const String& keyName, const double value) throw()
-{
-    setValue (keyName, String (value));
-}
-
-void PropertySet::setValue (const String& keyName, const bool value) throw()
-{
-    setValue (keyName, String (value ? "1" : "0"));
-}
-
 void PropertySet::setValue (const String& keyName, const XmlElement* const xml)
 {
-    setValue (keyName, (xml == 0) ? String::empty
-                                  : xml->createDocument (String::empty, true));
+    setValue (keyName, xml == 0 ? var::null
+                                : var (xml->createDocument (String::empty, true)));
 }
 
 bool PropertySet::containsKey (const String& keyName) const throw()
@@ -199,7 +182,7 @@ void PropertySet::setFallbackPropertySet (PropertySet* fallbackProperties_) thro
     fallbackProperties = fallbackProperties_;
 }
 
-XmlElement* PropertySet::createXml (const String& nodeName) const throw()
+XmlElement* PropertySet::createXml (const String& nodeName) const
 {
     const ScopedLock sl (lock);
     XmlElement* const xml = new XmlElement (nodeName);
@@ -214,7 +197,7 @@ XmlElement* PropertySet::createXml (const String& nodeName) const throw()
     return xml;
 }
 
-void PropertySet::restoreFromXml (const XmlElement& xml) throw()
+void PropertySet::restoreFromXml (const XmlElement& xml)
 {
     const ScopedLock sl (lock);
     clear();

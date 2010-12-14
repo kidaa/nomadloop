@@ -231,7 +231,7 @@ public:
 
                 if (src != 0)
                 {
-                    int* dest = (int*) reservoir.getSampleData(i);
+                    int* dest = reinterpret_cast<int*> (reservoir.getSampleData(i));
 
                     for (int j = 0; j < numSamples; ++j)
                         dest[j] = src[j] << bitsToShift;
@@ -297,16 +297,13 @@ public:
     {
     }
 
-    juce_UseDebuggingNewOperator
-
 private:
     FlacNamespace::FLAC__StreamDecoder* decoder;
     AudioSampleBuffer reservoir;
     int reservoirStart, samplesInReservoir;
     bool ok, scanningForLength;
 
-    FlacReader (const FlacReader&);
-    FlacReader& operator= (const FlacReader&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FlacReader);
 };
 
 
@@ -315,17 +312,16 @@ class FlacWriter  : public AudioFormatWriter
 {
 public:
     //==============================================================================
-    FlacWriter (OutputStream* const out,
-                const double sampleRate_,
-                const int numChannels_,
-                const int bitsPerSample_)
+    FlacWriter (OutputStream* const out, double sampleRate_,
+                int numChannels_, int bitsPerSample_, int qualityOptionIndex)
         : AudioFormatWriter (out, TRANS (flacFormatName),
-                             sampleRate_,
-                             numChannels_,
-                             bitsPerSample_)
+                             sampleRate_, numChannels_, bitsPerSample_)
     {
         using namespace FlacNamespace;
         encoder = FLAC__stream_encoder_new();
+
+        if (qualityOptionIndex > 0)
+            FLAC__stream_encoder_set_compression_level (encoder, jmin (8, qualityOptionIndex));
 
         FLAC__stream_encoder_set_do_mid_side_stereo (encoder, numChannels == 2);
         FLAC__stream_encoder_set_loose_mid_side_stereo (encoder, numChannels == 2);
@@ -365,32 +361,27 @@ public:
             return false;
 
         int* buf[3];
+        HeapBlock<int> temp;
         const int bitsToShift = 32 - bitsPerSample;
 
         if (bitsToShift > 0)
         {
             const int numChannelsToWrite = (samplesToWrite[1] == 0) ? 1 : 2;
-            temp.setSize (sizeof (int) * numSamples * numChannelsToWrite);
+            temp.malloc (numSamples * numChannelsToWrite);
 
-            buf[0] = (int*) temp.getData();
-            buf[1] = buf[0] + numSamples;
+            buf[0] = temp.getData();
+            buf[1] = temp.getData() + numSamples;
             buf[2] = 0;
 
             for (int i = numChannelsToWrite; --i >= 0;)
-            {
                 if (samplesToWrite[i] != 0)
-                {
                     for (int j = 0; j < numSamples; ++j)
                         buf [i][j] = (samplesToWrite [i][j] >> bitsToShift);
-                }
-            }
 
-            samplesToWrite = (const int**) buf;
+            samplesToWrite = const_cast<const int**> (buf);
         }
 
-        return FLAC__stream_encoder_process (encoder,
-                                             (const FLAC__int32**) samplesToWrite,
-                                             numSamples) != 0;
+        return FLAC__stream_encoder_process (encoder, (const FLAC__int32**) samplesToWrite, numSamples) != 0;
     }
 
     bool writeData (const void* const data, const int size) const
@@ -476,16 +467,12 @@ public:
         static_cast <FlacWriter*> (client_data)->writeMetaData (metadata);
     }
 
-    juce_UseDebuggingNewOperator
-
     bool ok;
 
 private:
     FlacNamespace::FLAC__StreamEncoder* encoder;
-    MemoryBlock temp;
 
-    FlacWriter (const FlacWriter&);
-    FlacWriter& operator= (const FlacWriter&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FlacWriter);
 };
 
 
@@ -511,20 +498,9 @@ const Array <int> FlacAudioFormat::getPossibleBitDepths()
     return Array <int> (depths);
 }
 
-bool FlacAudioFormat::canDoStereo()
-{
-    return true;
-}
-
-bool FlacAudioFormat::canDoMono()
-{
-    return true;
-}
-
-bool FlacAudioFormat::isCompressed()
-{
-    return true;
-}
+bool FlacAudioFormat::canDoStereo()     { return true; }
+bool FlacAudioFormat::canDoMono()       { return true; }
+bool FlacAudioFormat::isCompressed()    { return true; }
 
 AudioFormatReader* FlacAudioFormat::createReaderFor (InputStream* in,
                                                      const bool deleteStreamIfOpeningFails)
@@ -545,11 +521,11 @@ AudioFormatWriter* FlacAudioFormat::createWriterFor (OutputStream* out,
                                                      unsigned int numberOfChannels,
                                                      int bitsPerSample,
                                                      const StringPairArray& /*metadataValues*/,
-                                                     int /*qualityOptionIndex*/)
+                                                     int qualityOptionIndex)
 {
     if (getPossibleBitDepths().contains (bitsPerSample))
     {
-        ScopedPointer<FlacWriter> w (new FlacWriter (out, sampleRate, numberOfChannels, bitsPerSample));
+        ScopedPointer<FlacWriter> w (new FlacWriter (out, sampleRate, numberOfChannels, bitsPerSample, qualityOptionIndex));
 
         if (w->ok)
             return w.release();

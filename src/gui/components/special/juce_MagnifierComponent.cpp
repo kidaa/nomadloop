@@ -56,6 +56,7 @@ public:
     void setSize (int, int)                         {}
     void setBounds (int, int, int, int, bool)       {}
     void setMinimised (bool)                        {}
+    void setAlpha (float /*newAlpha*/)              {}
     bool isMinimised() const                        { return false; }
     void setFullScreen (bool)                       {}
     bool isFullScreen() const                       { return false; }
@@ -95,16 +96,16 @@ public:
         return magnifierComp->getScreenPosition();
     }
 
-    const Point<int> relativePositionToGlobal (const Point<int>& relativePosition)
+    const Point<int> localToGlobal (const Point<int>& relativePosition)
     {
         const double zoom = magnifierComp->getScaleFactor();
-        return magnifierComp->relativePositionToGlobal (Point<int> (roundToInt (relativePosition.getX() * zoom),
-                                                                    roundToInt (relativePosition.getY() * zoom)));
+        return magnifierComp->localPointToGlobal (Point<int> (roundToInt (relativePosition.getX() * zoom),
+                                                              roundToInt (relativePosition.getY() * zoom)));
     }
 
-    const Point<int> globalPositionToRelative (const Point<int>& screenPosition)
+    const Point<int> globalToLocal (const Point<int>& screenPosition)
     {
-        const Point<int> p (magnifierComp->globalPositionToRelative (screenPosition));
+        const Point<int> p (magnifierComp->getLocalPoint (0, screenPosition));
         const double zoom = magnifierComp->getScaleFactor();
 
         return Point<int> (roundToInt (p.getX() / zoom),
@@ -113,8 +114,8 @@ public:
 
     bool contains (const Point<int>& position, bool) const
     {
-        return ((unsigned int) position.getX()) < (unsigned int) magnifierComp->getWidth()
-                && ((unsigned int) position.getY()) < (unsigned int) magnifierComp->getHeight();
+        return isPositiveAndBelow (position.getX(), magnifierComp->getWidth())
+                && isPositiveAndBelow (position.getY(), magnifierComp->getHeight());
     }
 
     void repaint (const Rectangle<int>& area)
@@ -132,13 +133,10 @@ public:
     }
 
     //==============================================================================
-    juce_UseDebuggingNewOperator
-
 private:
     MagnifierComponent* const magnifierComp;
 
-    MagnifyingPeer (const MagnifyingPeer&);
-    MagnifyingPeer& operator= (const MagnifyingPeer&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MagnifyingPeer);
 };
 
 
@@ -182,8 +180,7 @@ public:
 private:
     MagnifierComponent* const magnifierComp;
 
-    PeerHolderComp (const PeerHolderComp&);
-    PeerHolderComp& operator= (const PeerHolderComp&);
+    JUCE_DECLARE_NON_COPYABLE (PeerHolderComp);
 };
 
 
@@ -266,12 +263,13 @@ void MagnifierComponent::paint (Graphics& g)
     }
 
     Image temp (Image::ARGB, jmax (w, srcX + srcW), jmax (h, srcY + srcH), false);
-    temp.clear (Rectangle<int> (srcX, srcY, srcW, srcH));
+    const Rectangle<int> area (srcX, srcY, srcW, srcH);
+    temp.clear (area);
 
     {
         Graphics g2 (temp);
-        g2.reduceClipRegion (srcX, srcY, srcW, srcH);
-        holderComp->paintEntireComponent (g2);
+        g2.reduceClipRegion (area);
+        holderComp->paintEntireComponent (g2, false);
     }
 
     g.setImageResamplingQuality (quality);

@@ -47,12 +47,12 @@
 
         void mouseDown (const MouseEvent& e)
         {
-            myDragger.startDraggingComponent (this, 0);
+            myDragger.startDraggingComponent (this, e);
         }
 
         void mouseDrag (const MouseEvent& e)
         {
-            myDragger.dragComponent (this, e);
+            myDragger.dragComponent (this, e, 0);
         }
     };
     @endcode
@@ -71,12 +71,11 @@ public:
     /** Call this from your component's mouseDown() method, to prepare for dragging.
 
         @param componentToDrag      the component that you want to drag
-        @param constrainer          a constrainer object to use to keep the component
-                                    from going offscreen
+        @param e                    the mouse event that is triggering the drag
         @see dragComponent
     */
-    void startDraggingComponent (Component* const componentToDrag,
-                                 ComponentBoundsConstrainer* constrainer);
+    void startDraggingComponent (Component* componentToDrag,
+                                 const MouseEvent& e);
 
     /** Call this from your mouseDrag() callback to move the component.
 
@@ -87,21 +86,20 @@ public:
 
         @param componentToDrag      the component that you want to drag
         @param e                    the current mouse-drag event
-        @see dragComponent
+        @param constrainer          an optional constrainer object that should be used
+                                    to apply limits to the component's position. Pass
+                                    null if you don't want to contrain the movement.
+        @see startDraggingComponent
     */
-    void dragComponent (Component* const componentToDrag,
-                        const MouseEvent& e);
-
-
-    //==============================================================================
-    juce_UseDebuggingNewOperator
+    void dragComponent (Component* componentToDrag,
+                        const MouseEvent& e,
+                        ComponentBoundsConstrainer* constrainer);
 
 private:
-    ComponentBoundsConstrainer* constrainer;
-    Point<int> originalPos;
+    //==============================================================================
+    Point<int> mouseDownWithinTarget;
 
-    ComponentDragger (const ComponentDragger&);
-    ComponentDragger& operator= (const ComponentDragger&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ComponentDragger);
 };
 
 #endif   // __JUCE_COMPONENTDRAGGER_JUCEHEADER__

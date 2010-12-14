@@ -45,14 +45,20 @@ class JUCE_API  PluginDescription
 {
 public:
     //==============================================================================
-    PluginDescription() throw();
-    PluginDescription (const PluginDescription& other) throw();
-    PluginDescription& operator= (const PluginDescription& other) throw();
-    ~PluginDescription() throw();
+    PluginDescription();
+    PluginDescription (const PluginDescription& other);
+    PluginDescription& operator= (const PluginDescription& other);
+    ~PluginDescription();
 
     //==============================================================================
     /** The name of the plugin. */
     String name;
+
+    /** A more descriptive name for the plugin.
+        This may be the same as the 'name' field, but some plugins may provide an
+        alternative name.
+    */
+    String descriptiveName;
 
     /** The plugin format, e.g. "VST", "AudioUnit", etc.
     */
@@ -114,7 +120,7 @@ public:
         plugin's file location, so can be used to store a plugin ID for use
         across different machines.
     */
-    const String createIdentifierString() const throw();
+    const String createIdentifierString() const;
 
     //==============================================================================
     /** Creates an XML object containing these details.
@@ -131,8 +137,9 @@ public:
     bool loadFromXml (const XmlElement& xml);
 
 
+private:
     //==============================================================================
-    juce_UseDebuggingNewOperator
+    JUCE_LEAK_DETECTOR (PluginDescription);
 };
 
 

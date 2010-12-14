@@ -33,7 +33,7 @@
 */
 #define JUCE_MAJOR_VERSION      1
 #define JUCE_MINOR_VERSION      52
-#define JUCE_BUILDNUMBER        48
+#define JUCE_BUILDNUMBER        103
 
 /** Current Juce version number.
 
@@ -65,8 +65,20 @@
 
 // Now we'll include any OS headers we need.. (at this point we are outside the Juce namespace).
 #if JUCE_MSVC
-  #if (defined(_MSC_VER) && (_MSC_VER <= 1200))
+  #if JUCE_VC6
     #pragma warning (disable: 4284 4786)  // (spurious VC6 warnings)
+
+    namespace std   // VC6 doesn't have sqrt/sin/cos/tan/abs in std, so declare them here:
+    {
+        template <typename Type> Type abs (Type a)              { if (a < 0) return -a; return a; }
+        template <typename Type> Type tan (Type a)              { return static_cast<Type> (::tan (static_cast<double> (a))); }
+        template <typename Type> Type sin (Type a)              { return static_cast<Type> (::sin (static_cast<double> (a))); }
+        template <typename Type> Type cos (Type a)              { return static_cast<Type> (::cos (static_cast<double> (a))); }
+        template <typename Type> Type sqrt (Type a)             { return static_cast<Type> (::sqrt (static_cast<double> (a))); }
+        template <typename Type> Type floor (Type a)            { return static_cast<Type> (::floor (static_cast<double> (a))); }
+        template <typename Type> Type ceil (Type a)             { return static_cast<Type> (::ceil (static_cast<double> (a))); }
+        template <typename Type> Type atan2 (Type a, Type b)    { return static_cast<Type> (::atan2 (static_cast<double> (a), static_cast<double> (b))); }
+    }
   #endif
 
   #pragma warning (push)
@@ -142,21 +154,29 @@
 /** This macro is added to all juce public function declarations. */
 #define JUCE_PUBLIC_FUNCTION        JUCE_API JUCE_CALLTYPE
 
+/** This turns on some non-essential bits of code that should prevent old code from compiling
+    in cases where method signatures have changed, etc.
+*/
+#if (! defined (JUCE_CATCH_DEPRECATED_CODE_MISUSE)) && JUCE_DEBUG && ! DOXYGEN
+ #define JUCE_CATCH_DEPRECATED_CODE_MISUSE 1
+#endif
 
 //==============================================================================
 // Now include some basics that are needed by most of the Juce classes...
 BEGIN_JUCE_NAMESPACE
 
-extern bool JUCE_PUBLIC_FUNCTION juce_isRunningUnderDebugger();
+extern JUCE_API bool JUCE_CALLTYPE juce_isRunningUnderDebugger();
 
 #if JUCE_LOG_ASSERTIONS
-  extern void JUCE_API juce_LogAssertion (const char* filename, const int lineNum) throw();
+  extern JUCE_API void juce_LogAssertion (const char* filename, int lineNum) throw();
 #endif
 
 #include "juce_Memory.h"
 #include "juce_MathsFunctions.h"
 #include "juce_ByteOrder.h"
 #include "juce_Logger.h"
+#include "juce_LeakedObjectDetector.h"
+
 
 END_JUCE_NAMESPACE
 

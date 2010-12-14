@@ -135,7 +135,7 @@ void AudioTransportSource::start()
             inputStreamEOF = false;
         }
 
-        sendChangeMessage (this);
+        sendChangeMessage();
     }
 }
 
@@ -152,7 +152,7 @@ void AudioTransportSource::stop()
         while (--n >= 0 && ! stopped)
             Thread::sleep (2);
 
-        sendChangeMessage (this);
+        sendChangeMessage();
     }
 }
 
@@ -168,6 +168,11 @@ double AudioTransportSource::getCurrentPosition() const
         return getNextReadPosition() / sampleRate;
     else
         return 0.0;
+}
+
+double AudioTransportSource::getLengthInSeconds() const
+{
+    return getTotalLength() / sampleRate;
 }
 
 void AudioTransportSource::setNextReadPosition (int newPosition)
@@ -272,7 +277,7 @@ void AudioTransportSource::getNextAudioBlock (const AudioSourceChannelInfo& info
         {
             playing = false;
             inputStreamEOF = true;
-            sendChangeMessage (this);
+            sendChangeMessage();
         }
 
         stopped = ! playing;

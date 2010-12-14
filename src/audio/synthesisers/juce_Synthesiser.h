@@ -76,8 +76,10 @@ public:
     */
     typedef ReferenceCountedObjectPtr <SynthesiserSound> Ptr;
 
+
+private:
     //==============================================================================
-    juce_UseDebuggingNewOperator
+    JUCE_LEAK_DETECTOR (SynthesiserSound);
 };
 
 
@@ -199,9 +201,6 @@ public:
     void setCurrentPlaybackSampleRate (double newRate);
 
 
-    //==============================================================================
-    juce_UseDebuggingNewOperator
-
 protected:
     //==============================================================================
     /** Returns the current target sample rate at which rendering is being done.
@@ -233,6 +232,8 @@ private:
     int currentlyPlayingNote;
     uint32 noteOnTime;
     SynthesiserSound::Ptr currentlyPlayingSound;
+
+    JUCE_LEAK_DETECTOR (SynthesiserVoice);
 };
 
 
@@ -342,9 +343,9 @@ public:
         This method will be called automatically according to the midi data passed into
         renderNextBlock(), but may be called explicitly too.
     */
-    virtual void noteOn (const int midiChannel,
-                         const int midiNoteNumber,
-                         const float velocity);
+    virtual void noteOn (int midiChannel,
+                         int midiNoteNumber,
+                         float velocity);
 
     /** Triggers a note-off event.
 
@@ -356,9 +357,9 @@ public:
         This method will be called automatically according to the midi data passed into
         renderNextBlock(), but may be called explicitly too.
     */
-    virtual void noteOff (const int midiChannel,
-                          const int midiNoteNumber,
-                          const bool allowTailOff);
+    virtual void noteOff (int midiChannel,
+                          int midiNoteNumber,
+                          bool allowTailOff);
 
     /** Turns off all notes.
 
@@ -373,8 +374,8 @@ public:
         This method will be called automatically according to the midi data passed into
         renderNextBlock(), but may be called explicitly too.
     */
-    virtual void allNotesOff (const int midiChannel,
-                              const bool allowTailOff);
+    virtual void allNotesOff (int midiChannel,
+                              bool allowTailOff);
 
     /** Sends a pitch-wheel message.
 
@@ -387,8 +388,8 @@ public:
         @param midiChannel          the midi channel for the event
         @param wheelValue           the wheel position, from 0 to 0x3fff, as returned by MidiMessage::getPitchWheelValue()
     */
-    virtual void handlePitchWheel (const int midiChannel,
-                                   const int wheelValue);
+    virtual void handlePitchWheel (int midiChannel,
+                                   int wheelValue);
 
     /** Sends a midi controller message.
 
@@ -402,9 +403,9 @@ public:
         @param controllerNumber     the midi controller type, as returned by MidiMessage::getControllerNumber()
         @param controllerValue      the midi controller value, between 0 and 127, as returned by MidiMessage::getControllerValue()
     */
-    virtual void handleController (const int midiChannel,
-                                   const int controllerNumber,
-                                   const int controllerValue);
+    virtual void handleController (int midiChannel,
+                                   int controllerNumber,
+                                   int controllerValue);
 
     //==============================================================================
     /** Tells the synthesiser what the sample rate is for the audio it's being used to
@@ -413,7 +414,7 @@ public:
         This value is propagated to the voices so that they can use it to render the correct
         pitches.
     */
-    void setCurrentPlaybackSampleRate (const double sampleRate);
+    void setCurrentPlaybackSampleRate (double sampleRate);
 
     /** Creates the next block of audio output.
 
@@ -431,10 +432,6 @@ public:
                           const MidiBuffer& inputMidi,
                           int startSample,
                           int numSamples);
-
-
-    //==============================================================================
-    juce_UseDebuggingNewOperator
 
 protected:
     //==============================================================================
@@ -468,16 +465,17 @@ protected:
                      int midiNoteNumber,
                      float velocity);
 
-    /** xxx Temporary method here to cause a compiler error - note the new parameters for this method. */
+   #if JUCE_CATCH_DEPRECATED_CODE_MISUSE
+    // Temporary method here to cause a compiler error - note the new parameters for this method.
     int findFreeVoice (const bool) const { return 0; }
+   #endif
 
 private:
     double sampleRate;
     uint32 lastNoteOnCounter;
     bool shouldStealNotes;
 
-    Synthesiser (const Synthesiser&);
-    Synthesiser& operator= (const Synthesiser&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Synthesiser);
 };
 
 

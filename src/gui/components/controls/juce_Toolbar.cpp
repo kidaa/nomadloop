@@ -161,14 +161,11 @@ public:
         }
     }
 
-    juce_UseDebuggingNewOperator
-
 private:
     const float fixedSize;
     const bool drawBar;
 
-    ToolbarSpacerComp (const ToolbarSpacerComp&);
-    ToolbarSpacerComp& operator= (const ToolbarSpacerComp&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ToolbarSpacerComp);
 };
 
 //==============================================================================
@@ -177,7 +174,7 @@ class Toolbar::MissingItemsComponent  : public PopupMenuCustomComponent
 public:
     MissingItemsComponent (Toolbar& owner_, const int height_)
         : PopupMenuCustomComponent (true),
-          owner (owner_),
+          owner (&owner_),
           height (height_)
     {
         for (int i = owner_.items.size(); --i >= 0;)
@@ -196,23 +193,23 @@ public:
 
     ~MissingItemsComponent()
     {
-        // deleting the toolbar while its menu it open??
-        jassert (owner.isValidComponent());
-
-        for (int i = 0; i < getNumChildComponents(); ++i)
+        if (owner != 0)
         {
-            ToolbarItemComponent* const tc = dynamic_cast <ToolbarItemComponent*> (getChildComponent (i));
-
-            if (tc != 0)
+            for (int i = 0; i < getNumChildComponents(); ++i)
             {
-                tc->setVisible (false);
-                const int index = oldIndexes.remove (i);
-                owner.addChildComponent (tc, index);
-                --i;
-            }
-        }
+                ToolbarItemComponent* const tc = dynamic_cast <ToolbarItemComponent*> (getChildComponent (i));
 
-        owner.resized();
+                if (tc != 0)
+                {
+                    tc->setVisible (false);
+                    const int index = oldIndexes.remove (i);
+                    owner->addChildComponent (tc, index);
+                    --i;
+                }
+            }
+
+            owner->resized();
+        }
     }
 
     void layout (const int preferredWidth)
@@ -255,15 +252,12 @@ public:
         idealHeight = getHeight();
     }
 
-    juce_UseDebuggingNewOperator
-
 private:
-    Toolbar& owner;
+    Component::SafePointer<Toolbar> owner;
     const int height;
     Array <int> oldIndexes;
 
-    MissingItemsComponent (const MissingItemsComponent&);
-    MissingItemsComponent& operator= (const MissingItemsComponent&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MissingItemsComponent);
 };
 
 
@@ -281,8 +275,7 @@ Toolbar::Toolbar()
 
 Toolbar::~Toolbar()
 {
-    animator.cancelAllAnimations (true);
-    deleteAllChildren();
+    items.clear();
 }
 
 void Toolbar::setVertical (const bool shouldBeVertical)
@@ -296,13 +289,7 @@ void Toolbar::setVertical (const bool shouldBeVertical)
 
 void Toolbar::clear()
 {
-    for (int i = items.size(); --i >= 0;)
-    {
-        ToolbarItemComponent* const tc = items.getUnchecked(i);
-        items.remove (i);
-        delete tc;
-    }
-
+    items.clear();
     resized();
 }
 
@@ -366,14 +353,8 @@ void Toolbar::addDefaultItems (ToolbarItemFactory& factoryToUse)
 
 void Toolbar::removeToolbarItem (const int itemIndex)
 {
-    ToolbarItemComponent* const tc = getItemComponent (itemIndex);
-
-    if (tc != 0)
-    {
-        items.removeValue (tc);
-        delete tc;
-        resized();
-    }
+    items.remove (itemIndex);
+    resized();
 }
 
 int Toolbar::getNumItems() const throw()
@@ -552,11 +533,11 @@ void Toolbar::updateAllItemPositions (const bool animate)
 
                 if (animate)
                 {
-                    animator.animateComponent (tc, newBounds, 200, 3.0, 0.0);
+                    Desktop::getInstance().getAnimator().animateComponent (tc, newBounds, 1.0f, 200, false, 3.0, 0.0);
                 }
                 else
                 {
-                    animator.cancelAnimation (tc, false);
+                    Desktop::getInstance().getAnimator().cancelAnimation (tc, false);
                     tc->setBounds (newBounds);
                 }
 
@@ -595,7 +576,7 @@ void Toolbar::itemDragMove (const String&, Component* sourceComponent, int x, in
 
     if (tc != 0)
     {
-        if (getNumItems() == 0)
+        if (! items.contains (tc))
         {
             if (tc->getEditingMode() == ToolbarItemComponent::editableOnPalette)
             {
@@ -611,78 +592,52 @@ void Toolbar::itemDragMove (const String&, Component* sourceComponent, int x, in
 
             items.add (tc);
             addChildComponent (tc);
-            updateAllItemPositions (false);
+            updateAllItemPositions (true);
         }
-        else
+
+        for (int i = getNumItems(); --i >= 0;)
         {
-            for (int i = getNumItems(); --i >= 0;)
+            const int currentIndex = items.indexOf (tc);
+            int newIndex = currentIndex;
+
+            const int dragObjectLeft = vertical ? (y - tc->dragOffsetY) : (x - tc->dragOffsetX);
+            const int dragObjectRight = dragObjectLeft + (vertical ? tc->getHeight() : tc->getWidth());
+
+            const Rectangle<int> current (Desktop::getInstance().getAnimator()
+                                            .getComponentDestination (getChildComponent (newIndex)));
+            ToolbarItemComponent* const prev = getNextActiveComponent (newIndex, -1);
+
+            if (prev != 0)
             {
-                int currentIndex = getIndexOfChildComponent (tc);
+                const Rectangle<int> previousPos (Desktop::getInstance().getAnimator().getComponentDestination (prev));
 
-                if (currentIndex < 0)
+                if (abs (dragObjectLeft - (vertical ? previousPos.getY() : previousPos.getX())
+                      < abs (dragObjectRight - (vertical ? current.getBottom() : current.getRight()))))
                 {
-                    if (tc->getEditingMode() == ToolbarItemComponent::editableOnPalette)
-                    {
-                        ToolbarItemPalette* const palette = tc->findParentComponentOfClass ((ToolbarItemPalette*) 0);
-
-                        if (palette != 0)
-                            palette->replaceComponent (tc);
-                    }
-                    else
-                    {
-                        jassert (tc->getEditingMode() == ToolbarItemComponent::editableOnToolbar);
-                    }
-
-                    items.add (tc);
-                    addChildComponent (tc);
-                    currentIndex = getIndexOfChildComponent (tc);
-                    updateAllItemPositions (true);
-                }
-
-                int newIndex = currentIndex;
-
-                const int dragObjectLeft = vertical ? (y - tc->dragOffsetY) : (x - tc->dragOffsetX);
-                const int dragObjectRight = dragObjectLeft + (vertical ? tc->getHeight() : tc->getWidth());
-
-                const Rectangle<int> current (animator.getComponentDestination (getChildComponent (newIndex)));
-                ToolbarItemComponent* const prev = getNextActiveComponent (newIndex, -1);
-
-                if (prev != 0)
-                {
-                    const Rectangle<int> previousPos (animator.getComponentDestination (prev));
-
-                    if (abs (dragObjectLeft - (vertical ? previousPos.getY() : previousPos.getX())
-                          < abs (dragObjectRight - (vertical ? current.getBottom() : current.getRight()))))
-                    {
-                        newIndex = getIndexOfChildComponent (prev);
-                    }
-                }
-
-                ToolbarItemComponent* const next = getNextActiveComponent (newIndex, 1);
-                if (next != 0)
-                {
-                    const Rectangle<int> nextPos (animator.getComponentDestination (next));
-
-                    if (abs (dragObjectLeft - (vertical ? current.getY() : current.getX())
-                         > abs (dragObjectRight - (vertical ? nextPos.getBottom() : nextPos.getRight()))))
-                    {
-                        newIndex = getIndexOfChildComponent (next) + 1;
-                    }
-                }
-
-                if (newIndex != currentIndex)
-                {
-                    items.removeValue (tc);
-                    removeChildComponent (tc);
-                    addChildComponent (tc, newIndex);
-                    items.insert (newIndex, tc);
-                    updateAllItemPositions (true);
-                }
-                else
-                {
-                    break;
+                    newIndex = getIndexOfChildComponent (prev);
                 }
             }
+
+            ToolbarItemComponent* const next = getNextActiveComponent (newIndex, 1);
+            if (next != 0)
+            {
+                const Rectangle<int> nextPos (Desktop::getInstance().getAnimator().getComponentDestination (next));
+
+                if (abs (dragObjectLeft - (vertical ? current.getY() : current.getX())
+                     > abs (dragObjectRight - (vertical ? nextPos.getBottom() : nextPos.getRight()))))
+                {
+                    newIndex = getIndexOfChildComponent (next) + 1;
+                }
+            }
+
+            if (newIndex == currentIndex)
+                break;
+
+            items.removeObject (tc, false);
+            removeChildComponent (tc);
+            addChildComponent (tc, newIndex);
+            items.insert (newIndex, tc);
+            updateAllItemPositions (true);
         }
     }
 }
@@ -691,30 +646,27 @@ void Toolbar::itemDragExit (const String&, Component* sourceComponent)
 {
     ToolbarItemComponent* const tc = dynamic_cast <ToolbarItemComponent*> (sourceComponent);
 
-    if (tc != 0)
+    if (tc != 0 && isParentOf (tc))
     {
-        if (isParentOf (tc))
-        {
-            items.removeValue (tc);
-            removeChildComponent (tc);
-            updateAllItemPositions (true);
-        }
+        items.removeObject (tc, false);
+        removeChildComponent (tc);
+        updateAllItemPositions (true);
     }
 }
 
-void Toolbar::itemDropped (const String&, Component*, int, int)
+void Toolbar::itemDropped (const String&, Component* sourceComponent, int, int)
 {
+    ToolbarItemComponent* const tc = dynamic_cast <ToolbarItemComponent*> (sourceComponent);
+
+    if (tc != 0)
+        tc->setState (Button::buttonNormal);
 }
 
 
 //==============================================================================
-void Toolbar::mouseDown (const MouseEvent& e)
+void Toolbar::mouseDown (const MouseEvent&)
 {
-    if (e.mods.isPopupMenu())
-    {
-    }
 }
-
 
 //==============================================================================
 class ToolbarCustomisationDialog   : public DialogWindow
@@ -791,63 +743,59 @@ private:
                          const int optionFlags)
           : factory (factory_),
             toolbar (toolbar_),
-            styleBox (0),
-            defaultButton (0)
+            palette (factory_, toolbar_),
+            instructions (String::empty, TRANS ("You can drag the items above and drop them onto a toolbar to add them.\n\n"
+                                                "Items on the toolbar can also be dragged around to change their order, or dragged off the edge to delete them.")),
+            defaultButton (TRANS ("Restore to default set of items"))
         {
-            addAndMakeVisible (palette = new ToolbarItemPalette (factory, toolbar));
+            addAndMakeVisible (&palette);
 
             if ((optionFlags & (Toolbar::allowIconsOnlyChoice
                                  | Toolbar::allowIconsWithTextChoice
                                  | Toolbar::allowTextOnlyChoice)) != 0)
             {
-                addAndMakeVisible (styleBox = new ComboBox (String::empty));
-                styleBox->setEditableText (false);
+                addAndMakeVisible (&styleBox);
+                styleBox.setEditableText (false);
 
-                if ((optionFlags & Toolbar::allowIconsOnlyChoice) != 0)
-                    styleBox->addItem (TRANS("Show icons only"), 1);
-                if ((optionFlags & Toolbar::allowIconsWithTextChoice) != 0)
-                    styleBox->addItem (TRANS("Show icons and descriptions"), 2);
-                if ((optionFlags & Toolbar::allowTextOnlyChoice) != 0)
-                    styleBox->addItem (TRANS("Show descriptions only"), 3);
+                if ((optionFlags & Toolbar::allowIconsOnlyChoice) != 0)     styleBox.addItem (TRANS("Show icons only"), 1);
+                if ((optionFlags & Toolbar::allowIconsWithTextChoice) != 0) styleBox.addItem (TRANS("Show icons and descriptions"), 2);
+                if ((optionFlags & Toolbar::allowTextOnlyChoice) != 0)      styleBox.addItem (TRANS("Show descriptions only"), 3);
 
-                if (toolbar_->getStyle() == Toolbar::iconsOnly)
-                    styleBox->setSelectedId (1);
-                else if (toolbar_->getStyle() == Toolbar::iconsWithText)
-                    styleBox->setSelectedId (2);
-                else if (toolbar_->getStyle() == Toolbar::textOnly)
-                    styleBox->setSelectedId (3);
+                int selectedStyle = 0;
+                switch (toolbar_->getStyle())
+                {
+                    case Toolbar::iconsOnly:        selectedStyle = 1; break;
+                    case Toolbar::iconsWithText:    selectedStyle = 2; break;
+                    case Toolbar::textOnly:         selectedStyle = 3; break;
+                }
 
-                styleBox->addListener (this);
+                styleBox.setSelectedId (selectedStyle);
+
+                styleBox.addListener (this);
             }
 
             if ((optionFlags & Toolbar::showResetToDefaultsButton) != 0)
             {
-                addAndMakeVisible (defaultButton = new TextButton (TRANS ("Restore to default set of items")));
-                defaultButton->addButtonListener (this);
+                addAndMakeVisible (&defaultButton);
+                defaultButton.addButtonListener (this);
             }
 
-            addAndMakeVisible (instructions = new Label (String::empty,
-                TRANS ("You can drag the items above and drop them onto a toolbar to add them.\n\nItems on the toolbar can also be dragged around to change their order, or dragged off the edge to delete them.")));
-            instructions->setFont (Font (13.0f));
+            addAndMakeVisible (&instructions);
+            instructions.setFont (Font (13.0f));
 
             setSize (500, 300);
         }
 
-        ~CustomiserPanel()
-        {
-            deleteAllChildren();
-        }
-
         void comboBoxChanged (ComboBox*)
         {
-            if (styleBox->getSelectedId() == 1)
-                toolbar->setStyle (Toolbar::iconsOnly);
-            else if (styleBox->getSelectedId() == 2)
-                toolbar->setStyle (Toolbar::iconsWithText);
-            else if (styleBox->getSelectedId() == 3)
-                toolbar->setStyle (Toolbar::textOnly);
+            switch (styleBox.getSelectedId())
+            {
+                case 1:   toolbar->setStyle (Toolbar::iconsOnly); break;
+                case 2:   toolbar->setStyle (Toolbar::iconsWithText); break;
+                case 3:   toolbar->setStyle (Toolbar::textOnly); break;
+            }
 
-            palette->resized(); // to make it update the styles
+            palette.resized(); // to make it update the styles
         }
 
         void buttonClicked (Button*)
@@ -865,33 +813,28 @@ private:
                 background = dw->getBackgroundColour();
 
             g.setColour (background.contrasting().withAlpha (0.3f));
-            g.fillRect (palette->getX(), palette->getBottom() - 1, palette->getWidth(), 1);
+            g.fillRect (palette.getX(), palette.getBottom() - 1, palette.getWidth(), 1);
         }
 
         void resized()
         {
-            palette->setBounds (0, 0, getWidth(), getHeight() - 120);
+            palette.setBounds (0, 0, getWidth(), getHeight() - 120);
+            styleBox.setBounds (10, getHeight() - 110, 200, 22);
 
-            if (styleBox != 0)
-                styleBox->setBounds (10, getHeight() - 110, 200, 22);
+            defaultButton.changeWidthToFitText (22);
+            defaultButton.setTopLeftPosition (240, getHeight() - 110);
 
-            if (defaultButton != 0)
-            {
-                defaultButton->changeWidthToFitText (22);
-                defaultButton->setTopLeftPosition (240, getHeight() - 110);
-            }
-
-            instructions->setBounds (10, getHeight() - 80, getWidth() - 20, 80);
+            instructions.setBounds (10, getHeight() - 80, getWidth() - 20, 80);
         }
 
     private:
         ToolbarItemFactory& factory;
         Toolbar* const toolbar;
 
-        Label* instructions;
-        ToolbarItemPalette* palette;
-        ComboBox* styleBox;
-        TextButton* defaultButton;
+        ToolbarItemPalette palette;
+        Label instructions;
+        ComboBox styleBox;
+        TextButton defaultButton;
     };
 };
 
@@ -899,10 +842,17 @@ void Toolbar::showCustomisationDialog (ToolbarItemFactory& factory, const int op
 {
     setEditingActive (true);
 
+   #if JUCE_DEBUG
+    Component::SafePointer<Component> checker (this);
+   #endif
+
     ToolbarCustomisationDialog dw (factory, this, optionFlags);
     dw.runModalLoop();
 
-    jassert (isValidComponent()); // ? deleting the toolbar while it's being edited?
+   #if JUCE_DEBUG
+    jassert (checker != 0); // Don't delete the toolbar while it's being customised!
+   #endif
+
     setEditingActive (false);
 }
 

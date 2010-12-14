@@ -49,6 +49,7 @@ public:
 
     //==============================================================================
     void setOrigin (int x, int y);
+    void addTransform (const AffineTransform& transform);
 
     bool clipToRectangle (const Rectangle<int>& r);
     bool clipToRectangleList (const RectangleList& clipRegion);
@@ -62,6 +63,9 @@ public:
 
     void saveState();
     void restoreState();
+
+    void beginTransparencyLayer (float opacity);
+    void endTransparencyLayer();
 
     //==============================================================================
     void setFill (const FillType& fillType);
@@ -85,8 +89,6 @@ public:
     void drawGlyph (int glyphNumber, float x, float y);
     void drawGlyph (int glyphNumber, const AffineTransform& transform);
 
-    //==============================================================================
-    juce_UseDebuggingNewOperator
 
 protected:
     //==============================================================================
@@ -101,8 +103,7 @@ protected:
     ScopedPointer <SavedState> currentState;
     OwnedArray <SavedState> stateStack;
 
-    LowLevelGraphicsSoftwareRenderer (const LowLevelGraphicsSoftwareRenderer& other);
-    LowLevelGraphicsSoftwareRenderer& operator= (const LowLevelGraphicsSoftwareRenderer&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (LowLevelGraphicsSoftwareRenderer);
 };
 
 

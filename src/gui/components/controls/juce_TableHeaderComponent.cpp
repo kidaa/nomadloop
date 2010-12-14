@@ -46,10 +46,6 @@ public:
         setAlwaysOnTop (true);
     }
 
-    ~DragOverlayComp()
-    {
-    }
-
     void paint (Graphics& g)
     {
         g.drawImageAt (image, 0, 0);
@@ -58,8 +54,7 @@ public:
 private:
     Image image;
 
-    DragOverlayComp (const DragOverlayComp&);
-    DragOverlayComp& operator= (const DragOverlayComp&);
+    JUCE_DECLARE_NON_COPYABLE (DragOverlayComp);
 };
 
 
@@ -209,7 +204,7 @@ void TableHeaderComponent::setColumnWidth (const int columnId, const int newWidt
         {
             const int index = getIndexOfColumnId (columnId, true) + 1;
 
-            if (((unsigned int) index) < (unsigned int) numColumns)
+            if (isPositiveAndBelow (index, numColumns))
             {
                 const int x = getColumnPosition (index).getX();
 
@@ -460,9 +455,7 @@ const String TableHeaderComponent::toString() const
 
 void TableHeaderComponent::restoreFromString (const String& storedVersion)
 {
-    XmlDocument doc (storedVersion);
-    ScopedPointer <XmlElement> storedXml (doc.getDocumentElement());
-
+    ScopedPointer <XmlElement> storedXml (XmlDocument::parse (storedVersion));
     int index = 0;
 
     if (storedXml != 0 && storedXml->hasTagName ("TABLELAYOUT"))
@@ -550,7 +543,8 @@ void TableHeaderComponent::paint (Graphics& g)
                       || dragOverlayComp == 0
                       || ! dragOverlayComp->isVisible()))
             {
-                g.saveState();
+                Graphics::ScopedSaveState ss (g);
+
                 g.setOrigin (x, 0);
                 g.reduceClipRegion (0, 0, ci->width, getHeight());
 
@@ -558,8 +552,6 @@ void TableHeaderComponent::paint (Graphics& g)
                                           ci->id == columnIdUnderMouse,
                                           ci->id == columnIdUnderMouse && isMouseButtonDown(),
                                           ci->propertyFlags);
-
-                g.restoreState();
             }
 
             x += ci->width;
@@ -886,7 +878,7 @@ void TableHeaderComponent::handleAsyncUpdate()
 
 int TableHeaderComponent::getResizeDraggerAt (const int mouseX) const
 {
-    if (((unsigned int) mouseX) < (unsigned int) getWidth())
+    if (isPositiveAndBelow (mouseX, getWidth()))
     {
         const int draggableDistance = 3;
         int x = 0;
@@ -911,7 +903,7 @@ int TableHeaderComponent::getResizeDraggerAt (const int mouseX) const
 
 void TableHeaderComponent::updateColumnUnderMouse (int x, int y)
 {
-    const int newCol = (reallyContains (x, y, true) && getResizeDraggerAt (x) == 0)
+    const int newCol = (reallyContains (Point<int> (x, y), true) && getResizeDraggerAt (x) == 0)
                             ? getColumnIdAtX (x) : 0;
 
     if (newCol != columnIdUnderMouse)

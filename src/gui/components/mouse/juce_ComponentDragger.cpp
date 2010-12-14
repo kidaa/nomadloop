@@ -33,7 +33,6 @@ BEGIN_JUCE_NAMESPACE
 
 //==============================================================================
 ComponentDragger::ComponentDragger()
-    : constrainer (0)
 {
 }
 
@@ -42,32 +41,32 @@ ComponentDragger::~ComponentDragger()
 }
 
 //==============================================================================
-void ComponentDragger::startDraggingComponent (Component* const componentToDrag,
-                                               ComponentBoundsConstrainer* const constrainer_)
+void ComponentDragger::startDraggingComponent (Component* const componentToDrag, const MouseEvent& e)
 {
-    jassert (componentToDrag->isValidComponent());
+    jassert (componentToDrag != 0);
+    jassert (e.mods.isAnyMouseButtonDown()); // The event has to be a drag event!
 
     if (componentToDrag != 0)
-    {
-        constrainer = constrainer_;
-        originalPos = componentToDrag->relativePositionToGlobal (Point<int>());
-    }
+        mouseDownWithinTarget = e.getEventRelativeTo (componentToDrag).getMouseDownPosition();
 }
 
-void ComponentDragger::dragComponent (Component* const componentToDrag, const MouseEvent& e)
+void ComponentDragger::dragComponent (Component* const componentToDrag, const MouseEvent& e,
+                                      ComponentBoundsConstrainer* const constrainer)
 {
-    jassert (componentToDrag->isValidComponent());
-    jassert (e.mods.isAnyMouseButtonDown()); // (the event has to be a drag event..)
+    jassert (componentToDrag != 0);
+    jassert (e.mods.isAnyMouseButtonDown()); // The event has to be a drag event!
 
     if (componentToDrag != 0)
     {
-        Rectangle<int> bounds (componentToDrag->getBounds().withPosition (originalPos));
+        Rectangle<int> bounds (componentToDrag->getBounds());
 
-        const Component* const parentComp = componentToDrag->getParentComponent();
-        if (parentComp != 0)
-            bounds.setPosition (parentComp->globalPositionToRelative (originalPos));
-
-        bounds.setPosition (bounds.getPosition() + e.getOffsetFromDragStart());
+        // If the component is a window, multiple mouse events can get queued while it's in the same position,
+        // so their coordinates become wrong after the first one moves the window, so in that case, we'll use
+        // the current mouse position instead of the one that the event contains...
+        if (componentToDrag->isOnDesktop())
+            bounds += componentToDrag->getMouseXYRelative() - mouseDownWithinTarget;
+        else
+            bounds += e.getEventRelativeTo (componentToDrag).getPosition() - mouseDownWithinTarget;
 
         if (constrainer != 0)
             constrainer->setBoundsForComponent (componentToDrag, bounds, false, false, false, false);

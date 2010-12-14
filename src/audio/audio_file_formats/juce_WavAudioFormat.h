@@ -126,7 +126,7 @@ public:
 
     //==============================================================================
     AudioFormatReader* createReaderFor (InputStream* sourceStream,
-                                        const bool deleteStreamIfOpeningFails);
+                                        bool deleteStreamIfOpeningFails);
 
     AudioFormatWriter* createWriterFor (OutputStream* streamToWriteTo,
                                         double sampleRateToUse,
@@ -143,8 +143,9 @@ public:
     */
     bool replaceMetadataInFile (const File& wavFile, const StringPairArray& newMetadata);
 
-    //==============================================================================
-    juce_UseDebuggingNewOperator
+
+private:
+    JUCE_LEAK_DETECTOR (WavAudioFormat);
 };
 
 

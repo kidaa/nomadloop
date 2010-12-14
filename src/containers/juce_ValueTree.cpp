@@ -95,8 +95,7 @@ private:
     var oldValue;
     const bool isAddingNewProperty : 1, isDeletingProperty : 1;
 
-    SetPropertyAction (const SetPropertyAction&);
-    SetPropertyAction& operator= (const SetPropertyAction&);
+    JUCE_DECLARE_NON_COPYABLE (SetPropertyAction);
 };
 
 //==============================================================================
@@ -152,8 +151,7 @@ private:
     const int childIndex;
     const bool isDeleting;
 
-    AddOrRemoveChildAction (const AddOrRemoveChildAction&);
-    AddOrRemoveChildAction& operator= (const AddOrRemoveChildAction&);
+    JUCE_DECLARE_NON_COPYABLE (AddOrRemoveChildAction);
 };
 
 //==============================================================================
@@ -201,8 +199,7 @@ private:
     const SharedObjectPtr parent;
     const int startIndex, endIndex;
 
-    MoveChildAction (const MoveChildAction&);
-    MoveChildAction& operator= (const MoveChildAction&);
+    JUCE_DECLARE_NON_COPYABLE (MoveChildAction);
 };
 
 
@@ -321,7 +318,7 @@ void ValueTree::SharedObject::setProperty (const Identifier& name, const var& ne
     }
     else
     {
-        var* const existingValue = properties.getItem (name);
+        var* const existingValue = properties.getVarPointer (name);
 
         if (existingValue != 0)
         {
@@ -492,10 +489,10 @@ void ValueTree::SharedObject::removeAllChildren (UndoManager* const undoManager)
 void ValueTree::SharedObject::moveChild (int currentIndex, int newIndex, UndoManager* undoManager)
 {
     // The source index must be a valid index!
-    jassert (((unsigned int) currentIndex) < (unsigned int) children.size());
+    jassert (isPositiveAndBelow (currentIndex, children.size()));
 
     if (currentIndex != newIndex
-         && ((unsigned int) currentIndex) < (unsigned int) children.size())
+         && isPositiveAndBelow (currentIndex, children.size()))
     {
         if (undoManager == 0)
         {
@@ -504,10 +501,32 @@ void ValueTree::SharedObject::moveChild (int currentIndex, int newIndex, UndoMan
         }
         else
         {
-            if (((unsigned int) newIndex) >= (unsigned int) children.size())
+            if (! isPositiveAndBelow (newIndex, children.size()))
                 newIndex = children.size() - 1;
 
             undoManager->perform (new MoveChildAction (this, currentIndex, newIndex));
+        }
+    }
+}
+
+void ValueTree::SharedObject::reorderChildren (const ReferenceCountedArray <SharedObject>& newOrder, UndoManager* undoManager)
+{
+    jassert (newOrder.size() == children.size());
+
+    if (undoManager == 0)
+    {
+        children = newOrder;
+        sendChildChangeMessage();
+    }
+    else
+    {
+        for (int i = 0; i < children.size(); ++i)
+        {
+            if (children.getUnchecked(i) != newOrder.getUnchecked(i))
+            {
+                jassert (children.contains (newOrder.getUnchecked(i)));
+                moveChild (children.indexOf (newOrder.getUnchecked(i)), i, undoManager);
+            }
         }
     }
 }

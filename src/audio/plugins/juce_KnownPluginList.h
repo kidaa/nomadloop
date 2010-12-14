@@ -68,20 +68,20 @@ public:
 
     /** Looks for a type in the list which comes from this file.
     */
-    PluginDescription* getTypeForFile (const String& fileOrIdentifier) const throw();
+    PluginDescription* getTypeForFile (const String& fileOrIdentifier) const;
 
     /** Looks for a type in the list which matches a plugin type ID.
 
         The identifierString parameter must have been created by
         PluginDescription::createIdentifierString().
     */
-    PluginDescription* getTypeForIdentifierString (const String& identifierString) const throw();
+    PluginDescription* getTypeForIdentifierString (const String& identifierString) const;
 
     /** Adds a type manually from its description. */
     bool addType (const PluginDescription& type);
 
     /** Removes a type. */
-    void removeType (int index) throw();
+    void removeType (int index);
 
     /** Looks for all types that can be loaded from a given file, and adds them
         to the list.
@@ -103,7 +103,7 @@ public:
     /** Returns true if the specified file is already known about and if it
         hasn't been modified since our entry was created.
     */
-    bool isListingUpToDate (const String& possiblePluginFileOrIdentifier) const throw();
+    bool isListingUpToDate (const String& possiblePluginFileOrIdentifier) const;
 
     /** Scans and adds a bunch of files that might have been dragged-and-dropped.
 
@@ -157,14 +157,11 @@ public:
     void recreateFromXml (const XmlElement& xml);
 
 
-    //==============================================================================
-    juce_UseDebuggingNewOperator
-
 private:
+    //==============================================================================
     OwnedArray <PluginDescription> types;
 
-    KnownPluginList (const KnownPluginList&);
-    KnownPluginList& operator= (const KnownPluginList&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (KnownPluginList);
 };
 
 

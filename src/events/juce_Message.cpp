@@ -35,7 +35,8 @@ Message::Message() throw()
     : intParameter1 (0),
       intParameter2 (0),
       intParameter3 (0),
-      pointerParameter (0)
+      pointerParameter (0),
+      messageRecipient (0)
 {
 }
 
@@ -46,11 +47,12 @@ Message::Message (const int intParameter1_,
     : intParameter1 (intParameter1_),
       intParameter2 (intParameter2_),
       intParameter3 (intParameter3_),
-      pointerParameter (pointerParameter_)
+      pointerParameter (pointerParameter_),
+      messageRecipient (0)
 {
 }
 
-Message::~Message() throw()
+Message::~Message()
 {
 }
 

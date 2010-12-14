@@ -78,21 +78,21 @@ public:
     bool write (const void* data, int numBytes);
 
 
-    //==============================================================================
-    juce_UseDebuggingNewOperator
-
 private:
+    //==============================================================================
     File file;
     void* fileHandle;
     int64 currentPosition;
     int bufferSize, bytesInBuffer;
     HeapBlock <char> buffer;
 
+    void openHandle();
+    void closeHandle();
     void flushInternal();
-    int64 getPositionInternal() const;
+    int64 setPositionInternal (int64 newPosition);
+    int writeInternal (const void* data, int numBytes);
 
-    FileOutputStream (const FileOutputStream&);
-    FileOutputStream& operator= (const FileOutputStream&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FileOutputStream);
 };
 
 #endif   // __JUCE_FILEOUTPUTSTREAM_JUCEHEADER__

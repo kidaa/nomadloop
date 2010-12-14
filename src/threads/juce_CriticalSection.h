@@ -94,8 +94,6 @@ public:
     /** Provides the type of scoped unlocker to use with this type of critical section object. */
     typedef ScopedUnlock    ScopedUnlockType;
 
-    //==============================================================================
-    juce_UseDebuggingNewOperator
 
 private:
     //==============================================================================
@@ -112,8 +110,7 @@ private:
     mutable pthread_mutex_t internal;
 #endif
 
-    CriticalSection (const CriticalSection&);
-    CriticalSection& operator= (const CriticalSection&);
+    JUCE_DECLARE_NON_COPYABLE (CriticalSection);
 };
 
 
@@ -146,8 +143,7 @@ public:
     typedef ScopedLockType ScopedUnlockType;
 
 private:
-    DummyCriticalSection (const DummyCriticalSection&);
-    DummyCriticalSection& operator= (const DummyCriticalSection&);
+    JUCE_DECLARE_NON_COPYABLE (DummyCriticalSection);
 };
 
 

@@ -34,6 +34,8 @@
 
 #if JUCE_WINDOWS
 
+#undef JUCE_BUILD_NATIVE
+#define JUCE_BUILD_NATIVE 1
 #include "windows/juce_win32_NativeIncludes.h"
 #include "../core/juce_StandardHeader.h"
 
@@ -51,6 +53,7 @@ BEGIN_JUCE_NAMESPACE
 #include "../io/files/juce_NamedPipe.h"
 #include "../io/files/juce_DirectoryIterator.h"
 #include "../io/network/juce_URL.h"
+#include "../io/network/juce_MACAddress.h"
 #include "../core/juce_PlatformUtilities.h"
 #include "../text/juce_LocalisedStrings.h"
 #include "../utilities/juce_DeletedAtShutdown.h"
@@ -83,6 +86,7 @@ BEGIN_JUCE_NAMESPACE
 #include "../audio/devices/juce_AudioIODeviceType.h"
 #include "../audio/devices/juce_MidiOutput.h"
 #include "../audio/devices/juce_MidiInput.h"
+#include "common/juce_MidiDataConcatenator.h"
 
 //==============================================================================
 #define JUCE_INCLUDED_FILE 1
@@ -97,8 +101,9 @@ BEGIN_JUCE_NAMESPACE
 
 #if ! JUCE_ONLY_BUILD_CORE_LIBRARY
  #include "windows/juce_win32_Messaging.cpp"
- #include "windows/juce_win32_Windowing.cpp"
  #include "windows/juce_win32_Fonts.cpp"
+ #include "windows/juce_win32_Direct2DGraphicsContext.cpp"
+ #include "windows/juce_win32_Windowing.cpp"
  #include "windows/juce_win32_FileChooser.cpp"
  #include "windows/juce_win32_Misc.cpp"
  #include "windows/juce_win32_ActiveXComponent.cpp"

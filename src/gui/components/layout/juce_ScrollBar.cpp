@@ -36,18 +36,12 @@ BEGIN_JUCE_NAMESPACE
 class ScrollBar::ScrollbarButton  : public Button
 {
 public:
-    int direction;
-
     ScrollbarButton (const int direction_, ScrollBar& owner_)
         : Button (String::empty),
           direction (direction_),
           owner (owner_)
     {
         setWantsKeyboardFocus (false);
-    }
-
-    ~ScrollbarButton()
-    {
     }
 
     void paintButton (Graphics& g, bool over, bool down)
@@ -65,14 +59,12 @@ public:
         owner.moveScrollbarInSteps ((direction == 1 || direction == 2) ? 1 : -1);
     }
 
-
-    juce_UseDebuggingNewOperator
+    int direction;
 
 private:
     ScrollBar& owner;
 
-    ScrollbarButton (const ScrollbarButton&);
-    ScrollbarButton& operator= (const ScrollbarButton&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ScrollbarButton);
 };
 
 
@@ -377,18 +369,18 @@ void ScrollBar::mouseDown (const MouseEvent& e)
 
 void ScrollBar::mouseDrag (const MouseEvent& e)
 {
-    if (isDraggingThumb)
+    const int mousePos = vertical ? e.y : e.x;
+
+    if (isDraggingThumb && lastMousePos != mousePos)
     {
-        const int deltaPixels = ((vertical) ? e.y : e.x) - dragStartMousePos;
+        const int deltaPixels = mousePos - dragStartMousePos;
 
         setCurrentRangeStart (dragStartRange
                                 + deltaPixels * (totalRange.getLength() - visibleRange.getLength())
                                     / (thumbAreaSize - thumbSize));
     }
-    else
-    {
-        lastMousePos = (vertical) ? e.y : e.x;
-    }
+
+    lastMousePos = mousePos;
 }
 
 void ScrollBar::mouseUp (const MouseEvent&)

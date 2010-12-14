@@ -60,8 +60,8 @@ void DialogWindow::resized()
     }
 }
 
-
-//==============================================================================
+// (Sadly, this can't be made a local class inside the showModalDialog function, because the
+// VC compiler complains about the undefined copy constructor)
 class TempDialogWindow : public DialogWindow
 {
 public:
@@ -72,21 +72,17 @@ public:
             setAlwaysOnTop (true); // for a plugin, make it always-on-top because the host windows are often top-level
     }
 
-    ~TempDialogWindow()
-    {
-    }
-
     void closeButtonPressed()
     {
         setVisible (false);
     }
 
 private:
-    TempDialogWindow (const TempDialogWindow&);
-    TempDialogWindow& operator= (const TempDialogWindow&);
-
+    JUCE_DECLARE_NON_COPYABLE (TempDialogWindow);
 };
 
+
+//==============================================================================
 int DialogWindow::showModalDialog (const String& dialogTitle,
                                    Component* contentComponent,
                                    Component* componentToCentreAround,

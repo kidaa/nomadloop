@@ -56,7 +56,7 @@ public:
                                     is invoked. You can change this setting later with
                                     the setHoverTimeMillisecs() method
     */
-    MouseHoverDetector (const int hoverTimeMillisecs = 400);
+    MouseHoverDetector (int hoverTimeMillisecs = 400);
 
     /** Destructor. */
     virtual ~MouseHoverDetector();
@@ -65,14 +65,14 @@ public:
     /** Changes the time for which the mouse has to stay still before it's considered
         to be hovering.
     */
-    void setHoverTimeMillisecs (const int newTimeInMillisecs);
+    void setHoverTimeMillisecs (int newTimeInMillisecs);
 
     /** Changes the component that's being monitored for hovering.
 
         Be careful not to delete a component that's being monitored without first
         stopping or deleting the hover detector.
     */
-    void setHoverComponent (Component* const newSourceComponent);
+    void setHoverComponent (Component* newSourceComponent);
 
 
 protected:
@@ -124,8 +124,7 @@ private:
     void hoverTimerCallback();
     void checkJustHoveredCallback();
 
-    MouseHoverDetector (const MouseHoverDetector&);
-    MouseHoverDetector& operator= (const MouseHoverDetector&);
+    JUCE_DECLARE_NON_COPYABLE (MouseHoverDetector);
 };
 
 #endif   // __JUCE_MOUSEHOVERDETECTOR_JUCEHEADER__

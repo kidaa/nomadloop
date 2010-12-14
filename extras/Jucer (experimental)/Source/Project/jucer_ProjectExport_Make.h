@@ -96,6 +96,10 @@ public:
             if (shouldFileBeCompiledByDefault (juceWrapperFiles.getReference(i)))
                 files.add (juceWrapperFiles.getReference(i));
 
+        const Array<RelativePath> vstFiles (getVSTFilesRequired());
+        for (int i = 0; i < vstFiles.size(); i++)
+            files.add (vstFiles.getReference(i));
+
         MemoryOutputStream mo;
         writeMakefile (mo, files);
 
@@ -124,25 +128,30 @@ private:
 
     void writeDefineFlags (OutputStream& out, const Project::BuildConfiguration& config)
     {
-        StringArray defines;
-        defines.add (getExporterIdentifierMacro() + "=1");
-        defines.add ("LINUX=1");
+        StringPairArray defines;
+        defines.set ("LINUX", "1");
 
         if (config.isDebug().getValue())
         {
-            defines.add ("DEBUG=1");
-            defines.add ("_DEBUG=1");
+            defines.set ("DEBUG", "1");
+            defines.set ("_DEBUG", "1");
         }
         else
         {
-            defines.add ("NDEBUG=1");
+            defines.set ("NDEBUG", "1");
         }
 
-        defines.addArray (config.parsePreprocessorDefs());
-        defines.addArray (parsePreprocessorDefs());
+        defines = mergePreprocessorDefs (defines, getAllPreprocessorDefs (config));
 
         for (int i = 0; i < defines.size(); ++i)
-            out << " -D " << defines[i].quoted();
+        {
+            String def (defines.getAllKeys()[i]);
+            const String value (defines.getAllValues()[i]);
+            if (value.isNotEmpty())
+                def << "=" << value;
+
+            out << " -D " << def.quoted();
+        }
     }
 
     void writeHeaderPathFlags (OutputStream& out, const Project::BuildConfiguration& config)
@@ -151,8 +160,14 @@ private:
         headerPaths.insert (0, "/usr/include/freetype2");
         headerPaths.insert (0, "/usr/include");
 
+        if (project.shouldAddVSTFolderToPath() && getVSTFolder().toString().isNotEmpty())
+            headerPaths.insert (0, rebaseFromProjectFolderToBuildTarget (RelativePath (getVSTFolder().toString(), RelativePath::projectFolder)).toUnixStyle());
+
+        if (isVST())
+            headerPaths.insert (0, juceWrapperFolder.toUnixStyle());
+
         for (int i = 0; i < headerPaths.size(); ++i)
-            out << " -I " << FileHelpers::unixStylePath (headerPaths[i]).quoted();
+            out << " -I " << FileHelpers::unixStylePath (replacePreprocessorTokens (config, headerPaths[i])).quoted();
     }
 
     void writeCppFlags (OutputStream& out, const Project::BuildConfiguration& config)
@@ -188,7 +203,7 @@ private:
         for (int i = 0; i < libs.size(); ++i)
             out << " -l" << libs[i];
 
-        out << " " << getExtraLinkerFlags().toString().trim()
+        out << " " << replacePreprocessorTokens (config, getExtraLinkerFlags().toString()).trim()
             << newLine;
     }
 
@@ -196,12 +211,19 @@ private:
     {
         const String buildDirName ("build");
         const String intermediatesDirName (buildDirName + "/intermediate/" + config.getName().toString());
+        String outputDir (buildDirName);
+
+        if (config.getTargetBinaryRelativePath().toString().isNotEmpty())
+        {
+            RelativePath binaryPath (config.getTargetBinaryRelativePath().toString(), RelativePath::projectFolder);
+            outputDir = binaryPath.rebased (project.getFile().getParentDirectory(), getTargetFolder(), RelativePath::buildTargetFolder).toUnixStyle();
+        }
 
         out << "ifeq ($(CONFIG)," << escapeSpaces (config.getName().toString()) << ")" << newLine;
         out << "  BINDIR := " << escapeSpaces (buildDirName) << newLine
             << "  LIBDIR := " << escapeSpaces (buildDirName) << newLine
             << "  OBJDIR := " << escapeSpaces (intermediatesDirName) << newLine
-            << "  OUTDIR := " << escapeSpaces (buildDirName) << newLine;
+            << "  OUTDIR := " << escapeSpaces (outputDir) << newLine;
 
         writeCppFlags (out, config);
 
@@ -215,7 +237,7 @@ private:
 
         out << " -O" << config.getGCCOptimisationFlag() << newLine;
 
-        out << "  CXXFLAGS += $(CFLAGS) " << getExtraCompilerFlags().toString().trim() << newLine;
+        out << "  CXXFLAGS += $(CFLAGS) " << replacePreprocessorTokens (config, getExtraCompilerFlags().toString()).trim() << newLine;
 
         writeLinkerFlags (out, config);
 
@@ -229,6 +251,8 @@ private:
 
         if (project.isLibrary())
             targetName = getLibbedFilename (targetName);
+        else if (isVST())
+            targetName = targetName.upToLastOccurrenceOf (".", false, false) + ".so";
 
         out << "  TARGET := " << escapeSpaces (targetName) << newLine;
 
@@ -325,8 +349,7 @@ private:
                 + "_" + String::toHexString (file.toUnixStyle().hashCode()) + ".o";
     }
 
-    MakefileProjectExporter (const MakefileProjectExporter&);
-    MakefileProjectExporter& operator= (const MakefileProjectExporter&);
+    JUCE_DECLARE_NON_COPYABLE (MakefileProjectExporter);
 };
 
 

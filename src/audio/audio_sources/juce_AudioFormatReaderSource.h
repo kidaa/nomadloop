@@ -49,8 +49,8 @@ public:
                                                 when this object is deleted; if false it will be
                                                 left up to the caller to manage its lifetime
     */
-    AudioFormatReaderSource (AudioFormatReader* const sourceReader,
-                             const bool deleteReaderWhenThisIsDeleted);
+    AudioFormatReaderSource (AudioFormatReader* sourceReader,
+                             bool deleteReaderWhenThisIsDeleted);
 
     /** Destructor. */
     ~AudioFormatReaderSource();
@@ -63,7 +63,7 @@ public:
 
         @see isLooping
     */
-    void setLooping (const bool shouldLoop) throw();
+    void setLooping (bool shouldLoop);
 
     /** Returns whether loop-mode is turned on or not. */
     bool isLooping() const                                      { return looping; }
@@ -91,11 +91,8 @@ public:
     /** Implements the PositionableAudioSource method. */
     int getTotalLength() const;
 
-
-    //==============================================================================
-    juce_UseDebuggingNewOperator
-
 private:
+    //==============================================================================
     AudioFormatReader* reader;
     bool deleteReader;
 
@@ -104,8 +101,7 @@ private:
 
     void readBufferSection (int start, int length, AudioSampleBuffer& buffer, int startSample);
 
-    AudioFormatReaderSource (const AudioFormatReaderSource&);
-    AudioFormatReaderSource& operator= (const AudioFormatReaderSource&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioFormatReaderSource);
 };
 
 

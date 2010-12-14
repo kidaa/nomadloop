@@ -31,6 +31,7 @@ BEGIN_JUCE_NAMESPACE
 #include "../../gui/components/juce_Desktop.h"
 #include "../../text/juce_LocalisedStrings.h"
 #include "../dsp/juce_AudioSampleBuffer.h"
+#include "../../core/juce_SystemStats.h"
 
 
 //==============================================================================
@@ -338,7 +339,7 @@ void AudioDeviceManager::setCurrentAudioDeviceType (const String& type,
 
             setAudioDeviceSetup (s, treatAsChosenDevice);
 
-            sendChangeMessage (this);
+            sendChangeMessage();
             break;
         }
     }
@@ -362,7 +363,7 @@ const String AudioDeviceManager::setAudioDeviceSetup (const AudioDeviceSetup& ne
         return String::empty;
 
     if (! (newSetup == currentSetup))
-        sendChangeMessage (this);
+        sendChangeMessage();
 
     stopDevice();
 
@@ -442,6 +443,7 @@ const String AudioDeviceManager::setAudioDeviceSetup (const AudioDeviceSetup& ne
     currentSetup = newSetup;
 
     currentSetup.sampleRate = chooseBestSampleRate (newSetup.sampleRate);
+    currentSetup.bufferSize = chooseBestBufferSize (newSetup.bufferSize);
 
     error = currentAudioDevice->open (inputChannels,
                                       outputChannels,
@@ -479,40 +481,36 @@ double AudioDeviceManager::chooseBestSampleRate (double rate) const
     jassert (currentAudioDevice != 0);
 
     if (rate > 0)
-    {
-        bool ok = false;
-
         for (int i = currentAudioDevice->getNumSampleRates(); --i >= 0;)
-        {
-            const double sr = currentAudioDevice->getSampleRate (i);
+            if (currentAudioDevice->getSampleRate (i) == rate)
+                return rate;
 
-            if (sr == rate)
-                ok = true;
-        }
+    double lowestAbove44 = 0.0;
 
-        if (! ok)
-            rate = 0;
+    for (int i = currentAudioDevice->getNumSampleRates(); --i >= 0;)
+    {
+        const double sr = currentAudioDevice->getSampleRate (i);
+
+        if (sr >= 44100.0 && (lowestAbove44 == 0 || sr < lowestAbove44))
+            lowestAbove44 = sr;
     }
 
-    if (rate == 0)
-    {
-        double lowestAbove44 = 0.0;
+    if (lowestAbove44 > 0.0)
+        return lowestAbove44;
 
-        for (int i = currentAudioDevice->getNumSampleRates(); --i >= 0;)
-        {
-            const double sr = currentAudioDevice->getSampleRate (i);
+    return currentAudioDevice->getSampleRate (0);
+}
 
-            if (sr >= 44100.0 && (lowestAbove44 == 0 || sr < lowestAbove44))
-                lowestAbove44 = sr;
-        }
+int AudioDeviceManager::chooseBestBufferSize (int bufferSize) const
+{
+    jassert (currentAudioDevice != 0);
 
-        if (lowestAbove44 == 0.0)
-            rate = currentAudioDevice->getSampleRate (0);
-        else
-            rate = lowestAbove44;
-    }
+    if (bufferSize > 0)
+        for (int i = currentAudioDevice->getNumBufferSizesAvailable(); --i >= 0;)
+            if (currentAudioDevice->getBufferSizeSamples(i) == bufferSize)
+                return bufferSize;
 
-    return rate;
+    return currentAudioDevice->getDefaultBufferSize();
 }
 
 void AudioDeviceManager::stopDevice()
@@ -731,14 +729,14 @@ void AudioDeviceManager::audioDeviceAboutToStartInt (AudioIODevice* const device
             callbacks.getUnchecked(i)->audioDeviceAboutToStart (device);
     }
 
-    sendChangeMessage (this);
+    sendChangeMessage();
 }
 
 void AudioDeviceManager::audioDeviceStoppedInt()
 {
     cpuUsageMs = 0;
     timeToCpuScale = 0;
-    sendChangeMessage (this);
+    sendChangeMessage();
 
     const ScopedLock sl (audioCallbackLock);
     for (int i = callbacks.size(); --i >= 0;)
@@ -779,7 +777,7 @@ void AudioDeviceManager::setMidiInputEnabled (const String& name,
         }
 
         updateXml();
-        sendChangeMessage (this);
+        sendChangeMessage();
     }
 }
 
@@ -889,7 +887,7 @@ void AudioDeviceManager::setDefaultMidiOutput (const String& deviceName)
         }
 
         updateXml();
-        sendChangeMessage (this);
+        sendChangeMessage();
     }
 }
 

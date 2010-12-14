@@ -28,6 +28,9 @@
 
 #include "juce_TextEditor.h"
 
+#if JUCE_VC6
+ #define Listener ButtonListener
+#endif
 
 //==============================================================================
 /**
@@ -36,9 +39,9 @@
 */
 class JUCE_API  Label  : public Component,
                          public SettableTooltipClient,
-                         protected TextEditor::Listener,
+                         protected TextEditorListener,
                          private ComponentListener,
-                         private Value::Listener
+                         private ValueListener
 {
 public:
     //==============================================================================
@@ -71,7 +74,7 @@ public:
                                             the user has finished typing and pressed the return
                                             key.
     */
-    const String getText (bool returnActiveEditorContents = false) const throw();
+    const String getText (bool returnActiveEditorContents = false) const;
 
     /** Returns the text content as a Value object.
         You can call Value::referTo() on this object to make the label read and control
@@ -84,7 +87,7 @@ public:
 
         @see getFont
     */
-    void setFont (const Font& newFont) throw();
+    void setFont (const Font& newFont);
 
     /** Returns the font currently being used.
 
@@ -116,7 +119,7 @@ public:
 
         (The default is Justification::centredLeft)
     */
-    void setJustificationType (const Justification& justification) throw();
+    void setJustificationType (const Justification& justification);
 
     /** Returns the type of justification, as set in setJustificationType(). */
     const Justification getJustificationType() const throw()                    { return justification; }
@@ -192,10 +195,10 @@ public:
     };
 
     /** Registers a listener that will be called when the label's text changes. */
-    void addListener (Listener* listener) throw();
+    void addListener (Listener* listener);
 
     /** Deregisters a previously-registered listener. */
-    void removeListener (Listener* listener) throw();
+    void removeListener (Listener* listener);
 
     //==============================================================================
     /** Makes the label turn into a TextEditor when clicked.
@@ -220,7 +223,7 @@ public:
     */
     void setEditable (bool editOnSingleClick,
                       bool editOnDoubleClick = false,
-                      bool lossOfFocusDiscardsChanges = false) throw();
+                      bool lossOfFocusDiscardsChanges = false);
 
     /** Returns true if this option was set using setEditable(). */
     bool isEditableOnSingleClick() const throw()                        { return editSingleClick; }
@@ -253,10 +256,8 @@ public:
     /** Returns true if the editor is currently focused and active. */
     bool isBeingEdited() const throw();
 
-    //==============================================================================
-    juce_UseDebuggingNewOperator
-
 protected:
+    //==============================================================================
     /** Creates the TextEditor component that will be used when the user has clicked on the label.
         Subclasses can override this if they need to customise this component in some way.
     */
@@ -311,6 +312,7 @@ protected:
     void valueChanged (Value&);
 
 private:
+    //==============================================================================
     Value textValue;
     String lastTextValue;
     Font font;
@@ -328,12 +330,14 @@ private:
     bool updateFromTextEditorContents();
     void callChangeListeners();
 
-    Label (const Label&);
-    Label& operator= (const Label&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Label);
 };
 
 /** This typedef is just for compatibility with old code - newer code should use the Label::Listener class directly. */
 typedef Label::Listener LabelListener;
 
+#if JUCE_VC6
+ #undef Listener
+#endif
 
 #endif   // __JUCE_LABEL_JUCEHEADER__

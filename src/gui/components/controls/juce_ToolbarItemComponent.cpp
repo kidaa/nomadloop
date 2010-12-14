@@ -44,7 +44,6 @@ ToolbarItemFactory::~ToolbarItemFactory()
 {
 }
 
-
 //==============================================================================
 class ItemDragAndDropOverlayComponent    : public Component
 {
@@ -55,10 +54,6 @@ public:
         setAlwaysOnTop (true);
         setRepaintsOnMouseActivity (true);
         setMouseCursor (MouseCursor::DraggingHandCursor);
-    }
-
-    ~ItemDragAndDropOverlayComponent()
-    {
     }
 
     void paint (Graphics& g)
@@ -134,14 +129,11 @@ public:
         setBounds (0, 0, getParentWidth(), getParentHeight());
     }
 
-    //==============================================================================
-    juce_UseDebuggingNewOperator
-
 private:
+    //==============================================================================
     bool isDragging;
 
-    ItemDragAndDropOverlayComponent (const ItemDragAndDropOverlayComponent&);
-    ItemDragAndDropOverlayComponent& operator= (const ItemDragAndDropOverlayComponent&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ItemDragAndDropOverlayComponent);
 };
 
 
@@ -165,7 +157,6 @@ ToolbarItemComponent::ToolbarItemComponent (const int itemId_,
 
 ToolbarItemComponent::~ToolbarItemComponent()
 {
-    jassert (overlayComp == 0 || overlayComp->isValidComponent());
     overlayComp = 0;
 }
 
@@ -214,13 +205,12 @@ void ToolbarItemComponent::paintButton (Graphics& g, const bool over, const bool
 
     if (! contentArea.isEmpty())
     {
-        g.saveState();
+        Graphics::ScopedSaveState ss (g);
+
+        g.reduceClipRegion (contentArea);
         g.setOrigin (contentArea.getX(), contentArea.getY());
-        g.reduceClipRegion (0, 0, contentArea.getWidth(), contentArea.getHeight());
 
         paintButtonArea (g, contentArea.getWidth(), contentArea.getHeight(), over, down);
-
-        g.restoreState();
     }
 }
 
@@ -253,7 +243,6 @@ void ToolbarItemComponent::setEditingMode (const ToolbarEditingMode newMode)
 
         if (mode == normalMode)
         {
-            jassert (overlayComp == 0 || overlayComp->isValidComponent());
             overlayComp = 0;
         }
         else if (overlayComp == 0)

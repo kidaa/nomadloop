@@ -79,7 +79,7 @@ typedef unsigned int                uint32;
   typedef int64                     pointer_sized_int;
   /** An unsigned integer type that's guaranteed to be large enough to hold a pointer without truncating it. */
   typedef uint64                    pointer_sized_uint;
-#elif _MSC_VER >= 1300
+#elif JUCE_MSVC && ! JUCE_VC6
   /** A signed integer type that's guaranteed to be large enough to hold a pointer without truncating it. */
   typedef _W64 int                  pointer_sized_int;
   /** An unsigned integer type that's guaranteed to be large enough to hold a pointer without truncating it. */
@@ -122,6 +122,69 @@ inline Type jmin (const Type a, const Type b, const Type c)                     
 template <typename Type>
 inline Type jmin (const Type a, const Type b, const Type c, const Type d)                   { return jmin (a, jmin (b, c, d)); }
 
+/** Scans an array of values, returning the minimum value that it contains. */
+template <typename Type>
+const Type findMinimum (const Type* data, int numValues)
+{
+    if (numValues <= 0)
+        return Type();
+
+    Type result (*data++);
+
+    while (--numValues > 0) // (> 0 rather than >= 0 because we've already taken the first sample)
+    {
+        const Type& v = *data++;
+        if (v < result)  result = v;
+    }
+
+    return result;
+}
+
+/** Scans an array of values, returning the minimum value that it contains. */
+template <typename Type>
+const Type findMaximum (const Type* values, int numValues)
+{
+    if (numValues <= 0)
+        return Type();
+
+    Type result (*values++);
+
+    while (--numValues > 0) // (> 0 rather than >= 0 because we've already taken the first sample)
+    {
+        const Type& v = *values++;
+        if (result > v)  result = v;
+    }
+
+    return result;
+}
+
+/** Scans an array of values, returning the minimum and maximum values that it contains. */
+template <typename Type>
+void findMinAndMax (const Type* values, int numValues, Type& lowest, Type& highest)
+{
+    if (numValues <= 0)
+    {
+        lowest = Type();
+        highest = Type();
+    }
+    else
+    {
+        Type mn (*values++);
+        Type mx (mn);
+
+        while (--numValues > 0) // (> 0 rather than >= 0 because we've already taken the first sample)
+        {
+            const Type& v = *values++;
+
+            if (mx < v)  mx = v;
+            if (v < mn)  mn = v;
+        }
+
+        lowest = mn;
+        highest = mx;
+    }
+}
+
 
 //==============================================================================
 /** Constrains a value to keep it within a given range.
@@ -152,6 +215,48 @@ inline Type jlimit (const Type lowerLimit,
                                                                               : valueToConstrain);
 }
 
+/** Returns true if a value is at least zero, and also below a specified upper limit.
+    This is basically a quicker way to write:
+    @code valueToTest >= 0 && valueToTest < upperLimit
+    @endcode
+*/
+template <typename Type>
+inline bool isPositiveAndBelow (Type valueToTest, Type upperLimit) throw()
+{
+    jassert (Type() <= upperLimit); // makes no sense to call this if the upper limit is itself below zero..
+    return Type() <= valueToTest && valueToTest < upperLimit;
+}
+
+#if ! JUCE_VC6
+template <>
+inline bool isPositiveAndBelow (const int valueToTest, const int upperLimit) throw()
+{
+    jassert (upperLimit >= 0); // makes no sense to call this if the upper limit is itself below zero..
+    return static_cast <unsigned int> (valueToTest) < static_cast <unsigned int> (upperLimit);
+}
+#endif
+
+/** Returns true if a value is at least zero, and also less than or equal to a specified upper limit.
+    This is basically a quicker way to write:
+    @code valueToTest >= 0 && valueToTest <= upperLimit
+    @endcode
+*/
+template <typename Type>
+inline bool isPositiveAndNotGreaterThan (Type valueToTest, Type upperLimit) throw()
+{
+    jassert (Type() <= upperLimit); // makes no sense to call this if the upper limit is itself below zero..
+    return Type() <= valueToTest && valueToTest <= upperLimit;
+}
+
+#if ! JUCE_VC6
+template <>
+inline bool isPositiveAndNotGreaterThan (const int valueToTest, const int upperLimit) throw()
+{
+    jassert (upperLimit >= 0); // makes no sense to call this if the upper limit is itself below zero..
+    return static_cast <unsigned int> (valueToTest) <= static_cast <unsigned int> (upperLimit);
+}
+#endif
+
 //==============================================================================
 /** Handy function to swap two values over.
 */
@@ -163,28 +268,33 @@ inline void swapVariables (Type& variable1, Type& variable2)
     variable2 = tempVal;
 }
 
-/** Handy function for getting the number of elements in a simple const C array.
+#if JUCE_VC6
+    #define numElementsInArray(X) (sizeof((X)) / sizeof(0[X]))
+#else
+    /** Handy function for getting the number of elements in a simple const C array.
 
-    E.g.
-    @code
-    static int myArray[] = { 1, 2, 3 };
+        E.g.
+        @code
+        static int myArray[] = { 1, 2, 3 };
 
-    int numElements = numElementsInArray (myArray) // returns 3
-    @endcode
-*/
-template <typename Type>
-inline int numElementsInArray (Type& array)
-{
-    (void) array; // (required to avoid a spurious warning in MS compilers)
-    return static_cast<int> (sizeof (array) / sizeof (array[0]));
-}
+        int numElements = numElementsInArray (myArray) // returns 3
+        @endcode
+    */
+    template <typename Type, int N>
+    inline int numElementsInArray (Type (&array)[N])
+    {
+        (void) array; // (required to avoid a spurious warning in MS compilers)
+        sizeof (0[array]); // This line should cause an error if you pass an object with a user-defined subscript operator
+        return N;
+    }
+#endif
 
 //==============================================================================
 // Some useful maths functions that aren't always present with all compilers and build settings.
 
 /** Using juce_hypot and juce_hypotf is easier than dealing with all the different
     versions of these functions of various platforms and compilers. */
-inline double juce_hypot (double a, double b)
+inline double juce_hypot (double a, double b) throw()
 {
   #if JUCE_WINDOWS
     return _hypot (a, b);
@@ -326,9 +436,9 @@ inline int roundFloatToInt (const float value) throw()
 */
 namespace TypeHelpers
 {
-#if defined (_MSC_VER) && _MSC_VER <= 1400
+  #if JUCE_VC8_OR_EARLIER
     #define PARAMETER_TYPE(a) a
-#else
+  #else
     /** The ParameterType struct is used to find the best type to use when passing some kind
         of object as a parameter.
 
@@ -343,7 +453,7 @@ namespace TypeHelpers
     */
     template <typename Type> struct ParameterType                   { typedef const Type& type; };
 
-#if ! DOXYGEN
+  #if ! DOXYGEN
     template <typename Type> struct ParameterType <Type&>           { typedef Type& type; };
     template <typename Type> struct ParameterType <Type*>           { typedef Type* type; };
     template <>              struct ParameterType <char>            { typedef char type; };
@@ -359,13 +469,13 @@ namespace TypeHelpers
     template <>              struct ParameterType <bool>            { typedef bool type; };
     template <>              struct ParameterType <float>           { typedef float type; };
     template <>              struct ParameterType <double>          { typedef double type; };
-#endif
+  #endif
 
     /** A helpful macro to simplify the use of the ParameterType template.
         @see ParameterType
     */
     #define PARAMETER_TYPE(a)    typename TypeHelpers::ParameterType<a>::type
-#endif
+  #endif
 }
 
 

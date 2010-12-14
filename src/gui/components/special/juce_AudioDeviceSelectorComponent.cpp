@@ -74,8 +74,7 @@ private:
     AudioDeviceManager* const manager;
     float level;
 
-    SimpleDeviceManagerInputLevelMeter (const SimpleDeviceManagerInputLevelMeter&);
-    SimpleDeviceManagerInputLevelMeter& operator= (const SimpleDeviceManagerInputLevelMeter&);
+    JUCE_DECLARE_NON_COPYABLE (SimpleDeviceManagerInputLevelMeter);
 };
 
 
@@ -115,7 +114,7 @@ public:
                            int width, int height,
                            bool rowIsSelected)
     {
-        if (((unsigned int) row) < (unsigned int) items.size())
+        if (isPositiveAndBelow (row, items.size()))
         {
             if (rowIsSelected)
                 g.fillAll (findColour (TextEditor::highlightColourId)
@@ -177,10 +176,8 @@ public:
                            preferredHeight));
     }
 
-    //==============================================================================
-    juce_UseDebuggingNewOperator
-
 private:
+    //==============================================================================
     AudioDeviceManager& deviceManager;
     const String noItemsMessage;
     StringArray items;
@@ -188,7 +185,7 @@ private:
 
     void flipEnablement (const int row)
     {
-        if (((unsigned int) row) < (unsigned int) items.size())
+        if (isPositiveAndBelow (row, items.size()))
         {
             const String item (items [row]);
             deviceManager.setMidiInputEnabled (item, ! deviceManager.isMidiInputEnabled (item));
@@ -200,8 +197,7 @@ private:
         return getRowHeight() + 5;
     }
 
-    MidiInputSelectorComponentListBox (const MidiInputSelectorComponentListBox&);
-    MidiInputSelectorComponentListBox& operator= (const MidiInputSelectorComponentListBox&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MidiInputSelectorComponentListBox);
 };
 
 
@@ -418,7 +414,7 @@ public:
         resized();
     }
 
-    void changeListenerCallback (void*)
+    void changeListenerCallback (ChangeBroadcaster*)
     {
         AudioIODevice* const currentDevice = setup.manager->getCurrentAudioDevice();
 
@@ -721,7 +717,7 @@ public:
                                int width, int height,
                                bool rowIsSelected)
         {
-            if (((unsigned int) row) < (unsigned int) items.size())
+            if (isPositiveAndBelow (row, items.size()))
             {
                 if (rowIsSelected)
                     g.fillAll (findColour (TextEditor::highlightColourId)
@@ -799,10 +795,8 @@ public:
                        + getOutlineThickness() * 2;
         }
 
-        //==============================================================================
-        juce_UseDebuggingNewOperator
-
     private:
+        //==============================================================================
         const AudioIODeviceType::DeviceSetupDetails setup;
         const BoxType type;
         const String noItemsMessage;
@@ -812,7 +806,7 @@ public:
         {
             jassert (type == audioInputType || type == audioOutputType);
 
-            if (((unsigned int) row) < (unsigned int) items.size())
+            if (isPositiveAndBelow (row, items.size()))
             {
                 AudioDeviceManager::AudioDeviceSetup config;
                 setup.manager->getAudioDeviceSetup (config);
@@ -893,15 +887,13 @@ public:
             return getRowHeight() + 5;
         }
 
-        ChannelSelectorListBox (const ChannelSelectorListBox&);
-        ChannelSelectorListBox& operator= (const ChannelSelectorListBox&);
+        JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ChannelSelectorListBox);
     };
 
 private:
     ScopedPointer<ChannelSelectorListBox> inputChanList, outputChanList;
 
-    AudioDeviceSettingsPanel (const AudioDeviceSettingsPanel&);
-    AudioDeviceSettingsPanel& operator= (const AudioDeviceSettingsPanel&);
+    JUCE_DECLARE_NON_COPYABLE (AudioDeviceSettingsPanel);
 };
 
 
@@ -1059,7 +1051,7 @@ void AudioDeviceSelectorComponent::comboBoxChanged (ComboBox* comboBoxThatHasCha
     }
 }
 
-void AudioDeviceSelectorComponent::changeListenerCallback (void*)
+void AudioDeviceSelectorComponent::changeListenerCallback (ChangeBroadcaster*)
 {
     if (deviceTypeDropDown != 0)
     {

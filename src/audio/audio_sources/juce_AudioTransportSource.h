@@ -76,7 +76,7 @@ public:
                                                 adjusted to maintain playback at the correct pitch. If
                                                 this is 0, no sample-rate adjustment will be performed
     */
-    void setSource (PositionableAudioSource* const newSource,
+    void setSource (PositionableAudioSource* newSource,
                     int readAheadBufferSize = 0,
                     double sourceSampleRateToCorrectFor = 0.0);
 
@@ -95,6 +95,9 @@ public:
         This is a time in seconds.
     */
     double getCurrentPosition() const;
+
+    /** Returns the stream's length in seconds. */
+    double getLengthInSeconds() const;
 
     /** Returns true if the player has stopped because its input stream ran out of data.
     */
@@ -124,7 +127,7 @@ public:
         @param newGain  a factor by which to multiply the outgoing samples,
                         so 1.0 = 0dB, 0.5 = -6dB, 2.0 = 6dB, etc.
     */
-    void setGain (const float newGain) throw();
+    void setGain (float newGain) throw();
 
     /** Returns the current gain setting.
 
@@ -156,10 +159,8 @@ public:
     /** Implements the PositionableAudioSource method. */
     bool isLooping() const;
 
-    //==============================================================================
-    juce_UseDebuggingNewOperator
-
 private:
+    //==============================================================================
     PositionableAudioSource* source;
     ResamplingAudioSource* resamplerSource;
     BufferingAudioSource* bufferingSource;
@@ -173,8 +174,7 @@ private:
     int blockSize, readAheadBufferSize;
     bool isPrepared, inputStreamEOF;
 
-    AudioTransportSource (const AudioTransportSource&);
-    AudioTransportSource& operator= (const AudioTransportSource&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioTransportSource);
 };
 
 

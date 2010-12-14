@@ -129,8 +129,8 @@ public:
     inline const ReferenceCountedObjectPtr<ObjectClass> operator[] (const int index) const throw()
     {
         const ScopedLockType lock (getLock());
-        return (((unsigned int) index) < (unsigned int) numUsed) ? data.elements [index]
-                                                                 : static_cast <ObjectClass*> (0);
+        return isPositiveAndBelow (index, numUsed) ? data.elements [index]
+                                                   : static_cast <ObjectClass*> (0);
     }
 
     /** Returns a pointer to the object at this index in the array, without checking whether the index is in-range.
@@ -141,7 +141,7 @@ public:
     inline const ReferenceCountedObjectPtr<ObjectClass> getUnchecked (const int index) const throw()
     {
         const ScopedLockType lock (getLock());
-        jassert (((unsigned int) index) < (unsigned int) numUsed);
+        jassert (isPositiveAndBelow (index, numUsed));
         return data.elements [index];
     }
 
@@ -339,27 +339,28 @@ public:
                    int startIndex = 0,
                    int numElementsToAdd = -1) throw()
     {
-        arrayToAddFrom.lockArray();
-        const ScopedLockType lock (getLock());
+        const ScopedLockType lock1 (arrayToAddFrom.getLock());
 
-        if (startIndex < 0)
         {
-            jassertfalse;
-            startIndex = 0;
+            const ScopedLockType lock2 (getLock());
+
+            if (startIndex < 0)
+            {
+                jassertfalse;
+                startIndex = 0;
+            }
+
+            if (numElementsToAdd < 0 || startIndex + numElementsToAdd > arrayToAddFrom.size())
+                numElementsToAdd = arrayToAddFrom.size() - startIndex;
+
+            if (numElementsToAdd > 0)
+            {
+                data.ensureAllocatedSize (numUsed + numElementsToAdd);
+
+                while (--numElementsToAdd >= 0)
+                    add (arrayToAddFrom.getUnchecked (startIndex++));
+            }
         }
-
-        if (numElementsToAdd < 0 || startIndex + numElementsToAdd > arrayToAddFrom.size())
-            numElementsToAdd = arrayToAddFrom.size() - startIndex;
-
-        if (numElementsToAdd > 0)
-        {
-            data.ensureAllocatedSize (numUsed + numElementsToAdd);
-
-            while (--numElementsToAdd >= 0)
-                add (arrayToAddFrom.getUnchecked (startIndex++));
-        }
-
-        arrayToAddFrom.unlockArray();
     }
 
     /** Inserts a new object into the array assuming that the array is sorted.
@@ -417,7 +418,7 @@ public:
     {
         const ScopedLockType lock (getLock());
 
-        if (((unsigned int) indexToRemove) < (unsigned int) numUsed)
+        if (isPositiveAndBelow (indexToRemove, numUsed))
         {
             ObjectClass** const e = data.elements + indexToRemove;
 
@@ -529,8 +530,8 @@ public:
     {
         const ScopedLockType lock (getLock());
 
-        if (((unsigned int) index1) < (unsigned int) numUsed
-             && ((unsigned int) index2) < (unsigned int) numUsed)
+        if (isPositiveAndBelow (index1, numUsed)
+             && isPositiveAndBelow (index2, numUsed))
         {
             swapVariables (data.elements [index1],
                            data.elements [index2]);
@@ -557,9 +558,9 @@ public:
         {
             const ScopedLockType lock (getLock());
 
-            if (((unsigned int) currentIndex) < (unsigned int) numUsed)
+            if (isPositiveAndBelow (currentIndex, numUsed))
             {
-                if (((unsigned int) newIndex) >= (unsigned int) numUsed)
+                if (! isPositiveAndBelow (newIndex, numUsed))
                     newIndex = numUsed - 1;
 
                 ObjectClass* const value = data.elements [currentIndex];
@@ -688,10 +689,8 @@ public:
     typedef typename TypeOfCriticalSectionToUse::ScopedLockType ScopedLockType;
 
 
-    //==============================================================================
-    juce_UseDebuggingNewOperator
-
 private:
+    //==============================================================================
     ArrayAllocationBase <ObjectClass*, TypeOfCriticalSectionToUse> data;
     int numUsed;
 };

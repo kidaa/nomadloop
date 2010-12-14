@@ -83,6 +83,16 @@ public:
         if (h < 0) h = -h;
     }
 
+    /** Creates a Rectangle from a set of left, right, top, bottom coordinates.
+        The right and bottom values must be larger than the left and top ones, or the resulting
+        rectangle will have a negative size.
+    */
+    static const Rectangle leftTopRightBottom (const ValueType left, const ValueType top,
+                                               const ValueType right, const ValueType bottom) throw()
+    {
+        return Rectangle (left, top, right - left, bottom - top);
+    }
+
     Rectangle& operator= (const Rectangle& other) throw()
     {
         x = other.x; y = other.y;
@@ -193,6 +203,7 @@ public:
 
     /** Moves the x position, adjusting the width so that the right-hand edge remains in the same place.
         If the x is moved to be on the right of the current right-hand edge, the width will be set to zero.
+        @see withLeft
     */
     void setLeft (const ValueType newLeft) throw()
     {
@@ -200,8 +211,15 @@ public:
         x = newLeft;
     }
 
+    /** Returns a new rectangle with a different x position, but the same right-hand edge as this one.
+        If the new x is beyond the right of the current right-hand edge, the width will be set to zero.
+        @see setLeft
+    */
+    const Rectangle withLeft (const ValueType newLeft) const throw()        { return Rectangle (newLeft, y, jmax (ValueType(), x + w - newLeft), h); }
+
     /** Moves the y position, adjusting the height so that the bottom edge remains in the same place.
         If the y is moved to be below the current bottom edge, the height will be set to zero.
+        @see withTop
     */
     void setTop (const ValueType newTop) throw()
     {
@@ -209,9 +227,15 @@ public:
         y = newTop;
     }
 
+    /** Returns a new rectangle with a different y position, but the same bottom edge as this one.
+        If the new y is beyond the bottom of the current rectangle, the height will be set to zero.
+        @see setTop
+    */
+    const Rectangle withTop (const ValueType newTop) const throw()          { return Rectangle (x, newTop, w, jmax (ValueType(), y + h - newTop)); }
+
     /** Adjusts the width so that the right-hand edge of the rectangle has this new value.
         If the new right is below the current X value, the X will be pushed down to match it.
-        @see getRight
+        @see getRight, withRight
     */
     void setRight (const ValueType newRight) throw()
     {
@@ -219,15 +243,27 @@ public:
         w = newRight - x;
     }
 
+    /** Returns a new rectangle with a different right-hand edge position, but the same left-hand edge as this one.
+        If the new right edge is below the current left-hand edge, the width will be set to zero.
+        @see setRight
+    */
+    const Rectangle withRight (const ValueType newRight) const throw()      { return Rectangle (jmin (x, newRight), y, jmax (ValueType(), newRight - x), h); }
+
     /** Adjusts the height so that the bottom edge of the rectangle has this new value.
         If the new bottom is lower than the current Y value, the Y will be pushed down to match it.
-        @see getBottom
+        @see getBottom, withBottom
     */
     void setBottom (const ValueType newBottom) throw()
     {
         y = jmin (y, newBottom);
         h = newBottom - y;
     }
+
+    /** Returns a new rectangle with a different bottom edge position, but the same top edge as this one.
+        If the new y is beyond the bottom of the current rectangle, the height will be set to zero.
+        @see setBottom
+    */
+    const Rectangle withBottom (const ValueType newBottom) const throw()    { return Rectangle (x, jmin (y, newBottom), w, jmax (ValueType(), newBottom - y)); }
 
     //==============================================================================
     /** Moves the rectangle's position by adding amount to its x and y co-ordinates. */
@@ -559,7 +595,7 @@ public:
 
         This should only be used on floating point rectangles.
     */
-    const Rectangle<ValueType> transformed (const AffineTransform& transform) const throw()
+    const Rectangle transformed (const AffineTransform& transform) const throw()
     {
         float x1 = x,     y1 = y;
         float x2 = x + w, y2 = y;
@@ -585,8 +621,8 @@ public:
     {
         const int x1 = (int) std::floor (static_cast<float> (x));
         const int y1 = (int) std::floor (static_cast<float> (y));
-        const int x2 = (int) std::floor (static_cast<float> (x + w + 0.9999f));
-        const int y2 = (int) std::floor (static_cast<float> (y + h + 0.9999f));
+        const int x2 = (int) std::ceil (static_cast<float> (x + w));
+        const int y2 = (int) std::ceil (static_cast<float> (y + h));
 
         return Rectangle<int> (x1, y1, x2 - x1, y2 - y1);
     }
@@ -689,9 +725,6 @@ public:
                           toks[2].trim().getIntValue(),
                           toks[3].trim().getIntValue());
     }
-
-    //==============================================================================
-    juce_UseDebuggingNewOperator
 
 private:
     friend class RectangleList;

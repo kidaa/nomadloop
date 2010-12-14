@@ -35,8 +35,6 @@ namespace jpeglibNamespace
   #if JUCE_MINGW
     typedef unsigned char boolean;
   #endif
-  extern "C"
-  {
     #define JPEG_INTERNALS
     #undef FAR
     #include "jpglib/jpeglib.h"
@@ -109,11 +107,10 @@ namespace jpeglibNamespace
     #include "jpglib/jquant2.c"
     #include "jpglib/jutils.c"
     #include "jpglib/transupp.c"
-  }
 #else
-  #define JPEG_INTERNALS
-  #undef FAR
-  #include <jpeglib.h>
+    #define JPEG_INTERNALS
+    #undef FAR
+    #include <jpeglib.h>
 #endif
 }
 
@@ -142,16 +139,16 @@ namespace JPEGHelpers
 
     struct JPEGDecodingFailure {};
 
-    static void fatalErrorHandler (j_common_ptr)
+    void fatalErrorHandler (j_common_ptr)
     {
         throw JPEGDecodingFailure();
     }
 
-    static void silentErrorCallback1 (j_common_ptr)         {}
-    static void silentErrorCallback2 (j_common_ptr, int)    {}
-    static void silentErrorCallback3 (j_common_ptr, char*)  {}
+    void silentErrorCallback1 (j_common_ptr)         {}
+    void silentErrorCallback2 (j_common_ptr, int)    {}
+    void silentErrorCallback3 (j_common_ptr, char*)  {}
 
-    static void setupSilentErrorHandler (struct jpeg_error_mgr& err)
+    void setupSilentErrorHandler (struct jpeg_error_mgr& err)
     {
         zerostruct (err);
 
@@ -164,11 +161,11 @@ namespace JPEGHelpers
 
 
     //==============================================================================
-    static void dummyCallback1 (j_decompress_ptr)
+    void dummyCallback1 (j_decompress_ptr)
     {
     }
 
-    static void jpegSkip (j_decompress_ptr decompStruct, long num)
+    void jpegSkip (j_decompress_ptr decompStruct, long num)
     {
         decompStruct->src->next_input_byte += num;
 
@@ -176,13 +173,13 @@ namespace JPEGHelpers
         decompStruct->src->bytes_in_buffer -= num;
     }
 
-    static boolean jpegFill (j_decompress_ptr)
+    boolean jpegFill (j_decompress_ptr)
     {
         return 0;
     }
 
     //==============================================================================
-    static const int jpegBufferSize = 512;
+    const int jpegBufferSize = 512;
 
     struct JuceJpegDest  : public jpeg_destination_mgr
     {
@@ -190,11 +187,11 @@ namespace JPEGHelpers
         char* buffer;
     };
 
-    static void jpegWriteInit (j_compress_ptr)
+    void jpegWriteInit (j_compress_ptr)
     {
     }
 
-    static void jpegWriteTerminate (j_compress_ptr cinfo)
+    void jpegWriteTerminate (j_compress_ptr cinfo)
     {
         JuceJpegDest* const dest = static_cast <JuceJpegDest*> (cinfo->dest);
 
@@ -202,7 +199,7 @@ namespace JPEGHelpers
         dest->output->write (dest->buffer, (int) numToWrite);
     }
 
-    static boolean jpegWriteFlush (j_compress_ptr cinfo)
+    boolean jpegWriteFlush (j_compress_ptr cinfo)
     {
         JuceJpegDest* const dest = static_cast <JuceJpegDest*> (cinfo->dest);
 
@@ -249,8 +246,15 @@ bool JPEGImageFormat::canUnderstand (InputStream& in)
     return false;
 }
 
+#if (JUCE_MAC || JUCE_IOS) && USE_COREGRAPHICS_RENDERING && ! DONT_USE_COREIMAGE_LOADER
+  const Image juce_loadWithCoreImage (InputStream& input);
+#endif
+
 const Image JPEGImageFormat::decodeImage (InputStream& in)
 {
+#if (JUCE_MAC || JUCE_IOS) && USE_COREGRAPHICS_RENDERING && ! DONT_USE_COREIMAGE_LOADER
+    return juce_loadWithCoreImage (in);
+#else
     using namespace jpeglibNamespace;
     using namespace JPEGHelpers;
 
@@ -300,6 +304,7 @@ const Image JPEGImageFormat::decodeImage (InputStream& in)
             if (jpeg_start_decompress (&jpegDecompStruct))
             {
                 image = Image (Image::RGB, width, height, false);
+                image.getProperties()->set ("originalImageHadAlpha", false);
                 const bool hasAlphaChan = image.hasAlphaChannel(); // (the native image creator may not give back what we expect)
 
                 const Image::BitmapData destData (image, true);
@@ -344,6 +349,7 @@ const Image JPEGImageFormat::decodeImage (InputStream& in)
     }
 
     return image;
+#endif
 }
 
 bool JPEGImageFormat::writeImageToStream (const Image& image, OutputStream& out)

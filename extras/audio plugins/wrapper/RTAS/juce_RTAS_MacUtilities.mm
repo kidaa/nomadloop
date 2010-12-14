@@ -50,7 +50,7 @@ void initialiseMacRTAS()
 
 void* attachSubWindow (void* hostWindowRef, Component* comp)
 {
-    const ScopedAutoReleasePool pool;
+    JUCE_AUTORELEASEPOOL
 
     NSWindow* hostWindow = [[NSWindow alloc] initWithWindowRef: hostWindowRef];
     [hostWindow retain];
@@ -103,7 +103,7 @@ void* attachSubWindow (void* hostWindowRef, Component* comp)
 
 void removeSubWindow (void* nsWindow, Component* comp)
 {
-    const ScopedAutoReleasePool pool;
+    JUCE_AUTORELEASEPOOL
 
     NSView* pluginView = (NSView*) comp->getWindowHandle();
     NSWindow* hostWindow = (NSWindow*) nsWindow;
@@ -114,18 +114,21 @@ void removeSubWindow (void* nsWindow, Component* comp)
     [hostWindow release];
 }
 
-static bool isJuceWindow (WindowRef w)
+namespace
 {
-    for (int i = ComponentPeer::getNumPeers(); --i >= 0;)
+    bool isJuceWindow (WindowRef w)
     {
-        ComponentPeer* peer = ComponentPeer::getPeer(i);
-        NSView* view = (NSView*) peer->getNativeHandle();
+        for (int i = ComponentPeer::getNumPeers(); --i >= 0;)
+        {
+            ComponentPeer* peer = ComponentPeer::getPeer(i);
+            NSView* view = (NSView*) peer->getNativeHandle();
 
-        if ([[view window] windowRef] == w)
-            return true;
+            if ([[view window] windowRef] == w)
+                return true;
+        }
+
+        return false;
     }
-
-    return false;
 }
 
 void forwardCurrentKeyEventToHostWindow()

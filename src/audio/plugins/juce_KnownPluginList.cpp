@@ -45,11 +45,11 @@ void KnownPluginList::clear()
     if (types.size() > 0)
     {
         types.clear();
-        sendChangeMessage (this);
+        sendChangeMessage();
     }
 }
 
-PluginDescription* KnownPluginList::getTypeForFile (const String& fileOrIdentifier) const throw()
+PluginDescription* KnownPluginList::getTypeForFile (const String& fileOrIdentifier) const
 {
     for (int i = 0; i < types.size(); ++i)
         if (types.getUnchecked(i)->fileOrIdentifier == fileOrIdentifier)
@@ -58,7 +58,7 @@ PluginDescription* KnownPluginList::getTypeForFile (const String& fileOrIdentifi
     return 0;
 }
 
-PluginDescription* KnownPluginList::getTypeForIdentifierString (const String& identifierString) const throw()
+PluginDescription* KnownPluginList::getTypeForIdentifierString (const String& identifierString) const
 {
     for (int i = 0; i < types.size(); ++i)
         if (types.getUnchecked(i)->createIdentifierString() == identifierString)
@@ -83,33 +83,33 @@ bool KnownPluginList::addType (const PluginDescription& type)
     }
 
     types.add (new PluginDescription (type));
-    sendChangeMessage (this);
+    sendChangeMessage();
     return true;
 }
 
-void KnownPluginList::removeType (const int index) throw()
+void KnownPluginList::removeType (const int index)
 {
     types.remove (index);
-    sendChangeMessage (this);
+    sendChangeMessage();
 }
 
-static Time getFileModTime (const String& fileOrIdentifier) throw()
+namespace
 {
-    if (fileOrIdentifier.startsWithChar ('/')
-        || fileOrIdentifier[1] == ':')
+    const Time getPluginFileModTime (const String& fileOrIdentifier)
     {
-        return File (fileOrIdentifier).getLastModificationTime();
+        if (fileOrIdentifier.startsWithChar ('/') || fileOrIdentifier[1] == ':')
+            return File (fileOrIdentifier).getLastModificationTime();
+
+        return Time (0);
     }
 
-    return Time (0);
+    bool timesAreDifferent (const Time& t1, const Time& t2) throw()
+    {
+        return t1 != t2 || t1 == Time (0);
+    }
 }
 
-static bool timesAreDifferent (const Time& t1, const Time& t2) throw()
-{
-    return t1 != t2 || t1 == Time (0);
-}
-
-bool KnownPluginList::isListingUpToDate (const String& fileOrIdentifier) const throw()
+bool KnownPluginList::isListingUpToDate (const String& fileOrIdentifier) const
 {
     if (getTypeForFile (fileOrIdentifier) == 0)
         return false;
@@ -119,7 +119,7 @@ bool KnownPluginList::isListingUpToDate (const String& fileOrIdentifier) const t
         const PluginDescription* const d = types.getUnchecked(i);
 
         if (d->fileOrIdentifier == fileOrIdentifier
-             && timesAreDifferent (d->lastFileModTime, getFileModTime (fileOrIdentifier)))
+             && timesAreDifferent (d->lastFileModTime, getPluginFileModTime (fileOrIdentifier)))
         {
             return false;
         }
@@ -146,7 +146,7 @@ bool KnownPluginList::scanAndAddFile (const String& fileOrIdentifier,
 
             if (d->fileOrIdentifier == fileOrIdentifier)
             {
-                if (timesAreDifferent (d->lastFileModTime, getFileModTime (fileOrIdentifier)))
+                if (timesAreDifferent (d->lastFileModTime, getPluginFileModTime (fileOrIdentifier)))
                     needsRescanning = true;
                 else
                     typesFound.add (new PluginDescription (*d));
@@ -220,7 +220,7 @@ public:
     PluginSorter() throw() {}
 
     int compareElements (const PluginDescription* const first,
-                         const PluginDescription* const second) const throw()
+                         const PluginDescription* const second) const
     {
         int diff = 0;
 
@@ -249,7 +249,7 @@ void KnownPluginList::sort (const SortMethod method)
         sorter.method = method;
         types.sort (sorter, true);
 
-        sendChangeMessage (this);
+        sendChangeMessage();
     }
 }
 
@@ -450,7 +450,7 @@ int KnownPluginList::getIndexChosenByMenu (const int menuResultCode) const
 {
     const int i = menuResultCode - menuIdBase;
 
-    return (((unsigned int) i) < (unsigned int) types.size()) ? i : -1;
+    return isPositiveAndBelow (i, types.size()) ? i : -1;
 }
 
 END_JUCE_NAMESPACE

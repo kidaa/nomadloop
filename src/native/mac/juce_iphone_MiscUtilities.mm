@@ -52,11 +52,7 @@ END_JUCE_NAMESPACE
 
 - (void) applicationWillTerminate: (UIApplication*) application
 {
-    jassert (JUCEApplication::getInstance() != 0);
-    JUCEApplication::getInstance()->shutdownApp();
-
-    delete JUCEApplication::getInstance();
-    shutdownJuce_GUI();
+    JUCEApplication::appWillTerminateByForce();
 }
 
 @end
@@ -178,22 +174,6 @@ void Desktop::setScreenSaverEnabled (const bool isEnabled)
 bool Desktop::isScreenSaverEnabled()
 {
     return ! [[UIApplication sharedApplication] isIdleTimerDisabled];
-}
-
-
-//==============================================================================
-void juce_updateMultiMonitorInfo (Array <Rectangle <int> >& monitorCoords, const bool clipToWorkArea)
-{
-    const ScopedAutoReleasePool pool;
-    monitorCoords.clear();
-
-    CGRect r = clipToWorkArea ? [[UIScreen mainScreen] applicationFrame]
-                              : [[UIScreen mainScreen] bounds];
-
-    monitorCoords.add (Rectangle<int> ((int) r.origin.x,
-                                       (int) r.origin.y,
-                                       (int) r.size.width,
-                                       (int) r.size.height));
 }
 
 

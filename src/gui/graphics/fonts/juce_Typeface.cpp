@@ -36,12 +36,20 @@ BEGIN_JUCE_NAMESPACE
 
 //==============================================================================
 Typeface::Typeface (const String& name_) throw()
-    : name (name_)
+    : name (name_), isFallbackFont (false)
 {
 }
 
 Typeface::~Typeface()
 {
+}
+
+const Typeface::Ptr Typeface::getFallbackTypeface()
+{
+    const Font fallbackFont (Font::getFallbackFontName(), 10, 0);
+    Typeface* t = fallbackFont.getTypeface();
+    t->isFallbackFont = true;
+    return t;
 }
 
 //==============================================================================
@@ -50,10 +58,6 @@ class CustomTypeface::GlyphInfo
 public:
     GlyphInfo (const juce_wchar character_, const Path& path_, const float width_) throw()
         : character (character_), path (path_), width (width_)
-    {
-    }
-
-    ~GlyphInfo() throw()
     {
     }
 
@@ -89,11 +93,8 @@ public:
     float width;
     Array <KerningPair> kerningPairs;
 
-    juce_UseDebuggingNewOperator
-
 private:
-    GlyphInfo (const GlyphInfo&);
-    GlyphInfo& operator= (const GlyphInfo&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (GlyphInfo);
 };
 
 //==============================================================================
@@ -108,8 +109,8 @@ CustomTypeface::CustomTypeface (InputStream& serialisedTypefaceStream)
 {
     clear();
 
-    GZIPDecompressorInputStream gzin (&serialisedTypefaceStream, false);
-    BufferedInputStream in (&gzin, 32768, false);
+    GZIPDecompressorInputStream gzin (serialisedTypefaceStream);
+    BufferedInputStream in (gzin, 32768);
 
     name = in.readString();
     isBold = in.readBool();
@@ -169,7 +170,7 @@ void CustomTypeface::addGlyph (const juce_wchar character, const Path& path, con
     // Check that you're not trying to add the same character twice..
     jassert (findGlyph (character, false) == 0);
 
-    if (((unsigned int) character) < (unsigned int) numElementsInArray (lookupTable))
+    if (isPositiveAndBelow ((int) character, (int) numElementsInArray (lookupTable)))
         lookupTable [character] = (short) glyphs.size();
 
     glyphs.add (new GlyphInfo (character, path, width));
@@ -189,7 +190,7 @@ void CustomTypeface::addKerningPair (const juce_wchar char1, const juce_wchar ch
 
 CustomTypeface::GlyphInfo* CustomTypeface::findGlyph (const juce_wchar character, const bool loadIfNeeded) throw()
 {
-    if (((unsigned int) character) < (unsigned int) numElementsInArray (lookupTable) && lookupTable [character] > 0)
+    if (isPositiveAndBelow ((int) character, (int) numElementsInArray (lookupTable)) && lookupTable [character] > 0)
         return glyphs [(int) lookupTable [(int) character]];
 
     for (int i = 0; i < glyphs.size(); ++i)
@@ -220,7 +221,9 @@ CustomTypeface::GlyphInfo* CustomTypeface::findGlyphSubstituting (const juce_wch
             Typeface* const fallbackTypeface = fallbackFont.getTypeface();
             if (fallbackTypeface != 0 && fallbackTypeface != this)
             {
-                //xxx
+                Path path;
+                fallbackTypeface->getOutlineForGlyph (character, path);
+                addGlyph (character, path, fallbackTypeface->getStringWidth (String::charToString (character)));
             }
 
             if (glyph == 0)
@@ -334,6 +337,14 @@ float CustomTypeface::getStringWidth (const String& text)
     {
         const GlyphInfo* const glyph = findGlyphSubstituting (*t++);
 
+        if (glyph == 0 && ! isFallbackFont)
+        {
+            const Typeface::Ptr fallbackTypeface (Typeface::getFallbackTypeface());
+
+            if (fallbackTypeface != 0)
+                x += fallbackTypeface->getStringWidth (String::charToString (*t));
+        }
+
         if (glyph != 0)
             x += glyph->getHorizontalSpacing (*t);
     }
@@ -350,7 +361,26 @@ void CustomTypeface::getGlyphPositions (const String& text, Array <int>& resultG
     while (*t != 0)
     {
         const juce_wchar c = *t++;
-        const GlyphInfo* const glyph = findGlyphSubstituting (c);
+        const GlyphInfo* const glyph = findGlyph (c, true);
+
+        if (glyph == 0 && ! isFallbackFont)
+        {
+            const Typeface::Ptr fallbackTypeface (Typeface::getFallbackTypeface());
+
+            if (fallbackTypeface != 0)
+            {
+                Array <int> subGlyphs;
+                Array <float> subOffsets;
+                fallbackTypeface->getGlyphPositions (String::charToString (c), subGlyphs, subOffsets);
+
+                if (subGlyphs.size() > 0)
+                {
+                    resultGlyphs.add (subGlyphs.getFirst());
+                    x += subOffsets[1];
+                    xOffsets.add (x);
+                }
+            }
+        }
 
         if (glyph != 0)
         {
@@ -363,7 +393,16 @@ void CustomTypeface::getGlyphPositions (const String& text, Array <int>& resultG
 
 bool CustomTypeface::getOutlineForGlyph (int glyphNumber, Path& path)
 {
-    const GlyphInfo* const glyph = findGlyphSubstituting ((juce_wchar) glyphNumber);
+    const GlyphInfo* const glyph = findGlyph ((juce_wchar) glyphNumber, true);
+
+    if (glyph == 0 && ! isFallbackFont)
+    {
+        const Typeface::Ptr fallbackTypeface (Typeface::getFallbackTypeface());
+
+        if (fallbackTypeface != 0)
+            fallbackTypeface->getOutlineForGlyph (glyphNumber, path);
+    }
+
     if (glyph != 0)
     {
         path = glyph->path;

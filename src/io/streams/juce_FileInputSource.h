@@ -40,21 +40,19 @@ class JUCE_API  FileInputSource     : public InputSource
 {
 public:
     //==============================================================================
-    FileInputSource (const File& file);
+    FileInputSource (const File& file, bool useFileTimeInHashGeneration = false);
     ~FileInputSource();
 
     InputStream* createInputStream();
     InputStream* createInputStreamFor (const String& relatedItemPath);
     int64 hashCode() const;
 
-    //==============================================================================
-    juce_UseDebuggingNewOperator
-
 private:
+    //==============================================================================
     const File file;
+    bool useFileTimeInHashGeneration;
 
-    FileInputSource (const FileInputSource&);
-    FileInputSource& operator= (const FileInputSource&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FileInputSource);
 };
 
 

@@ -139,12 +139,6 @@ public:
     /** Lets you access methods and properties of the object that this ScopedPointer refers to. */
     inline ObjectType* operator->() const throw()                                   { return object; }
 
-    /** Returns a reference to the address of the object that this ScopedPointer refers to. */
-    inline ObjectType* const* operator&() const throw()                             { return static_cast <ObjectType* const*> (&object); }
-
-    /** Returns a reference to the address of the object that this ScopedPointer refers to. */
-    inline ObjectType** operator&() throw()                                         { return static_cast <ObjectType**> (&object); }
-
     //==============================================================================
     /** Removes the current object from this ScopedPointer without deleting it.
 
@@ -173,8 +167,23 @@ private:
     const ScopedPointer* getAddress() const throw()                                 { return this; }
 
   #if ! JUCE_MSVC  // (MSVC can't deal with multiple copy constructors)
-    // This is private to stop people accidentally copying a const ScopedPointer (the compiler
-    // will let you do so by implicitly casting the source to its raw object pointer).
+    /* This is private to stop people accidentally copying a const ScopedPointer (the compiler
+       would let you do so by implicitly casting the source to its raw object pointer).
+
+       A side effect of this is that you may hit a puzzling compiler error when you write something
+       like this:
+
+          ScopedPointer<MyClass> m = new MyClass();  // Compile error: copy constructor is private.
+
+       Even though the compiler would normally ignore the assignment here, it can't do so when the
+       copy constructor is private. It's very easy to fis though - just write it like this:
+
+          ScopedPointer<MyClass> m (new MyClass());  // Compiles OK
+
+       It's good practice to always use the latter form when writing your object declarations anyway,
+       rather than writing them as assignments and assuming (or hoping) that the compiler will be
+       smart enough to replace your construction + assignment with a single constructor.
+    */
     ScopedPointer (const ScopedPointer&);
   #endif
 };
@@ -184,7 +193,7 @@ private:
     This can be handy for checking whether this is a null pointer.
 */
 template <class ObjectType>
-inline bool operator== (const ScopedPointer<ObjectType>& pointer1, const ObjectType* const pointer2) throw()
+bool operator== (const ScopedPointer<ObjectType>& pointer1, ObjectType* const pointer2) throw()
 {
     return static_cast <ObjectType*> (pointer1) == pointer2;
 }
@@ -193,7 +202,7 @@ inline bool operator== (const ScopedPointer<ObjectType>& pointer1, const ObjectT
     This can be handy for checking whether this is a null pointer.
 */
 template <class ObjectType>
-inline bool operator!= (const ScopedPointer<ObjectType>& pointer1, const ObjectType* const pointer2) throw()
+bool operator!= (const ScopedPointer<ObjectType>& pointer1, ObjectType* const pointer2) throw()
 {
     return static_cast <ObjectType*> (pointer1) != pointer2;
 }

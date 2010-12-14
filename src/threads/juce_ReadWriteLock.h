@@ -121,8 +121,6 @@ public:
     */
     void exitWrite() const throw();
 
-    //==============================================================================
-    juce_UseDebuggingNewOperator
 
 private:
     //==============================================================================
@@ -132,8 +130,7 @@ private:
     mutable Thread::ThreadID writerThreadId;
     mutable Array <Thread::ThreadID> readerThreads;
 
-    ReadWriteLock (const ReadWriteLock&);
-    ReadWriteLock& operator= (const ReadWriteLock&);
+    JUCE_DECLARE_NON_COPYABLE (ReadWriteLock);
 };
 
 

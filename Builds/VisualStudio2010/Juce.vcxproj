@@ -54,7 +54,7 @@
       <Optimization>Disabled</Optimization>
       <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
       <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>JUCER_VS2010_78A501D;WIN32;_WINDOWS;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_WINDOWS;DEBUG;_DEBUG;_LIB;JUCER_VS2010_78A501D=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <RuntimeTypeInfo>true</RuntimeTypeInfo>
       <PrecompiledHeader/>
@@ -92,7 +92,7 @@
     <ClCompile>
       <Optimization>MaxSpeed</Optimization>
       <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>JUCER_VS2010_78A501D;WIN32;_WINDOWS;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_WINDOWS;NDEBUG;_LIB;JUCER_VS2010_78A501D=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <RuntimeTypeInfo>true</RuntimeTypeInfo>
       <PrecompiledHeader/>
@@ -131,6 +131,8 @@
     <ClCompile Include="..\..\src\audio\audio_file_formats\juce_AudioCDReader.cpp"/>
     <ClCompile Include="..\..\src\audio\audio_file_formats\juce_AudioFormat.cpp"/>
     <ClCompile Include="..\..\src\audio\audio_file_formats\juce_AudioFormatManager.cpp"/>
+    <ClCompile Include="..\..\src\audio\audio_file_formats\juce_AudioFormatReader.cpp"/>
+    <ClCompile Include="..\..\src\audio\audio_file_formats\juce_AudioFormatWriter.cpp"/>
     <ClCompile Include="..\..\src\audio\audio_file_formats\juce_AudioSubsectionReader.cpp"/>
     <ClCompile Include="..\..\src\audio\audio_file_formats\juce_AudioThumbnail.cpp"/>
     <ClCompile Include="..\..\src\audio\audio_file_formats\juce_AudioThumbnailCache.cpp"/>
@@ -175,8 +177,10 @@
     <ClCompile Include="..\..\src\audio\processors\juce_GenericAudioProcessorEditor.cpp"/>
     <ClCompile Include="..\..\src\audio\synthesisers\juce_Sampler.cpp"/>
     <ClCompile Include="..\..\src\audio\synthesisers\juce_Synthesiser.cpp"/>
+    <ClCompile Include="..\..\src\containers\juce_AbstractFifo.cpp"/>
     <ClCompile Include="..\..\src\containers\juce_BigInteger.cpp"/>
     <ClCompile Include="..\..\src\containers\juce_DynamicObject.cpp"/>
+    <ClCompile Include="..\..\src\containers\juce_Expression.cpp"/>
     <ClCompile Include="..\..\src\containers\juce_Identifier.cpp"/>
     <ClCompile Include="..\..\src\containers\juce_MemoryBlock.cpp"/>
     <ClCompile Include="..\..\src\containers\juce_NamedValueSet.cpp"/>
@@ -198,10 +202,8 @@
     <ClCompile Include="..\..\src\cryptography\juce_Primes.cpp"/>
     <ClCompile Include="..\..\src\cryptography\juce_RSAKey.cpp"/>
     <ClCompile Include="..\..\src\events\juce_ActionBroadcaster.cpp"/>
-    <ClCompile Include="..\..\src\events\juce_ActionListenerList.cpp"/>
     <ClCompile Include="..\..\src\events\juce_AsyncUpdater.cpp"/>
     <ClCompile Include="..\..\src\events\juce_ChangeBroadcaster.cpp"/>
-    <ClCompile Include="..\..\src\events\juce_ChangeListenerList.cpp"/>
     <ClCompile Include="..\..\src\events\juce_InterprocessConnection.cpp"/>
     <ClCompile Include="..\..\src\events\juce_InterprocessConnectionServer.cpp"/>
     <ClCompile Include="..\..\src\events\juce_Message.cpp"/>
@@ -322,11 +324,12 @@
     <ClCompile Include="..\..\src\gui\graphics\drawables\juce_DrawableComposite.cpp"/>
     <ClCompile Include="..\..\src\gui\graphics\drawables\juce_DrawableImage.cpp"/>
     <ClCompile Include="..\..\src\gui\graphics\drawables\juce_DrawablePath.cpp"/>
+    <ClCompile Include="..\..\src\gui\graphics\drawables\juce_DrawableRectangle.cpp"/>
+    <ClCompile Include="..\..\src\gui\graphics\drawables\juce_DrawableShape.cpp"/>
     <ClCompile Include="..\..\src\gui\graphics\drawables\juce_DrawableText.cpp"/>
     <ClCompile Include="..\..\src\gui\graphics\drawables\juce_SVGParser.cpp"/>
     <ClCompile Include="..\..\src\gui\graphics\effects\juce_DropShadowEffect.cpp"/>
     <ClCompile Include="..\..\src\gui\graphics\effects\juce_GlowEffect.cpp"/>
-    <ClCompile Include="..\..\src\gui\graphics\effects\juce_ReduceOpacityEffect.cpp"/>
     <ClCompile Include="..\..\src\gui\graphics\fonts\juce_Font.cpp"/>
     <ClCompile Include="..\..\src\gui\graphics\fonts\juce_GlyphArrangement.cpp"/>
     <ClCompile Include="..\..\src\gui\graphics\fonts\juce_TextLayout.cpp"/>
@@ -354,6 +357,7 @@
     <ClCompile Include="..\..\src\io\files\juce_NamedPipe.cpp"/>
     <ClCompile Include="..\..\src\io\files\juce_TemporaryFile.cpp"/>
     <ClCompile Include="..\..\src\io\files\juce_ZipFile.cpp"/>
+    <ClCompile Include="..\..\src\io\network\juce_MACAddress.cpp"/>
     <ClCompile Include="..\..\src\io\network\juce_Socket.cpp"/>
     <ClCompile Include="..\..\src\io\network\juce_URL.cpp"/>
     <ClCompile Include="..\..\src\io\streams\juce_BufferedInputStream.cpp"/>
@@ -389,6 +393,7 @@
     <ClCompile Include="..\..\src\native\windows\juce_win32_ASIO.cpp"/>
     <ClCompile Include="..\..\src\native\windows\juce_win32_AudioCDReader.cpp"/>
     <ClCompile Include="..\..\src\native\windows\juce_win32_CameraDevice.cpp"/>
+    <ClCompile Include="..\..\src\native\windows\juce_win32_Direct2DGraphicsContext.cpp"/>
     <ClCompile Include="..\..\src\native\windows\juce_win32_DirectSound.cpp"/>
     <ClCompile Include="..\..\src\native\windows\juce_win32_DynamicLibraryLoader.cpp"/>
     <ClCompile Include="..\..\src\native\windows\juce_win32_FileChooser.cpp"/>
@@ -423,6 +428,7 @@
     <ClCompile Include="..\..\src\utilities\juce_PropertiesFile.cpp"/>
     <ClCompile Include="..\..\src\utilities\juce_RecentlyOpenedFilesList.cpp"/>
     <ClCompile Include="..\..\src\utilities\juce_UndoManager.cpp"/>
+    <ClCompile Include="..\..\src\utilities\juce_UnitTest.cpp"/>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\src\application\juce_Application.h"/>
@@ -463,6 +469,7 @@
     <ClInclude Include="..\..\src\audio\devices\juce_MidiOutput.h"/>
     <ClInclude Include="..\..\src\audio\dsp\juce_AudioDataConverters.h"/>
     <ClInclude Include="..\..\src\audio\dsp\juce_AudioSampleBuffer.h"/>
+    <ClInclude Include="..\..\src\audio\dsp\juce_Decibels.h"/>
     <ClInclude Include="..\..\src\audio\dsp\juce_IIRFilter.h"/>
     <ClInclude Include="..\..\src\audio\midi\juce_MidiBuffer.h"/>
     <ClInclude Include="..\..\src\audio\midi\juce_MidiFile.h"/>
@@ -497,11 +504,13 @@
     <ClInclude Include="..\..\src\audio\processors\juce_GenericAudioProcessorEditor.h"/>
     <ClInclude Include="..\..\src\audio\synthesisers\juce_Sampler.h"/>
     <ClInclude Include="..\..\src\audio\synthesisers\juce_Synthesiser.h"/>
+    <ClInclude Include="..\..\src\containers\juce_AbstractFifo.h"/>
     <ClInclude Include="..\..\src\containers\juce_Array.h"/>
     <ClInclude Include="..\..\src\containers\juce_ArrayAllocationBase.h"/>
     <ClInclude Include="..\..\src\containers\juce_BigInteger.h"/>
     <ClInclude Include="..\..\src\containers\juce_DynamicObject.h"/>
     <ClInclude Include="..\..\src\containers\juce_ElementComparator.h"/>
+    <ClInclude Include="..\..\src\containers\juce_Expression.h"/>
     <ClInclude Include="..\..\src\containers\juce_HeapBlock.h"/>
     <ClInclude Include="..\..\src\containers\juce_Identifier.h"/>
     <ClInclude Include="..\..\src\containers\juce_MemoryBlock.h"/>
@@ -521,6 +530,7 @@
     <ClInclude Include="..\..\src\core\juce_ByteOrder.h"/>
     <ClInclude Include="..\..\src\core\juce_FileLogger.h"/>
     <ClInclude Include="..\..\src\core\juce_Initialisation.h"/>
+    <ClInclude Include="..\..\src\core\juce_LeakedObjectDetector.h"/>
     <ClInclude Include="..\..\src\core\juce_Logger.h"/>
     <ClInclude Include="..\..\src\core\juce_MathsFunctions.h"/>
     <ClInclude Include="..\..\src\core\juce_Memory.h"/>
@@ -541,12 +551,10 @@
     <ClInclude Include="..\..\src\cryptography\juce_RSAKey.h"/>
     <ClInclude Include="..\..\src\events\juce_ActionBroadcaster.h"/>
     <ClInclude Include="..\..\src\events\juce_ActionListener.h"/>
-    <ClInclude Include="..\..\src\events\juce_ActionListenerList.h"/>
     <ClInclude Include="..\..\src\events\juce_AsyncUpdater.h"/>
     <ClInclude Include="..\..\src\events\juce_CallbackMessage.h"/>
     <ClInclude Include="..\..\src\events\juce_ChangeBroadcaster.h"/>
     <ClInclude Include="..\..\src\events\juce_ChangeListener.h"/>
-    <ClInclude Include="..\..\src\events\juce_ChangeListenerList.h"/>
     <ClInclude Include="..\..\src\events\juce_InterprocessConnection.h"/>
     <ClInclude Include="..\..\src\events\juce_InterprocessConnectionServer.h"/>
     <ClInclude Include="..\..\src\events\juce_ListenerList.h"/>
@@ -684,11 +692,12 @@
     <ClInclude Include="..\..\src\gui\graphics\drawables\juce_DrawableComposite.h"/>
     <ClInclude Include="..\..\src\gui\graphics\drawables\juce_DrawableImage.h"/>
     <ClInclude Include="..\..\src\gui\graphics\drawables\juce_DrawablePath.h"/>
+    <ClInclude Include="..\..\src\gui\graphics\drawables\juce_DrawableRectangle.h"/>
+    <ClInclude Include="..\..\src\gui\graphics\drawables\juce_DrawableShape.h"/>
     <ClInclude Include="..\..\src\gui\graphics\drawables\juce_DrawableText.h"/>
     <ClInclude Include="..\..\src\gui\graphics\effects\juce_DropShadowEffect.h"/>
     <ClInclude Include="..\..\src\gui\graphics\effects\juce_GlowEffect.h"/>
     <ClInclude Include="..\..\src\gui\graphics\effects\juce_ImageEffectFilter.h"/>
-    <ClInclude Include="..\..\src\gui\graphics\effects\juce_ReduceOpacityEffect.h"/>
     <ClInclude Include="..\..\src\gui\graphics\fonts\juce_Font.h"/>
     <ClInclude Include="..\..\src\gui\graphics\fonts\juce_GlyphArrangement.h"/>
     <ClInclude Include="..\..\src\gui\graphics\fonts\juce_TextLayout.h"/>
@@ -704,7 +713,6 @@
     <ClInclude Include="..\..\src\gui\graphics\geometry\juce_Rectangle.h"/>
     <ClInclude Include="..\..\src\gui\graphics\geometry\juce_RectangleList.h"/>
     <ClInclude Include="..\..\src\gui\graphics\geometry\juce_RelativeCoordinate.h"/>
-    <ClInclude Include="..\..\src\gui\graphics\imaging\image_file_formats\juce_GIFLoader.h"/>
     <ClInclude Include="..\..\src\gui\graphics\imaging\juce_CameraDevice.h"/>
     <ClInclude Include="..\..\src\gui\graphics\imaging\juce_Image.h"/>
     <ClInclude Include="..\..\src\gui\graphics\imaging\juce_ImageCache.h"/>
@@ -718,6 +726,7 @@
     <ClInclude Include="..\..\src\io\files\juce_NamedPipe.h"/>
     <ClInclude Include="..\..\src\io\files\juce_TemporaryFile.h"/>
     <ClInclude Include="..\..\src\io\files\juce_ZipFile.h"/>
+    <ClInclude Include="..\..\src\io\network\juce_MACAddress.h"/>
     <ClInclude Include="..\..\src\io\network\juce_Socket.h"/>
     <ClInclude Include="..\..\src\io\network\juce_URL.h"/>
     <ClInclude Include="..\..\src\io\streams\juce_BufferedInputStream.h"/>
@@ -730,6 +739,7 @@
     <ClInclude Include="..\..\src\io\streams\juce_MemoryOutputStream.h"/>
     <ClInclude Include="..\..\src\io\streams\juce_OutputStream.h"/>
     <ClInclude Include="..\..\src\io\streams\juce_SubregionStream.h"/>
+    <ClInclude Include="..\..\src\native\common\juce_MidiDataConcatenator.h"/>
     <ClInclude Include="..\..\src\native\common\juce_posix_SharedCode.h"/>
     <ClInclude Include="..\..\src\native\linux\juce_linux_NativeIncludes.h"/>
     <ClInclude Include="..\..\src\native\mac\juce_mac_CarbonViewWrapperComponent.h"/>
@@ -766,6 +776,7 @@
     <ClInclude Include="..\..\src\utilities\juce_SystemClipboard.h"/>
     <ClInclude Include="..\..\src\utilities\juce_UndoableAction.h"/>
     <ClInclude Include="..\..\src\utilities\juce_UndoManager.h"/>
+    <ClInclude Include="..\..\src\utilities\juce_UnitTest.h"/>
     <ClInclude Include="..\..\juce.h"/>
     <ClInclude Include="..\..\juce_Config.h"/>
   </ItemGroup>

@@ -29,7 +29,7 @@
 #include "../colour/juce_Colour.h"
 #include "../contexts/juce_Graphics.h"
 #include "../../../containers/juce_Variant.h"
-
+#include "../../../containers/juce_NamedValueSet.h"
 
 //==============================================================================
 /**
@@ -326,8 +326,7 @@ public:
         int lineStride, pixelStride, width, height;
 
     private:
-        BitmapData (const BitmapData&);
-        BitmapData& operator= (const BitmapData&);
+        JUCE_DECLARE_NON_COPYABLE (BitmapData);
     };
 
     /** Copies some pixel values to a rectangle of the image.
@@ -354,21 +353,12 @@ public:
                               float alphaThreshold = 0.5f) const;
 
     //==============================================================================
-    /** Returns a user-specified data item that was set with setTag().
-        setTag() and getTag() allow you to attach an arbitrary identifier value to an
-        image. The value is shared between all Image object that are referring to the
-        same underlying image data object.
-    */
-    const var getTag() const;
+    /** Returns a NamedValueSet that is attached to the image and which can be used for
+        associating custom values with it.
 
-    /** Attaches a user-specified data item to this image, which can be retrieved using getTag().
-        setTag() and getTag() allow you to attach an arbitrary identifier value to an
-        image. The value is shared between all Image object that are referring to the
-        same underlying image data object.
-
-        Note that if this Image is null, this method will fail to store the data.
+        If this is a null image, this will return a null pointer.
     */
-    void setTag (const var& newTag);
+    NamedValueSet* getProperties() const;
 
     //==============================================================================
     /** Creates a context suitable for drawing onto this image.
@@ -410,15 +400,14 @@ public:
 
     protected:
         friend class Image;
-        friend class Image::BitmapData;
+        friend class BitmapData;
         const PixelFormat format;
         const int width, height;
         int pixelStride, lineStride;
         uint8* imageData;
-        var userTag;
+        NamedValueSet userData;
 
-        SharedImage (const SharedImage&);
-        SharedImage& operator= (const SharedImage&);
+        JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SharedImage);
     };
 
     /** @internal */
@@ -426,11 +415,14 @@ public:
     /** @internal */
     explicit Image (SharedImage* instance);
 
-    //==============================================================================
-    juce_UseDebuggingNewOperator
-
 private:
+    //==============================================================================
+    friend class SharedImage;
+    friend class BitmapData;
+
     ReferenceCountedObjectPtr<SharedImage> image;
+
+    JUCE_LEAK_DETECTOR (Image);
 };
 
 

@@ -193,36 +193,43 @@ public:
     int compareLexicographically (const String& other) const throw();
 
     /** Tests whether the string begins with another string.
+        If the parameter is an empty string, this will always return true.
         Uses a case-sensitive comparison.
     */
     bool startsWith (const String& text) const throw();
 
     /** Tests whether the string begins with a particular character.
+        If the character is 0, this will always return false.
         Uses a case-sensitive comparison.
     */
     bool startsWithChar (juce_wchar character) const throw();
 
     /** Tests whether the string begins with another string.
+        If the parameter is an empty string, this will always return true.
         Uses a case-insensitive comparison.
     */
     bool startsWithIgnoreCase (const String& text) const throw();
 
     /** Tests whether the string ends with another string.
+        If the parameter is an empty string, this will always return true.
         Uses a case-sensitive comparison.
     */
     bool endsWith (const String& text) const throw();
 
     /** Tests whether the string ends with a particular character.
+        If the character is 0, this will always return false.
         Uses a case-sensitive comparison.
     */
     bool endsWithChar (juce_wchar character) const throw();
 
     /** Tests whether the string ends with another string.
+        If the parameter is an empty string, this will always return true.
         Uses a case-insensitive comparison.
     */
     bool endsWithIgnoreCase (const String& text) const throw();
 
     /** Tests whether the string contains another substring.
+        If the parameter is an empty string, this will always return true.
         Uses a case-sensitive comparison.
     */
     bool contains (const String& text) const throw();
@@ -284,8 +291,9 @@ public:
 
         Uses a case-sensitive comparison.
 
-        @returns    true if the all the characters in the string are also found in the
-                    string that is passed in.
+        @returns    Returns false if any of the characters in this string do not occur in
+                    the parameter string. If this string is empty, the return value will
+                    always be true.
     */
     bool containsOnly (const String& charactersItMightContain) const throw();
 
@@ -434,7 +442,7 @@ public:
 
         No checks are made to see if the index is within a valid range, so be careful!
     */
-    inline const juce_wchar& operator[] (int index) const throw()  { jassert (((unsigned int) index) <= (unsigned int) length()); return text [index]; }
+    inline const juce_wchar& operator[] (int index) const throw()  { jassert (isPositiveAndNotGreaterThan (index, length())); return text [index]; }
 
     /** Returns a character from the string such that it can also be altered.
 
@@ -546,7 +554,7 @@ public:
     /** Returns the start of this string, up to the last occurrence of a substring.
 
         Similar to upToFirstOccurrenceOf(), but this finds the last occurrence rather than the first.
-        If the substring isn't found, this will return an empty string.
+        If the substring isn't found, this will return the whole of the original string.
 
         @see upToFirstOccurrenceOf, fromFirstOccurrenceOf
     */
@@ -976,7 +984,7 @@ public:
 
         @param destBuffer       the place to copy it to
         @param maxCharsToCopy   the maximum number of characters to copy to the buffer,
-                                not including the tailing zero, so this shouldn't be
+                                NOT including the trailing zero, so this shouldn't be
                                 larger than the size of your destination buffer - 1
     */
     void copyToUnicode (juce_wchar* destBuffer, int maxCharsToCopy) const throw();
@@ -1026,108 +1034,115 @@ public:
         String& result;
         int nextIndex;
 
-        Concatenator (const Concatenator&);
-        Concatenator& operator= (const Concatenator&);
+        JUCE_DECLARE_NON_COPYABLE (Concatenator);
     };
-
-    //==============================================================================
-    juce_UseDebuggingNewOperator // (adds debugging info to find leaked objects)
 
 private:
     //==============================================================================
     juce_wchar* text;
 
     //==============================================================================
-    // internal constructor that preallocates a certain amount of memory
-    String (size_t numChars, int dummyVariable);
+    struct Preallocation
+    {
+        explicit Preallocation (size_t);
+        size_t numChars;
+    };
+
+    // This constructor preallocates a certain amount of memory
+    explicit String (const Preallocation&);
     String (const String& stringToCopy, size_t charsToAllocate);
 
     void createInternal (const juce_wchar* text, size_t numChars);
     void appendInternal (const juce_wchar* text, int numExtraChars);
+
+    // This private cast operator should prevent strings being accidentally cast
+    // to bools (this is possible because the compiler can add an implicit cast
+    // via a const char*)
+    operator bool() const throw()   { return false; }
 };
 
 //==============================================================================
 /** Concatenates two strings. */
-const String JUCE_PUBLIC_FUNCTION operator+  (const char* string1,       const String& string2);
+JUCE_API const String JUCE_CALLTYPE operator+  (const char* string1,       const String& string2);
 /** Concatenates two strings. */
-const String JUCE_PUBLIC_FUNCTION operator+  (const juce_wchar* string1, const String& string2);
+JUCE_API const String JUCE_CALLTYPE operator+  (const juce_wchar* string1, const String& string2);
 /** Concatenates two strings. */
-const String JUCE_PUBLIC_FUNCTION operator+  (char string1,              const String& string2);
+JUCE_API const String JUCE_CALLTYPE operator+  (char string1,              const String& string2);
 /** Concatenates two strings. */
-const String JUCE_PUBLIC_FUNCTION operator+  (juce_wchar string1,        const String& string2);
+JUCE_API const String JUCE_CALLTYPE operator+  (juce_wchar string1,        const String& string2);
 
 /** Concatenates two strings. */
-const String JUCE_PUBLIC_FUNCTION operator+  (String string1, const String& string2);
+JUCE_API const String JUCE_CALLTYPE operator+  (String string1, const String& string2);
 /** Concatenates two strings. */
-const String JUCE_PUBLIC_FUNCTION operator+  (String string1, const char* string2);
+JUCE_API const String JUCE_CALLTYPE operator+  (String string1, const char* string2);
 /** Concatenates two strings. */
-const String JUCE_PUBLIC_FUNCTION operator+  (String string1, const juce_wchar* string2);
+JUCE_API const String JUCE_CALLTYPE operator+  (String string1, const juce_wchar* string2);
 /** Concatenates two strings. */
-const String JUCE_PUBLIC_FUNCTION operator+  (String string1, char characterToAppend);
+JUCE_API const String JUCE_CALLTYPE operator+  (String string1, char characterToAppend);
 /** Concatenates two strings. */
-const String JUCE_PUBLIC_FUNCTION operator+  (String string1, juce_wchar characterToAppend);
+JUCE_API const String JUCE_CALLTYPE operator+  (String string1, juce_wchar characterToAppend);
 
 //==============================================================================
 /** Appends a character at the end of a string. */
-String& JUCE_PUBLIC_FUNCTION operator<< (String& string1, char characterToAppend);
+JUCE_API String& JUCE_CALLTYPE operator<< (String& string1, char characterToAppend);
 /** Appends a character at the end of a string. */
-String& JUCE_PUBLIC_FUNCTION operator<< (String& string1, juce_wchar characterToAppend);
+JUCE_API String& JUCE_CALLTYPE operator<< (String& string1, juce_wchar characterToAppend);
 /** Appends a string to the end of the first one. */
-String& JUCE_PUBLIC_FUNCTION operator<< (String& string1, const char* string2);
+JUCE_API String& JUCE_CALLTYPE operator<< (String& string1, const char* string2);
 /** Appends a string to the end of the first one. */
-String& JUCE_PUBLIC_FUNCTION operator<< (String& string1, const juce_wchar* string2);
+JUCE_API String& JUCE_CALLTYPE operator<< (String& string1, const juce_wchar* string2);
 /** Appends a string to the end of the first one. */
-String& JUCE_PUBLIC_FUNCTION operator<< (String& string1, const String& string2);
+JUCE_API String& JUCE_CALLTYPE operator<< (String& string1, const String& string2);
 
 /** Appends a decimal number at the end of a string. */
-String& JUCE_PUBLIC_FUNCTION operator<< (String& string1, short number);
+JUCE_API String& JUCE_CALLTYPE operator<< (String& string1, short number);
 /** Appends a decimal number at the end of a string. */
-String& JUCE_PUBLIC_FUNCTION operator<< (String& string1, int number);
+JUCE_API String& JUCE_CALLTYPE operator<< (String& string1, int number);
 /** Appends a decimal number at the end of a string. */
-String& JUCE_PUBLIC_FUNCTION operator<< (String& string1, unsigned int number);
+JUCE_API String& JUCE_CALLTYPE operator<< (String& string1, unsigned int number);
 /** Appends a decimal number at the end of a string. */
-String& JUCE_PUBLIC_FUNCTION operator<< (String& string1, long number);
+JUCE_API String& JUCE_CALLTYPE operator<< (String& string1, long number);
 /** Appends a decimal number at the end of a string. */
-String& JUCE_PUBLIC_FUNCTION operator<< (String& string1, unsigned long number);
+JUCE_API String& JUCE_CALLTYPE operator<< (String& string1, unsigned long number);
 /** Appends a decimal number at the end of a string. */
-String& JUCE_PUBLIC_FUNCTION operator<< (String& string1, float number);
+JUCE_API String& JUCE_CALLTYPE operator<< (String& string1, float number);
 /** Appends a decimal number at the end of a string. */
-String& JUCE_PUBLIC_FUNCTION operator<< (String& string1, double number);
+JUCE_API String& JUCE_CALLTYPE operator<< (String& string1, double number);
 
 //==============================================================================
 /** Case-sensitive comparison of two strings. */
-bool JUCE_PUBLIC_FUNCTION operator== (const String& string1, const String& string2) throw();
+JUCE_API bool JUCE_CALLTYPE operator== (const String& string1, const String& string2) throw();
 /** Case-sensitive comparison of two strings. */
-bool JUCE_PUBLIC_FUNCTION operator== (const String& string1, const char* string2) throw();
+JUCE_API bool JUCE_CALLTYPE operator== (const String& string1, const char* string2) throw();
 /** Case-sensitive comparison of two strings. */
-bool JUCE_PUBLIC_FUNCTION operator== (const String& string1, const juce_wchar* string2) throw();
+JUCE_API bool JUCE_CALLTYPE operator== (const String& string1, const juce_wchar* string2) throw();
 /** Case-sensitive comparison of two strings. */
-bool JUCE_PUBLIC_FUNCTION operator!= (const String& string1, const String& string2) throw();
+JUCE_API bool JUCE_CALLTYPE operator!= (const String& string1, const String& string2) throw();
 /** Case-sensitive comparison of two strings. */
-bool JUCE_PUBLIC_FUNCTION operator!= (const String& string1, const char* string2) throw();
+JUCE_API bool JUCE_CALLTYPE operator!= (const String& string1, const char* string2) throw();
 /** Case-sensitive comparison of two strings. */
-bool JUCE_PUBLIC_FUNCTION operator!= (const String& string1, const juce_wchar* string2) throw();
+JUCE_API bool JUCE_CALLTYPE operator!= (const String& string1, const juce_wchar* string2) throw();
 /** Case-sensitive comparison of two strings. */
-bool JUCE_PUBLIC_FUNCTION operator>  (const String& string1, const String& string2) throw();
+JUCE_API bool JUCE_CALLTYPE operator>  (const String& string1, const String& string2) throw();
 /** Case-sensitive comparison of two strings. */
-bool JUCE_PUBLIC_FUNCTION operator<  (const String& string1, const String& string2) throw();
+JUCE_API bool JUCE_CALLTYPE operator<  (const String& string1, const String& string2) throw();
 /** Case-sensitive comparison of two strings. */
-bool JUCE_PUBLIC_FUNCTION operator>= (const String& string1, const String& string2) throw();
+JUCE_API bool JUCE_CALLTYPE operator>= (const String& string1, const String& string2) throw();
 /** Case-sensitive comparison of two strings. */
-bool JUCE_PUBLIC_FUNCTION operator<= (const String& string1, const String& string2) throw();
+JUCE_API bool JUCE_CALLTYPE operator<= (const String& string1, const String& string2) throw();
 
 //==============================================================================
 /** This streaming override allows you to pass a juce String directly into std output streams.
     This is very handy for writing strings to std::cout, std::cerr, etc.
 */
 template <class charT, class traits>
-std::basic_ostream <charT, traits>& JUCE_PUBLIC_FUNCTION operator<< (std::basic_ostream <charT, traits>& stream, const String& stringToWrite)
+JUCE_API std::basic_ostream <charT, traits>& JUCE_CALLTYPE operator<< (std::basic_ostream <charT, traits>& stream, const String& stringToWrite)
 {
     return stream << stringToWrite.toUTF8();
 }
 
 /** Writes a string to an OutputStream as UTF8. */
-OutputStream& JUCE_PUBLIC_FUNCTION operator<< (OutputStream& stream, const String& text);
+JUCE_API OutputStream& JUCE_CALLTYPE operator<< (OutputStream& stream, const String& text);
 
 
 #endif   // __JUCE_STRING_JUCEHEADER__

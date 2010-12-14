@@ -162,7 +162,7 @@ public:
 
         @see addTab, TabbedButtonBar::getCurrentTabName()
     */
-    const String& getCurrentTabName() const;
+    const String getCurrentTabName() const;
 
     /** Returns the current component that's filling the panel.
 
@@ -212,13 +212,10 @@ public:
     /** @internal */
     void lookAndFeelChanged();
 
-    juce_UseDebuggingNewOperator
-
 protected:
     //==============================================================================
-    TabbedButtonBar* tabs;
+    ScopedPointer<TabbedButtonBar> tabs;
 
-    //==============================================================================
     /** This creates one of the tab buttons.
 
         If you need to use custom tab components, you can override this method and
@@ -228,8 +225,8 @@ protected:
 
 private:
     //==============================================================================
-    Array <Component*> contentComponents;
-    Component* panelComponent;
+    OwnedArray <Component::SafePointer<Component> > contentComponents;
+    Component::SafePointer<Component> panelComponent;
     int tabDepth;
     int outlineThickness, edgeIndent;
     static const Identifier deleteComponentId;
@@ -237,8 +234,7 @@ private:
     friend class TabCompButtonBar;
     void changeCallback (int newCurrentTabIndex, const String& newTabName);
 
-    TabbedComponent (const TabbedComponent&);
-    TabbedComponent& operator= (const TabbedComponent&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (TabbedComponent);
 };
 
 

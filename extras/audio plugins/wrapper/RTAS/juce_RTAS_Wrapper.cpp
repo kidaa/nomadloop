@@ -34,7 +34,7 @@
 #if JucePlugin_Build_RTAS
 
 #ifdef _MSC_VER
-  #include "Mac2Win.H"
+  #include <Mac2Win.H>
 #endif
 
 /* Note about include paths
@@ -73,14 +73,14 @@
    some filename clashes between them.
 
 */
-#include "CEffectGroupMIDI.h"
-#include "CEffectProcessMIDI.h"
-#include "CEffectProcessRTAS.h"
-#include "CCustomView.h"
-#include "CEffectTypeRTAS.h"
-#include "CPluginControl.h"
-#include "CPluginControl_OnOff.h"
-#include "FicProcessTokens.h"
+#include <CEffectGroupMIDI.h>
+#include <CEffectProcessMIDI.h>
+#include <CEffectProcessRTAS.h>
+#include <CCustomView.h>
+#include <CEffectTypeRTAS.h>
+#include <CPluginControl.h>
+#include <CPluginControl_OnOff.h>
+#include <FicProcessTokens.h>
 
 //==============================================================================
 #ifdef _MSC_VER
@@ -131,37 +131,22 @@ static const int bypassControlIndex = 1;
 */
 extern AudioProcessor* JUCE_CALLTYPE createPluginFilter();
 
-
-//==============================================================================
-static float longToFloat (const long n) throw()
-{
-    return (float) ((((double) n) + (double) 0x80000000) / (double) 0xffffffff);
-}
-
-static long floatToLong (const float n) throw()
-{
-    return roundToInt (jlimit (-(double) 0x80000000,
-                               (double) 0x7fffffff,
-                               n * (double) 0xffffffff - (double) 0x80000000));
-}
-
 static int numInstances = 0;
+
 
 //==============================================================================
 class JucePlugInProcess  : public CEffectProcessMIDI,
                            public CEffectProcessRTAS,
                            public AudioProcessorListener,
-                           public AudioPlayHead,
-                           public AsyncUpdater
+                           public AudioPlayHead
 {
 public:
     //==============================================================================
     JucePlugInProcess()
-        : midiBufferNode (0),
-          midiTransport (0),
-          prepared (false),
+        : prepared (false),
           sampleRate (44100.0)
     {
+        asyncUpdater = new InternalAsyncUpdater (*this);
         juceFilter = createPluginFilter();
         jassert (juceFilter != 0);
 
@@ -172,16 +157,19 @@ public:
 
     ~JucePlugInProcess()
     {
+        JUCE_AUTORELEASEPOOL
+
         if (mLoggedIn)
             MIDILogOut();
 
-        deleteAndZero (midiBufferNode);
-        deleteAndZero (midiTransport);
+        midiBufferNode = 0;
+        midiTransport = 0;
 
         if (prepared)
             juceFilter->releaseResources();
 
         delete juceFilter;
+        asyncUpdater = 0;
 
         if (--numInstances == 0)
         {
@@ -204,9 +192,7 @@ public:
         JuceCustomUIView (AudioProcessor* const filter_,
                           JucePlugInProcess* const process_)
             : filter (filter_),
-              process (process_),
-              wrapper (0),
-              editorComp (0)
+              process (process_)
         {
             // setting the size in here crashes PT for some reason, so keep it simple..
         }
@@ -225,18 +211,21 @@ public:
                 jassert (editorComp != 0);
             }
 
-            Rect oldRect;
-            GetRect (&oldRect);
+            if (editorComp->getWidth() != 0 && editorComp->getHeight() != 0)
+            {
+                Rect oldRect;
+                GetRect (&oldRect);
 
-            Rect r;
-            r.left = 0;
-            r.top = 0;
-            r.right = editorComp->getWidth();
-            r.bottom = editorComp->getHeight();
-            SetRect (&r);
+                Rect r;
+                r.left = 0;
+                r.top = 0;
+                r.right = editorComp->getWidth();
+                r.bottom = editorComp->getHeight();
+                SetRect (&r);
 
-            if ((oldRect.right != r.right) || (oldRect.bottom != r.bottom))
-                startTimer (50);
+                if ((oldRect.right != r.right) || (oldRect.bottom != r.bottom))
+                    startTimer (50);
+            }
         }
 
         void timerCallback()
@@ -255,6 +244,7 @@ public:
         {
             if (port != 0)
             {
+                JUCE_AUTORELEASEPOOL
                 updateSize();
 
 #if JUCE_WINDOWS
@@ -262,8 +252,7 @@ public:
 #else
                 void* const hostWindow = (void*) GetWindowFromPort (port);
 #endif
-                deleteAndZero (wrapper);
-
+                wrapper = 0;
                 wrapper = new EditorCompWrapper (hostWindow, editorComp, this);
 
                 process->touchAllParameters();
@@ -296,16 +285,14 @@ public:
     private:
         AudioProcessor* const filter;
         JucePlugInProcess* const process;
-        JUCE_NAMESPACE::Component* wrapper;
-        AudioProcessorEditor* editorComp;
+        ScopedPointer<JUCE_NAMESPACE::Component> wrapper;
+        ScopedPointer<AudioProcessorEditor> editorComp;
 
         void deleteEditorComp()
         {
             if (editorComp != 0 || wrapper != 0)
             {
-#if JUCE_MAC
-                const ScopedAutoReleasePool pool;
-#endif
+                JUCE_AUTORELEASEPOOL
                 PopupMenu::dismissAllActiveMenus();
 
                 JUCE_NAMESPACE::Component* const modalComponent = JUCE_NAMESPACE::Component::getCurrentlyModalComponent();
@@ -314,8 +301,8 @@ public:
 
                 filter->editorBeingDeleted (editorComp);
 
-                deleteAndZero (editorComp);
-                deleteAndZero (wrapper);
+                editorComp = 0;
+                wrapper = 0;
             }
         }
 
@@ -416,14 +403,15 @@ public:
                 return true;
             }
 #endif
-            //==============================================================================
-            juce_UseDebuggingNewOperator
 
         private:
+            //==============================================================================
             void* const hostWindow;
             void* nsWindow;
             JuceCustomUIView* const owner;
             int titleW, titleH;
+
+            JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (EditorCompWrapper);
         };
     };
 
@@ -534,7 +522,7 @@ protected:
     {
         if (! prepared)
         {
-            triggerAsyncUpdate();
+            asyncUpdater->triggerAsyncUpdate();
             bypassBuffers (inputs, outputs, numSamples);
             return;
         }
@@ -550,22 +538,25 @@ protected:
 
         const Cmn_UInt32 bufferSize = mRTGlobals->mHWBufferSizeInSamples;
 
-        if (midiBufferNode->GetAdvanceScheduleTime() != bufferSize)
-            midiBufferNode->SetAdvanceScheduleTime (bufferSize);
-
-        if (midiBufferNode->FillMIDIBuffer (mRTGlobals->mRunningTime, numSamples) == noErr)
+        if (midiBufferNode != 0)
         {
-            jassert (midiBufferNode->GetBufferPtr() != 0);
-            const int numMidiEvents = midiBufferNode->GetBufferSize();
+            if (midiBufferNode->GetAdvanceScheduleTime() != bufferSize)
+                midiBufferNode->SetAdvanceScheduleTime (bufferSize);
 
-            for (int i = 0; i < numMidiEvents; ++i)
+            if (midiBufferNode->FillMIDIBuffer (mRTGlobals->mRunningTime, numSamples) == noErr)
             {
-                const DirectMidiPacket& m = midiBuffer[i];
+                jassert (midiBufferNode->GetBufferPtr() != 0);
+                const int numMidiEvents = midiBufferNode->GetBufferSize();
 
-                jassert ((int) m.mTimestamp < numSamples);
+                for (int i = 0; i < numMidiEvents; ++i)
+                {
+                    const DirectMidiPacket& m = midiBuffer[i];
 
-                midiEvents.addEvent (m.mData, m.mLength,
-                                     jlimit (0, (int) numSamples - 1, (int) m.mTimestamp));
+                    jassert ((int) m.mTimestamp < numSamples);
+
+                    midiEvents.addEvent (m.mData, m.mLength,
+                                         jlimit (0, (int) numSamples - 1, (int) m.mTimestamp));
+                }
             }
         }
 #endif
@@ -805,18 +796,44 @@ protected:
         }
     }
 
+public:
+    // Need to use an intermediate class here rather than inheriting from AsyncUpdater, so that it can
+    // be deleted before shutting down juce in our destructor.
+    class InternalAsyncUpdater  : public AsyncUpdater
+    {
+    public:
+        InternalAsyncUpdater (JucePlugInProcess& owner_)  : owner (owner_) {}
+        void handleAsyncUpdate()    { owner.handleAsyncUpdate(); }
+
+    private:
+        JucePlugInProcess& owner;
+    };
+
     //==============================================================================
 private:
     AudioProcessor* juceFilter;
     MidiBuffer midiEvents;
-    CEffectMIDIOtherBufferedNode* midiBufferNode;
-    CEffectMIDITransport* midiTransport;
+    ScopedPointer<CEffectMIDIOtherBufferedNode> midiBufferNode;
+    ScopedPointer<CEffectMIDITransport> midiTransport;
     DirectMidiPacket midiBuffer [midiBufferSize];
+
+    ScopedPointer<InternalAsyncUpdater> asyncUpdater;
 
     JUCE_NAMESPACE::MemoryBlock tempFilterData;
     HeapBlock <float*> channels;
     bool prepared;
     double sampleRate;
+
+    static float longToFloat (const long n) throw()
+    {
+        return (float) ((((double) n) + (double) 0x80000000) / (double) 0xffffffff);
+    }
+
+    static long floatToLong (const float n) throw()
+    {
+        return roundToInt (jlimit (-(double) 0x80000000, (double) 0x7fffffff,
+                                   n * (double) 0xffffffff - (double) 0x80000000));
+    }
 
     void bypassBuffers (float** const inputs, float** const outputs, const long numSamples) const
     {
@@ -887,8 +904,7 @@ private:
         AudioProcessor* const juceFilter;
         const int index;
 
-        JucePluginControl (const JucePluginControl&);
-        JucePluginControl& operator= (const JucePluginControl&);
+        JUCE_DECLARE_NON_COPYABLE (JucePluginControl);
     };
 };
 
@@ -953,10 +969,10 @@ public:
 private:
     static CEffectProcess* createNewProcess()
     {
-        // Juce setup
-#if JUCE_WINDOWS
+      #if JUCE_WINDOWS
         PlatformUtilities::setCurrentModuleInstanceHandle (gThisModule);
-#endif
+      #endif
+
         initialiseJuce_GUI();
 
         return new JucePlugInProcess();
@@ -964,44 +980,25 @@ private:
 
     static const String createRTASName()
     {
-        return String (JucePlugin_Name) + T("\n")
-                    + String (JucePlugin_Name).substring (0, 4);
+        return String (JucePlugin_Name) + "\n"
+                 + String (JucePlugin_Name).substring (0, 4);
     }
 
     static EPlugIn_StemFormat getFormatForChans (const int numChans) throw()
     {
         switch (numChans)
         {
-        case 0:
-            return ePlugIn_StemFormat_Generic;
+            case 0:   return ePlugIn_StemFormat_Generic;
+            case 1:   return ePlugIn_StemFormat_Mono;
+            case 2:   return ePlugIn_StemFormat_Stereo;
+            case 3:   return ePlugIn_StemFormat_LCR;
+            case 4:   return ePlugIn_StemFormat_Quad;
+            case 5:   return ePlugIn_StemFormat_5dot0;
+            case 6:   return ePlugIn_StemFormat_5dot1;
+            case 7:   return ePlugIn_StemFormat_6dot1;
+            case 8:   return ePlugIn_StemFormat_7dot1;
 
-        case 1:
-            return ePlugIn_StemFormat_Mono;
-
-        case 2:
-            return ePlugIn_StemFormat_Stereo;
-
-        case 3:
-            return ePlugIn_StemFormat_LCR;
-
-        case 4:
-            return ePlugIn_StemFormat_Quad;
-
-        case 5:
-            return ePlugIn_StemFormat_5dot0;
-
-        case 6:
-            return ePlugIn_StemFormat_5dot1;
-
-        case 7:
-            return ePlugIn_StemFormat_6dot1;
-
-        case 8:
-            return ePlugIn_StemFormat_7dot1;
-
-        default:
-            jassertfalse // hmm - not a valid number of chans for RTAS..
-            break;
+            default:  jassertfalse; break; // hmm - not a valid number of chans for RTAS..
         }
 
         return ePlugIn_StemFormat_Generic;
@@ -1012,9 +1009,10 @@ void initialiseMacRTAS();
 
 CProcessGroupInterface* CProcessGroup::CreateProcessGroup()
 {
-#if JUCE_MAC
+  #if JUCE_MAC
     initialiseMacRTAS();
-#endif
+  #endif
+
     initialiseJuce_NonGUI();
     return new JucePlugInGroup();
 }

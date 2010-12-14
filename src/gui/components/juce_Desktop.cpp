@@ -37,7 +37,8 @@ BEGIN_JUCE_NAMESPACE
 //==============================================================================
 Desktop::Desktop()
     : mouseClickCounter (0),
-      kioskModeComponent (0)
+      kioskModeComponent (0),
+      allowedOrientations (allOrientations)
 {
     createMouseInputSources();
     refreshMonitorSizes();
@@ -156,10 +157,14 @@ Component* Desktop::findComponentAt (const Point<int>& screenPosition) const
     for (int i = desktopComponents.size(); --i >= 0;)
     {
         Component* const c = desktopComponents.getUnchecked(i);
-        const Point<int> relative (c->globalPositionToRelative (screenPosition));
 
-        if (c->contains (relative.getX(), relative.getY()))
-            return c->getComponentAt (relative.getX(), relative.getY());
+        if (c->isVisible())
+        {
+            const Point<int> relative (c->getLocalPoint (0, screenPosition));
+
+            if (c->contains (relative))
+                return c->getComponentAt (relative);
+        }
     }
 
     return 0;
@@ -202,12 +207,17 @@ void Desktop::componentBroughtToFront (Component* const c)
 }
 
 //==============================================================================
-const Point<int> Desktop::getLastMouseDownPosition() throw()
+const Point<int> Desktop::getMousePosition()
+{
+    return getInstance().getMainMouseSource().getScreenPosition();
+}
+
+const Point<int> Desktop::getLastMouseDownPosition()
 {
     return getInstance().getMainMouseSource().getLastMouseDownPosition();
 }
 
-int Desktop::getMouseButtonClickCounter() throw()
+int Desktop::getMouseButtonClickCounter()
 {
     return getInstance().mouseClickCounter;
 }
@@ -300,7 +310,7 @@ void Desktop::sendMouseMove()
         if (target != 0)
         {
             Component::BailOutChecker checker (target);
-            const Point<int> pos (target->globalPositionToRelative (lastFakeMouseMove));
+            const Point<int> pos (target->getLocalPoint (0, lastFakeMouseMove));
             const Time now (Time::getCurrentTime());
 
             const MouseEvent me (getMainMouseSource(), pos, ModifierKeys::getCurrentModifiers(),
@@ -331,12 +341,10 @@ void Desktop::setKioskModeComponent (Component* componentToUse, const bool allow
 {
     if (kioskModeComponent != componentToUse)
     {
-        // agh! Don't delete a component without first stopping it being the kiosk comp
-        jassert (kioskModeComponent == 0 || kioskModeComponent->isValidComponent());
-        // agh! Don't remove a component from the desktop if it's the kiosk comp!
-        jassert (kioskModeComponent == 0 || kioskModeComponent->isOnDesktop());
+        // agh! Don't delete or remove a component from the desktop while it's still the kiosk component!
+        jassert (kioskModeComponent == 0 || ComponentPeer::getPeerFor (kioskModeComponent) != 0);
 
-        if (kioskModeComponent->isValidComponent())
+        if (kioskModeComponent != 0)
         {
             juce_setKioskComponent (kioskModeComponent, false, allowMenusAndBars);
 
@@ -347,16 +355,31 @@ void Desktop::setKioskModeComponent (Component* componentToUse, const bool allow
 
         if (kioskModeComponent != 0)
         {
-            jassert (kioskModeComponent->isValidComponent());
-
             // Only components that are already on the desktop can be put into kiosk mode!
-            jassert (kioskModeComponent->isOnDesktop());
+            jassert (ComponentPeer::getPeerFor (kioskModeComponent) != 0);
 
             kioskComponentOriginalBounds = kioskModeComponent->getBounds();
 
             juce_setKioskComponent (kioskModeComponent, true, allowMenusAndBars);
         }
     }
+}
+
+//==============================================================================
+void Desktop::setOrientationsEnabled (const int newOrientations)
+{
+    // Dodgy set of flags being passed here! Make sure you specify at least one permitted orientation.
+    jassert (newOrientations != 0 && (newOrientations & ~allOrientations) == 0);
+
+    allowedOrientations = newOrientations;
+}
+
+bool Desktop::isOrientationEnabled (const DisplayOrientation orientation) const throw()
+{
+    // Make sure you only pass one valid flag in here...
+    jassert (orientation == upright || orientation == upsideDown || orientation == rotatedClockwise || orientation ==  rotatedAntiClockwise);
+
+    return (allowedOrientations & orientation) != 0;
 }
 
 

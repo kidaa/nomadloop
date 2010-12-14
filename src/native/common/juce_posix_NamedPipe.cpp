@@ -40,9 +40,9 @@ struct NamedPipeInternal
 
 void NamedPipe::cancelPendingReads()
 {
-    while (internal != 0 && ((NamedPipeInternal*) internal)->blocked)
+    while (internal != 0 && static_cast <NamedPipeInternal*> (internal)->blocked)
     {
-        NamedPipeInternal* const intern = (NamedPipeInternal*) internal;
+        NamedPipeInternal* const intern = static_cast <NamedPipeInternal*> (internal);
 
         intern->stopReadOperation = true;
 
@@ -60,7 +60,7 @@ void NamedPipe::cancelPendingReads()
 
 void NamedPipe::close()
 {
-    NamedPipeInternal* const intern = (NamedPipeInternal*) internal;
+    NamedPipeInternal* const intern = static_cast <NamedPipeInternal*> (internal);
 
     if (intern != 0)
     {
@@ -120,7 +120,7 @@ bool NamedPipe::openInternal (const String& pipeName, const bool createPipe)
 int NamedPipe::read (void* destBuffer, int maxBytesToRead, int /*timeOutMilliseconds*/)
 {
     int bytesRead = -1;
-    NamedPipeInternal* const intern = (NamedPipeInternal*) internal;
+    NamedPipeInternal* const intern = static_cast <NamedPipeInternal*> (internal);
 
     if (intern != 0)
     {
@@ -142,7 +142,7 @@ int NamedPipe::read (void* destBuffer, int maxBytesToRead, int /*timeOutMillisec
 
         bytesRead = 0;
 
-        char* p = (char*) destBuffer;
+        char* p = static_cast<char*> (destBuffer);
 
         while (bytesRead < maxBytesToRead)
         {
@@ -168,7 +168,7 @@ int NamedPipe::read (void* destBuffer, int maxBytesToRead, int /*timeOutMillisec
 int NamedPipe::write (const void* sourceBuffer, int numBytesToWrite, int timeOutMilliseconds)
 {
     int bytesWritten = -1;
-    NamedPipeInternal* const intern = (NamedPipeInternal*) internal;
+    NamedPipeInternal* const intern = static_cast <NamedPipeInternal*> (internal);
 
     if (intern != 0)
     {
@@ -185,7 +185,7 @@ int NamedPipe::write (const void* sourceBuffer, int numBytesToWrite, int timeOut
             }
         }
 
-        const char* p = (const char*) sourceBuffer;
+        const char* p = static_cast<const char*> (sourceBuffer);
         bytesWritten = 0;
 
         const uint32 timeOutTime = Time::getMillisecondCounter() + timeOutMilliseconds;

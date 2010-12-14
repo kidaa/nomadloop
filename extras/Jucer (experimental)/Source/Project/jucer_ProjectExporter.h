@@ -77,8 +77,11 @@ public:
     Value getExtraCompilerFlags() const     { return getSetting (Ids::extraCompilerFlags); }
     Value getExtraLinkerFlags() const       { return getSetting (Ids::extraLinkerFlags); }
 
-    Value getExtraPreprocessorDefs() const  { return getSetting (Ids::extraDefs); }
-    const StringArray parsePreprocessorDefs() const;
+    Value getExporterPreprocessorDefs() const   { return getSetting (Ids::extraDefs); }
+    const StringPairArray getAllPreprocessorDefs (const Project::BuildConfiguration& config) const;  // includes inherited ones..
+
+    const String replacePreprocessorTokens (const Project::BuildConfiguration& config,
+                                            const String& sourceString) const;
 
     // This adds the quotes, and may return angle-brackets, eg: <foo/bar.h> or normal quotes.
     const String getIncludePathForFileInJuceFolder (const String& pathFromJuceFolder, const File& targetIncludeFile) const;
@@ -90,6 +93,7 @@ public:
     }
 
     Array<RelativePath> juceWrapperFiles;
+    RelativePath juceWrapperFolder;
 
 protected:
     //==============================================================================
@@ -112,9 +116,10 @@ protected:
         return name;
     }
 
+    const RelativePath rebaseFromProjectFolderToBuildTarget (const RelativePath& path) const;
+
 private:
-    ProjectExporter (const ProjectExporter&);
-    ProjectExporter& operator= (const ProjectExporter&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ProjectExporter);
 };
 
 

@@ -104,7 +104,7 @@ const StringArray Font::findAllTypefaceNames()
 
 extern bool juce_IsRunningInWine();
 
-void Font::getPlatformDefaultFontNames (String& defaultSans, String& defaultSerif, String& defaultFixed)
+void Font::getPlatformDefaultFontNames (String& defaultSans, String& defaultSerif, String& defaultFixed, String& defaultFallback)
 {
     if (juce_IsRunningInWine())
     {
@@ -115,9 +115,10 @@ void Font::getPlatformDefaultFontNames (String& defaultSans, String& defaultSeri
     }
     else
     {
-        defaultSans  = "Verdana";
-        defaultSerif = "Times";
-        defaultFixed = "Lucida Console";
+        defaultSans     = "Verdana";
+        defaultSerif    = "Times";
+        defaultFixed    = "Lucida Console";
+        defaultFallback = "Tahoma";  // (contains plenty of unicode characters)
     }
 }
 
@@ -241,8 +242,7 @@ private:
     int numKPs, size;
     bool bold, italic;
 
-    FontDCHolder (const FontDCHolder&);
-    FontDCHolder& operator= (const FontDCHolder&);
+    JUCE_DECLARE_NON_COPYABLE (FontDCHolder);
 };
 
 juce_ImplementSingleton_SingleThreaded (FontDCHolder);
@@ -274,6 +274,10 @@ public:
 
         GLYPHMETRICS gm;
 
+        // if this is the fallback font, skip checking for the glyph's existence. This is because
+        // with fonts like Tahoma, GetGlyphIndices can say that a glyph doesn't exist, but it still
+        // gets correctly created later on.
+        if (! isFallbackFont)
         {
             const WCHAR charToTest[] = { (WCHAR) character, 0 };
             WORD index = 0;
@@ -384,7 +388,8 @@ public:
         return true;
     }
 
-    juce_UseDebuggingNewOperator
+private:
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (WindowsTypeface);
 };
 
 const Typeface::Ptr Typeface::createSystemTypefaceFor (const Font& font)

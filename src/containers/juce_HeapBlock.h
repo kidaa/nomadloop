@@ -43,13 +43,13 @@
 
     E.g. instead of this:
     @code
-        int* temp = (int*) juce_malloc (1024 * sizeof (int));
+        int* temp = (int*) malloc (1024 * sizeof (int));
         memcpy (temp, xyz, 1024 * sizeof (int));
-        juce_free (temp);
-        temp = (int*) juce_calloc (2048 * sizeof (int));
+        free (temp);
+        temp = (int*) calloc (2048 * sizeof (int));
         temp[0] = 1234;
         memcpy (foobar, temp, 2048 * sizeof (int));
-        juce_free (temp);
+        free (temp);
     @endcode
 
     ..you could just write this:
@@ -90,7 +90,7 @@ public:
         If you want an array of zero values, you can use the calloc() method instead.
     */
     explicit HeapBlock (const size_t numElements)
-        : data (static_cast <ElementType*> (::juce_malloc (numElements * sizeof (ElementType))))
+        : data (static_cast <ElementType*> (::malloc (numElements * sizeof (ElementType))))
     {
     }
 
@@ -100,7 +100,7 @@ public:
     */
     ~HeapBlock()
     {
-        ::juce_free (data);
+        ::free (data);
     }
 
     //==============================================================================
@@ -122,6 +122,12 @@ public:
     */
     inline operator void*() const throw()                                   { return static_cast <void*> (data); }
 
+    /** Returns a void pointer to the allocated data.
+        This may be a null pointer if the data hasn't yet been allocated, or if it has been
+        freed by calling the free() method.
+    */
+    inline operator const void*() const throw()                             { return static_cast <const void*> (data); }
+
     /** Lets you use indirect calls to the first element in the array.
         Obviously this will cause problems if the array hasn't been initialised, because it'll
         be referencing a null pointer.
@@ -140,18 +146,6 @@ public:
     */
     template <typename IndexType>
     inline ElementType* operator+ (IndexType index) const throw()           { return data + index; }
-
-    /** Returns a reference to the raw data pointer.
-        Beware that the pointer returned here will become invalid as soon as you call
-        any of the allocator methods on this object!
-    */
-    inline ElementType* const* operator&() const throw()                    { return static_cast <ElementType* const*> (&data); }
-
-    /** Returns a reference to the raw data pointer.
-        Beware that the pointer returned here will become invalid as soon as you call
-        any of the allocator methods on this object!
-    */
-    inline ElementType** operator&() throw()                                { return static_cast <ElementType**> (&data); }
 
     //==============================================================================
     /** Compares the pointer with another pointer.
@@ -179,8 +173,8 @@ public:
     */
     void malloc (const size_t newNumElements, const size_t elementSize = sizeof (ElementType))
     {
-        ::juce_free (data);
-        data = static_cast <ElementType*> (::juce_malloc (newNumElements * elementSize));
+        ::free (data);
+        data = static_cast <ElementType*> (::malloc (newNumElements * elementSize));
     }
 
     /** Allocates a specified amount of memory and clears it.
@@ -188,8 +182,8 @@ public:
     */
     void calloc (const size_t newNumElements, const size_t elementSize = sizeof (ElementType))
     {
-        ::juce_free (data);
-        data = static_cast <ElementType*> (::juce_calloc (newNumElements * elementSize));
+        ::free (data);
+        data = static_cast <ElementType*> (::calloc (newNumElements, elementSize));
     }
 
     /** Allocates a specified amount of memory and optionally clears it.
@@ -198,12 +192,12 @@ public:
     */
     void allocate (const size_t newNumElements, const bool initialiseToZero)
     {
-        ::juce_free (data);
+        ::free (data);
 
         if (initialiseToZero)
-            data = static_cast <ElementType*> (::juce_calloc (newNumElements * sizeof (ElementType)));
+            data = static_cast <ElementType*> (::calloc (newNumElements, sizeof (ElementType)));
         else
-            data = static_cast <ElementType*> (::juce_malloc (newNumElements * sizeof (ElementType)));
+            data = static_cast <ElementType*> (::malloc (newNumElements * sizeof (ElementType)));
     }
 
     /** Re-allocates a specified amount of memory.
@@ -214,9 +208,9 @@ public:
     void realloc (const size_t newNumElements, const size_t elementSize = sizeof (ElementType))
     {
         if (data == 0)
-            data = static_cast <ElementType*> (::juce_malloc (newNumElements * elementSize));
+            data = static_cast <ElementType*> (::malloc (newNumElements * elementSize));
         else
-            data = static_cast <ElementType*> (::juce_realloc (data, newNumElements * elementSize));
+            data = static_cast <ElementType*> (::realloc (data, newNumElements * elementSize));
     }
 
     /** Frees any currently-allocated data.
@@ -224,7 +218,7 @@ public:
     */
     void free()
     {
-        ::juce_free (data);
+        ::free (data);
         data = 0;
     }
 
@@ -241,8 +235,7 @@ private:
     //==============================================================================
     ElementType* data;
 
-    HeapBlock (const HeapBlock&);
-    HeapBlock& operator= (const HeapBlock&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (HeapBlock);
 };
 
 

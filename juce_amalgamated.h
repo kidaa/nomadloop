@@ -64,7 +64,7 @@
 */
 #define JUCE_MAJOR_VERSION	  1
 #define JUCE_MINOR_VERSION	  52
-#define JUCE_BUILDNUMBER	49
+#define JUCE_BUILDNUMBER	103
 
 /** Current Juce version number.
 
@@ -134,10 +134,14 @@
   #define JUCE_INTEL 1
 #endif
 
-#if JUCE_MAC
+#if JUCE_MAC || JUCE_IOS
 
-  #ifndef NDEBUG
+  #if defined (DEBUG) || defined (_DEBUG) || ! (defined (NDEBUG) || defined (_NDEBUG))
 	#define JUCE_DEBUG 1
+  #endif
+
+  #if ! (defined (DEBUG) || defined (_DEBUG) || defined (NDEBUG) || defined (_NDEBUG))
+	#warning "Neither NDEBUG or DEBUG has been defined - you should set one of these to make it clear whether this is a release build,"
   #endif
 
   #ifdef __LITTLE_ENDIAN__
@@ -145,6 +149,9 @@
   #else
 	#define JUCE_BIG_ENDIAN 1
   #endif
+#endif
+
+#if JUCE_MAC
 
   #if defined (__ppc__) || defined (__ppc64__)
 	#define JUCE_PPC 1
@@ -166,19 +173,6 @@
 	#error "To build with 10.4 compatibility, use a 10.5 or 10.6 SDK and set the deployment target to 10.4"
   #endif
 
-#endif
-
-#if JUCE_IOS
-
-  #ifndef NDEBUG
-	#define JUCE_DEBUG 1
-  #endif
-
-  #ifdef __LITTLE_ENDIAN__
-	#define JUCE_LITTLE_ENDIAN 1
-  #else
-	#define JUCE_BIG_ENDIAN 1
-  #endif
 #endif
 
 #if JUCE_LINUX
@@ -208,7 +202,19 @@
 #elif defined (_MSC_VER)
   #define JUCE_MSVC 1
 
-  #if _MSC_VER >= 1400
+  #if _MSC_VER < 1500
+	#define JUCE_VC8_OR_EARLIER 1
+
+	#if _MSC_VER < 1400
+	  #define JUCE_VC7_OR_EARLIER 1
+
+	  #if _MSC_VER < 1300
+		#define JUCE_VC6 1
+	  #endif
+	#endif
+  #endif
+
+  #if ! JUCE_VC7_OR_EARLIER
 	#define JUCE_USE_INTRINSICS 1
   #endif
 #else
@@ -309,6 +315,13 @@
   #define JUCE_OPENGL 1
 #endif
 
+/** JUCE_DIRECT2D: Enables the Windows 7 Direct2D renderer.
+	If you're building on a platform older than Vista, you won't be able to compile with this feature.
+*/
+#ifndef JUCE_DIRECT2D
+  #define JUCE_DIRECT2D 0
+#endif
+
 /** JUCE_USE_FLAC: Enables the FLAC audio codec classes (available on all platforms).
 	If your app doesn't need to read FLAC files, you might want to disable this to
 	reduce the size of your codebase and build time.
@@ -330,7 +343,7 @@
 	reduce code size.
 */
 #if (! defined (JUCE_USE_CDBURNER)) && ! (JUCE_WINDOWS && ! JUCE_MSVC)
-  #define JUCE_USE_CDBURNER 0
+  #define JUCE_USE_CDBURNER 1
 #endif
 
 /** JUCE_USE_CDREADER: Enables the audio CD reader code (Mac and Windows only).
@@ -338,7 +351,7 @@
 	reduce code size.
 */
 #ifndef JUCE_USE_CDREADER
-  #define JUCE_USE_CDREADER 0
+  #define JUCE_USE_CDREADER 1
 #endif
 
 /** JUCE_USE_CAMERA: Enables web-cam support using the CameraDevice class (Mac and Windows).
@@ -420,7 +433,7 @@
 	Carbon isn't required for a normal app, but may be needed by specialised classes like
 	plugin-hosts, which support older APIs.
 */
-#ifndef JUCE_SUPPORT_CARBON
+#if ! (defined (JUCE_SUPPORT_CARBON) || defined (__LP64__))
   #define JUCE_SUPPORT_CARBON 1
 #endif
 
@@ -448,10 +461,11 @@
   #define JUCE_INCLUDE_JPEGLIB_CODE	 1
 #endif
 
-/** JUCE_CHECK_MEMORY_LEAKS: Enables a memory-leak check when an app terminates.
-	(Currently, this only affects Windows builds in debug mode).
+/** JUCE_CHECK_MEMORY_LEAKS: Enables a memory-leak check for certain objects when
+	the app terminates. See the LeakedObjectDetector class and the JUCE_LEAK_DETECTOR
+	macro for more details about enabling leak checking for specific classes.
 */
-#ifndef JUCE_CHECK_MEMORY_LEAKS
+#if JUCE_DEBUG && ! defined (JUCE_CHECK_MEMORY_LEAKS)
   #define JUCE_CHECK_MEMORY_LEAKS 1
 #endif
 
@@ -511,8 +525,10 @@
 /** This macro defines the C calling convention used as the standard for Juce calls. */
 #if JUCE_MSVC
   #define JUCE_CALLTYPE		 __stdcall
+  #define JUCE_CDECL		__cdecl
 #else
   #define JUCE_CALLTYPE
+  #define JUCE_CDECL
 #endif
 
 // Debugging and assertion macros
@@ -536,7 +552,7 @@
 
 	@see Logger::outputDebugString
   */
-  #define DBG(dbgtext)		{ String tempDbgBuf; tempDbgBuf << dbgtext; JUCE_NAMESPACE::Logger::outputDebugString (tempDbgBuf); }
+  #define DBG(dbgtext)		{ JUCE_NAMESPACE::String tempDbgBuf; tempDbgBuf << dbgtext; JUCE_NAMESPACE::Logger::outputDebugString (tempDbgBuf); }
 
   // Assertions..
 
@@ -617,6 +633,52 @@
 */
 #define static_jassert(expression)	  JuceStaticAssert<expression>::dummy();
 
+/** This is a shorthand macro for declaring stubs for a class's copy constructor and
+	operator=.
+
+	For example, instead of
+	@code
+	class MyClass
+	{
+		etc..
+
+	private:
+		MyClass (const MyClass&);
+		MyClass& operator= (const MyClass&);
+	};@endcode
+
+	..you can just write:
+
+	@code
+	class MyClass
+	{
+		etc..
+
+	private:
+		JUCE_DECLARE_NON_COPYABLE (MyClass);
+	};@endcode
+*/
+#define JUCE_DECLARE_NON_COPYABLE(className) \
+	className (const className&);\
+	className& operator= (const className&);
+
+/** This is a shorthand way of writing both a JUCE_DECLARE_NON_COPYABLE and
+	JUCE_LEAK_DETECTOR macro for a class.
+*/
+#define JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(className) \
+	JUCE_DECLARE_NON_COPYABLE(className)\
+	JUCE_LEAK_DETECTOR(className)
+
+#if ! DOXYGEN
+ #define JUCE_JOIN_MACRO_HELPER(a, b)  a ## b
+#endif
+
+/** Good old C macro concatenation helper.
+	This combines two items (which may themselves be macros) into a single string,
+	avoiding the pitfalls of the ## macro operator.
+*/
+#define JUCE_JOIN_MACRO(a, b)  JUCE_JOIN_MACRO_HELPER (a, b)
+
 #if JUCE_CATCH_UNHANDLED_EXCEPTIONS
 
   #define JUCE_TRY try
@@ -689,8 +751,20 @@
 
 // Now we'll include any OS headers we need.. (at this point we are outside the Juce namespace).
 #if JUCE_MSVC
-  #if (defined(_MSC_VER) && (_MSC_VER <= 1200))
+  #if JUCE_VC6
 	#pragma warning (disable: 4284 4786)  // (spurious VC6 warnings)
+
+	namespace std   // VC6 doesn't have sqrt/sin/cos/tan/abs in std, so declare them here:
+	{
+		template <typename Type> Type abs (Type a)		  { if (a < 0) return -a; return a; }
+		template <typename Type> Type tan (Type a)		  { return static_cast<Type> (::tan (static_cast<double> (a))); }
+		template <typename Type> Type sin (Type a)		  { return static_cast<Type> (::sin (static_cast<double> (a))); }
+		template <typename Type> Type cos (Type a)		  { return static_cast<Type> (::cos (static_cast<double> (a))); }
+		template <typename Type> Type sqrt (Type a)		 { return static_cast<Type> (::sqrt (static_cast<double> (a))); }
+		template <typename Type> Type floor (Type a)		{ return static_cast<Type> (::floor (static_cast<double> (a))); }
+		template <typename Type> Type ceil (Type a)		 { return static_cast<Type> (::ceil (static_cast<double> (a))); }
+		template <typename Type> Type atan2 (Type a, Type b)	{ return static_cast<Type> (::atan2 (static_cast<double> (a), static_cast<double> (b))); }
+	}
   #endif
 
   #pragma warning (push)
@@ -765,13 +839,20 @@
 /** This macro is added to all juce public function declarations. */
 #define JUCE_PUBLIC_FUNCTION	JUCE_API JUCE_CALLTYPE
 
+/** This turns on some non-essential bits of code that should prevent old code from compiling
+	in cases where method signatures have changed, etc.
+*/
+#if (! defined (JUCE_CATCH_DEPRECATED_CODE_MISUSE)) && JUCE_DEBUG && ! DOXYGEN
+ #define JUCE_CATCH_DEPRECATED_CODE_MISUSE 1
+#endif
+
 // Now include some basics that are needed by most of the Juce classes...
 BEGIN_JUCE_NAMESPACE
 
-extern bool JUCE_PUBLIC_FUNCTION juce_isRunningUnderDebugger();
+extern JUCE_API bool JUCE_CALLTYPE juce_isRunningUnderDebugger();
 
 #if JUCE_LOG_ASSERTIONS
-  extern void JUCE_API juce_LogAssertion (const char* filename, const int lineNum) throw();
+  extern JUCE_API void juce_LogAssertion (const char* filename, int lineNum) throw();
 #endif
 
 
@@ -780,33 +861,22 @@ extern bool JUCE_PUBLIC_FUNCTION juce_isRunningUnderDebugger();
 #define __JUCE_MEMORY_JUCEHEADER__
 
 /*
-	This file defines the various juce_malloc(), juce_free() macros that should be used in
+	This file defines the various juce_malloc(), juce_free() macros that can be used in
 	preference to the standard calls.
+
+	None of this stuff is actually used in the library itself, and will probably be
+	deprecated at some point in the future, to force everyone to use HeapBlock and other
+	safer allocation methods.
 */
 
-#if JUCE_DEBUG && JUCE_MSVC && JUCE_CHECK_MEMORY_LEAKS
+#if JUCE_MSVC && JUCE_CHECK_MEMORY_LEAKS && ! DOXYGEN
   #ifndef JUCE_DLL
 
 	// Win32 debug non-DLL versions..
 
-	/** This should be used instead of calling malloc directly.
-		Only use direct memory allocation if there's really no way to use a HeapBlock object instead!
-	*/
 	#define juce_malloc(numBytes)		 _malloc_dbg  (numBytes, _NORMAL_BLOCK, __FILE__, __LINE__)
-
-	/** This should be used instead of calling calloc directly.
-		Only use direct memory allocation if there's really no way to use a HeapBlock object instead!
-	*/
 	#define juce_calloc(numBytes)		 _calloc_dbg  (1, numBytes, _NORMAL_BLOCK, __FILE__, __LINE__)
-
-	/** This should be used instead of calling realloc directly.
-		Only use direct memory allocation if there's really no way to use a HeapBlock object instead!
-	*/
 	#define juce_realloc(location, numBytes)	  _realloc_dbg (location, numBytes, _NORMAL_BLOCK, __FILE__, __LINE__)
-
-	/** This should be used instead of calling free directly.
-		Only use direct memory allocation if there's really no way to use a HeapBlock object instead!
-	*/
 	#define juce_free(location)		   _free_dbg	(location, _NORMAL_BLOCK)
 
   #else
@@ -815,122 +885,78 @@ extern bool JUCE_PUBLIC_FUNCTION juce_isRunningUnderDebugger();
 
 	// For the DLL, we'll define some functions in the DLL that will be used for allocation - that
 	// way all juce calls in the DLL and in the host API will all use the same allocator.
-	extern JUCE_API void* juce_DebugMalloc (const int size, const char* file, const int line);
-	extern JUCE_API void* juce_DebugCalloc (const int size, const char* file, const int line);
-	extern JUCE_API void* juce_DebugRealloc (void* const block, const int size, const char* file, const int line);
-	extern JUCE_API void juce_DebugFree (void* const block);
+	extern JUCE_API void* juce_DebugMalloc (int size, const char* file, int line);
+	extern JUCE_API void* juce_DebugCalloc (int size, const char* file, int line);
+	extern JUCE_API void* juce_DebugRealloc (void* block, int size, const char* file, int line);
+	extern JUCE_API void juce_DebugFree (void* block);
 
-	/** This should be used instead of calling malloc directly.
-		Only use direct memory allocation if there's really no way to use a HeapBlock object instead!
-	*/
 	#define juce_malloc(numBytes)		 JUCE_NAMESPACE::juce_DebugMalloc (numBytes, __FILE__, __LINE__)
-
-	/** This should be used instead of calling calloc directly.
-		Only use direct memory allocation if there's really no way to use a HeapBlock object instead!
-	*/
 	#define juce_calloc(numBytes)		 JUCE_NAMESPACE::juce_DebugCalloc (numBytes, __FILE__, __LINE__)
-
-	/** This should be used instead of calling realloc directly.
-		Only use direct memory allocation if there's really no way to use a HeapBlock object instead!
-	*/
 	#define juce_realloc(location, numBytes)	  JUCE_NAMESPACE::juce_DebugRealloc (location, numBytes, __FILE__, __LINE__)
-
-	/** This should be used instead of calling free directly.
-		Only use direct memory allocation if there's really no way to use a HeapBlock object instead!
-	*/
 	#define juce_free(location)		   JUCE_NAMESPACE::juce_DebugFree (location)
+
+	#define JUCE_LEAK_DETECTOR(OwnerClass)  public:\
+			  static void* operator new (size_t sz)	   { void* const p = juce_malloc ((int) sz); return (p != 0) ? p : ::operator new (sz); } \
+			  static void* operator new (size_t, void* p)	 { return p; } \
+			  static void operator delete (void* p)	   { juce_free (p); } \
+			  static void operator delete (void*, void*)	  {}
   #endif
 
-  #if ! defined (_AFXDLL)
-	/** This macro can be added to classes to add extra debugging information to the memory
-		allocated for them, so you can see the type of objects involved when there's a dump
-		of leaked objects at program shutdown. (Only works on win32 at the moment).
-	*/
-	#define juce_UseDebuggingNewOperator \
-	  static void* operator new (size_t sz)	   { void* const p = juce_malloc ((int) sz); return (p != 0) ? p : ::operator new (sz); } \
-	  static void* operator new (size_t, void* p)	 { return p; } \
-	  static void operator delete (void* p)	   { juce_free (p); } \
-	  static void operator delete (void*, void*)	  { }
-  #endif
-
-#elif defined (JUCE_DLL)
+#elif defined (JUCE_DLL) && ! DOXYGEN
 
   // Win32 DLL (release) versions..
 
   // For the DLL, we'll define some functions in the DLL that will be used for allocation - that
   // way all juce calls in the DLL and in the host API will all use the same allocator.
-  extern JUCE_API void* juce_Malloc (const int size);
-  extern JUCE_API void* juce_Calloc (const int size);
-  extern JUCE_API void* juce_Realloc (void* const block, const int size);
-  extern JUCE_API void juce_Free (void* const block);
+  extern JUCE_API void* juce_Malloc (int size);
+  extern JUCE_API void* juce_Calloc (int size);
+  extern JUCE_API void* juce_Realloc (void* block, int size);
+  extern JUCE_API void juce_Free (void* block);
 
-  /** This should be used instead of calling malloc directly.
-	  Only use direct memory allocation if there's really no way to use a HeapBlock object instead!
-  */
   #define juce_malloc(numBytes)		 JUCE_NAMESPACE::juce_Malloc (numBytes)
-
-  /** This should be used instead of calling calloc directly.
-	  Only use direct memory allocation if there's really no way to use a HeapBlock object instead!
-  */
   #define juce_calloc(numBytes)		 JUCE_NAMESPACE::juce_Calloc (numBytes)
-
-  /** This should be used instead of calling realloc directly.
-	  Only use direct memory allocation if there's really no way to use a HeapBlock object instead!
-  */
   #define juce_realloc(location, numBytes)	  JUCE_NAMESPACE::juce_Realloc (location, numBytes)
-
-  /** This should be used instead of calling free directly.
-	  Only use direct memory allocation if there's really no way to use a HeapBlock object instead!
-  */
   #define juce_free(location)		   JUCE_NAMESPACE::juce_Free (location)
 
-  #define juce_UseDebuggingNewOperator \
-	static void* operator new (size_t sz)	   { void* const p = juce_malloc ((int) sz); return (p != 0) ? p : ::operator new (sz); } \
-	static void* operator new (size_t, void* p)	 { return p; } \
-	static void operator delete (void* p)	   { juce_free (p); } \
-	static void operator delete (void*, void*)	  { }
-
+  #define JUCE_LEAK_DETECTOR(OwnerClass)  public:\
+			  static void* operator new (size_t sz)	   { void* const p = juce_malloc ((int) sz); return (p != 0) ? p : ::operator new (sz); } \
+			  static void* operator new (size_t, void* p)	 { return p; } \
+			  static void operator delete (void* p)	   { juce_free (p); } \
+			  static void operator delete (void*, void*)	  {}
 #else
 
   // Mac, Linux and Win32 (release) versions..
 
-  /** This should be used instead of calling malloc directly.
+  /** This can be used instead of calling malloc directly.
 	  Only use direct memory allocation if there's really no way to use a HeapBlock object instead!
   */
   #define juce_malloc(numBytes)		 malloc (numBytes)
 
-  /** This should be used instead of calling calloc directly.
+  /** This can be used instead of calling calloc directly.
 	  Only use direct memory allocation if there's really no way to use a HeapBlock object instead!
   */
   #define juce_calloc(numBytes)		 calloc (1, numBytes)
 
-  /** This should be used instead of calling realloc directly.
+  /** This can be used instead of calling realloc directly.
 	  Only use direct memory allocation if there's really no way to use a HeapBlock object instead!
   */
   #define juce_realloc(location, numBytes)	  realloc (location, numBytes)
 
-  /** This should be used instead of calling free directly.
+  /** This can be used instead of calling free directly.
 	  Only use direct memory allocation if there's really no way to use a HeapBlock object instead!
   */
   #define juce_free(location)		   free (location)
 
 #endif
 
-/** This macro can be added to classes to add extra debugging information to the memory
-	allocated for them, so you can see the type of objects involved when there's a dump
-	of leaked objects at program shutdown. (Only works on win32 at the moment).
-
-	Note that if you create a class that inherits from a class that uses this macro,
-	your class must also use the macro, otherwise you'll probably get compile errors
-	because of ambiguous new operators.
-
-	Most of the JUCE classes use it, so see these for examples of where it should go.
+/** (Deprecated) This was a win32-specific way of checking for object leaks - now please
+	use the JUCE_LEAK_DETECTOR instead.
 */
 #ifndef juce_UseDebuggingNewOperator
   #define juce_UseDebuggingNewOperator
 #endif
 
-#if JUCE_MSVC
+#if JUCE_MSVC || DOXYGEN
   /** This is a compiler-independent way of declaring a variable as being thread-local.
 
 	  E.g.
@@ -948,18 +974,27 @@ extern bool JUCE_PUBLIC_FUNCTION juce_isRunningUnderDebugger();
   #define alloca		  __builtin_alloca
 #endif
 
-/** Clears a block of memory. */
-inline void zeromem (void* memory, size_t numBytes)		 { memset (memory, 0, numBytes); }
+/** Fills a block of memory with zeros. */
+inline void zeromem (void* memory, size_t numBytes) throw()	 { memset (memory, 0, numBytes); }
 
-/** Clears a reference to a local structure. */
+/** Overwrites a structure or object with zeros. */
 template <typename Type>
-inline void zerostruct (Type& structure)			{ memset (&structure, 0, sizeof (structure)); }
+inline void zerostruct (Type& structure) throw()			{ memset (&structure, 0, sizeof (structure)); }
 
-/** A handy function that calls delete on a pointer if it's non-zero, and then sets
-	the pointer to null.
+/** Delete an object pointer, and sets the pointer to null.
+
+	Remember that it's not good c++ practice to use delete directly - always try to use a ScopedPointer
+	or other automatic lieftime-management system rather than resorting to deleting raw pointers!
 */
 template <typename Type>
 inline void deleteAndZero (Type& pointer)			   { delete pointer; pointer = 0; }
+
+/** A handy function which adds a number of bytes to any type of pointer and returns the result.
+	This can be useful to avoid casting pointers to a char* and back when you want to move them by
+	a specific number of bytes,
+*/
+template <typename Type>
+inline Type* addBytesToPointer (Type* pointer, int bytes) throw()   { return (Type*) (((char*) pointer) + bytes); }
 
 #endif   // __JUCE_MEMORY_JUCEHEADER__
 /*** End of inlined file: juce_Memory.h ***/
@@ -1019,7 +1054,7 @@ typedef unsigned int		uint32;
   typedef int64			 pointer_sized_int;
   /** An unsigned integer type that's guaranteed to be large enough to hold a pointer without truncating it. */
   typedef uint64			pointer_sized_uint;
-#elif _MSC_VER >= 1300
+#elif JUCE_MSVC && ! JUCE_VC6
   /** A signed integer type that's guaranteed to be large enough to hold a pointer without truncating it. */
   typedef _W64 int		  pointer_sized_int;
   /** An unsigned integer type that's guaranteed to be large enough to hold a pointer without truncating it. */
@@ -1060,6 +1095,69 @@ inline Type jmin (const Type a, const Type b, const Type c)				 { return (b < a)
 template <typename Type>
 inline Type jmin (const Type a, const Type b, const Type c, const Type d)		   { return jmin (a, jmin (b, c, d)); }
 
+/** Scans an array of values, returning the minimum value that it contains. */
+template <typename Type>
+const Type findMinimum (const Type* data, int numValues)
+{
+	if (numValues <= 0)
+		return Type();
+
+	Type result (*data++);
+
+	while (--numValues > 0) // (> 0 rather than >= 0 because we've already taken the first sample)
+	{
+		const Type& v = *data++;
+		if (v < result)  result = v;
+	}
+
+	return result;
+}
+
+/** Scans an array of values, returning the minimum value that it contains. */
+template <typename Type>
+const Type findMaximum (const Type* values, int numValues)
+{
+	if (numValues <= 0)
+		return Type();
+
+	Type result (*values++);
+
+	while (--numValues > 0) // (> 0 rather than >= 0 because we've already taken the first sample)
+	{
+		const Type& v = *values++;
+		if (result > v)  result = v;
+	}
+
+	return result;
+}
+
+/** Scans an array of values, returning the minimum and maximum values that it contains. */
+template <typename Type>
+void findMinAndMax (const Type* values, int numValues, Type& lowest, Type& highest)
+{
+	if (numValues <= 0)
+	{
+		lowest = Type();
+		highest = Type();
+	}
+	else
+	{
+		Type mn (*values++);
+		Type mx (mn);
+
+		while (--numValues > 0) // (> 0 rather than >= 0 because we've already taken the first sample)
+		{
+			const Type& v = *values++;
+
+			if (mx < v)  mx = v;
+			if (v < mn)  mn = v;
+		}
+
+		lowest = mn;
+		highest = mx;
+	}
+}
+
 /** Constrains a value to keep it within a given range.
 
 	This will check that the specified value lies between the lower and upper bounds
@@ -1088,6 +1186,48 @@ inline Type jlimit (const Type lowerLimit,
 																			  : valueToConstrain);
 }
 
+/** Returns true if a value is at least zero, and also below a specified upper limit.
+	This is basically a quicker way to write:
+	@code valueToTest >= 0 && valueToTest < upperLimit
+	@endcode
+*/
+template <typename Type>
+inline bool isPositiveAndBelow (Type valueToTest, Type upperLimit) throw()
+{
+	jassert (Type() <= upperLimit); // makes no sense to call this if the upper limit is itself below zero..
+	return Type() <= valueToTest && valueToTest < upperLimit;
+}
+
+#if ! JUCE_VC6
+template <>
+inline bool isPositiveAndBelow (const int valueToTest, const int upperLimit) throw()
+{
+	jassert (upperLimit >= 0); // makes no sense to call this if the upper limit is itself below zero..
+	return static_cast <unsigned int> (valueToTest) < static_cast <unsigned int> (upperLimit);
+}
+#endif
+
+/** Returns true if a value is at least zero, and also less than or equal to a specified upper limit.
+	This is basically a quicker way to write:
+	@code valueToTest >= 0 && valueToTest <= upperLimit
+	@endcode
+*/
+template <typename Type>
+inline bool isPositiveAndNotGreaterThan (Type valueToTest, Type upperLimit) throw()
+{
+	jassert (Type() <= upperLimit); // makes no sense to call this if the upper limit is itself below zero..
+	return Type() <= valueToTest && valueToTest <= upperLimit;
+}
+
+#if ! JUCE_VC6
+template <>
+inline bool isPositiveAndNotGreaterThan (const int valueToTest, const int upperLimit) throw()
+{
+	jassert (upperLimit >= 0); // makes no sense to call this if the upper limit is itself below zero..
+	return static_cast <unsigned int> (valueToTest) <= static_cast <unsigned int> (upperLimit);
+}
+#endif
+
 /** Handy function to swap two values over.
 */
 template <typename Type>
@@ -1098,27 +1238,32 @@ inline void swapVariables (Type& variable1, Type& variable2)
 	variable2 = tempVal;
 }
 
-/** Handy function for getting the number of elements in a simple const C array.
+#if JUCE_VC6
+	#define numElementsInArray(X) (sizeof((X)) / sizeof(0[X]))
+#else
+	/** Handy function for getting the number of elements in a simple const C array.
 
-	E.g.
-	@code
-	static int myArray[] = { 1, 2, 3 };
+		E.g.
+		@code
+		static int myArray[] = { 1, 2, 3 };
 
-	int numElements = numElementsInArray (myArray) // returns 3
-	@endcode
-*/
-template <typename Type>
-inline int numElementsInArray (Type& array)
-{
-	(void) array; // (required to avoid a spurious warning in MS compilers)
-	return static_cast<int> (sizeof (array) / sizeof (array[0]));
-}
+		int numElements = numElementsInArray (myArray) // returns 3
+		@endcode
+	*/
+	template <typename Type, int N>
+	inline int numElementsInArray (Type (&array)[N])
+	{
+		(void) array; // (required to avoid a spurious warning in MS compilers)
+		sizeof (0[array]); // This line should cause an error if you pass an object with a user-defined subscript operator
+		return N;
+	}
+#endif
 
 // Some useful maths functions that aren't always present with all compilers and build settings.
 
 /** Using juce_hypot and juce_hypotf is easier than dealing with all the different
 	versions of these functions of various platforms and compilers. */
-inline double juce_hypot (double a, double b)
+inline double juce_hypot (double a, double b) throw()
 {
   #if JUCE_WINDOWS
 	return _hypot (a, b);
@@ -1254,9 +1399,9 @@ inline int roundFloatToInt (const float value) throw()
 */
 namespace TypeHelpers
 {
-#if defined (_MSC_VER) && _MSC_VER <= 1400
+  #if JUCE_VC8_OR_EARLIER
 	#define PARAMETER_TYPE(a) a
-#else
+  #else
 	/** The ParameterType struct is used to find the best type to use when passing some kind
 		of object as a parameter.
 
@@ -1271,7 +1416,7 @@ namespace TypeHelpers
 	*/
 	template <typename Type> struct ParameterType		   { typedef const Type& type; };
 
-#if ! DOXYGEN
+  #if ! DOXYGEN
 	template <typename Type> struct ParameterType <Type&>	   { typedef Type& type; };
 	template <typename Type> struct ParameterType <Type*>	   { typedef Type* type; };
 	template <>		  struct ParameterType <char>		{ typedef char type; };
@@ -1287,13 +1432,13 @@ namespace TypeHelpers
 	template <>		  struct ParameterType <bool>		{ typedef bool type; };
 	template <>		  struct ParameterType <float>	   { typedef float type; };
 	template <>		  struct ParameterType <double>	  { typedef double type; };
-#endif
+  #endif
 
 	/** A helpful macro to simplify the use of the ParameterType template.
 		@see ParameterType
 	*/
 	#define PARAMETER_TYPE(a)	typename TypeHelpers::ParameterType<a>::type
-#endif
+  #endif
 }
 
 #endif   // __JUCE_MATHSFUNCTIONS_JUCEHEADER__
@@ -1367,8 +1512,8 @@ public:
 
 private:
 	ByteOrder();
-	ByteOrder (const ByteOrder&);
-	ByteOrder& operator= (const ByteOrder&);
+
+	JUCE_DECLARE_NON_COPYABLE (ByteOrder);
 };
 
 #if JUCE_USE_INTRINSICS
@@ -1377,41 +1522,41 @@ private:
 
 inline uint16 ByteOrder::swap (uint16 n)
 {
-#if JUCE_USE_INTRINSICSxxx // agh - the MS compiler has an internal error when you try to use this intrinsic!
+  #if JUCE_USE_INTRINSICSxxx // agh - the MS compiler has an internal error when you try to use this intrinsic!
 	return static_cast <uint16> (_byteswap_ushort (n));
-#else
+  #else
 	return static_cast <uint16> ((n << 8) | (n >> 8));
-#endif
+  #endif
 }
 
 inline uint32 ByteOrder::swap (uint32 n)
 {
-#if JUCE_MAC || JUCE_IOS
+  #if JUCE_MAC || JUCE_IOS
 	return OSSwapInt32 (n);
-#elif JUCE_GCC
+  #elif JUCE_GCC
 	asm("bswap %%eax" : "=a"(n) : "a"(n));
 	return n;
-#elif JUCE_USE_INTRINSICS
+  #elif JUCE_USE_INTRINSICS
 	return _byteswap_ulong (n);
-#else
+  #else
 	__asm {
 		mov eax, n
 		bswap eax
 		mov n, eax
 	}
 	return n;
-#endif
+  #endif
 }
 
 inline uint64 ByteOrder::swap (uint64 value)
 {
-#if JUCE_MAC || JUCE_IOS
+  #if JUCE_MAC || JUCE_IOS
 	return OSSwapInt64 (value);
-#elif JUCE_USE_INTRINSICS
+  #elif JUCE_USE_INTRINSICS
 	return _byteswap_uint64 (value);
-#else
+  #else
 	return (((int64) swap ((uint32) value)) << 32) | swap ((uint32) (value >> 32));
-#endif
+  #endif
 }
 
 #if JUCE_LITTLE_ENDIAN
@@ -1495,89 +1640,89 @@ typedef juce_wchar		tchar;
 class JUCE_API  CharacterFunctions
 {
 public:
-	static int length (const char* const s) throw();
-	static int length (const juce_wchar* const s) throw();
+	static int length (const char* s) throw();
+	static int length (const juce_wchar* s) throw();
 
-	static void copy (char* dest, const char* src, const int maxBytes) throw();
-	static void copy (juce_wchar* dest, const juce_wchar* src, const int maxChars) throw();
+	static void copy (char* dest, const char* src, int maxBytes) throw();
+	static void copy (juce_wchar* dest, const juce_wchar* src, int maxChars) throw();
 
-	static void copy (juce_wchar* dest, const char* src, const int maxChars) throw();
-	static void copy (char* dest, const juce_wchar* src, const int maxBytes) throw();
+	static void copy (juce_wchar* dest, const char* src, int maxChars) throw();
+	static void copy (char* dest, const juce_wchar* src, int maxBytes) throw();
 	static int bytesRequiredForCopy (const juce_wchar* src) throw();
 
 	static void append (char* dest, const char* src) throw();
 	static void append (juce_wchar* dest, const juce_wchar* src) throw();
 
-	static int compare (const char* const s1, const char* const s2) throw();
+	static int compare (const char* s1, const char* s2) throw();
 	static int compare (const juce_wchar* s1, const juce_wchar* s2) throw();
 	static int compare (const juce_wchar* s1, const char* s2) throw();
 	static int compare (const char* s1, const juce_wchar* s2) throw();
 
-	static int compare (const char* const s1, const char* const s2, const int maxChars) throw();
+	static int compare (const char* s1, const char* s2, int maxChars) throw();
 	static int compare (const juce_wchar* s1, const juce_wchar* s2, int maxChars) throw();
 
-	static int compareIgnoreCase (const char* const s1, const char* const s2) throw();
+	static int compareIgnoreCase (const char* s1, const char* s2) throw();
 	static int compareIgnoreCase (const juce_wchar* s1, const juce_wchar* s2) throw();
 	static int compareIgnoreCase (const juce_wchar* s1, const char* s2) throw();
 
-	static int compareIgnoreCase (const char* const s1, const char* const s2, const int maxChars) throw();
+	static int compareIgnoreCase (const char* s1, const char* s2, int maxChars) throw();
 	static int compareIgnoreCase (const juce_wchar* s1, const juce_wchar* s2, int maxChars) throw();
 
-	static const char* find (const char* const haystack, const char* const needle) throw();
-	static const juce_wchar* find (const juce_wchar* haystack, const juce_wchar* const needle) throw();
+	static const char* find (const char* haystack, const char* needle) throw();
+	static const juce_wchar* find (const juce_wchar* haystack, const juce_wchar* needle) throw();
 
-	static int indexOfChar (const char* const haystack, const char needle, const bool ignoreCase) throw();
-	static int indexOfChar (const juce_wchar* const haystack, const juce_wchar needle, const bool ignoreCase) throw();
+	static int indexOfChar (const char* haystack, char needle, bool ignoreCase) throw();
+	static int indexOfChar (const juce_wchar* haystack, juce_wchar needle, bool ignoreCase) throw();
 
-	static int indexOfCharFast (const char* const haystack, const char needle) throw();
-	static int indexOfCharFast (const juce_wchar* const haystack, const juce_wchar needle) throw();
+	static int indexOfCharFast (const char* haystack, char needle) throw();
+	static int indexOfCharFast (const juce_wchar* haystack, juce_wchar needle) throw();
 
-	static int getIntialSectionContainingOnly (const char* const text, const char* const allowedChars) throw();
-	static int getIntialSectionContainingOnly (const juce_wchar* const text, const juce_wchar* const allowedChars) throw();
+	static int getIntialSectionContainingOnly (const char* text, const char* allowedChars) throw();
+	static int getIntialSectionContainingOnly (const juce_wchar* text, const juce_wchar* allowedChars) throw();
 
-	static int ftime (char* const dest, const int maxChars, const char* const format, const struct tm* const tm) throw();
-	static int ftime (juce_wchar* const dest, const int maxChars, const juce_wchar* const format, const struct tm* const tm) throw();
+	static int ftime (char* dest, int maxChars, const char* format, const struct tm* tm) throw();
+	static int ftime (juce_wchar* dest, int maxChars, const juce_wchar* format, const struct tm* tm) throw();
 
-	static int getIntValue (const char* const s) throw();
+	static int getIntValue (const char* s) throw();
 	static int getIntValue (const juce_wchar* s) throw();
 
 	static int64 getInt64Value (const char* s) throw();
 	static int64 getInt64Value (const juce_wchar* s) throw();
 
-	static double getDoubleValue (const char* const s) throw();
-	static double getDoubleValue (const juce_wchar* const s) throw();
+	static double getDoubleValue (const char* s) throw();
+	static double getDoubleValue (const juce_wchar* s) throw();
 
-	static char toUpperCase (const char character) throw();
-	static juce_wchar toUpperCase (const juce_wchar character) throw();
+	static char toUpperCase (char character) throw();
+	static juce_wchar toUpperCase (juce_wchar character) throw();
 	static void toUpperCase (char* s) throw();
 
 	static void toUpperCase (juce_wchar* s) throw();
-	static bool isUpperCase (const char character) throw();
-	static bool isUpperCase (const juce_wchar character) throw();
+	static bool isUpperCase (char character) throw();
+	static bool isUpperCase (juce_wchar character) throw();
 
-	static char toLowerCase (const char character) throw();
-	static juce_wchar toLowerCase (const juce_wchar character) throw();
+	static char toLowerCase (char character) throw();
+	static juce_wchar toLowerCase (juce_wchar character) throw();
 	static void toLowerCase (char* s) throw();
 	static void toLowerCase (juce_wchar* s) throw();
-	static bool isLowerCase (const char character) throw();
-	static bool isLowerCase (const juce_wchar character) throw();
+	static bool isLowerCase (char character) throw();
+	static bool isLowerCase (juce_wchar character) throw();
 
-	static bool isWhitespace (const char character) throw();
-	static bool isWhitespace (const juce_wchar character) throw();
+	static bool isWhitespace (char character) throw();
+	static bool isWhitespace (juce_wchar character) throw();
 
-	static bool isDigit (const char character) throw();
-	static bool isDigit (const juce_wchar character) throw();
+	static bool isDigit (char character) throw();
+	static bool isDigit (juce_wchar character) throw();
 
-	static bool isLetter (const char character) throw();
-	static bool isLetter (const juce_wchar character) throw();
+	static bool isLetter (char character) throw();
+	static bool isLetter (juce_wchar character) throw();
 
-	static bool isLetterOrDigit (const char character) throw();
-	static bool isLetterOrDigit (const juce_wchar character) throw();
+	static bool isLetterOrDigit (char character) throw();
+	static bool isLetterOrDigit (juce_wchar character) throw();
 
 	/** Returns 0 to 16 for '0' to 'F", or -1 for characters that aren't a legel
 		hex digit.
 	*/
-	static int getHexDigitValue (const juce_wchar digit) throw();
+	static int getHexDigitValue (juce_wchar digit) throw();
 };
 
 #endif   // __JUCE_CHARACTERFUNCTIONS_JUCEHEADER__
@@ -1743,36 +1888,43 @@ public:
 	int compareLexicographically (const String& other) const throw();
 
 	/** Tests whether the string begins with another string.
+		If the parameter is an empty string, this will always return true.
 		Uses a case-sensitive comparison.
 	*/
 	bool startsWith (const String& text) const throw();
 
 	/** Tests whether the string begins with a particular character.
+		If the character is 0, this will always return false.
 		Uses a case-sensitive comparison.
 	*/
 	bool startsWithChar (juce_wchar character) const throw();
 
 	/** Tests whether the string begins with another string.
+		If the parameter is an empty string, this will always return true.
 		Uses a case-insensitive comparison.
 	*/
 	bool startsWithIgnoreCase (const String& text) const throw();
 
 	/** Tests whether the string ends with another string.
+		If the parameter is an empty string, this will always return true.
 		Uses a case-sensitive comparison.
 	*/
 	bool endsWith (const String& text) const throw();
 
 	/** Tests whether the string ends with a particular character.
+		If the character is 0, this will always return false.
 		Uses a case-sensitive comparison.
 	*/
 	bool endsWithChar (juce_wchar character) const throw();
 
 	/** Tests whether the string ends with another string.
+		If the parameter is an empty string, this will always return true.
 		Uses a case-insensitive comparison.
 	*/
 	bool endsWithIgnoreCase (const String& text) const throw();
 
 	/** Tests whether the string contains another substring.
+		If the parameter is an empty string, this will always return true.
 		Uses a case-sensitive comparison.
 	*/
 	bool contains (const String& text) const throw();
@@ -1834,8 +1986,9 @@ public:
 
 		Uses a case-sensitive comparison.
 
-		@returns	true if the all the characters in the string are also found in the
-					string that is passed in.
+		@returns	Returns false if any of the characters in this string do not occur in
+					the parameter string. If this string is empty, the return value will
+					always be true.
 	*/
 	bool containsOnly (const String& charactersItMightContain) const throw();
 
@@ -1981,7 +2134,7 @@ public:
 
 		No checks are made to see if the index is within a valid range, so be careful!
 	*/
-	inline const juce_wchar& operator[] (int index) const throw()  { jassert (((unsigned int) index) <= (unsigned int) length()); return text [index]; }
+	inline const juce_wchar& operator[] (int index) const throw()  { jassert (isPositiveAndNotGreaterThan (index, length())); return text [index]; }
 
 	/** Returns a character from the string such that it can also be altered.
 
@@ -2091,7 +2244,7 @@ public:
 	/** Returns the start of this string, up to the last occurrence of a substring.
 
 		Similar to upToFirstOccurrenceOf(), but this finds the last occurrence rather than the first.
-		If the substring isn't found, this will return an empty string.
+		If the substring isn't found, this will return the whole of the original string.
 
 		@see upToFirstOccurrenceOf, fromFirstOccurrenceOf
 	*/
@@ -2509,7 +2662,7 @@ public:
 
 		@param destBuffer	   the place to copy it to
 		@param maxCharsToCopy   the maximum number of characters to copy to the buffer,
-								not including the tailing zero, so this shouldn't be
+								NOT including the trailing zero, so this shouldn't be
 								larger than the size of your destination buffer - 1
 	*/
 	void copyToUnicode (juce_wchar* destBuffer, int maxCharsToCopy) const throw();
@@ -2556,102 +2709,110 @@ public:
 		String& result;
 		int nextIndex;
 
-		Concatenator (const Concatenator&);
-		Concatenator& operator= (const Concatenator&);
+		JUCE_DECLARE_NON_COPYABLE (Concatenator);
 	};
-
-	juce_UseDebuggingNewOperator // (adds debugging info to find leaked objects)
 
 private:
 
 	juce_wchar* text;
 
-	// internal constructor that preallocates a certain amount of memory
-	String (size_t numChars, int dummyVariable);
+	struct Preallocation
+	{
+		explicit Preallocation (size_t);
+		size_t numChars;
+	};
+
+	// This constructor preallocates a certain amount of memory
+	explicit String (const Preallocation&);
 	String (const String& stringToCopy, size_t charsToAllocate);
 
 	void createInternal (const juce_wchar* text, size_t numChars);
 	void appendInternal (const juce_wchar* text, int numExtraChars);
+
+	// This private cast operator should prevent strings being accidentally cast
+	// to bools (this is possible because the compiler can add an implicit cast
+	// via a const char*)
+	operator bool() const throw()   { return false; }
 };
 
 /** Concatenates two strings. */
-const String JUCE_PUBLIC_FUNCTION operator+  (const char* string1,	   const String& string2);
+JUCE_API const String JUCE_CALLTYPE operator+  (const char* string1,	   const String& string2);
 /** Concatenates two strings. */
-const String JUCE_PUBLIC_FUNCTION operator+  (const juce_wchar* string1, const String& string2);
+JUCE_API const String JUCE_CALLTYPE operator+  (const juce_wchar* string1, const String& string2);
 /** Concatenates two strings. */
-const String JUCE_PUBLIC_FUNCTION operator+  (char string1,		  const String& string2);
+JUCE_API const String JUCE_CALLTYPE operator+  (char string1,		  const String& string2);
 /** Concatenates two strings. */
-const String JUCE_PUBLIC_FUNCTION operator+  (juce_wchar string1,	const String& string2);
+JUCE_API const String JUCE_CALLTYPE operator+  (juce_wchar string1,	const String& string2);
 
 /** Concatenates two strings. */
-const String JUCE_PUBLIC_FUNCTION operator+  (String string1, const String& string2);
+JUCE_API const String JUCE_CALLTYPE operator+  (String string1, const String& string2);
 /** Concatenates two strings. */
-const String JUCE_PUBLIC_FUNCTION operator+  (String string1, const char* string2);
+JUCE_API const String JUCE_CALLTYPE operator+  (String string1, const char* string2);
 /** Concatenates two strings. */
-const String JUCE_PUBLIC_FUNCTION operator+  (String string1, const juce_wchar* string2);
+JUCE_API const String JUCE_CALLTYPE operator+  (String string1, const juce_wchar* string2);
 /** Concatenates two strings. */
-const String JUCE_PUBLIC_FUNCTION operator+  (String string1, char characterToAppend);
+JUCE_API const String JUCE_CALLTYPE operator+  (String string1, char characterToAppend);
 /** Concatenates two strings. */
-const String JUCE_PUBLIC_FUNCTION operator+  (String string1, juce_wchar characterToAppend);
+JUCE_API const String JUCE_CALLTYPE operator+  (String string1, juce_wchar characterToAppend);
 
 /** Appends a character at the end of a string. */
-String& JUCE_PUBLIC_FUNCTION operator<< (String& string1, char characterToAppend);
+JUCE_API String& JUCE_CALLTYPE operator<< (String& string1, char characterToAppend);
 /** Appends a character at the end of a string. */
-String& JUCE_PUBLIC_FUNCTION operator<< (String& string1, juce_wchar characterToAppend);
+JUCE_API String& JUCE_CALLTYPE operator<< (String& string1, juce_wchar characterToAppend);
 /** Appends a string to the end of the first one. */
-String& JUCE_PUBLIC_FUNCTION operator<< (String& string1, const char* string2);
+JUCE_API String& JUCE_CALLTYPE operator<< (String& string1, const char* string2);
 /** Appends a string to the end of the first one. */
-String& JUCE_PUBLIC_FUNCTION operator<< (String& string1, const juce_wchar* string2);
+JUCE_API String& JUCE_CALLTYPE operator<< (String& string1, const juce_wchar* string2);
 /** Appends a string to the end of the first one. */
-String& JUCE_PUBLIC_FUNCTION operator<< (String& string1, const String& string2);
+JUCE_API String& JUCE_CALLTYPE operator<< (String& string1, const String& string2);
 
 /** Appends a decimal number at the end of a string. */
-String& JUCE_PUBLIC_FUNCTION operator<< (String& string1, short number);
+JUCE_API String& JUCE_CALLTYPE operator<< (String& string1, short number);
 /** Appends a decimal number at the end of a string. */
-String& JUCE_PUBLIC_FUNCTION operator<< (String& string1, int number);
+JUCE_API String& JUCE_CALLTYPE operator<< (String& string1, int number);
 /** Appends a decimal number at the end of a string. */
-String& JUCE_PUBLIC_FUNCTION operator<< (String& string1, unsigned int number);
+JUCE_API String& JUCE_CALLTYPE operator<< (String& string1, unsigned int number);
 /** Appends a decimal number at the end of a string. */
-String& JUCE_PUBLIC_FUNCTION operator<< (String& string1, long number);
+JUCE_API String& JUCE_CALLTYPE operator<< (String& string1, long number);
 /** Appends a decimal number at the end of a string. */
-String& JUCE_PUBLIC_FUNCTION operator<< (String& string1, unsigned long number);
+JUCE_API String& JUCE_CALLTYPE operator<< (String& string1, unsigned long number);
 /** Appends a decimal number at the end of a string. */
-String& JUCE_PUBLIC_FUNCTION operator<< (String& string1, float number);
+JUCE_API String& JUCE_CALLTYPE operator<< (String& string1, float number);
 /** Appends a decimal number at the end of a string. */
-String& JUCE_PUBLIC_FUNCTION operator<< (String& string1, double number);
+JUCE_API String& JUCE_CALLTYPE operator<< (String& string1, double number);
 
 /** Case-sensitive comparison of two strings. */
-bool JUCE_PUBLIC_FUNCTION operator== (const String& string1, const String& string2) throw();
+JUCE_API bool JUCE_CALLTYPE operator== (const String& string1, const String& string2) throw();
 /** Case-sensitive comparison of two strings. */
-bool JUCE_PUBLIC_FUNCTION operator== (const String& string1, const char* string2) throw();
+JUCE_API bool JUCE_CALLTYPE operator== (const String& string1, const char* string2) throw();
 /** Case-sensitive comparison of two strings. */
-bool JUCE_PUBLIC_FUNCTION operator== (const String& string1, const juce_wchar* string2) throw();
+JUCE_API bool JUCE_CALLTYPE operator== (const String& string1, const juce_wchar* string2) throw();
 /** Case-sensitive comparison of two strings. */
-bool JUCE_PUBLIC_FUNCTION operator!= (const String& string1, const String& string2) throw();
+JUCE_API bool JUCE_CALLTYPE operator!= (const String& string1, const String& string2) throw();
 /** Case-sensitive comparison of two strings. */
-bool JUCE_PUBLIC_FUNCTION operator!= (const String& string1, const char* string2) throw();
+JUCE_API bool JUCE_CALLTYPE operator!= (const String& string1, const char* string2) throw();
 /** Case-sensitive comparison of two strings. */
-bool JUCE_PUBLIC_FUNCTION operator!= (const String& string1, const juce_wchar* string2) throw();
+JUCE_API bool JUCE_CALLTYPE operator!= (const String& string1, const juce_wchar* string2) throw();
 /** Case-sensitive comparison of two strings. */
-bool JUCE_PUBLIC_FUNCTION operator>  (const String& string1, const String& string2) throw();
+JUCE_API bool JUCE_CALLTYPE operator>  (const String& string1, const String& string2) throw();
 /** Case-sensitive comparison of two strings. */
-bool JUCE_PUBLIC_FUNCTION operator<  (const String& string1, const String& string2) throw();
+JUCE_API bool JUCE_CALLTYPE operator<  (const String& string1, const String& string2) throw();
 /** Case-sensitive comparison of two strings. */
-bool JUCE_PUBLIC_FUNCTION operator>= (const String& string1, const String& string2) throw();
+JUCE_API bool JUCE_CALLTYPE operator>= (const String& string1, const String& string2) throw();
 /** Case-sensitive comparison of two strings. */
-bool JUCE_PUBLIC_FUNCTION operator<= (const String& string1, const String& string2) throw();
+JUCE_API bool JUCE_CALLTYPE operator<= (const String& string1, const String& string2) throw();
 
 /** This streaming override allows you to pass a juce String directly into std output streams.
 	This is very handy for writing strings to std::cout, std::cerr, etc.
 */
 template <class charT, class traits>
-std::basic_ostream <charT, traits>& JUCE_PUBLIC_FUNCTION operator<< (std::basic_ostream <charT, traits>& stream, const String& stringToWrite)
+JUCE_API std::basic_ostream <charT, traits>& JUCE_CALLTYPE operator<< (std::basic_ostream <charT, traits>& stream, const String& stringToWrite)
 {
 	return stream << stringToWrite.toUTF8();
 }
 
 /** Writes a string to an OutputStream as UTF8. */
-OutputStream& JUCE_PUBLIC_FUNCTION operator<< (OutputStream& stream, const String& text);
+JUCE_API OutputStream& JUCE_CALLTYPE operator<< (OutputStream& stream, const String& text);
 
 #endif   // __JUCE_STRING_JUCEHEADER__
 /*** End of inlined file: juce_String.h ***/
@@ -2682,8 +2843,8 @@ public:
 		If deleteOldLogger is set to true, the existing logger will be
 		deleted (if there is one).
 	*/
-	static void JUCE_CALLTYPE setCurrentLogger (Logger* const newLogger,
-												const bool deleteOldLogger = false);
+	static void JUCE_CALLTYPE setCurrentLogger (Logger* newLogger,
+												bool deleteOldLogger = false);
 
 	/** Writes a string to the current logger.
 
@@ -2718,6 +2879,451 @@ private:
 #endif   // __JUCE_LOGGER_JUCEHEADER__
 /*** End of inlined file: juce_Logger.h ***/
 
+
+/*** Start of inlined file: juce_LeakedObjectDetector.h ***/
+#ifndef __JUCE_LEAKEDOBJECTDETECTOR_JUCEHEADER__
+#define __JUCE_LEAKEDOBJECTDETECTOR_JUCEHEADER__
+
+
+/*** Start of inlined file: juce_Atomic.h ***/
+#ifndef __JUCE_ATOMIC_JUCEHEADER__
+#define __JUCE_ATOMIC_JUCEHEADER__
+
+/**
+	Simple class to hold a primitive value and perform atomic operations on it.
+
+	The type used must be a 32 or 64 bit primitive, like an int, pointer, etc.
+	There are methods to perform most of the basic atomic operations.
+*/
+template <typename Type>
+class Atomic
+{
+public:
+	/** Creates a new value, initialised to zero. */
+	inline Atomic() throw()
+		: value (0)
+	{
+	}
+
+	/** Creates a new value, with a given initial value. */
+	inline Atomic (const Type initialValue) throw()
+		: value (initialValue)
+	{
+	}
+
+	/** Copies another value (atomically). */
+	inline Atomic (const Atomic& other) throw()
+		: value (other.get())
+	{
+	}
+
+	/** Destructor. */
+	inline ~Atomic() throw()
+	{
+		// This class can only be used for types which are 32 or 64 bits in size.
+		static_jassert (sizeof (Type) == 4 || sizeof (Type) == 8);
+	}
+
+	/** Atomically reads and returns the current value. */
+	Type get() const throw();
+
+	/** Copies another value onto this one (atomically). */
+	inline Atomic& operator= (const Atomic& other) throw()	  { exchange (other.get()); return *this; }
+
+	/** Copies another value onto this one (atomically). */
+	inline Atomic& operator= (const Type newValue) throw()	  { exchange (newValue); return *this; }
+
+	/** Atomically sets the current value. */
+	void set (Type newValue) throw()				{ exchange (newValue); }
+
+	/** Atomically sets the current value, returning the value that was replaced. */
+	Type exchange (Type value) throw();
+
+	/** Atomically adds a number to this value, returning the new value. */
+	Type operator+= (Type amountToAdd) throw();
+
+	/** Atomically subtracts a number from this value, returning the new value. */
+	Type operator-= (Type amountToSubtract) throw();
+
+	/** Atomically increments this value, returning the new value. */
+	Type operator++() throw();
+
+	/** Atomically decrements this value, returning the new value. */
+	Type operator--() throw();
+
+	/** Atomically compares this value with a target value, and if it is equal, sets
+		this to be equal to a new value.
+
+		This operation is the atomic equivalent of doing this:
+		@code
+		bool compareAndSetBool (Type newValue, Type valueToCompare)
+		{
+			if (get() == valueToCompare)
+			{
+				set (newValue);
+				return true;
+			}
+
+			return false;
+		}
+		@endcode
+
+		@returns true if the comparison was true and the value was replaced; false if
+				 the comparison failed and the value was left unchanged.
+		@see compareAndSetValue
+	*/
+	bool compareAndSetBool (Type newValue, Type valueToCompare) throw();
+
+	/** Atomically compares this value with a target value, and if it is equal, sets
+		this to be equal to a new value.
+
+		This operation is the atomic equivalent of doing this:
+		@code
+		Type compareAndSetValue (Type newValue, Type valueToCompare)
+		{
+			Type oldValue = get();
+			if (oldValue == valueToCompare)
+				set (newValue);
+
+			return oldValue;
+		}
+		@endcode
+
+		@returns the old value before it was changed.
+		@see compareAndSetBool
+	*/
+	Type compareAndSetValue (Type newValue, Type valueToCompare) throw();
+
+	/** Implements a memory read/write barrier. */
+	static void memoryBarrier() throw();
+
+	JUCE_ALIGN(8)
+
+	/** The raw value that this class operates on.
+		This is exposed publically in case you need to manipulate it directly
+		for performance reasons.
+	*/
+	volatile Type value;
+
+private:
+	static inline Type castFrom32Bit (int32 value) throw()	{ return *(Type*) &value; }
+	static inline Type castFrom64Bit (int64 value) throw()	{ return *(Type*) &value; }
+	static inline int32 castTo32Bit (Type value) throw()	  { return *(int32*) &value; }
+	static inline int64 castTo64Bit (Type value) throw()	  { return *(int64*) &value; }
+
+	Type operator++ (int); // better to just use pre-increment with atomics..
+	Type operator-- (int);
+};
+
+/*
+	The following code is in the header so that the atomics can be inlined where possible...
+*/
+#if (JUCE_IOS && (__IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_3_2 || ! defined (__IPHONE_3_2))) \
+	  || (JUCE_MAC && (JUCE_PPC || __GNUC__ < 4 || (__GNUC__ == 4 && __GNUC_MINOR__ < 2)))
+  #define JUCE_ATOMICS_MAC 1	// Older OSX builds using gcc4.1 or earlier
+
+  #if MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5
+	#define JUCE_MAC_ATOMICS_VOLATILE
+  #else
+	#define JUCE_MAC_ATOMICS_VOLATILE volatile
+  #endif
+
+  #if JUCE_PPC || JUCE_IOS
+	// None of these atomics are available for PPC or for iPhoneOS 3.1 or earlier!!
+	template <typename Type> static Type OSAtomicAdd64Barrier (Type b, JUCE_MAC_ATOMICS_VOLATILE Type* a) throw()   { jassertfalse; return *a += b; }
+	template <typename Type> static Type OSAtomicIncrement64Barrier (JUCE_MAC_ATOMICS_VOLATILE Type* a) throw()	 { jassertfalse; return ++*a; }
+	template <typename Type> static Type OSAtomicDecrement64Barrier (JUCE_MAC_ATOMICS_VOLATILE Type* a) throw()	 { jassertfalse; return --*a; }
+	template <typename Type> static bool OSAtomicCompareAndSwap64Barrier (Type old, Type newValue, JUCE_MAC_ATOMICS_VOLATILE Type* value) throw()
+		{ jassertfalse; if (old == *value) { *value = newValue; return true; } return false; }
+	#define JUCE_64BIT_ATOMICS_UNAVAILABLE 1
+  #endif
+
+#elif JUCE_GCC
+  #define JUCE_ATOMICS_GCC 1	// GCC with intrinsics
+
+  #if JUCE_IOS
+	#define JUCE_64BIT_ATOMICS_UNAVAILABLE 1  // (on the iphone, the 64-bit ops will compile but not link)
+  #endif
+
+#else
+  #define JUCE_ATOMICS_WINDOWS 1	// Windows with intrinsics
+
+  #if JUCE_USE_INTRINSICS || JUCE_64BIT
+	#pragma intrinsic (_InterlockedExchange, _InterlockedIncrement, _InterlockedDecrement, _InterlockedCompareExchange, \
+					   _InterlockedCompareExchange64, _InterlockedExchangeAdd, _ReadWriteBarrier)
+	#define juce_InterlockedExchange(a, b)		  _InterlockedExchange(a, b)
+	#define juce_InterlockedIncrement(a)		_InterlockedIncrement(a)
+	#define juce_InterlockedDecrement(a)		_InterlockedDecrement(a)
+	#define juce_InterlockedExchangeAdd(a, b)	   _InterlockedExchangeAdd(a, b)
+	#define juce_InterlockedCompareExchange(a, b, c)	_InterlockedCompareExchange(a, b, c)
+	#define juce_InterlockedCompareExchange64(a, b, c)  _InterlockedCompareExchange64(a, b, c)
+	#define juce_MemoryBarrier _ReadWriteBarrier
+  #else
+	// (these are defined in juce_win32_Threads.cpp)
+	long juce_InterlockedExchange (volatile long* a, long b) throw();
+	long juce_InterlockedIncrement (volatile long* a) throw();
+	long juce_InterlockedDecrement (volatile long* a) throw();
+	long juce_InterlockedExchangeAdd (volatile long* a, long b) throw();
+	long juce_InterlockedCompareExchange (volatile long* a, long b, long c) throw();
+	__int64 juce_InterlockedCompareExchange64 (volatile __int64* a, __int64 b, __int64 c) throw();
+	inline void juce_MemoryBarrier() throw()   { long x = 0; juce_InterlockedIncrement (&x); }
+  #endif
+
+  #if JUCE_64BIT
+	#pragma intrinsic (_InterlockedExchangeAdd64, _InterlockedExchange64, _InterlockedIncrement64, _InterlockedDecrement64)
+	#define juce_InterlockedExchangeAdd64(a, b)	 _InterlockedExchangeAdd64(a, b)
+	#define juce_InterlockedExchange64(a, b)	_InterlockedExchange64(a, b)
+	#define juce_InterlockedIncrement64(a)	  _InterlockedIncrement64(a)
+	#define juce_InterlockedDecrement64(a)	  _InterlockedDecrement64(a)
+  #else
+	// None of these atomics are available in a 32-bit Windows build!!
+	template <typename Type> static Type juce_InterlockedExchangeAdd64 (volatile Type* a, Type b) throw()   { jassertfalse; Type old = *a; *a += b; return old; }
+	template <typename Type> static Type juce_InterlockedExchange64 (volatile Type* a, Type b) throw()	  { jassertfalse; Type old = *a; *a = b; return old; }
+	template <typename Type> static Type juce_InterlockedIncrement64 (volatile Type* a) throw()		 { jassertfalse; return ++*a; }
+	template <typename Type> static Type juce_InterlockedDecrement64 (volatile Type* a) throw()		 { jassertfalse; return --*a; }
+	#define JUCE_64BIT_ATOMICS_UNAVAILABLE 1
+  #endif
+#endif
+
+#if JUCE_MSVC
+  #pragma warning (push)
+  #pragma warning (disable: 4311)  // (truncation warning)
+#endif
+
+template <typename Type>
+inline Type Atomic<Type>::get() const throw()
+{
+  #if JUCE_ATOMICS_MAC
+	return sizeof (Type) == 4 ? castFrom32Bit ((int32) OSAtomicAdd32Barrier ((int32_t) 0, (JUCE_MAC_ATOMICS_VOLATILE int32_t*) &value))
+							  : castFrom64Bit ((int64) OSAtomicAdd64Barrier ((int64_t) 0, (JUCE_MAC_ATOMICS_VOLATILE int64_t*) &value));
+  #elif JUCE_ATOMICS_WINDOWS
+	return sizeof (Type) == 4 ? castFrom32Bit ((int32) juce_InterlockedExchangeAdd ((volatile long*) &value, (long) 0))
+							  : castFrom64Bit ((int64) juce_InterlockedExchangeAdd64 ((volatile __int64*) &value, (__int64) 0));
+  #elif JUCE_ATOMICS_GCC
+	return sizeof (Type) == 4 ? castFrom32Bit ((int32) __sync_add_and_fetch ((volatile int32*) &value, 0))
+							  : castFrom64Bit ((int64) __sync_add_and_fetch ((volatile int64*) &value, 0));
+  #endif
+}
+
+template <typename Type>
+inline Type Atomic<Type>::exchange (const Type newValue) throw()
+{
+  #if JUCE_ATOMICS_MAC || JUCE_ATOMICS_GCC
+	Type currentVal = value;
+	while (! compareAndSetBool (newValue, currentVal)) { currentVal = value; }
+	return currentVal;
+  #elif JUCE_ATOMICS_WINDOWS
+	return sizeof (Type) == 4 ? castFrom32Bit ((int32) juce_InterlockedExchange ((volatile long*) &value, (long) castTo32Bit (newValue)))
+							  : castFrom64Bit ((int64) juce_InterlockedExchange64 ((volatile __int64*) &value, (__int64) castTo64Bit (newValue)));
+  #endif
+}
+
+template <typename Type>
+inline Type Atomic<Type>::operator+= (const Type amountToAdd) throw()
+{
+  #if JUCE_ATOMICS_MAC
+	return sizeof (Type) == 4 ? (Type) OSAtomicAdd32Barrier ((int32_t) castTo32Bit (amountToAdd), (JUCE_MAC_ATOMICS_VOLATILE int32_t*) &value)
+							  : (Type) OSAtomicAdd64Barrier ((int64_t) amountToAdd, (JUCE_MAC_ATOMICS_VOLATILE int64_t*) &value);
+  #elif JUCE_ATOMICS_WINDOWS
+	return sizeof (Type) == 4 ? (Type) (juce_InterlockedExchangeAdd ((volatile long*) &value, (long) amountToAdd) + (long) amountToAdd)
+							  : (Type) (juce_InterlockedExchangeAdd64 ((volatile __int64*) &value, (__int64) amountToAdd) + (__int64) amountToAdd);
+  #elif JUCE_ATOMICS_GCC
+	return (Type) __sync_add_and_fetch (&value, amountToAdd);
+  #endif
+}
+
+template <typename Type>
+inline Type Atomic<Type>::operator-= (const Type amountToSubtract) throw()
+{
+	return operator+= (juce_negate (amountToSubtract));
+}
+
+template <typename Type>
+inline Type Atomic<Type>::operator++() throw()
+{
+  #if JUCE_ATOMICS_MAC
+	return sizeof (Type) == 4 ? (Type) OSAtomicIncrement32Barrier ((JUCE_MAC_ATOMICS_VOLATILE int32_t*) &value)
+							  : (Type) OSAtomicIncrement64Barrier ((JUCE_MAC_ATOMICS_VOLATILE int64_t*) &value);
+  #elif JUCE_ATOMICS_WINDOWS
+	return sizeof (Type) == 4 ? (Type) juce_InterlockedIncrement ((volatile long*) &value)
+							  : (Type) juce_InterlockedIncrement64 ((volatile __int64*) &value);
+  #elif JUCE_ATOMICS_GCC
+	return (Type) __sync_add_and_fetch (&value, 1);
+  #endif
+}
+
+template <typename Type>
+inline Type Atomic<Type>::operator--() throw()
+{
+  #if JUCE_ATOMICS_MAC
+	return sizeof (Type) == 4 ? (Type) OSAtomicDecrement32Barrier ((JUCE_MAC_ATOMICS_VOLATILE int32_t*) &value)
+							  : (Type) OSAtomicDecrement64Barrier ((JUCE_MAC_ATOMICS_VOLATILE int64_t*) &value);
+  #elif JUCE_ATOMICS_WINDOWS
+	return sizeof (Type) == 4 ? (Type) juce_InterlockedDecrement ((volatile long*) &value)
+							  : (Type) juce_InterlockedDecrement64 ((volatile __int64*) &value);
+  #elif JUCE_ATOMICS_GCC
+	return (Type) __sync_add_and_fetch (&value, -1);
+  #endif
+}
+
+template <typename Type>
+inline bool Atomic<Type>::compareAndSetBool (const Type newValue, const Type valueToCompare) throw()
+{
+  #if JUCE_ATOMICS_MAC
+	return sizeof (Type) == 4 ? OSAtomicCompareAndSwap32Barrier ((int32_t) castTo32Bit (valueToCompare), (int32_t) castTo32Bit (newValue), (JUCE_MAC_ATOMICS_VOLATILE int32_t*) &value)
+							  : OSAtomicCompareAndSwap64Barrier ((int64_t) castTo64Bit (valueToCompare), (int64_t) castTo64Bit (newValue), (JUCE_MAC_ATOMICS_VOLATILE int64_t*) &value);
+  #elif JUCE_ATOMICS_WINDOWS
+	return compareAndSetValue (newValue, valueToCompare) == valueToCompare;
+  #elif JUCE_ATOMICS_GCC
+	return sizeof (Type) == 4 ? __sync_bool_compare_and_swap ((volatile int32*) &value, castTo32Bit (valueToCompare), castTo32Bit (newValue))
+							  : __sync_bool_compare_and_swap ((volatile int64*) &value, castTo64Bit (valueToCompare), castTo64Bit (newValue));
+  #endif
+}
+
+template <typename Type>
+inline Type Atomic<Type>::compareAndSetValue (const Type newValue, const Type valueToCompare) throw()
+{
+  #if JUCE_ATOMICS_MAC
+	for (;;) // Annoying workaround for OSX only having a bool CAS operation..
+	{
+		if (compareAndSetBool (newValue, valueToCompare))
+			return valueToCompare;
+
+		const Type result = value;
+		if (result != valueToCompare)
+			return result;
+	}
+
+  #elif JUCE_ATOMICS_WINDOWS
+	return sizeof (Type) == 4 ? castFrom32Bit ((int32) juce_InterlockedCompareExchange ((volatile long*) &value, (long) castTo32Bit (newValue), (long) castTo32Bit (valueToCompare)))
+							  : castFrom64Bit ((int64) juce_InterlockedCompareExchange64 ((volatile __int64*) &value, (__int64) castTo64Bit (newValue), (__int64) castTo64Bit (valueToCompare)));
+  #elif JUCE_ATOMICS_GCC
+	return sizeof (Type) == 4 ? castFrom32Bit ((int32) __sync_val_compare_and_swap ((volatile int32*) &value, castTo32Bit (valueToCompare), castTo32Bit (newValue)))
+							  : castFrom64Bit ((int64) __sync_val_compare_and_swap ((volatile int64*) &value, castTo64Bit (valueToCompare), castTo64Bit (newValue)));
+  #endif
+}
+
+template <typename Type>
+inline void Atomic<Type>::memoryBarrier() throw()
+{
+  #if JUCE_ATOMICS_MAC
+	OSMemoryBarrier();
+  #elif JUCE_ATOMICS_GCC
+	__sync_synchronize();
+  #elif JUCE_ATOMICS_WINDOWS
+	juce_MemoryBarrier();
+  #endif
+}
+
+#if JUCE_MSVC
+  #pragma warning (pop)
+#endif
+
+#endif   // __JUCE_ATOMIC_JUCEHEADER__
+/*** End of inlined file: juce_Atomic.h ***/
+
+/**
+	Embedding an instance of this class inside another class can be used as a low-overhead
+	way of detecting leaked instances.
+
+	This class keeps an internal static count of the number of instances that are
+	active, so that when the app is shutdown and the static destructors are called,
+	it can check whether there are any left-over instances that may have been leaked.
+
+	To use it, use the JUCE_LEAK_DETECTOR macro as a simple way to put one in your
+	class declaration. Have a look through the juce codebase for examples, it's used
+	in most of the classes.
+*/
+template <class OwnerClass>
+class LeakedObjectDetector
+{
+public:
+
+	LeakedObjectDetector() throw()				  { ++(getCounter().numObjects); }
+	LeakedObjectDetector (const LeakedObjectDetector&) throw()	  { ++(getCounter().numObjects); }
+
+	~LeakedObjectDetector()
+	{
+		if (--(getCounter().numObjects) < 0)
+		{
+			DBG ("*** Dangling pointer deletion! Class: " << String (typeid (OwnerClass).name()));
+
+			/** If you hit this, then you've managed to delete more instances of this class than you've
+				created.. That indicates that you're deleting some dangling pointers.
+
+				Note that although this assertion will have been triggered during a destructor, it might
+				not be this particular deletion that's at fault - the incorrect one may have happened
+				at an earlier point in the program, and simply not been detected until now.
+
+				Most errors like this are caused by using old-fashioned, non-RAII techniques for
+				your object management. Tut, tut. Always, always use ScopedPointers, OwnedArrays,
+				ReferenceCountedObjects, etc, and avoid the 'delete' operator at all costs!
+			*/
+			jassertfalse;
+		}
+	}
+
+private:
+
+	class LeakCounter
+	{
+	public:
+		LeakCounter() {}
+
+		~LeakCounter()
+		{
+			if (numObjects.value > 0)
+			{
+				DBG ("*** Leaked objects detected: " << numObjects.value << " instance(s) of class " << String (typeid (OwnerClass).name()));
+
+				/** If you hit this, then you've leaked one or more objects of the type specified by
+					the 'OwnerClass' template parameter - the name should have been printed by the line above.
+
+					If you're leaking, it's probably because you're using old-fashioned, non-RAII techniques for
+					your object management. Tut, tut. Always, always use ScopedPointers, OwnedArrays,
+					ReferenceCountedObjects, etc, and avoid the 'delete' operator at all costs!
+				*/
+				jassertfalse;
+			}
+		}
+
+		Atomic<int> numObjects;
+	};
+
+	static LeakCounter& getCounter() throw()
+	{
+		static LeakCounter counter;
+		return counter;
+	}
+};
+
+#if DOXYGEN || (JUCE_CHECK_MEMORY_LEAKS && ! defined (JUCE_LEAK_DETECTOR))
+  /** This macro lets you embed a leak-detecting object inside a class.
+
+	  To use it, simply declare a JUCE_LEAK_DETECTOR(YourClassName) inside a private section
+	  of the class declaration. E.g.
+
+	  @code
+	  class MyClass
+	  {
+	  public:
+		  MyClass();
+		  void blahBlah();
+
+	  private:
+		  JUCE_LEAK_DETECTOR (MyClass);
+	  };@endcode
+
+	  @see JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR, LeakedObjectDetector
+  */
+  #define JUCE_LEAK_DETECTOR(OwnerClass)	 LeakedObjectDetector<OwnerClass> JUCE_JOIN_MACRO (leakDetector, __LINE__);
+#else
+  #define JUCE_LEAK_DETECTOR(OwnerClass)
+#endif
+
+#endif   // __JUCE_LEAKEDOBJECTDETECTOR_JUCEHEADER__
+/*** End of inlined file: juce_LeakedObjectDetector.h ***/
+
 END_JUCE_NAMESPACE
 
 #endif   // __JUCE_STANDARDHEADER_JUCEHEADER__
@@ -2739,6 +3345,199 @@ BEGIN_JUCE_NAMESPACE
 #ifndef __JUCE_JUCE_CORE_INCLUDES_INCLUDEFILES__
 #define __JUCE_JUCE_CORE_INCLUDES_INCLUDEFILES__
 
+#ifndef __JUCE_ABSTRACTFIFO_JUCEHEADER__
+
+/*** Start of inlined file: juce_AbstractFifo.h ***/
+#ifndef __JUCE_ABSTRACTFIFO_JUCEHEADER__
+#define __JUCE_ABSTRACTFIFO_JUCEHEADER__
+
+/**
+	Encapsulates the logic required to implement a lock-free FIFO.
+
+	This class handles the logic needed when building a single-reader, single-writer FIFO.
+
+	It doesn't actually hold any data itself, but your FIFO class can use one of these to manage
+	its position and status when reading or writing to it.
+
+	To use it, you can call prepareToWrite() to determine the position within your own buffer that
+	an incoming block of data should be stored, and prepareToRead() to find out when the next
+	outgoing block should be read from.
+
+	e.g.
+	@code
+	class MyFifo
+	{
+	public:
+		MyFifo()  : abstractFifo (1024)
+		{
+		}
+
+		void addToFifo (const int* someData, int numItems)
+		{
+			int start1, size1, start2, size2;
+			prepareToWrite (numItems, start1, size1, start2, size2);
+
+			if (size1 > 0)
+				copySomeData (myBuffer + start1, someData, size1);
+
+			if (size2 > 0)
+				copySomeData (myBuffer + start2, someData + size1, size2);
+
+			finishedWrite (size1 + size2);
+		}
+
+		void readFromFifo (int* someData, int numItems)
+		{
+			int start1, size1, start2, size2;
+			prepareToRead (numSamples, start1, size1, start2, size2);
+
+			if (size1 > 0)
+				copySomeData (someData, myBuffer + start1, size1);
+
+			if (size2 > 0)
+				copySomeData (someData + size1, myBuffer + start2, size2);
+
+			finishedRead (size1 + size2);
+		}
+
+	private:
+		AbstractFifo abstractFifo;
+		int myBuffer [1024];
+	};
+	@endcode
+*/
+class JUCE_API  AbstractFifo
+{
+public:
+
+	/** Creates a FIFO to manage a buffer with the specified capacity. */
+	AbstractFifo (int capacity) throw();
+
+	/** Destructor */
+	~AbstractFifo();
+
+	/** Returns the total size of the buffer being managed. */
+	int getTotalSize() const throw();
+
+	/** Returns the number of items that can currently be added to the buffer without it overflowing. */
+	int getFreeSpace() const throw();
+
+	/** Returns the number of items that can currently be read from the buffer. */
+	int getNumReady() const throw();
+
+	/** Clears the buffer positions, so that it appears empty. */
+	void reset() throw();
+
+	/** Changes the buffer's total size.
+		Note that this isn't thread-safe, so don't call it if there's any danger that it
+		might overlap with a call to any other method in this class!
+	*/
+	void setTotalSize (int newSize) throw();
+
+	/** Returns the location within the buffer at which an incoming block of data should be written.
+
+		Because the section of data that you want to add to the buffer may overlap the end
+		and wrap around to the start, two blocks within your buffer are returned, and you
+		should copy your data into the first one, with any remaining data spilling over into
+		the second.
+
+		If the number of items you ask for is too large to fit within the buffer's free space, then
+		blockSize1 + blockSize2 may add up to a lower value than numToWrite. If this happens, you
+		may decide to keep waiting and re-trying the method until there's enough space available.
+
+		After calling this method, if you choose to write your data into the blocks returned, you
+		must call finishedWrite() to tell the FIFO how much data you actually added.
+
+		e.g.
+		@code
+		void addToFifo (const int* someData, int numItems)
+		{
+			int start1, size1, start2, size2;
+			prepareToWrite (numItems, start1, size1, start2, size2);
+
+			if (size1 > 0)
+				copySomeData (myBuffer + start1, someData, size1);
+
+			if (size2 > 0)
+				copySomeData (myBuffer + start2, someData + size1, size2);
+
+			finishedWrite (size1 + size2);
+		}
+		@endcode
+
+		@param numToWrite	   indicates how many items you'd like to add to the buffer
+		@param startIndex1	  on exit, this will contain the start index in your buffer at which your data should be written
+		@param blockSize1	   on exit, this indicates how many items can be written to the block starting at startIndex1
+		@param startIndex2	  on exit, this will contain the start index in your buffer at which any data that didn't fit into
+								the first block should be written
+		@param blockSize2	   on exit, this indicates how many items can be written to the block starting at startIndex2
+		@see finishedWrite
+	*/
+	void prepareToWrite (int numToWrite, int& startIndex1, int& blockSize1, int& startIndex2, int& blockSize2) const throw();
+
+	/** Called after reading from the FIFO, to indicate that this many items have been added.
+		@see prepareToWrite
+	*/
+	void finishedWrite (int numWritten) throw();
+
+	/** Returns the location within the buffer from which the next block of data should be read.
+
+		Because the section of data that you want to read from the buffer may overlap the end
+		and wrap around to the start, two blocks within your buffer are returned, and you
+		should read from both of them.
+
+		If the number of items you ask for is greater than the amount of data available, then
+		blockSize1 + blockSize2 may add up to a lower value than numWanted. If this happens, you
+		may decide to keep waiting and re-trying the method until there's enough data available.
+
+		After calling this method, if you choose to read the data, you must call finishedRead() to
+		tell the FIFO how much data you have consumed.
+
+		e.g.
+		@code
+		void readFromFifo (int* someData, int numItems)
+		{
+			int start1, size1, start2, size2;
+			prepareToRead (numSamples, start1, size1, start2, size2);
+
+			if (size1 > 0)
+				copySomeData (someData, myBuffer + start1, size1);
+
+			if (size2 > 0)
+				copySomeData (someData + size1, myBuffer + start2, size2);
+
+			finishedRead (size1 + size2);
+		}
+		@endcode
+
+		@param numWanted	indicates how many items you'd like to add to the buffer
+		@param startIndex1	  on exit, this will contain the start index in your buffer at which your data should be written
+		@param blockSize1	   on exit, this indicates how many items can be written to the block starting at startIndex1
+		@param startIndex2	  on exit, this will contain the start index in your buffer at which any data that didn't fit into
+								the first block should be written
+		@param blockSize2	   on exit, this indicates how many items can be written to the block starting at startIndex2
+		@see finishedRead
+	*/
+	void prepareToRead (int numWanted, int& startIndex1, int& blockSize1, int& startIndex2, int& blockSize2) const throw();
+
+	/** Called after reading from the FIFO, to indicate that this many items have now been consumed.
+		@see prepareToRead
+	*/
+	void finishedRead (int numRead) throw();
+
+private:
+
+	int bufferSize;
+	Atomic <int> validStart, validEnd;
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AbstractFifo);
+};
+
+#endif   // __JUCE_ABSTRACTFIFO_JUCEHEADER__
+/*** End of inlined file: juce_AbstractFifo.h ***/
+
+
+#endif
 #ifndef __JUCE_ARRAY_JUCEHEADER__
 
 /*** Start of inlined file: juce_Array.h ***/
@@ -2770,13 +3569,13 @@ BEGIN_JUCE_NAMESPACE
 
 	E.g. instead of this:
 	@code
-		int* temp = (int*) juce_malloc (1024 * sizeof (int));
+		int* temp = (int*) malloc (1024 * sizeof (int));
 		memcpy (temp, xyz, 1024 * sizeof (int));
-		juce_free (temp);
-		temp = (int*) juce_calloc (2048 * sizeof (int));
+		free (temp);
+		temp = (int*) calloc (2048 * sizeof (int));
 		temp[0] = 1234;
 		memcpy (foobar, temp, 2048 * sizeof (int));
-		juce_free (temp);
+		free (temp);
 	@endcode
 
 	..you could just write this:
@@ -2817,7 +3616,7 @@ public:
 		If you want an array of zero values, you can use the calloc() method instead.
 	*/
 	explicit HeapBlock (const size_t numElements)
-		: data (static_cast <ElementType*> (::juce_malloc (numElements * sizeof (ElementType))))
+		: data (static_cast <ElementType*> (::malloc (numElements * sizeof (ElementType))))
 	{
 	}
 
@@ -2827,7 +3626,7 @@ public:
 	*/
 	~HeapBlock()
 	{
-		::juce_free (data);
+		::free (data);
 	}
 
 	/** Returns a raw pointer to the allocated data.
@@ -2848,6 +3647,12 @@ public:
 	*/
 	inline operator void*() const throw()				   { return static_cast <void*> (data); }
 
+	/** Returns a void pointer to the allocated data.
+		This may be a null pointer if the data hasn't yet been allocated, or if it has been
+		freed by calling the free() method.
+	*/
+	inline operator const void*() const throw()				 { return static_cast <const void*> (data); }
+
 	/** Lets you use indirect calls to the first element in the array.
 		Obviously this will cause problems if the array hasn't been initialised, because it'll
 		be referencing a null pointer.
@@ -2866,18 +3671,6 @@ public:
 	*/
 	template <typename IndexType>
 	inline ElementType* operator+ (IndexType index) const throw()	   { return data + index; }
-
-	/** Returns a reference to the raw data pointer.
-		Beware that the pointer returned here will become invalid as soon as you call
-		any of the allocator methods on this object!
-	*/
-	inline ElementType* const* operator&() const throw()			{ return static_cast <ElementType* const*> (&data); }
-
-	/** Returns a reference to the raw data pointer.
-		Beware that the pointer returned here will become invalid as soon as you call
-		any of the allocator methods on this object!
-	*/
-	inline ElementType** operator&() throw()				{ return static_cast <ElementType**> (&data); }
 
 	/** Compares the pointer with another pointer.
 		This can be handy for checking whether this is a null pointer.
@@ -2903,8 +3696,8 @@ public:
 	*/
 	void malloc (const size_t newNumElements, const size_t elementSize = sizeof (ElementType))
 	{
-		::juce_free (data);
-		data = static_cast <ElementType*> (::juce_malloc (newNumElements * elementSize));
+		::free (data);
+		data = static_cast <ElementType*> (::malloc (newNumElements * elementSize));
 	}
 
 	/** Allocates a specified amount of memory and clears it.
@@ -2912,8 +3705,8 @@ public:
 	*/
 	void calloc (const size_t newNumElements, const size_t elementSize = sizeof (ElementType))
 	{
-		::juce_free (data);
-		data = static_cast <ElementType*> (::juce_calloc (newNumElements * elementSize));
+		::free (data);
+		data = static_cast <ElementType*> (::calloc (newNumElements, elementSize));
 	}
 
 	/** Allocates a specified amount of memory and optionally clears it.
@@ -2922,12 +3715,12 @@ public:
 	*/
 	void allocate (const size_t newNumElements, const bool initialiseToZero)
 	{
-		::juce_free (data);
+		::free (data);
 
 		if (initialiseToZero)
-			data = static_cast <ElementType*> (::juce_calloc (newNumElements * sizeof (ElementType)));
+			data = static_cast <ElementType*> (::calloc (newNumElements, sizeof (ElementType)));
 		else
-			data = static_cast <ElementType*> (::juce_malloc (newNumElements * sizeof (ElementType)));
+			data = static_cast <ElementType*> (::malloc (newNumElements * sizeof (ElementType)));
 	}
 
 	/** Re-allocates a specified amount of memory.
@@ -2938,9 +3731,9 @@ public:
 	void realloc (const size_t newNumElements, const size_t elementSize = sizeof (ElementType))
 	{
 		if (data == 0)
-			data = static_cast <ElementType*> (::juce_malloc (newNumElements * elementSize));
+			data = static_cast <ElementType*> (::malloc (newNumElements * elementSize));
 		else
-			data = static_cast <ElementType*> (::juce_realloc (data, newNumElements * elementSize));
+			data = static_cast <ElementType*> (::realloc (data, newNumElements * elementSize));
 	}
 
 	/** Frees any currently-allocated data.
@@ -2948,7 +3741,7 @@ public:
 	*/
 	void free()
 	{
-		::juce_free (data);
+		::free (data);
 		data = 0;
 	}
 
@@ -2964,8 +3757,7 @@ private:
 
 	ElementType* data;
 
-	HeapBlock (const HeapBlock&);
-	HeapBlock& operator= (const HeapBlock&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (HeapBlock);
 };
 
 #endif   // __JUCE_HEAPBLOCK_JUCEHEADER__
@@ -3052,8 +3844,7 @@ public:
 	int numAllocated;
 
 private:
-	ArrayAllocationBase (const ArrayAllocationBase&);
-	ArrayAllocationBase& operator= (const ArrayAllocationBase&);
+	JUCE_DECLARE_NON_COPYABLE (ArrayAllocationBase);
 };
 
 #endif   // __JUCE_ARRAYALLOCATIONBASE_JUCEHEADER__
@@ -3109,9 +3900,7 @@ static void sortArray (ElementComparator& comparator,
 			{
 				if (comparator.compareElements (array[i], array [i + 1]) > 0)
 				{
-					const ElementType temp = array [i];
-					array [i] = array[i + 1];
-					array [i + 1] = temp;
+					swapVariables (array[i], array[i + 1]);
 
 					if (i > firstElement)
 						i -= 2;
@@ -3139,19 +3928,14 @@ static void sortArray (ElementComparator& comparator,
 							if (comparator.compareElements (array[k], array [maxIndex]) > 0)
 								maxIndex = k;
 
-						const ElementType temp = array [maxIndex];
-						array [maxIndex] = array[j];
-						array [j] = temp;
-
+						swapVariables (array[j], array[maxIndex]);
 						--j;
 					}
 				}
 				else
 				{
 					const int mid = firstElement + (size >> 1);
-					ElementType temp = array [mid];
-					array [mid] = array [firstElement];
-					array [firstElement] = temp;
+					swapVariables (array[mid], array[firstElement]);
 
 					int i = firstElement;
 					int j = lastElement + 1;
@@ -3169,14 +3953,10 @@ static void sortArray (ElementComparator& comparator,
 						if (j < i)
 							break;
 
-						temp = array[i];
-						array[i] = array[j];
-						array[j] = temp;
+						swapVariables (array[i], array[j]);
 					}
 
-					temp = array [firstElement];
-					array [firstElement] = array[j];
-					array [j] = temp;
+					swapVariables (array[j], array[firstElement]);
 
 					if (j - 1 - firstElement >= lastElement - i)
 					{
@@ -3387,8 +4167,6 @@ public:
 	/** Provides the type of scoped unlocker to use with this type of critical section object. */
 	typedef ScopedUnlock	ScopedUnlockType;
 
-	juce_UseDebuggingNewOperator
-
 private:
 
 #if JUCE_WINDOWS
@@ -3404,8 +4182,7 @@ private:
 	mutable pthread_mutex_t internal;
 #endif
 
-	CriticalSection (const CriticalSection&);
-	CriticalSection& operator= (const CriticalSection&);
+	JUCE_DECLARE_NON_COPYABLE (CriticalSection);
 };
 
 /**
@@ -3435,23 +4212,22 @@ public:
 	typedef ScopedLockType ScopedUnlockType;
 
 private:
-	DummyCriticalSection (const DummyCriticalSection&);
-	DummyCriticalSection& operator= (const DummyCriticalSection&);
+	JUCE_DECLARE_NON_COPYABLE (DummyCriticalSection);
 };
 
 #endif   // __JUCE_CRITICALSECTION_JUCEHEADER__
 /*** End of inlined file: juce_CriticalSection.h ***/
 
 /**
-	Holds a list of simple objects, such as ints, doubles, or pointers.
+	Holds a resizable array of primitive or copy-by-value objects.
 
 	Examples of arrays are: Array<int>, Array<Rectangle> or Array<MyClass*>
 
-	The array can be used to hold simple, non-polymorphic objects as well as primitive types - to
+	The Array class can be used to hold simple, non-polymorphic objects as well as primitive types - to
 	do so, the class must fulfil these requirements:
-	- it must have a copy constructor and operator=
-	- it must be able to be relocated in memory by a memcpy without this causing a problem - so no
-	  objects whose functionality relies on pointers or references to themselves can be used.
+	- it must have a copy constructor and assignment operator
+	- it must be able to be relocated in memory by a memcpy without this causing any problems - so
+	  objects whose functionality relies on external pointers or references to themselves can be used.
 
 	You can of course have an array of pointers to any kind of object, e.g. Array <MyClass*>, but if
 	you do this, the array doesn't take any ownership of the objects - see the OwnedArray class or the
@@ -3470,7 +4246,7 @@ template <typename ElementType,
 class Array
 {
 private:
-  #if defined (_MSC_VER) && _MSC_VER <= 1400
+  #if JUCE_VC8_OR_EARLIER
 	typedef const ElementType& ParameterType;
   #else
 	typedef PARAMETER_TYPE (ElementType) ParameterType;
@@ -3628,8 +4404,8 @@ public:
 	inline ElementType operator[] (const int index) const
 	{
 		const ScopedLockType lock (getLock());
-		return (((unsigned int) index) < (unsigned int) numUsed) ? data.elements [index]
-																 : ElementType();
+		return isPositiveAndBelow (index, numUsed) ? data.elements [index]
+												   : ElementType();
 	}
 
 	/** Returns one of the elements in the array, without checking the index passed in.
@@ -3644,7 +4420,7 @@ public:
 	inline const ElementType getUnchecked (const int index) const
 	{
 		const ScopedLockType lock (getLock());
-		jassert (((unsigned int) index) < (unsigned int) numUsed);
+		jassert (isPositiveAndBelow (index, numUsed));
 		return data.elements [index];
 	}
 
@@ -3660,7 +4436,7 @@ public:
 	inline ElementType& getReference (const int index) const throw()
 	{
 		const ScopedLockType lock (getLock());
-		jassert (((unsigned int) index) < (unsigned int) numUsed);
+		jassert (isPositiveAndBelow (index, numUsed));
 		return data.elements [index];
 	}
 
@@ -3771,7 +4547,7 @@ public:
 		const ScopedLockType lock (getLock());
 		data.ensureAllocatedSize (numUsed + 1);
 
-		if (((unsigned int) indexToInsertAt) < (unsigned int) numUsed)
+		if (isPositiveAndBelow (indexToInsertAt, numUsed))
 		{
 			ElementType* const insertPos = data.elements + indexToInsertAt;
 			const int numberToMove = numUsed - indexToInsertAt;
@@ -3809,7 +4585,7 @@ public:
 			data.ensureAllocatedSize (numUsed + numberOfTimesToInsertIt);
 			ElementType* insertPos;
 
-			if (((unsigned int) indexToInsertAt) < (unsigned int) numUsed)
+			if (isPositiveAndBelow (indexToInsertAt, numUsed))
 			{
 				insertPos = data.elements + indexToInsertAt;
 				const int numberToMove = numUsed - indexToInsertAt;
@@ -3849,7 +4625,7 @@ public:
 			data.ensureAllocatedSize (numUsed + numberOfElements);
 			ElementType* insertPos;
 
-			if (((unsigned int) indexToInsertAt) < (unsigned int) numUsed)
+			if (isPositiveAndBelow (indexToInsertAt, numUsed))
 			{
 				insertPos = data.elements + indexToInsertAt;
 				const int numberToMove = numUsed - indexToInsertAt;
@@ -3897,7 +4673,7 @@ public:
 		jassert (indexToChange >= 0);
 		const ScopedLockType lock (getLock());
 
-		if (((unsigned int) indexToChange) < (unsigned int) numUsed)
+		if (isPositiveAndBelow (indexToChange, numUsed))
 		{
 			data.elements [indexToChange] = newValue;
 		}
@@ -3920,7 +4696,7 @@ public:
 	void setUnchecked (const int indexToChange, ParameterType newValue)
 	{
 		const ScopedLockType lock (getLock());
-		jassert (((unsigned int) indexToChange) < (unsigned int) numUsed);
+		jassert (isPositiveAndBelow (indexToChange, numUsed));
 		data.elements [indexToChange] = newValue;
 	}
 
@@ -3975,19 +4751,22 @@ public:
 				   int numElementsToAdd = -1)
 	{
 		const typename OtherArrayType::ScopedLockType lock1 (arrayToAddFrom.getLock());
-		const ScopedLockType lock2 (getLock());
 
-		if (startIndex < 0)
 		{
-			jassertfalse;
-			startIndex = 0;
+			const ScopedLockType lock2 (getLock());
+
+			if (startIndex < 0)
+			{
+				jassertfalse;
+				startIndex = 0;
+			}
+
+			if (numElementsToAdd < 0 || startIndex + numElementsToAdd > arrayToAddFrom.size())
+				numElementsToAdd = arrayToAddFrom.size() - startIndex;
+
+			while (--numElementsToAdd >= 0)
+				add (arrayToAddFrom.getUnchecked (startIndex++));
 		}
-
-		if (numElementsToAdd < 0 || startIndex + numElementsToAdd > arrayToAddFrom.size())
-			numElementsToAdd = arrayToAddFrom.size() - startIndex;
-
-		while (--numElementsToAdd >= 0)
-			add (arrayToAddFrom.getUnchecked (startIndex++));
 	}
 
 	/** Inserts a new element into the array, assuming that the array is sorted.
@@ -4083,7 +4862,7 @@ public:
 	{
 		const ScopedLockType lock (getLock());
 
-		if (((unsigned int) indexToRemove) < (unsigned int) numUsed)
+		if (isPositiveAndBelow (indexToRemove, numUsed))
 		{
 			--numUsed;
 
@@ -4180,7 +4959,7 @@ public:
 		if (howManyToRemove > numUsed)
 			howManyToRemove = numUsed;
 
-		for (int i = 0; i < howManyToRemove; ++i)
+		for (int i = 1; i <= howManyToRemove; ++i)
 			data.elements [numUsed - i].~ElementType();
 
 		numUsed -= howManyToRemove;
@@ -4256,8 +5035,8 @@ public:
 	{
 		const ScopedLockType lock (getLock());
 
-		if (((unsigned int) index1) < (unsigned int) numUsed
-			&& ((unsigned int) index2) < (unsigned int) numUsed)
+		if (isPositiveAndBelow (index1, numUsed)
+			 && isPositiveAndBelow (index2, numUsed))
 		{
 			swapVariables (data.elements [index1],
 						   data.elements [index2]);
@@ -4284,9 +5063,9 @@ public:
 		{
 			const ScopedLockType lock (getLock());
 
-			if (((unsigned int) currentIndex) < (unsigned int) numUsed)
+			if (isPositiveAndBelow (currentIndex, numUsed))
 			{
-				if (((unsigned int) newIndex) >= (unsigned int) numUsed)
+				if (! isPositiveAndBelow (newIndex, numUsed))
 					newIndex = numUsed - 1;
 
 				char tempCopy [sizeof (ElementType)];
@@ -4379,9 +5158,8 @@ public:
 	/** Returns the type of scoped lock to use for locking this array */
 	typedef typename TypeOfCriticalSectionToUse::ScopedLockType ScopedLockType;
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	ArrayAllocationBase <ElementType, TypeOfCriticalSectionToUse> data;
 	int numUsed;
 };
@@ -4422,14 +5200,14 @@ public:
 
 		The low 32 bits of the number are initialised with this value.
 	*/
-	BigInteger (unsigned int value);
+	BigInteger (uint32 value);
 
 	/** Creates a BigInteger containing an integer value in its low bits.
 
 		The low 32 bits of the number are initialised with the absolute value
 		passed in, and its sign is set to reflect the sign of the number.
 	*/
-	BigInteger (int value);
+	BigInteger (int32 value);
 
 	/** Creates a BigInteger containing an integer value in its low bits.
 
@@ -4510,7 +5288,7 @@ public:
 		Copies the given integer onto a range of bits, starting at startBit,
 		and using up to numBits of the available bits.
 	*/
-	void setBitRangeAsInt (int startBit, int numBits, unsigned int valueToSet);
+	void setBitRangeAsInt (int startBit, int numBits, uint32 valueToSet);
 
 	/** Shifts a section of bits left or right.
 
@@ -4626,7 +5404,7 @@ public:
 	/** Changes the sign of the number to be positive or negative.
 		@see isNegative, negate
 	*/
-	void setNegative (const bool shouldBeNegative) throw();
+	void setNegative (bool shouldBeNegative) throw();
 
 	/** Inverts the sign of the number.
 		@see isNegative, setNegative
@@ -4666,15 +5444,19 @@ public:
 	*/
 	void loadFromMemoryBlock (const MemoryBlock& data);
 
-	juce_UseDebuggingNewOperator
-
 private:
-	HeapBlock <unsigned int> values;
+
+	HeapBlock <uint32> values;
 	int numValues, highestBit;
 	bool negative;
 
 	void ensureSize (int numVals);
 	static const BigInteger simpleGCD (BigInteger* m, BigInteger* n);
+
+	static inline int bitToIndex (const int bit) throw()	{ return bit >> 5; }
+	static inline uint32 bitToMask (const int bit) throw()	  { return 1 << (bit & 31); }
+
+	JUCE_LEAK_DETECTOR (BigInteger);
 };
 
 /** Writes a BigInteger to an OutputStream as a UTF8 decimal string. */
@@ -4862,18 +5644,17 @@ public:
 		@param initialiseToZero	 whether to clear the memory or just leave it uninitialised
 	*/
 	MemoryBlock (const size_t initialSize,
-				 const bool initialiseToZero = false) throw();
+				 bool initialiseToZero = false);
 
 	/** Creates a copy of another memory block. */
-	MemoryBlock (const MemoryBlock& other) throw();
+	MemoryBlock (const MemoryBlock& other);
 
 	/** Creates a memory block using a copy of a block of data.
 
 		@param dataToInitialiseFrom	 some data to copy into this block
 		@param sizeInBytes		  how much space to use
 	*/
-	MemoryBlock (const void* const dataToInitialiseFrom,
-				 const size_t sizeInBytes) throw();
+	MemoryBlock (const void* dataToInitialiseFrom, size_t sizeInBytes);
 
 	/** Destructor. */
 	~MemoryBlock() throw();
@@ -4882,7 +5663,7 @@ public:
 
 		This block will be resized and copied to exactly match the other one.
 	*/
-	MemoryBlock& operator= (const MemoryBlock& other) throw();
+	MemoryBlock& operator= (const MemoryBlock& other);
 
 	/** Compares two memory blocks.
 
@@ -4930,7 +5711,7 @@ public:
 		@see ensureSize
 	*/
 	void setSize (const size_t newSize,
-				  const bool initialiseNewSpaceToZero = false) throw();
+				  bool initialiseNewSpaceToZero = false);
 
 	/** Increases the block's size only if it's smaller than a given size.
 
@@ -4942,20 +5723,19 @@ public:
 		@see setSize
 	*/
 	void ensureSize (const size_t minimumSize,
-					 const bool initialiseNewSpaceToZero = false) throw();
+					 bool initialiseNewSpaceToZero = false);
 
 	/** Fills the entire memory block with a repeated byte value.
 
 		This is handy for clearing a block of memory to zero.
 	*/
-	void fillWith (const uint8 valueToUse) throw();
+	void fillWith (uint8 valueToUse) throw();
 
 	/** Adds another block of data to the end of this one.
 
 		This block's size will be increased accordingly.
 	*/
-	void append (const void* const data,
-				 const size_t numBytes) throw();
+	void append (const void* data, size_t numBytes);
 
 	/** Exchanges the contents of this and another memory block.
 		No actual copying is required for this, so it's very fast.
@@ -4991,11 +5771,11 @@ public:
 
 		If the range specified goes beyond the size of the block, it will be clipped.
 	*/
-	void removeSection (size_t startByte, size_t numBytesToRemove) throw();
+	void removeSection (size_t startByte, size_t numBytesToRemove);
 
 	/** Attempts to parse the contents of the block as a zero-terminated string of 8-bit
 		characters in the system's default encoding. */
-	const String toString() const throw();
+	const String toString() const;
 
 	/** Parses a string of hexadecimal numbers and writes this data into the memory block.
 
@@ -5004,7 +5784,7 @@ public:
 
 		@see String::toHexString()
 	*/
-	void loadFromHexString (const String& sourceHexString) throw();
+	void loadFromHexString (const String& sourceHexString);
 
 	/** Sets a number of bits in the memory block, treating it as a long binary sequence. */
 	void setBitRange (size_t bitRangeStart,
@@ -5022,7 +5802,7 @@ public:
 
 		@see fromBase64Encoding
 	*/
-	const String toBase64Encoding() const throw();
+	const String toBase64Encoding() const;
 
 	/** Takes a string of encoded characters and turns it into binary data.
 
@@ -5031,15 +5811,15 @@ public:
 
 		@see toBase64Encoding
 	*/
-	bool fromBase64Encoding  (const String& encodedString) throw();
-
-	juce_UseDebuggingNewOperator
+	bool fromBase64Encoding  (const String& encodedString);
 
 private:
 
 	HeapBlock <char> data;
 	size_t size;
 	static const char* const encodingTable;
+
+	JUCE_LEAK_DETECTOR (MemoryBlock);
 };
 
 #endif   // __JUCE_MEMORYBLOCK_JUCEHEADER__
@@ -5285,11 +6065,12 @@ public:
 	*/
 	virtual void skipNextBytes (int64 numBytesToSkip);
 
-	juce_UseDebuggingNewOperator
-
 protected:
 
 	InputStream() throw()  {}
+
+private:
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (InputStream);
 };
 
 #endif   // __JUCE_INPUTSTREAM_JUCEHEADER__
@@ -5464,7 +6245,9 @@ public:
 	*/
 	virtual int writeFromInputStream (InputStream& source, int64 maxNumBytesToWrite);
 
-	juce_UseDebuggingNewOperator
+private:
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OutputStream);
 };
 
 /** Writes a number to a stream as 8-bit characters in the default system encoding. */
@@ -5586,8 +6369,6 @@ public:
 	/** If this variant is a method pointer, this invokes it on a target object. */
 	const var invoke (const var& targetObject, const var* arguments, int numArguments) const;
 
-	juce_UseDebuggingNewOperator
-
 	/** Returns true if this var has the same value as the one supplied. */
 	bool equals (const var& other) const throw();
 
@@ -5670,13 +6451,9 @@ public:
 	*/
 	const var getWithDefault (const Identifier& name, const var& defaultReturnValue) const;
 
-	/** Returns a pointer to the object holding a named value, or
-		null if there is no value with this name. */
-	var* getItem (const Identifier& name) const;
-
 	/** Changes or adds a named value.
-		@returns true if a value was changed or added; false if the
-				 value was already set the the value passed-in.
+		@returns	true if a value was changed or added; false if the
+					value was already set the the value passed-in.
 	*/
 	bool set (const Identifier& name, const var& newValue);
 
@@ -5704,9 +6481,16 @@ public:
 	/** Removes all values. */
 	void clear();
 
-	juce_UseDebuggingNewOperator
+	/** Returns a pointer to the var that holds a named value, or null if there is
+		no value with this name.
+
+		Do not use this method unless you really need access to the internal var object
+		for some reason - for normal reading and writing always prefer operator[]() and set().
+	*/
+	var* getVarPointer (const Identifier& name) const;
 
 private:
+
 	struct NamedValue
 	{
 		NamedValue() throw();
@@ -5727,341 +6511,6 @@ private:
 /*** Start of inlined file: juce_ReferenceCountedObject.h ***/
 #ifndef __JUCE_REFERENCECOUNTEDOBJECT_JUCEHEADER__
 #define __JUCE_REFERENCECOUNTEDOBJECT_JUCEHEADER__
-
-
-/*** Start of inlined file: juce_Atomic.h ***/
-#ifndef __JUCE_ATOMIC_JUCEHEADER__
-#define __JUCE_ATOMIC_JUCEHEADER__
-
-/**
-	Simple class to hold a primitive value and perform atomic operations on it.
-
-	The type used must be a 32 or 64 bit primitive, like an int, pointer, etc.
-	There are methods to perform most of the basic atomic operations.
-*/
-template <typename Type>
-class Atomic
-{
-public:
-	/** Creates a new value, initialised to zero. */
-	inline Atomic() throw()
-		: value (0)
-	{
-	}
-
-	/** Creates a new value, with a given initial value. */
-	inline Atomic (const Type initialValue) throw()
-		: value (initialValue)
-	{
-	}
-
-	/** Copies another value (atomically). */
-	inline Atomic (const Atomic& other) throw()
-		: value (other.get())
-	{
-	}
-
-	/** Destructor. */
-	inline ~Atomic() throw()
-	{
-		// This class can only be used for types which are 32 or 64 bits in size.
-		static_jassert (sizeof (Type) == 4 || sizeof (Type) == 8);
-	}
-
-	/** Atomically reads and returns the current value. */
-	Type get() const throw();
-
-	/** Copies another value onto this one (atomically). */
-	inline Atomic& operator= (const Atomic& other) throw()	  { exchange (other.get()); return *this; }
-
-	/** Copies another value onto this one (atomically). */
-	inline Atomic& operator= (const Type newValue) throw()	  { exchange (newValue); return *this; }
-
-	/** Atomically sets the current value. */
-	void set (Type newValue) throw()				{ exchange (newValue); }
-
-	/** Atomically sets the current value, returning the value that was replaced. */
-	Type exchange (Type value) throw();
-
-	/** Atomically adds a number to this value, returning the new value. */
-	Type operator+= (Type amountToAdd) throw();
-
-	/** Atomically subtracts a number from this value, returning the new value. */
-	Type operator-= (Type amountToSubtract) throw();
-
-	/** Atomically increments this value, returning the new value. */
-	Type operator++() throw();
-
-	/** Atomically decrements this value, returning the new value. */
-	Type operator--() throw();
-
-	/** Atomically compares this value with a target value, and if it is equal, sets
-		this to be equal to a new value.
-
-		This operation is the atomic equivalent of doing this:
-		@code
-		bool compareAndSetBool (Type newValue, Type valueToCompare)
-		{
-			if (get() == valueToCompare)
-			{
-				set (newValue);
-				return true;
-			}
-
-			return false;
-		}
-		@endcode
-
-		@returns true if the comparison was true and the value was replaced; false if
-				 the comparison failed and the value was left unchanged.
-		@see compareAndSetValue
-	*/
-	bool compareAndSetBool (Type newValue, Type valueToCompare) throw();
-
-	/** Atomically compares this value with a target value, and if it is equal, sets
-		this to be equal to a new value.
-
-		This operation is the atomic equivalent of doing this:
-		@code
-		Type compareAndSetValue (Type newValue, Type valueToCompare)
-		{
-			Type oldValue = get();
-			if (oldValue == valueToCompare)
-				set (newValue);
-
-			return oldValue;
-		}
-		@endcode
-
-		@returns the old value before it was changed.
-		@see compareAndSetBool
-	*/
-	Type compareAndSetValue (Type newValue, Type valueToCompare) throw();
-
-	/** Implements a memory read/write barrier. */
-	static void memoryBarrier() throw();
-
-	JUCE_ALIGN(8)
-
-	/** The raw value that this class operates on.
-		This is exposed publically in case you need to manipulate it directly
-		for performance reasons.
-	*/
-	volatile Type value;
-
-private:
-	static inline Type castFrom32Bit (int32 value) throw()	{ return *(Type*) &value; }
-	static inline Type castFrom64Bit (int64 value) throw()	{ return *(Type*) &value; }
-	static inline int32 castTo32Bit (Type value) throw()	  { return *(int32*) &value; }
-	static inline int64 castTo64Bit (Type value) throw()	  { return *(int64*) &value; }
-};
-
-/*
-	The following code is in the header so that the atomics can be inlined where possible...
-*/
-#if (JUCE_IOS && (__IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_3_2 || ! defined (__IPHONE_3_2))) \
-	  || (JUCE_MAC && (JUCE_PPC || __GNUC__ < 4 || (__GNUC__ == 4 && __GNUC_MINOR__ < 2)))
-  #define JUCE_ATOMICS_MAC 1	// Older OSX builds using gcc4.1 or earlier
-
-  #if MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5
-	#define JUCE_MAC_ATOMICS_VOLATILE
-  #else
-	#define JUCE_MAC_ATOMICS_VOLATILE volatile
-  #endif
-
-  #if JUCE_PPC || JUCE_IOS
-	// None of these atomics are available for PPC or for iPhoneOS 3.1 or earlier!!
-	template <typename Type> static Type OSAtomicAdd64Barrier (Type b, JUCE_MAC_ATOMICS_VOLATILE Type* a) throw()   { jassertfalse; return *a += b; }
-	template <typename Type> static Type OSAtomicIncrement64Barrier (JUCE_MAC_ATOMICS_VOLATILE Type* a) throw()	 { jassertfalse; return ++*a; }
-	template <typename Type> static Type OSAtomicDecrement64Barrier (JUCE_MAC_ATOMICS_VOLATILE Type* a) throw()	 { jassertfalse; return --*a; }
-	template <typename Type> static bool OSAtomicCompareAndSwap64Barrier (Type old, Type newValue, JUCE_MAC_ATOMICS_VOLATILE Type* value) throw()
-		{ jassertfalse; if (old == *value) { *value = newValue; return true; } return false; }
-	#define JUCE_64BIT_ATOMICS_UNAVAILABLE 1
-  #endif
-
-#elif JUCE_GCC
-  #define JUCE_ATOMICS_GCC 1	// GCC with intrinsics
-
-  #if JUCE_IOS
-	#define JUCE_64BIT_ATOMICS_UNAVAILABLE 1  // (on the iphone, the 64-bit ops will compile but not link)
-  #endif
-
-#else
-  #define JUCE_ATOMICS_WINDOWS 1	// Windows with intrinsics
-
-  #if JUCE_USE_INTRINSICS || JUCE_64BIT
-	#pragma intrinsic (_InterlockedExchange, _InterlockedIncrement, _InterlockedDecrement, _InterlockedCompareExchange, \
-					   _InterlockedCompareExchange64, _InterlockedExchangeAdd, _ReadWriteBarrier)
-	#define juce_InterlockedExchange(a, b)		  _InterlockedExchange(a, b)
-	#define juce_InterlockedIncrement(a)		_InterlockedIncrement(a)
-	#define juce_InterlockedDecrement(a)		_InterlockedDecrement(a)
-	#define juce_InterlockedExchangeAdd(a, b)	   _InterlockedExchangeAdd(a, b)
-	#define juce_InterlockedCompareExchange(a, b, c)	_InterlockedCompareExchange(a, b, c)
-	#define juce_InterlockedCompareExchange64(a, b, c)  _InterlockedCompareExchange64(a, b, c)
-	#define juce_MemoryBarrier _ReadWriteBarrier
-  #else
-	// (these are defined in juce_win32_Threads.cpp)
-	long juce_InterlockedExchange (volatile long* a, long b) throw();
-	long juce_InterlockedIncrement (volatile long* a) throw();
-	long juce_InterlockedDecrement (volatile long* a) throw();
-	long juce_InterlockedExchangeAdd (volatile long* a, long b) throw();
-	long juce_InterlockedCompareExchange (volatile long* a, long b, long c) throw();
-	__int64 juce_InterlockedCompareExchange64 (volatile __int64* a, __int64 b, __int64 c) throw();
-	static void juce_MemoryBarrier() throw()   { long x = 0; juce_InterlockedIncrement (&x); }
-  #endif
-
-  #if JUCE_64BIT
-	#pragma intrinsic (_InterlockedExchangeAdd64, _InterlockedExchange64, _InterlockedIncrement64, _InterlockedDecrement64)
-	#define juce_InterlockedExchangeAdd64(a, b)	 _InterlockedExchangeAdd64(a, b)
-	#define juce_InterlockedExchange64(a, b)	_InterlockedExchange64(a, b)
-	#define juce_InterlockedIncrement64(a)	  _InterlockedIncrement64(a)
-	#define juce_InterlockedDecrement64(a)	  _InterlockedDecrement64(a)
-  #else
-	// None of these atomics are available in a 32-bit Windows build!!
-	template <typename Type> static Type juce_InterlockedExchangeAdd64 (volatile Type* a, Type b) throw()   { jassertfalse; Type old = *a; *a += b; return old; }
-	template <typename Type> static Type juce_InterlockedExchange64 (volatile Type* a, Type b) throw()	  { jassertfalse; Type old = *a; *a = b; return old; }
-	template <typename Type> static Type juce_InterlockedIncrement64 (volatile Type* a) throw()		 { jassertfalse; return ++*a; }
-	template <typename Type> static Type juce_InterlockedDecrement64 (volatile Type* a) throw()		 { jassertfalse; return --*a; }
-	#define JUCE_64BIT_ATOMICS_UNAVAILABLE 1
-  #endif
-#endif
-
-#if JUCE_MSVC
-  #pragma warning (push)
-  #pragma warning (disable: 4311)  // (truncation warning)
-#endif
-
-template <typename Type>
-inline Type Atomic<Type>::get() const throw()
-{
-  #if JUCE_ATOMICS_MAC
-	return sizeof (Type) == 4 ? castFrom32Bit ((int32) OSAtomicAdd32Barrier ((int32_t) 0, (JUCE_MAC_ATOMICS_VOLATILE int32_t*) &value))
-							  : castFrom64Bit ((int64) OSAtomicAdd64Barrier ((int64_t) 0, (JUCE_MAC_ATOMICS_VOLATILE int64_t*) &value));
-  #elif JUCE_ATOMICS_WINDOWS
-	return sizeof (Type) == 4 ? castFrom32Bit ((int32) juce_InterlockedExchangeAdd ((volatile long*) &value, (long) 0))
-							  : castFrom64Bit ((int64) juce_InterlockedExchangeAdd64 ((volatile __int64*) &value, (__int64) 0));
-  #elif JUCE_ATOMICS_GCC
-	return sizeof (Type) == 4 ? castFrom32Bit ((int32) __sync_add_and_fetch ((volatile int32*) &value, 0))
-							  : castFrom64Bit ((int64) __sync_add_and_fetch ((volatile int64*) &value, 0));
-  #endif
-}
-
-template <typename Type>
-inline Type Atomic<Type>::exchange (const Type newValue) throw()
-{
-  #if JUCE_ATOMICS_MAC || JUCE_ATOMICS_GCC
-	Type currentVal = value;
-	while (! compareAndSetBool (newValue, currentVal)) { currentVal = value; }
-	return currentVal;
-  #elif JUCE_ATOMICS_WINDOWS
-	return sizeof (Type) == 4 ? castFrom32Bit ((int32) juce_InterlockedExchange ((volatile long*) &value, (long) castTo32Bit (newValue)))
-							  : castFrom64Bit ((int64) juce_InterlockedExchange64 ((volatile __int64*) &value, (__int64) castTo64Bit (newValue)));
-  #endif
-}
-
-template <typename Type>
-inline Type Atomic<Type>::operator+= (const Type amountToAdd) throw()
-{
-  #if JUCE_ATOMICS_MAC
-	return sizeof (Type) == 4 ? (Type) OSAtomicAdd32Barrier ((int32_t) castTo32Bit (amountToAdd), (JUCE_MAC_ATOMICS_VOLATILE int32_t*) &value)
-							  : (Type) OSAtomicAdd64Barrier ((int64_t) amountToAdd, (JUCE_MAC_ATOMICS_VOLATILE int64_t*) &value);
-  #elif JUCE_ATOMICS_WINDOWS
-	return sizeof (Type) == 4 ? (Type) (juce_InterlockedExchangeAdd ((volatile long*) &value, (long) amountToAdd) + (long) amountToAdd)
-							  : (Type) (juce_InterlockedExchangeAdd64 ((volatile __int64*) &value, (__int64) amountToAdd) + (__int64) amountToAdd);
-  #elif JUCE_ATOMICS_GCC
-	return (Type) __sync_add_and_fetch (&value, amountToAdd);
-  #endif
-}
-
-template <typename Type>
-inline Type Atomic<Type>::operator-= (const Type amountToSubtract) throw()
-{
-	return operator+= (juce_negate (amountToSubtract));
-}
-
-template <typename Type>
-inline Type Atomic<Type>::operator++() throw()
-{
-  #if JUCE_ATOMICS_MAC
-	return sizeof (Type) == 4 ? (Type) OSAtomicIncrement32Barrier ((JUCE_MAC_ATOMICS_VOLATILE int32_t*) &value)
-							  : (Type) OSAtomicIncrement64Barrier ((JUCE_MAC_ATOMICS_VOLATILE int64_t*) &value);
-  #elif JUCE_ATOMICS_WINDOWS
-	return sizeof (Type) == 4 ? (Type) juce_InterlockedIncrement ((volatile long*) &value)
-							  : (Type) juce_InterlockedIncrement64 ((volatile __int64*) &value);
-  #elif JUCE_ATOMICS_GCC
-	return (Type) __sync_add_and_fetch (&value, 1);
-  #endif
-}
-
-template <typename Type>
-inline Type Atomic<Type>::operator--() throw()
-{
-  #if JUCE_ATOMICS_MAC
-	return sizeof (Type) == 4 ? (Type) OSAtomicDecrement32Barrier ((JUCE_MAC_ATOMICS_VOLATILE int32_t*) &value)
-							  : (Type) OSAtomicDecrement64Barrier ((JUCE_MAC_ATOMICS_VOLATILE int64_t*) &value);
-  #elif JUCE_ATOMICS_WINDOWS
-	return sizeof (Type) == 4 ? (Type) juce_InterlockedDecrement ((volatile long*) &value)
-							  : (Type) juce_InterlockedDecrement64 ((volatile __int64*) &value);
-  #elif JUCE_ATOMICS_GCC
-	return (Type) __sync_add_and_fetch (&value, -1);
-  #endif
-}
-
-template <typename Type>
-inline bool Atomic<Type>::compareAndSetBool (const Type newValue, const Type valueToCompare) throw()
-{
-  #if JUCE_ATOMICS_MAC
-	return sizeof (Type) == 4 ? OSAtomicCompareAndSwap32Barrier ((int32_t) castTo32Bit (valueToCompare), (int32_t) castTo32Bit (newValue), (JUCE_MAC_ATOMICS_VOLATILE int32_t*) &value)
-							  : OSAtomicCompareAndSwap64Barrier ((int64_t) castTo64Bit (valueToCompare), (int64_t) castTo64Bit (newValue), (JUCE_MAC_ATOMICS_VOLATILE int64_t*) &value);
-  #elif JUCE_ATOMICS_WINDOWS
-	return compareAndSetValue (newValue, valueToCompare) == valueToCompare;
-  #elif JUCE_ATOMICS_GCC
-	return sizeof (Type) == 4 ? __sync_bool_compare_and_swap ((volatile int32*) &value, castTo32Bit (valueToCompare), castTo32Bit (newValue))
-							  : __sync_bool_compare_and_swap ((volatile int64*) &value, castTo64Bit (valueToCompare), castTo64Bit (newValue));
-  #endif
-}
-
-template <typename Type>
-inline Type Atomic<Type>::compareAndSetValue (const Type newValue, const Type valueToCompare) throw()
-{
-  #if JUCE_ATOMICS_MAC
-	for (;;) // Annoying workaround for OSX only having a bool CAS operation..
-	{
-		if (compareAndSetBool (newValue, valueToCompare))
-			return valueToCompare;
-
-		const Type result = value;
-		if (result != valueToCompare)
-			return result;
-	}
-
-  #elif JUCE_ATOMICS_WINDOWS
-	return sizeof (Type) == 4 ? castFrom32Bit ((int32) juce_InterlockedCompareExchange ((volatile long*) &value, (long) castTo32Bit (newValue), (long) castTo32Bit (valueToCompare)))
-							  : castFrom64Bit ((int64) juce_InterlockedCompareExchange64 ((volatile __int64*) &value, (__int64) castTo64Bit (newValue), (__int64) castTo64Bit (valueToCompare)));
-  #elif JUCE_ATOMICS_GCC
-	return sizeof (Type) == 4 ? castFrom32Bit ((int32) __sync_val_compare_and_swap ((volatile int32*) &value, castTo32Bit (valueToCompare), castTo32Bit (newValue)))
-							  : castFrom64Bit ((int64) __sync_val_compare_and_swap ((volatile int64*) &value, castTo64Bit (valueToCompare), castTo64Bit (newValue)));
-  #endif
-}
-
-template <typename Type>
-inline void Atomic<Type>::memoryBarrier() throw()
-{
-  #if JUCE_ATOMICS_MAC
-	OSMemoryBarrier();
-  #elif JUCE_ATOMICS_GCC
-	__sync_synchronize();
-  #elif JUCE_ATOMICS_WINDOWS
-	juce_MemoryBarrier();
-  #endif
-}
-
-#if JUCE_MSVC
-  #pragma warning (pop)
-#endif
-
-#endif   // __JUCE_ATOMIC_JUCEHEADER__
-/*** End of inlined file: juce_Atomic.h ***/
 
 /**
 	Adds reference-counting to an object.
@@ -6249,18 +6698,6 @@ public:
 		return referencedObject;
 	}
 
-	/** Returns true if this pointer refers to the given object. */
-	inline bool operator== (ReferenceCountedObjectClass* const object) const throw()
-	{
-		return referencedObject == object;
-	}
-
-	/** Returns true if this pointer doesn't refer to the given object. */
-	inline bool operator!= (ReferenceCountedObjectClass* const object) const throw()
-	{
-		return referencedObject != object;
-	}
-
 	// the -> operator is called on the referenced object
 	inline ReferenceCountedObjectClass* operator->() const throw()
 	{
@@ -6279,6 +6716,48 @@ private:
 
 	ReferenceCountedObjectClass* referencedObject;
 };
+
+/** Compares two ReferenceCountedObjectPointers. */
+template <class ReferenceCountedObjectClass>
+bool operator== (const ReferenceCountedObjectPtr<ReferenceCountedObjectClass>& object1, ReferenceCountedObjectClass* const object2) throw()
+{
+	return object1.getObject() == object2;
+}
+
+/** Compares two ReferenceCountedObjectPointers. */
+template <class ReferenceCountedObjectClass>
+bool operator== (const ReferenceCountedObjectPtr<ReferenceCountedObjectClass>& object1, const ReferenceCountedObjectPtr<ReferenceCountedObjectClass>& object2) throw()
+{
+	return object1.getObject() == object2.getObject();
+}
+
+/** Compares two ReferenceCountedObjectPointers. */
+template <class ReferenceCountedObjectClass>
+bool operator== (ReferenceCountedObjectClass* object1, ReferenceCountedObjectPtr<ReferenceCountedObjectClass>& object2) throw()
+{
+	return object1 == object2.getObject();
+}
+
+/** Compares two ReferenceCountedObjectPointers. */
+template <class ReferenceCountedObjectClass>
+bool operator!= (const ReferenceCountedObjectPtr<ReferenceCountedObjectClass>& object1, const ReferenceCountedObjectClass* object2) throw()
+{
+	return object1.getObject() != object2;
+}
+
+/** Compares two ReferenceCountedObjectPointers. */
+template <class ReferenceCountedObjectClass>
+bool operator!= (const ReferenceCountedObjectPtr<ReferenceCountedObjectClass>& object1, ReferenceCountedObjectPtr<ReferenceCountedObjectClass>& object2) throw()
+{
+	return object1.getObject() != object2.getObject();
+}
+
+/** Compares two ReferenceCountedObjectPointers. */
+template <class ReferenceCountedObjectClass>
+bool operator!= (ReferenceCountedObjectClass* object1, ReferenceCountedObjectPtr<ReferenceCountedObjectClass>& object2) throw()
+{
+	return object1 != object2.getObject();
+}
 
 #endif   // __JUCE_REFERENCECOUNTEDOBJECT_JUCEHEADER__
 /*** End of inlined file: juce_ReferenceCountedObject.h ***/
@@ -6356,10 +6835,11 @@ public:
 	/** Removes all properties and methods from the object. */
 	void clear();
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	NamedValueSet properties;
+
+	JUCE_LEAK_DETECTOR (DynamicObject);
 };
 
 #endif   // __JUCE_DYNAMICOBJECT_JUCEHEADER__
@@ -6370,23 +6850,11 @@ private:
 #ifndef __JUCE_ELEMENTCOMPARATOR_JUCEHEADER__
 
 #endif
-#ifndef __JUCE_HEAPBLOCK_JUCEHEADER__
+#ifndef __JUCE_EXPRESSION_JUCEHEADER__
 
-#endif
-#ifndef __JUCE_IDENTIFIER_JUCEHEADER__
-
-#endif
-#ifndef __JUCE_MEMORYBLOCK_JUCEHEADER__
-
-#endif
-#ifndef __JUCE_NAMEDVALUESET_JUCEHEADER__
-
-#endif
-#ifndef __JUCE_OWNEDARRAY_JUCEHEADER__
-
-/*** Start of inlined file: juce_OwnedArray.h ***/
-#ifndef __JUCE_OWNEDARRAY_JUCEHEADER__
-#define __JUCE_OWNEDARRAY_JUCEHEADER__
+/*** Start of inlined file: juce_Expression.h ***/
+#ifndef __JUCE_EXPRESSION_JUCEHEADER__
+#define __JUCE_EXPRESSION_JUCEHEADER__
 
 
 /*** Start of inlined file: juce_ScopedPointer.h ***/
@@ -6503,12 +6971,6 @@ public:
 	/** Lets you access methods and properties of the object that this ScopedPointer refers to. */
 	inline ObjectType* operator->() const throw()				   { return object; }
 
-	/** Returns a reference to the address of the object that this ScopedPointer refers to. */
-	inline ObjectType* const* operator&() const throw()				 { return static_cast <ObjectType* const*> (&object); }
-
-	/** Returns a reference to the address of the object that this ScopedPointer refers to. */
-	inline ObjectType** operator&() throw()					 { return static_cast <ObjectType**> (&object); }
-
 	/** Removes the current object from this ScopedPointer without deleting it.
 
 		This will return the current object, and set the ScopedPointer to a null pointer.
@@ -6535,8 +6997,23 @@ private:
 	const ScopedPointer* getAddress() const throw()				 { return this; }
 
   #if ! JUCE_MSVC  // (MSVC can't deal with multiple copy constructors)
-	// This is private to stop people accidentally copying a const ScopedPointer (the compiler
-	// will let you do so by implicitly casting the source to its raw object pointer).
+	/* This is private to stop people accidentally copying a const ScopedPointer (the compiler
+	   would let you do so by implicitly casting the source to its raw object pointer).
+
+	   A side effect of this is that you may hit a puzzling compiler error when you write something
+	   like this:
+
+		  ScopedPointer<MyClass> m = new MyClass();  // Compile error: copy constructor is private.
+
+	   Even though the compiler would normally ignore the assignment here, it can't do so when the
+	   copy constructor is private. It's very easy to fis though - just write it like this:
+
+		  ScopedPointer<MyClass> m (new MyClass());  // Compiles OK
+
+	   It's good practice to always use the latter form when writing your object declarations anyway,
+	   rather than writing them as assignments and assuming (or hoping) that the compiler will be
+	   smart enough to replace your construction + assignment with a single constructor.
+	*/
 	ScopedPointer (const ScopedPointer&);
   #endif
 };
@@ -6545,7 +7022,7 @@ private:
 	This can be handy for checking whether this is a null pointer.
 */
 template <class ObjectType>
-inline bool operator== (const ScopedPointer<ObjectType>& pointer1, const ObjectType* const pointer2) throw()
+bool operator== (const ScopedPointer<ObjectType>& pointer1, ObjectType* const pointer2) throw()
 {
 	return static_cast <ObjectType*> (pointer1) == pointer2;
 }
@@ -6554,13 +7031,259 @@ inline bool operator== (const ScopedPointer<ObjectType>& pointer1, const ObjectT
 	This can be handy for checking whether this is a null pointer.
 */
 template <class ObjectType>
-inline bool operator!= (const ScopedPointer<ObjectType>& pointer1, const ObjectType* const pointer2) throw()
+bool operator!= (const ScopedPointer<ObjectType>& pointer1, ObjectType* const pointer2) throw()
 {
 	return static_cast <ObjectType*> (pointer1) != pointer2;
 }
 
 #endif   // __JUCE_SCOPEDPOINTER_JUCEHEADER__
 /*** End of inlined file: juce_ScopedPointer.h ***/
+
+/**
+	A class for dynamically evaluating simple numeric expressions.
+
+	This class can parse a simple C-style string expression involving floating point
+	numbers, named symbols and functions. The basic arithmetic operations of +, -, *, /
+	are supported, as well as parentheses, and any alphanumeric identifiers are
+	assumed to be named symbols which will be resolved when the expression is
+	evaluated.
+
+	Expressions which use identifiers and functions require a subclass of
+	Expression::EvaluationContext to be supplied when evaluating them, and this object
+	is expected to be able to resolve the symbol names and perform the functions that
+	are used.
+*/
+class JUCE_API  Expression
+{
+public:
+
+	/** Creates a simple expression with a value of 0. */
+	Expression();
+
+	/** Destructor. */
+	~Expression();
+
+	/** Creates a simple expression with a specified constant value. */
+	explicit Expression (double constant);
+
+	/** Creates a copy of an expression. */
+	Expression (const Expression& other);
+
+	/** Copies another expression. */
+	Expression& operator= (const Expression& other);
+
+	/** Creates an expression by parsing a string.
+		If there's a syntax error in the string, this will throw a ParseError exception.
+		@throws ParseError
+	*/
+	explicit Expression (const String& stringToParse);
+
+	/** Returns a string version of the expression. */
+	const String toString() const;
+
+	/** Returns an expression which is an addtion operation of two existing expressions. */
+	const Expression operator+ (const Expression& other) const;
+	/** Returns an expression which is a subtraction operation of two existing expressions. */
+	const Expression operator- (const Expression& other) const;
+	/** Returns an expression which is a multiplication operation of two existing expressions. */
+	const Expression operator* (const Expression& other) const;
+	/** Returns an expression which is a division operation of two existing expressions. */
+	const Expression operator/ (const Expression& other) const;
+	/** Returns an expression which performs a negation operation on an existing expression. */
+	const Expression operator-() const;
+
+	/** Returns an Expression which is an identifier reference. */
+	static const Expression symbol (const String& symbol);
+
+	/** Returns an Expression which is a function call. */
+	static const Expression function (const String& functionName, const Array<Expression>& parameters);
+
+	/** Returns an Expression which parses a string from a specified character index.
+
+		The index value is incremented so that on return, it indicates the character that follows
+		the end of the expression that was parsed.
+
+		If there's a syntax error in the string, this will throw a ParseError exception.
+		@throws ParseError
+	*/
+	static const Expression parse (const String& stringToParse, int& textIndexToStartFrom);
+
+	/** When evaluating an Expression object, this class is used to resolve symbols and
+		perform functions that the expression uses.
+	*/
+	class EvaluationContext
+	{
+	public:
+		EvaluationContext();
+		virtual ~EvaluationContext();
+
+		/** Returns the value of a symbol.
+			If the symbol is unknown, this can throw an Expression::EvaluationError exception.
+			The member value is set to the part of the symbol that followed the dot, if there is
+			one, e.g. for "foo.bar", symbol = "foo" and member = "bar".
+			@throws Expression::EvaluationError
+		*/
+		virtual const Expression getSymbolValue (const String& symbol, const String& member) const;
+
+		/** Executes a named function.
+			If the function name is unknown, this can throw an Expression::EvaluationError exception.
+			@throws Expression::EvaluationError
+		*/
+		virtual double evaluateFunction (const String& functionName, const double* parameters, int numParams) const;
+	};
+
+	/** Evaluates this expression, without using an EvaluationContext.
+		Without an EvaluationContext, no symbols can be used, and only basic functions such as sin, cos, tan,
+		min, max are available.
+		@throws Expression::EvaluationError
+	*/
+	double evaluate() const;
+
+	/** Evaluates this expression, providing a context that should be able to evaluate any symbols
+		or functions that it uses.
+		@throws Expression::EvaluationError
+	*/
+	double evaluate (const EvaluationContext& context) const;
+
+	/** Attempts to return an expression which is a copy of this one, but with a constant adjusted
+		to make the expression resolve to a target value.
+
+		E.g. if the expression is "x + 10" and x is 5, then asking for a target value of 8 will return
+		the expression "x + 3". Obviously some expressions can't be reversed in this way, in which
+		case they might just be adjusted by adding a constant to them.
+
+		@throws Expression::EvaluationError
+	*/
+	const Expression adjustedToGiveNewResult (double targetValue, const EvaluationContext& context) const;
+
+	/** Returns a copy of this expression in which all instances of a given symbol have been renamed. */
+	const Expression withRenamedSymbol (const String& oldSymbol, const String& newSymbol) const;
+
+	/** Returns true if this expression makes use of the specified symbol.
+		If a suitable context is supplied, the search will dereference and recursively check
+		all symbols, so that it can be determined whether this expression relies on the given
+		symbol at any level in its evaluation. If the context parameter is null, this just checks
+		whether the expression contains any direct references to the symbol.
+
+		@throws Expression::EvaluationError
+	*/
+	bool referencesSymbol (const String& symbol, const EvaluationContext* context) const;
+
+	/** Returns true if this expression contains any symbols. */
+	bool usesAnySymbols() const;
+
+	/** An exception that can be thrown by Expression::parse(). */
+	class ParseError  : public std::exception
+	{
+	public:
+		ParseError (const String& message);
+
+		String description;
+	};
+
+	/** An exception that can be thrown by Expression::evaluate(). */
+	class EvaluationError  : public std::exception
+	{
+	public:
+		EvaluationError (const String& message);
+		EvaluationError (const String& symbolName, const String& memberName);
+
+		String description;
+	};
+
+	/** Expression type.
+		@see Expression::getType()
+	*/
+	enum Type
+	{
+		constantType,
+		functionType,
+		operatorType,
+		symbolType
+	};
+
+	/** Returns the type of this expression. */
+	Type getType() const throw();
+
+	/** If this expression is a symbol, this returns its name. */
+	const String getSymbol() const;
+
+	/** If this expression is a function, this returns its name. */
+	const String getFunction() const;
+
+	/** If this expression is an operator, this returns its name.
+		E.g. "+", "-", "*", "/", etc.
+	*/
+	const String getOperator() const;
+
+	/** Returns the number of inputs to this expression.
+		@see getInput
+	*/
+	int getNumInputs() const;
+
+	/** Retrieves one of the inputs to this expression.
+		@see getNumInputs
+	*/
+	const Expression getInput (int index) const;
+
+private:
+
+	class Helpers;
+	friend class Helpers;
+
+	class Term  : public ReferenceCountedObject
+	{
+	public:
+		Term() {}
+		virtual ~Term() {}
+
+		virtual Term* clone() const = 0;
+		virtual double evaluate (const EvaluationContext&, int recursionDepth) const = 0;
+		virtual int getNumInputs() const = 0;
+		virtual Term* getInput (int index) const = 0;
+		virtual int getInputIndexFor (const Term* possibleInput) const;
+		virtual const String toString() const = 0;
+		virtual int getOperatorPrecedence() const;
+		virtual bool referencesSymbol (const String& symbol, const EvaluationContext*, int recursionDepth) const;
+		virtual const ReferenceCountedObjectPtr<Term> createTermToEvaluateInput (const EvaluationContext&, const Term* inputTerm,
+																				 double overallTarget, Term* topLevelTerm) const;
+		virtual const ReferenceCountedObjectPtr<Term> negated();
+		virtual Type getType() const throw() = 0;
+		virtual const String getSymbolName() const;
+		virtual const String getFunctionName() const;
+
+	private:
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Term);
+	};
+
+	friend class ScopedPointer<Term>;
+	ReferenceCountedObjectPtr<Term> term;
+
+	explicit Expression (Term* term);
+};
+
+#endif   // __JUCE_EXPRESSION_JUCEHEADER__
+/*** End of inlined file: juce_Expression.h ***/
+
+
+#endif
+#ifndef __JUCE_HEAPBLOCK_JUCEHEADER__
+
+#endif
+#ifndef __JUCE_IDENTIFIER_JUCEHEADER__
+
+#endif
+#ifndef __JUCE_MEMORYBLOCK_JUCEHEADER__
+
+#endif
+#ifndef __JUCE_NAMEDVALUESET_JUCEHEADER__
+
+#endif
+#ifndef __JUCE_OWNEDARRAY_JUCEHEADER__
+
+/*** Start of inlined file: juce_OwnedArray.h ***/
+#ifndef __JUCE_OWNEDARRAY_JUCEHEADER__
+#define __JUCE_OWNEDARRAY_JUCEHEADER__
 
 /** An array designed for holding objects.
 
@@ -6637,8 +7360,8 @@ public:
 	inline ObjectClass* operator[] (const int index) const throw()
 	{
 		const ScopedLockType lock (getLock());
-		return (((unsigned int) index) < (unsigned int) numUsed) ? data.elements [index]
-																 : static_cast <ObjectClass*> (0);
+		return isPositiveAndBelow (index, numUsed) ? data.elements [index]
+												   : static_cast <ObjectClass*> (0);
 	}
 
 	/** Returns a pointer to the object at this index in the array, without checking whether the index is in-range.
@@ -6649,7 +7372,7 @@ public:
 	inline ObjectClass* getUnchecked (const int index) const throw()
 	{
 		const ScopedLockType lock (getLock());
-		jassert (((unsigned int) index) < (unsigned int) numUsed);
+		jassert (isPositiveAndBelow (index, numUsed));
 		return data.elements [index];
 	}
 
@@ -6826,26 +7549,38 @@ public:
 	{
 		if (indexToChange >= 0)
 		{
-			ScopedPointer <ObjectClass> toDelete;
-			const ScopedLockType lock (getLock());
+			ObjectClass* toDelete = 0;
 
-			if (indexToChange < numUsed)
 			{
-				if (deleteOldElement)
+				const ScopedLockType lock (getLock());
+
+				if (indexToChange < numUsed)
 				{
-					toDelete = data.elements [indexToChange];
+					if (deleteOldElement)
+					{
+						toDelete = data.elements [indexToChange];
 
-					if (toDelete == newObject)
-						toDelete = 0;
+						if (toDelete == newObject)
+							toDelete = 0;
+					}
+
+					data.elements [indexToChange] = const_cast <ObjectClass*> (newObject);
 				}
+				else
+				{
+					data.ensureAllocatedSize (numUsed + 1);
+					data.elements [numUsed++] = const_cast <ObjectClass*> (newObject);
+				}
+			}
 
-				data.elements [indexToChange] = const_cast <ObjectClass*> (newObject);
-			}
-			else
-			{
-				data.ensureAllocatedSize (numUsed + 1);
-				data.elements [numUsed++] = const_cast <ObjectClass*> (newObject);
-			}
+			delete toDelete; // don't want to use a ScopedPointer here because if the
+							 // object has a private destructor, both OwnedArray and
+							 // ScopedPointer would need to be friend classes..
+		}
+		else
+		{
+			jassertfalse; // you're trying to set an object at a negative index, which doesn't have
+						  // any effect - but since the object is not being added, it may be leaking..
 		}
 	}
 
@@ -7005,25 +7740,32 @@ public:
 	void remove (const int indexToRemove,
 				 const bool deleteObject = true)
 	{
-		ScopedPointer <ObjectClass> toDelete;
-		const ScopedLockType lock (getLock());
+		ObjectClass* toDelete = 0;
 
-		if (((unsigned int) indexToRemove) < (unsigned int) numUsed)
 		{
-			ObjectClass** const e = data.elements + indexToRemove;
+			const ScopedLockType lock (getLock());
 
-			if (deleteObject)
-				toDelete = *e;
+			if (isPositiveAndBelow (indexToRemove, numUsed))
+			{
+				ObjectClass** const e = data.elements + indexToRemove;
 
-			--numUsed;
-			const int numToShift = numUsed - indexToRemove;
+				if (deleteObject)
+					toDelete = *e;
 
-			if (numToShift > 0)
-				memmove (e, e + 1, numToShift * sizeof (ObjectClass*));
+				--numUsed;
+				const int numToShift = numUsed - indexToRemove;
 
-			if ((numUsed << 1) < data.numAllocated)
-				minimiseStorageOverheads();
+				if (numToShift > 0)
+					memmove (e, e + 1, numToShift * sizeof (ObjectClass*));
+			}
 		}
+
+		delete toDelete; // don't want to use a ScopedPointer here because if the
+						 // object has a private destructor, both OwnedArray and
+						 // ScopedPointer would need to be friend classes..
+
+		if ((numUsed << 1) < data.numAllocated)
+			minimiseStorageOverheads();
 	}
 
 	/** Removes and returns an object from the array without deleting it.
@@ -7040,7 +7782,7 @@ public:
 		ObjectClass* removedItem = 0;
 		const ScopedLockType lock (getLock());
 
-		if (((unsigned int) indexToRemove) < (unsigned int) numUsed)
+		if (isPositiveAndBelow (indexToRemove, numUsed))
 		{
 			ObjectClass** const e = data.elements + indexToRemove;
 			removedItem = *e;
@@ -7159,8 +7901,8 @@ public:
 	{
 		const ScopedLockType lock (getLock());
 
-		if (((unsigned int) index1) < (unsigned int) numUsed
-			 && ((unsigned int) index2) < (unsigned int) numUsed)
+		if (isPositiveAndBelow (index1, numUsed)
+			 && isPositiveAndBelow (index2, numUsed))
 		{
 			swapVariables (data.elements [index1],
 						   data.elements [index2]);
@@ -7187,9 +7929,9 @@ public:
 		{
 			const ScopedLockType lock (getLock());
 
-			if (((unsigned int) currentIndex) < (unsigned int) numUsed)
+			if (isPositiveAndBelow (currentIndex, numUsed))
 			{
-				if (((unsigned int) newIndex) >= (unsigned int) numUsed)
+				if (! isPositiveAndBelow (newIndex, numUsed))
 					newIndex = numUsed - 1;
 
 				ObjectClass* const value = data.elements [currentIndex];
@@ -7295,15 +8037,12 @@ public:
 	/** Returns the type of scoped lock to use for locking this array */
 	typedef typename TypeOfCriticalSectionToUse::ScopedLockType ScopedLockType;
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	ArrayAllocationBase <ObjectClass*, TypeOfCriticalSectionToUse> data;
 	int numUsed;
 
-	// disallow copy constructor and assignment
-	OwnedArray (const OwnedArray&);
-	OwnedArray& operator= (const OwnedArray&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OwnedArray);
 };
 
 #endif   // __JUCE_OWNEDARRAY_JUCEHEADER__
@@ -7617,10 +8356,11 @@ public:
 	*/
 	void minimiseStorageOverheads();
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	Array <String> strings;
+
+	JUCE_LEAK_DETECTOR (StringArray);
 };
 
 #endif   // __JUCE_STRINGARRAY_JUCEHEADER__
@@ -7739,11 +8479,12 @@ public:
 	*/
 	void minimiseStorageOverheads();
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	StringArray keys, values;
 	bool ignoreCase;
+
+	JUCE_LEAK_DETECTOR (StringPairArray);
 };
 
 #endif   // __JUCE_STRINGPAIRARRAY_JUCEHEADER__
@@ -7883,7 +8624,7 @@ public:
 
 		@see inMilliseconds, inSeconds, inMinutes, inHours, inDays, inWeeks
 	*/
-	const String getDescription (const String& returnValueForZeroTime = "0") const throw();
+	const String getDescription (const String& returnValueForZeroTime = "0") const;
 
 	/** Compares two RelativeTimes. */
 	bool operator== (const RelativeTime& other) const throw();
@@ -7920,9 +8661,8 @@ public:
 	/** Subtracts a number of seconds from this time. */
 	const RelativeTime& operator-= (double secondsToSubtract) throw();
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	double seconds;
 };
 
@@ -8027,7 +8767,7 @@ public:
 									it'll return the long form, e.g. "January"
 		@see getMonth
 	*/
-	const String getMonthName (bool threeLetterVersion) const throw();
+	const String getMonthName (bool threeLetterVersion) const;
 
 	/** Returns the day of the month.
 
@@ -8046,7 +8786,7 @@ public:
 		@param threeLetterVersion   if true, it'll return a 3-letter abbreviation, e.g. "Tue"; if
 									false, it'll return the full version, e.g. "Tuesday".
 	*/
-	const String getWeekdayName (bool threeLetterVersion) const throw();
+	const String getWeekdayName (bool threeLetterVersion) const;
 
 	/** Returns the number of hours since midnight.
 
@@ -8142,7 +8882,7 @@ public:
 
 		@see toString
 	*/
-	const String formatted (const String& format) const throw();
+	const String formatted (const String& format) const;
 
 	/** Adds a RelativeTime to this time and returns the result. */
 	const Time operator+ (const RelativeTime& delta) const throw()  { return Time (millisSinceEpoch + delta.inMilliseconds()); }
@@ -8185,7 +8925,7 @@ public:
 									false, it'll return the full version, e.g. "Tuesday".
 	*/
 	static const String getWeekdayName (int dayNumber,
-										bool threeLetterVersion) throw();
+										bool threeLetterVersion);
 
 	/** Returns the name of one of the months.
 
@@ -8194,7 +8934,7 @@ public:
 									it'll return the long form, e.g. "January"
 	*/
 	static const String getMonthName (int monthNumber,
-									  bool threeLetterVersion) throw();
+									  bool threeLetterVersion);
 
 	// Static methods for getting system timers directly..
 
@@ -8207,19 +8947,20 @@ public:
 	*/
 	static int64 currentTimeMillis() throw();
 
-	/** Returns the number of millisecs since system startup.
+	/** Returns the number of millisecs since a fixed event (usually system startup).
 
-		Should be accurate to within a few millisecs, depending on platform,
+		This returns a monotonically increasing value which it unaffected by changes to the
+		system clock. It should be accurate to within a few millisecs, depending on platform,
 		hardware, etc.
 
 		@see getApproximateMillisecondCounter
 	*/
 	static uint32 getMillisecondCounter() throw();
 
-	/** Returns the number of millisecs since system startup.
+	/** Returns the number of millisecs since a fixed event (usually system startup).
 
-		Same as getMillisecondCounter(), but returns a more accurate value, using
-		the high-res timer.
+		This has the same function as getMillisecondCounter(), but returns a more accurate
+		value, using a higher-resolution timer if one is available.
 
 		@see getMillisecondCounter
 	*/
@@ -9145,8 +9886,6 @@ public:
 	/** Adds a separator character to the end of a path if it doesn't already have one. */
 	static const String addTrailingSeparator (const String& path);
 
-	juce_UseDebuggingNewOperator
-
 private:
 
 	String fullPath;
@@ -9164,8 +9903,8 @@ private:
 	bool setFileReadOnlyInternal (bool shouldBeReadOnly) const;
 
 	static const String parseAbsolutePath (const String& path);
-	static bool fileTypeMatches (int whatToLookFor, bool isDir, bool isHidden);
 
+	JUCE_LEAK_DETECTOR (File);
 };
 
 #endif   // __JUCE_FILE_JUCEHEADER__
@@ -9627,7 +10366,7 @@ public:
 		@see getFirstChildElement, getNextElement, getNumChildElements,
 			 getChildElement, removeChildElement
 	*/
-	void addChildElement (XmlElement* const newChildElement) throw();
+	void addChildElement (XmlElement* newChildElement) throw();
 
 	/** Inserts an element into this element's list of children.
 
@@ -9691,7 +10430,7 @@ public:
 	void deleteAllChildElementsWithTagName (const String& tagName) throw();
 
 	/** Returns true if the given element is a child of this one. */
-	bool containsChildElement (const XmlElement* const possibleChild) const throw();
+	bool containsChildElement (const XmlElement* possibleChild) const throw();
 
 	/** Recursively searches all sub-elements to find one that contains the specified
 		child element.
@@ -9757,6 +10496,9 @@ public:
 		"hello" string, you could either call getText on the (unnamed) sub-element, or
 		use getAllSubText() to do this automatically.
 
+		Note that leading and trailing whitespace will be included in the string - to remove
+		if, just call String::trim() on the result.
+
 		@see isTextElement, getAllSubText, getChildElementAllSubText
 	*/
 	const String& getText() const throw();
@@ -9773,8 +10515,11 @@ public:
 		This iterates all the child elements and when it finds text elements,
 		it concatenates their text into a big string which it returns.
 
-		E.g. @code<xyz> hello <x></x> there </xyz>@endcode
-		if you called getAllSubText on the "xyz" element, it'd return "hello there".
+		E.g. @code<xyz>hello <x>there</x> world</xyz>@endcode
+		if you called getAllSubText on the "xyz" element, it'd return "hello there world".
+
+		Note that leading and trailing whitespace will be included in the string - to remove
+		if, just call String::trim() on the result.
 
 		@see isTextElement, getChildElementAllSubText, getText, addTextElement
 	*/
@@ -9807,8 +10552,6 @@ public:
 	*/
 	static XmlElement* createTextElement (const String& text);
 
-	juce_UseDebuggingNewOperator
-
 private:
 	friend class XmlDocument;
 
@@ -9824,6 +10567,8 @@ private:
 		String name, value;
 		XmlAttributeNode* next;
 
+		bool hasName (const String& name) const throw();
+
 	private:
 		XmlAttributeNode& operator= (const XmlAttributeNode&);
 	};
@@ -9834,7 +10579,9 @@ private:
 	void copyChildrenAndAttributesFrom (const XmlElement& other);
 	void writeElementAsText (OutputStream& out, int indentationLevel, int lineWrapLength) const;
 	void getChildElementsAsArray (XmlElement**) const throw();
-	void reorderChildElements (XmlElement** const, const int) throw();
+	void reorderChildElements (XmlElement**, int) throw();
+
+	JUCE_LEAK_DETECTOR (XmlElement);
 };
 
 #endif   // __JUCE_XMLELEMENT_JUCEHEADER__
@@ -9858,15 +10605,15 @@ public:
 		@param ignoreCaseOfKeyNames	 if true, the names of properties are compared in a
 											case-insensitive way
 	*/
-	PropertySet (const bool ignoreCaseOfKeyNames = false) throw();
+	PropertySet (bool ignoreCaseOfKeyNames = false);
 
 	/** Creates a copy of another PropertySet.
 	*/
-	PropertySet (const PropertySet& other) throw();
+	PropertySet (const PropertySet& other);
 
 	/** Copies another PropertySet over this one.
 	*/
-	PropertySet& operator= (const PropertySet& other) throw();
+	PropertySet& operator= (const PropertySet& other);
 
 	/** Destructor. */
 	virtual ~PropertySet();
@@ -9935,33 +10682,12 @@ public:
 	*/
 	XmlElement* getXmlValue (const String& keyName) const;
 
-	/** Sets a named property as a string.
+	/** Sets a named property.
 
 		@param keyName	  the name of the property to set. (This mustn't be an empty string)
 		@param value	the new value to set it to
 	*/
-	void setValue (const String& keyName, const String& value) throw();
-
-	/** Sets a named property to an integer.
-
-		@param keyName	  the name of the property to set. (This mustn't be an empty string)
-		@param value	the new value to set it to
-	*/
-	void setValue (const String& keyName, const int value) throw();
-
-	/** Sets a named property to a double.
-
-		@param keyName	  the name of the property to set. (This mustn't be an empty string)
-		@param value	the new value to set it to
-	*/
-	void setValue (const String& keyName, const double value) throw();
-
-	/** Sets a named property to a boolean.
-
-		@param keyName	  the name of the property to set. (This mustn't be an empty string)
-		@param value	the new value to set it to
-	*/
-	void setValue (const String& keyName, const bool value) throw();
+	void setValue (const String& keyName, const var& value);
 
 	/** Sets a named property to an XML element.
 
@@ -9970,13 +10696,13 @@ public:
 							an empty string
 		@see getXmlValue
 	*/
-	void setValue (const String& keyName, const XmlElement* const xml);
+	void setValue (const String& keyName, const XmlElement* xml);
 
 	/** Deletes a property.
 
 		@param keyName	  the name of the property to delete. (This mustn't be an empty string)
 	*/
-	void removeValue (const String& keyName) throw();
+	void removeValue (const String& keyName);
 
 	/** Returns true if the properies include the given key. */
 	bool containsKey (const String& keyName) const throw();
@@ -9996,7 +10722,7 @@ public:
 
 		@see restoreFromXml
 	*/
-	XmlElement* createXml (const String& nodeName) const throw();
+	XmlElement* createXml (const String& nodeName) const;
 
 	/** Reloads a set of properties that were previously stored as XML.
 
@@ -10004,7 +10730,7 @@ public:
 
 		@see createXml
 	*/
-	void restoreFromXml (const XmlElement& xml) throw();
+	void restoreFromXml (const XmlElement& xml);
 
 	/** Sets up a second PopertySet that will be used to look up any values that aren't
 		set in this one.
@@ -10025,12 +10751,9 @@ public:
 	*/
 	PropertySet* getFallbackPropertySet() const throw()		 { return fallbackProperties; }
 
-	juce_UseDebuggingNewOperator
-
 protected:
 
-	/** Subclasses can override this to be told when one of the properies has been changed.
-	*/
+	/** Subclasses can override this to be told when one of the properies has been changed. */
 	virtual void propertyChanged();
 
 private:
@@ -10039,6 +10762,8 @@ private:
 	PropertySet* fallbackProperties;
 	CriticalSection lock;
 	bool ignoreCaseOfKeys;
+
+	JUCE_LEAK_DETECTOR (PropertySet);
 };
 
 #endif   // __JUCE_PROPERTYSET_JUCEHEADER__
@@ -10142,7 +10867,7 @@ public:
 	/** Returns a range with the same length as this one, but moved to have the given start position. */
 	const Range movedToStartAt (const ValueType newStart) const throw()
 	{
-		return Range (newStart, newStart + getLength());
+		return Range (newStart, end + (newStart - start));
 	}
 
 	/** Changes the end position of the range, leaving the start unchanged.
@@ -10168,7 +10893,7 @@ public:
 	/** Returns a range with the same length as this one, but moved to have the given start position. */
 	const Range movedToEndAt (const ValueType newEnd) const throw()
 	{
-		return Range (newEnd - getLength(), newEnd);
+		return Range (start + (newEnd - end), newEnd);
 	}
 
 	/** Changes the length of the range.
@@ -10278,9 +11003,8 @@ public:
 				: rangeToConstrain.movedToStartAt (jlimit (start, end - otherLen, rangeToConstrain.getStart()));
 	}
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	ValueType start, end;
 };
 
@@ -10390,8 +11114,8 @@ public:
 	inline const ReferenceCountedObjectPtr<ObjectClass> operator[] (const int index) const throw()
 	{
 		const ScopedLockType lock (getLock());
-		return (((unsigned int) index) < (unsigned int) numUsed) ? data.elements [index]
-																 : static_cast <ObjectClass*> (0);
+		return isPositiveAndBelow (index, numUsed) ? data.elements [index]
+												   : static_cast <ObjectClass*> (0);
 	}
 
 	/** Returns a pointer to the object at this index in the array, without checking whether the index is in-range.
@@ -10402,7 +11126,7 @@ public:
 	inline const ReferenceCountedObjectPtr<ObjectClass> getUnchecked (const int index) const throw()
 	{
 		const ScopedLockType lock (getLock());
-		jassert (((unsigned int) index) < (unsigned int) numUsed);
+		jassert (isPositiveAndBelow (index, numUsed));
 		return data.elements [index];
 	}
 
@@ -10599,27 +11323,28 @@ public:
 				   int startIndex = 0,
 				   int numElementsToAdd = -1) throw()
 	{
-		arrayToAddFrom.lockArray();
-		const ScopedLockType lock (getLock());
+		const ScopedLockType lock1 (arrayToAddFrom.getLock());
 
-		if (startIndex < 0)
 		{
-			jassertfalse;
-			startIndex = 0;
+			const ScopedLockType lock2 (getLock());
+
+			if (startIndex < 0)
+			{
+				jassertfalse;
+				startIndex = 0;
+			}
+
+			if (numElementsToAdd < 0 || startIndex + numElementsToAdd > arrayToAddFrom.size())
+				numElementsToAdd = arrayToAddFrom.size() - startIndex;
+
+			if (numElementsToAdd > 0)
+			{
+				data.ensureAllocatedSize (numUsed + numElementsToAdd);
+
+				while (--numElementsToAdd >= 0)
+					add (arrayToAddFrom.getUnchecked (startIndex++));
+			}
 		}
-
-		if (numElementsToAdd < 0 || startIndex + numElementsToAdd > arrayToAddFrom.size())
-			numElementsToAdd = arrayToAddFrom.size() - startIndex;
-
-		if (numElementsToAdd > 0)
-		{
-			data.ensureAllocatedSize (numUsed + numElementsToAdd);
-
-			while (--numElementsToAdd >= 0)
-				add (arrayToAddFrom.getUnchecked (startIndex++));
-		}
-
-		arrayToAddFrom.unlockArray();
 	}
 
 	/** Inserts a new object into the array assuming that the array is sorted.
@@ -10676,7 +11401,7 @@ public:
 	{
 		const ScopedLockType lock (getLock());
 
-		if (((unsigned int) indexToRemove) < (unsigned int) numUsed)
+		if (isPositiveAndBelow (indexToRemove, numUsed))
 		{
 			ObjectClass** const e = data.elements + indexToRemove;
 
@@ -10788,8 +11513,8 @@ public:
 	{
 		const ScopedLockType lock (getLock());
 
-		if (((unsigned int) index1) < (unsigned int) numUsed
-			 && ((unsigned int) index2) < (unsigned int) numUsed)
+		if (isPositiveAndBelow (index1, numUsed)
+			 && isPositiveAndBelow (index2, numUsed))
 		{
 			swapVariables (data.elements [index1],
 						   data.elements [index2]);
@@ -10816,9 +11541,9 @@ public:
 		{
 			const ScopedLockType lock (getLock());
 
-			if (((unsigned int) currentIndex) < (unsigned int) numUsed)
+			if (isPositiveAndBelow (currentIndex, numUsed))
 			{
-				if (((unsigned int) newIndex) >= (unsigned int) numUsed)
+				if (! isPositiveAndBelow (newIndex, numUsed))
 					newIndex = numUsed - 1;
 
 				ObjectClass* const value = data.elements [currentIndex];
@@ -10941,9 +11666,8 @@ public:
 	/** Returns the type of scoped lock to use for locking this array */
 	typedef typename TypeOfCriticalSectionToUse::ScopedLockType ScopedLockType;
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	ArrayAllocationBase <ObjectClass*, TypeOfCriticalSectionToUse> data;
 	int numUsed;
 };
@@ -11116,8 +11840,8 @@ public:
 	inline ElementType operator[] (const int index) const throw()
 	{
 		const ScopedLockType lock (getLock());
-		return (((unsigned int) index) < (unsigned int) numUsed) ? data.elements [index]
-																 : ElementType();
+		return isPositiveAndBelow (index, numUsed) ? data.elements [index]
+												   : ElementType();
 	}
 
 	/** Returns one of the elements in the set, without checking the index passed in.
@@ -11131,7 +11855,7 @@ public:
 	inline ElementType getUnchecked (const int index) const throw()
 	{
 		const ScopedLockType lock (getLock());
-		jassert (((unsigned int) index) < (unsigned int) numUsed);
+		jassert (isPositiveAndBelow (index, numUsed));
 		return data.elements [index];
 	}
 
@@ -11305,21 +12029,24 @@ public:
 				 int numElementsToAdd = -1) throw()
 	{
 		const typename OtherSetType::ScopedLockType lock1 (setToAddFrom.getLock());
-		const ScopedLockType lock2 (getLock());
-		jassert (this != &setToAddFrom);
 
-		if (this != &setToAddFrom)
 		{
-			if (startIndex < 0)
+			const ScopedLockType lock2 (getLock());
+			jassert (this != &setToAddFrom);
+
+			if (this != &setToAddFrom)
 			{
-				jassertfalse;
-				startIndex = 0;
+				if (startIndex < 0)
+				{
+					jassertfalse;
+					startIndex = 0;
+				}
+
+				if (numElementsToAdd < 0 || startIndex + numElementsToAdd > setToAddFrom.size())
+					numElementsToAdd = setToAddFrom.size() - startIndex;
+
+				addArray (setToAddFrom.elements + startIndex, numElementsToAdd);
 			}
-
-			if (numElementsToAdd < 0 || startIndex + numElementsToAdd > setToAddFrom.size())
-				numElementsToAdd = setToAddFrom.size() - startIndex;
-
-			addArray (setToAddFrom.elements + startIndex, numElementsToAdd);
 		}
 	}
 
@@ -11336,7 +12063,7 @@ public:
 	{
 		const ScopedLockType lock (getLock());
 
-		if (((unsigned int) indexToRemove) < (unsigned int) numUsed)
+		if (isPositiveAndBelow (indexToRemove, numUsed))
 		{
 			--numUsed;
 
@@ -11444,9 +12171,8 @@ public:
 	/** Returns the type of scoped lock to use for locking this array */
 	typedef typename TypeOfCriticalSectionToUse::ScopedLockType ScopedLockType;
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	ArrayAllocationBase <ElementType, TypeOfCriticalSectionToUse> data;
 	int numUsed;
 
@@ -11588,7 +12314,7 @@ public:
 	*/
 	const Range<Type> getRange (const int rangeIndex) const
 	{
-		if (((unsigned int) rangeIndex) < (unsigned int) getNumRanges())
+		if (isPositiveAndBelow (rangeIndex, getNumRanges()))
 			return Range<Type> (values.getUnchecked (rangeIndex << 1),
 								values.getUnchecked ((rangeIndex << 1) + 1));
 		else
@@ -11729,9 +12455,8 @@ public:
 		return values != other.values;
 	}
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	// alternating start/end values of ranges of values that are present.
 	Array<Type, DummyCriticalSection> values;
 
@@ -11760,131 +12485,6 @@ private:
 /*** Start of inlined file: juce_AsyncUpdater.h ***/
 #ifndef __JUCE_ASYNCUPDATER_JUCEHEADER__
 #define __JUCE_ASYNCUPDATER_JUCEHEADER__
-
-
-/*** Start of inlined file: juce_MessageListener.h ***/
-#ifndef __JUCE_MESSAGELISTENER_JUCEHEADER__
-#define __JUCE_MESSAGELISTENER_JUCEHEADER__
-
-
-/*** Start of inlined file: juce_Message.h ***/
-#ifndef __JUCE_MESSAGE_JUCEHEADER__
-#define __JUCE_MESSAGE_JUCEHEADER__
-
-class MessageListener;
-class MessageManager;
-
-/** The base class for objects that can be delivered to a MessageListener.
-
-	The simplest Message object contains a few integer and pointer parameters
-	that the user can set, and this is enough for a lot of purposes. For passing more
-	complex data, subclasses of Message can also be used.
-
-	@see MessageListener, MessageManager, ActionListener, ChangeListener
-*/
-class JUCE_API  Message
-{
-public:
-
-	/** Creates an uninitialised message.
-
-		The class's variables will also be left uninitialised.
-	*/
-	Message() throw();
-
-	/** Creates a message object, filling in the member variables.
-
-		The corresponding public member variables will be set from the parameters
-		passed in.
-	*/
-	Message (int intParameter1,
-			 int intParameter2,
-			 int intParameter3,
-			 void* pointerParameter) throw();
-
-	/** Destructor. */
-	virtual ~Message() throw();
-
-	// These values can be used for carrying simple data that the application needs to
-	// pass around. For more complex messages, just create a subclass.
-
-	int intParameter1;	  /**< user-defined integer value. */
-	int intParameter2;	  /**< user-defined integer value. */
-	int intParameter3;	  /**< user-defined integer value. */
-	void* pointerParameter;	 /**< user-defined pointer value. */
-
-	juce_UseDebuggingNewOperator
-
-private:
-	friend class MessageListener;
-	friend class MessageManager;
-	MessageListener* messageRecipient;
-
-	Message (const Message&);
-	Message& operator= (const Message&);
-};
-
-#endif   // __JUCE_MESSAGE_JUCEHEADER__
-/*** End of inlined file: juce_Message.h ***/
-
-/**
-	MessageListener subclasses can post and receive Message objects.
-
-	@see Message, MessageManager, ActionListener, ChangeListener
-*/
-class JUCE_API  MessageListener
-{
-protected:
-
-	/** Creates a MessageListener. */
-	MessageListener() throw();
-
-public:
-
-	/** Destructor.
-
-		When a MessageListener is deleted, it removes itself from a global list
-		of registered listeners, so that the isValidMessageListener() method
-		will no longer return true.
-	*/
-	virtual ~MessageListener();
-
-	/** This is the callback method that receives incoming messages.
-
-		This is called by the MessageManager from its dispatch loop.
-
-		@see postMessage
-	*/
-	virtual void handleMessage (const Message& message) = 0;
-
-	/** Sends a message to the message queue, for asynchronous delivery to this listener
-		later on.
-
-		This method can be called safely by any thread.
-
-		@param message	  the message object to send - this will be deleted
-							automatically by the message queue, so don't keep any
-							references to it after calling this method.
-		@see handleMessage
-	*/
-	void postMessage (Message* message) const throw();
-
-	/** Checks whether this MessageListener has been deleted.
-
-		Although not foolproof, this method is safe to call on dangling or null
-		pointers. A list of active MessageListeners is kept internally, so this
-		checks whether the object is on this list or not.
-
-		Note that it's possible to get a false-positive here, if an object is
-		deleted and another is subsequently created that happens to be at the
-		exact same memory location, but I can't think of a good way of avoiding
-		this.
-	*/
-	bool isValidMessageListener() const throw();
-};
-
-#endif   // __JUCE_MESSAGELISTENER_JUCEHEADER__
-/*** End of inlined file: juce_MessageListener.h ***/
 
 /**
 	Has a callback method that is triggered asynchronously.
@@ -11919,7 +12519,7 @@ public:
 		It's thread-safe to call this method from any number of threads without
 		needing to worry about locking.
 	*/
-	void triggerAsyncUpdate() throw();
+	void triggerAsyncUpdate();
 
 	/** This will stop any pending updates from happening.
 
@@ -11934,8 +12534,14 @@ public:
 		Use this as a kind of "flush" operation - if an update is pending, the
 		handleAsyncUpdate() method will be called immediately; if no update is
 		pending, then nothing will be done.
+
+		Because this may invoke the callback, this method must only be called on
+		the main event thread.
 	*/
 	void handleUpdateNowIfNeeded();
+
+	/** Returns true if there's an update callback in the pipeline. */
+	bool isUpdatePending() const throw();
 
 	/** Called back to do whatever your class needs to do.
 
@@ -11946,23 +12552,10 @@ public:
 
 private:
 
-	class AsyncUpdaterInternal  : public MessageListener
-	{
-	public:
-		AsyncUpdaterInternal() throw() {}
-		~AsyncUpdaterInternal() {}
+	class AsyncUpdaterMessage;
+	friend class AsyncUpdaterMessage;
 
-		void handleMessage (const Message&);
-
-		AsyncUpdater* owner;
-
-	private:
-		AsyncUpdaterInternal (const AsyncUpdaterInternal&);
-		AsyncUpdaterInternal& operator= (const AsyncUpdaterInternal&);
-	};
-
-	AsyncUpdaterInternal internalAsyncHandler;
-	bool asyncMessagePending;
+	Atomic<AsyncUpdaterMessage*> pendingMessage;
 };
 
 #endif   // __JUCE_ASYNCUPDATER_JUCEHEADER__
@@ -12015,7 +12608,7 @@ template <class ListenerClass,
 class ListenerList
 {
 	// Horrible macros required to support VC6/7..
-	#if defined (_MSC_VER) && _MSC_VER <= 1400
+	#if JUCE_VC8_OR_EARLIER
 	  #define LL_TEMPLATE(a)   typename P##a, typename Q##a
 	  #define LL_PARAM(a)	  Q##a& param##a
 	#else
@@ -12072,6 +12665,12 @@ public:
 		return listeners.size() == 0;
 	}
 
+	/** Clears the list. */
+	void clear()
+	{
+		listeners.clear();
+	}
+
 	/** Returns true if the specified listener has been added to the list. */
 	bool contains (ListenerClass* const listener) const throw()
 	{
@@ -12090,7 +12689,7 @@ public:
 	void callChecked (const BailOutCheckerType& bailOutChecker,
 					  void (ListenerClass::*callbackFunction) ())
 	{
-		for (Iterator<BailOutCheckerType, ThisType> iter (*this, bailOutChecker); iter.next();)
+		for (Iterator<BailOutCheckerType, ThisType> iter (*this); iter.next (bailOutChecker);)
 			(iter.getListener()->*callbackFunction) ();
 	}
 
@@ -12098,7 +12697,7 @@ public:
 	template <LL_TEMPLATE(1)>
 	void call (void (ListenerClass::*callbackFunction) (P1), LL_PARAM(1))
 	{
-		for (Iterator<DummyBailOutChecker, ThisType> iter (*this, DummyBailOutChecker()); iter.next();)
+		for (Iterator<DummyBailOutChecker, ThisType> iter (*this); iter.next();)
 			(iter.getListener()->*callbackFunction) (param1);
 	}
 
@@ -12109,7 +12708,7 @@ public:
 					  void (ListenerClass::*callbackFunction) (P1),
 					  LL_PARAM(1))
 	{
-		for (Iterator<BailOutCheckerType, ThisType> iter (*this, bailOutChecker); iter.next();)
+		for (Iterator<BailOutCheckerType, ThisType> iter (*this); iter.next (bailOutChecker);)
 			(iter.getListener()->*callbackFunction) (param1);
 	}
 
@@ -12118,7 +12717,7 @@ public:
 	void call (void (ListenerClass::*callbackFunction) (P1, P2),
 			   LL_PARAM(1), LL_PARAM(2))
 	{
-		for (Iterator<DummyBailOutChecker, ThisType> iter (*this, DummyBailOutChecker()); iter.next();)
+		for (Iterator<DummyBailOutChecker, ThisType> iter (*this); iter.next();)
 			(iter.getListener()->*callbackFunction) (param1, param2);
 	}
 
@@ -12129,7 +12728,7 @@ public:
 					  void (ListenerClass::*callbackFunction) (P1, P2),
 					  LL_PARAM(1), LL_PARAM(2))
 	{
-		for (Iterator<BailOutCheckerType, ThisType> iter (*this, bailOutChecker); iter.next();)
+		for (Iterator<BailOutCheckerType, ThisType> iter (*this); iter.next (bailOutChecker);)
 			(iter.getListener()->*callbackFunction) (param1, param2);
 	}
 
@@ -12138,7 +12737,7 @@ public:
 	void call (void (ListenerClass::*callbackFunction) (P1, P2, P3),
 			   LL_PARAM(1), LL_PARAM(2), LL_PARAM(3))
 	{
-		for (Iterator<DummyBailOutChecker, ThisType> iter (*this, DummyBailOutChecker()); iter.next();)
+		for (Iterator<DummyBailOutChecker, ThisType> iter (*this); iter.next();)
 			(iter.getListener()->*callbackFunction) (param1, param2, param3);
 	}
 
@@ -12149,7 +12748,7 @@ public:
 					  void (ListenerClass::*callbackFunction) (P1, P2, P3),
 					  LL_PARAM(1), LL_PARAM(2), LL_PARAM(3))
 	{
-		for (Iterator<BailOutCheckerType, ThisType> iter (*this, bailOutChecker); iter.next();)
+		for (Iterator<BailOutCheckerType, ThisType> iter (*this); iter.next (bailOutChecker);)
 			(iter.getListener()->*callbackFunction) (param1, param2, param3);
 	}
 
@@ -12158,7 +12757,7 @@ public:
 	void call (void (ListenerClass::*callbackFunction) (P1, P2, P3, P4),
 			   LL_PARAM(1), LL_PARAM(2), LL_PARAM(3), LL_PARAM(4))
 	{
-		for (Iterator<DummyBailOutChecker, ThisType> iter (*this, DummyBailOutChecker()); iter.next();)
+		for (Iterator<DummyBailOutChecker, ThisType> iter (*this); iter.next();)
 			(iter.getListener()->*callbackFunction) (param1, param2, param3, param4);
 	}
 
@@ -12169,7 +12768,7 @@ public:
 					  void (ListenerClass::*callbackFunction) (P1, P2, P3, P4),
 					  LL_PARAM(1), LL_PARAM(2), LL_PARAM(3), LL_PARAM(4))
 	{
-		for (Iterator<BailOutCheckerType, ThisType> iter (*this, bailOutChecker); iter.next();)
+		for (Iterator<BailOutCheckerType, ThisType> iter (*this); iter.next (bailOutChecker);)
 			(iter.getListener()->*callbackFunction) (param1, param2, param3, param4);
 	}
 
@@ -12178,7 +12777,7 @@ public:
 	void call (void (ListenerClass::*callbackFunction) (P1, P2, P3, P4, P5),
 			   LL_PARAM(1), LL_PARAM(2), LL_PARAM(3), LL_PARAM(4), LL_PARAM(5))
 	{
-		for (Iterator<DummyBailOutChecker, ThisType> iter (*this, DummyBailOutChecker()); iter.next();)
+		for (Iterator<DummyBailOutChecker, ThisType> iter (*this); iter.next();)
 			(iter.getListener()->*callbackFunction) (param1, param2, param3, param4, param5);
 	}
 
@@ -12189,7 +12788,7 @@ public:
 					  void (ListenerClass::*callbackFunction) (P1, P2, P3, P4, P5),
 					  LL_PARAM(1), LL_PARAM(2), LL_PARAM(3), LL_PARAM(4), LL_PARAM(5))
 	{
-		for (Iterator<BailOutCheckerType, ThisType> iter (*this, bailOutChecker); iter.next();)
+		for (Iterator<BailOutCheckerType, ThisType> iter (*this); iter.next (bailOutChecker);)
 			(iter.getListener()->*callbackFunction) (param1, param2, param3, param4, param5);
 	}
 
@@ -12208,15 +12807,15 @@ public:
 	{
 	public:
 
-		Iterator (const ListType& list_, const BailOutCheckerType& bailOutChecker_)
-			: list (list_), bailOutChecker (bailOutChecker_), index (list_.size())
+		Iterator (const ListType& list_)
+			: list (list_), index (list_.size())
 		{}
 
 		~Iterator() {}
 
 		bool next()
 		{
-			if (index <= 0 || bailOutChecker.shouldBailOut())
+			if (index <= 0)
 				return false;
 
 			const int listSize = list.size();
@@ -12228,6 +12827,11 @@ public:
 			return index >= 0;
 		}
 
+		bool next (const BailOutCheckerType& bailOutChecker)
+		{
+			return (! bailOutChecker.shouldBailOut()) && next();
+		}
+
 		typename ListType::ListenerType* getListener() const throw()
 		{
 			return list.getListeners().getUnchecked (index);
@@ -12235,11 +12839,9 @@ public:
 
 	private:
 		const ListType& list;
-		const BailOutCheckerType& bailOutChecker;
 		int index;
 
-		Iterator (const Iterator&);
-		Iterator& operator= (const Iterator&);
+		JUCE_DECLARE_NON_COPYABLE (Iterator);
 	};
 
 	typedef ListenerList<ListenerClass, ArrayType> ThisType;
@@ -12251,8 +12853,7 @@ private:
 
 	ArrayType listeners;
 
-	ListenerList (const ListenerList&);
-	ListenerList& operator= (const ListenerList&);
+	JUCE_DECLARE_NON_COPYABLE (ListenerList);
 
 	#undef LL_TEMPLATE
 	#undef LL_PARAM
@@ -12416,16 +13017,14 @@ public:
 		*/
 		void sendChangeMessage (bool dispatchSynchronously);
 
-		juce_UseDebuggingNewOperator
-
 	protected:
+
 		friend class Value;
 		SortedSet <Value*> valuesWithListeners;
 
 		void handleAsyncUpdate();
 
-		ValueSource (const ValueSource&);
-		ValueSource& operator= (const ValueSource&);
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ValueSource);
 	};
 
 	/** Creates a Value object that uses this valueSource object as its underlying data. */
@@ -12434,9 +13033,8 @@ public:
 	/** Returns the ValueSource that this value is referring to. */
 	ValueSource& getValueSource() throw()	   { return *value; }
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	friend class ValueSource;
 	ReferenceCountedObjectPtr <ValueSource> value;
 	ListenerList <Listener> listeners;
@@ -12450,6 +13048,9 @@ private:
 
 /** Writes a Value to an OutputStream as a UTF8 string. */
 OutputStream& JUCE_CALLTYPE operator<< (OutputStream& stream, const Value& value);
+
+/** This typedef is just for compatibility with old code - newer code should use the Value::Listener class directly. */
+typedef Value::Listener ValueListener;
 
 #endif   // __JUCE_VALUE_JUCEHEADER__
 /*** End of inlined file: juce_Value.h ***/
@@ -12473,27 +13074,24 @@ OutputStream& JUCE_CALLTYPE operator<< (OutputStream& stream, const Value& value
 #define __JUCE_CHANGEBROADCASTER_JUCEHEADER__
 
 
-/*** Start of inlined file: juce_ChangeListenerList.h ***/
-#ifndef __JUCE_CHANGELISTENERLIST_JUCEHEADER__
-#define __JUCE_CHANGELISTENERLIST_JUCEHEADER__
-
-
 /*** Start of inlined file: juce_ChangeListener.h ***/
 #ifndef __JUCE_CHANGELISTENER_JUCEHEADER__
 #define __JUCE_CHANGELISTENER_JUCEHEADER__
 
-/**
-	Receives callbacks about changes to some kind of object.
+class ChangeBroadcaster;
 
-	Many objects use a ChangeListenerList to keep a set of listeners which they
-	will inform when something changes. A subclass of ChangeListener
-	is used to receive these callbacks.
+/**
+	Receives change event callbacks that are sent out by a ChangeBroadcaster.
+
+	A ChangeBroadcaster keeps a set of listeners to which it broadcasts a message when
+	the ChangeBroadcaster::sendChangeMessage() method is called. A subclass of
+	ChangeListener is used to receive these callbacks.
 
 	Note that the major difference between an ActionListener and a ChangeListener
 	is that for a ChangeListener, multiple changes will be coalesced into fewer
 	callbacks, but ActionListeners perform one callback for every event posted.
 
-	@see ChangeListenerList, ChangeBroadcaster, ActionListener
+	@see ChangeBroadcaster, ActionListener
 */
 class JUCE_API  ChangeListener
 {
@@ -12501,238 +13099,24 @@ public:
 	/** Destructor. */
 	virtual ~ChangeListener()  {}
 
-	/** Overridden by your subclass to receive the callback.
-
-		@param objectThatHasChanged the value that was passed to the
-									ChangeListenerList::sendChangeMessage() method
+	/** Your subclass should implement this method to receive the callback.
+		@param source the ChangeBroadcaster that triggered the callback.
 	*/
-	virtual void changeListenerCallback (void* objectThatHasChanged) = 0;
+	virtual void changeListenerCallback (ChangeBroadcaster* source) = 0;
+
+   #if JUCE_CATCH_DEPRECATED_CODE_MISUSE
+	// This method's signature has changed to take a ChangeBroadcaster parameter - please update your code!
+	private: virtual int changeListenerCallback (void*) { return 0; }
+   #endif
 };
 
 #endif   // __JUCE_CHANGELISTENER_JUCEHEADER__
 /*** End of inlined file: juce_ChangeListener.h ***/
 
-
-/*** Start of inlined file: juce_ScopedLock.h ***/
-#ifndef __JUCE_SCOPEDLOCK_JUCEHEADER__
-#define __JUCE_SCOPEDLOCK_JUCEHEADER__
-
 /**
-	Automatically locks and unlocks a CriticalSection object.
+	Holds a list of ChangeListeners, and sends messages to them when instructed.
 
-	Use one of these as a local variable to control access to a CriticalSection.
-
-	e.g. @code
-
-	CriticalSection myCriticalSection;
-
-	for (;;)
-	{
-		const ScopedLock myScopedLock (myCriticalSection);
-		// myCriticalSection is now locked
-
-		...do some stuff...
-
-		// myCriticalSection gets unlocked here.
-	}
-	@endcode
-
-	@see CriticalSection, ScopedUnlock
-*/
-class JUCE_API  ScopedLock
-{
-public:
-
-	/** Creates a ScopedLock.
-
-		As soon as it is created, this will lock the CriticalSection, and
-		when the ScopedLock object is deleted, the CriticalSection will
-		be unlocked.
-
-		Make sure this object is created and deleted by the same thread,
-		otherwise there are no guarantees what will happen! Best just to use it
-		as a local stack object, rather than creating one with the new() operator.
-	*/
-	inline explicit ScopedLock (const CriticalSection& lock) throw()	: lock_ (lock) { lock.enter(); }
-
-	/** Destructor.
-
-		The CriticalSection will be unlocked when the destructor is called.
-
-		Make sure this object is created and deleted by the same thread,
-		otherwise there are no guarantees what will happen!
-	*/
-	inline ~ScopedLock() throw()					{ lock_.exit(); }
-
-private:
-
-	const CriticalSection& lock_;
-
-	ScopedLock (const ScopedLock&);
-	ScopedLock& operator= (const ScopedLock&);
-};
-
-/**
-	Automatically unlocks and re-locks a CriticalSection object.
-
-	This is the reverse of a ScopedLock object - instead of locking the critical
-	section for the lifetime of this object, it unlocks it.
-
-	Make sure you don't try to unlock critical sections that aren't actually locked!
-
-	e.g. @code
-
-	CriticalSection myCriticalSection;
-
-	for (;;)
-	{
-		const ScopedLock myScopedLock (myCriticalSection);
-		// myCriticalSection is now locked
-
-		... do some stuff with it locked ..
-
-		while (xyz)
-		{
-			... do some stuff with it locked ..
-
-			const ScopedUnlock unlocker (myCriticalSection);
-
-			// myCriticalSection is now unlocked for the remainder of this block,
-			// and re-locked at the end.
-
-			...do some stuff with it unlocked ...
-		}
-
-		// myCriticalSection gets unlocked here.
-	}
-	@endcode
-
-	@see CriticalSection, ScopedLock
-*/
-class ScopedUnlock
-{
-public:
-
-	/** Creates a ScopedUnlock.
-
-		As soon as it is created, this will unlock the CriticalSection, and
-		when the ScopedLock object is deleted, the CriticalSection will
-		be re-locked.
-
-		Make sure this object is created and deleted by the same thread,
-		otherwise there are no guarantees what will happen! Best just to use it
-		as a local stack object, rather than creating one with the new() operator.
-	*/
-	inline explicit ScopedUnlock (const CriticalSection& lock) throw()	: lock_ (lock) { lock.exit(); }
-
-	/** Destructor.
-
-		The CriticalSection will be unlocked when the destructor is called.
-
-		Make sure this object is created and deleted by the same thread,
-		otherwise there are no guarantees what will happen!
-	*/
-	inline ~ScopedUnlock() throw()					{ lock_.enter(); }
-
-private:
-
-	const CriticalSection& lock_;
-
-	ScopedUnlock (const ScopedLock&);
-	ScopedUnlock& operator= (const ScopedUnlock&);
-};
-
-#endif   // __JUCE_SCOPEDLOCK_JUCEHEADER__
-/*** End of inlined file: juce_ScopedLock.h ***/
-
-/**
-	A set of ChangeListeners.
-
-	Listeners can be added and removed from the list, and change messages can be
-	broadcast to all the listeners.
-
-	@see ChangeListener, ChangeBroadcaster
-*/
-class JUCE_API  ChangeListenerList  : public MessageListener
-{
-public:
-
-	/** Creates an empty list. */
-	ChangeListenerList() throw();
-
-	/** Destructor. */
-	~ChangeListenerList() throw();
-
-	/** Adds a listener to the list.
-
-		(Trying to add a listener that's already on the list will have no effect).
-	*/
-	void addChangeListener (ChangeListener* listener) throw();
-
-	/** Removes a listener from the list.
-
-		If the listener isn't on the list, this won't have any effect.
-	*/
-	void removeChangeListener (ChangeListener* listener) throw();
-
-	/** Removes all listeners from the list. */
-	void removeAllChangeListeners() throw();
-
-	/** Posts an asynchronous change message to all the listeners.
-
-		If a message has already been sent and hasn't yet been delivered, this
-		method won't send another - in this way it coalesces multiple frequent
-		changes into fewer actual callbacks to the ChangeListeners. Contrast this
-		with the ActionListener, which posts a new event for every call to its
-		sendActionMessage() method.
-
-		Only listeners which are on the list when the change event is delivered
-		will receive the event - and this may include listeners that weren't on
-		the list when the change message was sent.
-
-		@param objectThatHasChanged	 this pointer is passed to the
-										ChangeListener::changeListenerCallback() method,
-										and can be any value the application needs
-		@see sendSynchronousChangeMessage
-	*/
-	void sendChangeMessage (void* objectThatHasChanged) throw();
-
-	/** This will synchronously callback all the ChangeListeners.
-
-		Use this if you need to synchronously force a call to all the
-		listeners' ChangeListener::changeListenerCallback() methods.
-	*/
-	void sendSynchronousChangeMessage (void* objectThatHasChanged);
-
-	/** If a change message has been sent but not yet dispatched, this will
-		use sendSynchronousChangeMessage() to make the callback immediately.
-	*/
-	void dispatchPendingMessages();
-
-	/** @internal */
-	void handleMessage (const Message&);
-
-	juce_UseDebuggingNewOperator
-
-private:
-	SortedSet <void*> listeners;
-	CriticalSection lock;
-	void* lastChangedObject;
-	bool messagePending;
-
-	ChangeListenerList (const ChangeListenerList&);
-	ChangeListenerList& operator= (const ChangeListenerList&);
-};
-
-#endif   // __JUCE_CHANGELISTENERLIST_JUCEHEADER__
-/*** End of inlined file: juce_ChangeListenerList.h ***/
-
-/** Manages a list of ChangeListeners, and can send them messages.
-
-	To quickly add methods to your class that can add/remove change
-	listeners and broadcast to them, you can derive from this.
-
-	@see ChangeListenerList, ChangeListener
+	@see ChangeListener
 */
 class JUCE_API  ChangeBroadcaster
 {
@@ -12744,48 +13128,61 @@ public:
 	/** Destructor. */
 	virtual ~ChangeBroadcaster();
 
-	/** Adds a listener to the list.
-
-		(Trying to add a listener that's already on the list will have no effect).
+	/** Registers a listener to receive change callbacks from this broadcaster.
+		Trying to add a listener that's already on the list will have no effect.
 	*/
-	void addChangeListener (ChangeListener* listener) throw();
+	void addChangeListener (ChangeListener* listener);
 
-	/** Removes a listener from the list.
-
+	/** Unregisters a listener from the list.
 		If the listener isn't on the list, this won't have any effect.
 	*/
-	void removeChangeListener (ChangeListener* listener) throw();
+	void removeChangeListener (ChangeListener* listener);
 
 	/** Removes all listeners from the list. */
-	void removeAllChangeListeners() throw();
+	void removeAllChangeListeners();
 
-	/** Broadcasts a change message to all the registered listeners.
+	/** Causes an asynchronous change message to be sent to all the registered listeners.
 
-		The message will be delivered asynchronously by the event thread, so this
-		method will not directly call any of the listeners. For a synchronous
-		message, use sendSynchronousChangeMessage().
-
-		@see ChangeListenerList::sendActionMessage
+		The message will be delivered asynchronously by the main message thread, so this
+		method will return immediately. To call the listeners synchronously use
+		sendSynchronousChangeMessage().
 	*/
-	void sendChangeMessage (void* objectThatHasChanged) throw();
+	void sendChangeMessage();
 
 	/** Sends a synchronous change message to all the registered listeners.
 
-		@see ChangeListenerList::sendSynchronousChangeMessage
-	*/
-	void sendSynchronousChangeMessage (void* objectThatHasChanged);
+		This will immediately call all the listeners that are registered. For thread-safety
+		reasons, you must only call this method on the main message thread.
 
-	/** If a change message has been sent but not yet dispatched, this will
-		use sendSynchronousChangeMessage() to make the callback immediately.
+		@see dispatchPendingMessages
+	*/
+	void sendSynchronousChangeMessage();
+
+	/** If a change message has been sent but not yet dispatched, this will call
+		sendSynchronousChangeMessage() to make the callback immediately.
+
+		For thread-safety reasons, you must only call this method on the main message thread.
 	*/
 	void dispatchPendingMessages();
 
 private:
 
-	ChangeListenerList changeListenerList;
+	class ChangeBroadcasterCallback  : public AsyncUpdater
+	{
+	public:
+		ChangeBroadcasterCallback();
+		void handleAsyncUpdate();
 
-	ChangeBroadcaster (const ChangeBroadcaster&);
-	ChangeBroadcaster& operator= (const ChangeBroadcaster&);
+		ChangeBroadcaster* owner;
+	};
+
+	friend class ChangeBroadcasterCallback;
+	ChangeBroadcasterCallback callback;
+	ListenerList <ChangeListener> changeListeners;
+
+	void callListeners();
+
+	JUCE_DECLARE_NON_COPYABLE (ChangeBroadcaster);
 };
 
 #endif   // __JUCE_CHANGEBROADCASTER_JUCEHEADER__
@@ -13040,8 +13437,6 @@ public:
 	*/
 	bool redo();
 
-	juce_UseDebuggingNewOperator
-
 private:
 
 	OwnedArray <OwnedArray <UndoableAction> > transactions;
@@ -13050,9 +13445,7 @@ private:
 	int totalUnitsStored, maxNumUnitsToKeep, minimumTransactionsToKeep, nextIndex;
 	bool newTransaction, reentrancyCheck;
 
-	// disallow copy constructor
-	UndoManager (const UndoManager&);
-	UndoManager& operator= (const UndoManager&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (UndoManager);
 };
 
 #endif   // __JUCE_UNDOMANAGER_JUCEHEADER__
@@ -13438,22 +13831,21 @@ public:
 		To improve performance, the compareElements() method can be declared as static or const.
 
 		@param comparator   the comparator to use for comparing elements.
-		@param retainOrderOfEquivalentItems	 if this is true, then items
-							which the comparator says are equivalent will be
-							kept in the order in which they currently appear
-							in the array. This is slower to perform, but may
-							be important in some cases. If it's false, a faster
-							algorithm is used, but equivalent elements may be
-							rearranged.
+		@param undoManager  optional UndoManager for storing the changes
+		@param retainOrderOfEquivalentItems	 if this is true, then items which the comparator says are
+							equivalent will be kept in the order in which they currently appear in the array.
+							This is slower to perform, but may be important in some cases. If it's false, a
+							faster algorithm is used, but equivalent elements may be rearranged.
 	*/
 	template <typename ElementComparator>
-	void sort (ElementComparator& comparator, const bool retainOrderOfEquivalentItems = false)
+	void sort (ElementComparator& comparator, UndoManager* undoManager, bool retainOrderOfEquivalentItems)
 	{
 		if (object != 0)
 		{
+			ReferenceCountedArray <SharedObject> sortedList (object->children);
 			ComparatorAdapter <ElementComparator> adapter (comparator);
-			object->children.sort (adapter, retainOrderOfEquivalentItems);
-			object->sendChildChangeMessage();
+			sortedList.sort (adapter, retainOrderOfEquivalentItems);
+			object->reorderChildren (sortedList, undoManager);
 		}
 	}
 
@@ -13462,9 +13854,8 @@ public:
 	*/
 	static const ValueTree invalid;
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	class SetPropertyAction;
 	friend class SetPropertyAction;
 	class AddOrRemoveChildAction;
@@ -13505,13 +13896,13 @@ private:
 		void removeChild (int childIndex, UndoManager*);
 		void removeAllChildren (UndoManager*);
 		void moveChild (int currentIndex, int newIndex, UndoManager*);
+		void reorderChildren (const ReferenceCountedArray <SharedObject>& newOrder, UndoManager*);
 		bool isEquivalentTo (const SharedObject& other) const;
 		XmlElement* createXml() const;
 
-		juce_UseDebuggingNewOperator
-
 	private:
 		SharedObject& operator= (const SharedObject&);
+		JUCE_LEAK_DETECTOR (SharedObject);
 	};
 
 	template <typename ElementComparator>
@@ -13528,8 +13919,7 @@ private:
 	private:
 		ElementComparator& comparator;
 
-		ComparatorAdapter (const ComparatorAdapter&);
-		ComparatorAdapter& operator= (const ComparatorAdapter&);
+		JUCE_DECLARE_NON_COPYABLE (ComparatorAdapter);
 	};
 
 	friend class SharedObject;
@@ -13624,17 +14014,14 @@ public:
 											   const String& welcomeMessage,
 											   const int maxInitialFileSizeBytes = 128 * 1024);
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	File logFile;
 	CriticalSection logLock;
-	ScopedPointer <FileOutputStream> logStream;
 
 	void trimFileSize (int maxFileSizeBytes) const;
 
-	FileLogger (const FileLogger&);
-	FileLogger& operator= (const FileLogger&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FileLogger);
 };
 
 #endif   // __JUCE_FILELOGGER_JUCEHEADER__
@@ -13659,7 +14046,7 @@ private:
 
 	@see shutdownJuce_GUI(), initialiseJuce_NonGUI()
 */
-void JUCE_PUBLIC_FUNCTION  initialiseJuce_GUI();
+JUCE_API void JUCE_CALLTYPE  initialiseJuce_GUI();
 
 /** Clears up any static data being used by Juce's GUI classes.
 
@@ -13669,7 +14056,7 @@ void JUCE_PUBLIC_FUNCTION  initialiseJuce_GUI();
 
 	@see initialiseJuce_GUI(), initialiseJuce_NonGUI()
 */
-void JUCE_PUBLIC_FUNCTION  shutdownJuce_GUI();
+JUCE_API void JUCE_CALLTYPE  shutdownJuce_GUI();
 
 /** Initialises the core parts of Juce.
 
@@ -13681,7 +14068,7 @@ void JUCE_PUBLIC_FUNCTION  shutdownJuce_GUI();
 
 	@see shutdownJuce_NonGUI, initialiseJuce_GUI
 */
-void JUCE_PUBLIC_FUNCTION  initialiseJuce_NonGUI();
+JUCE_API void JUCE_CALLTYPE  initialiseJuce_NonGUI();
 
 /** Clears up any static data being used by Juce's non-gui core classes.
 
@@ -13691,7 +14078,7 @@ void JUCE_PUBLIC_FUNCTION  initialiseJuce_NonGUI();
 
 	@see initialiseJuce_NonGUI, initialiseJuce_GUI
 */
-void JUCE_PUBLIC_FUNCTION  shutdownJuce_NonGUI();
+JUCE_API void JUCE_CALLTYPE  shutdownJuce_NonGUI();
 
 /** A utility object that helps you initialise and shutdown Juce correctly
 	using an RAII pattern.
@@ -13793,6 +14180,9 @@ public:
 
 
 #endif
+#ifndef __JUCE_LEAKEDOBJECTDETECTOR_JUCEHEADER__
+
+#endif
 #ifndef __JUCE_LOGGER_JUCEHEADER__
 
 #endif
@@ -13869,8 +14259,6 @@ public:
 		this was valid).
 	*/
 	void printStatistics();
-
-	juce_UseDebuggingNewOperator
 
 private:
 
@@ -14057,14 +14445,10 @@ public:
 										 const String& procedureName);
 #endif
 
-#if JUCE_LINUX || DOXYGEN
-
-#endif
-
 private:
 	PlatformUtilities();
-	PlatformUtilities (const PlatformUtilities&);
-	PlatformUtilities& operator= (const PlatformUtilities&);
+
+	JUCE_DECLARE_NON_COPYABLE (PlatformUtilities);
 };
 
 #if JUCE_MAC || JUCE_IOS
@@ -14081,8 +14465,7 @@ public:
 private:
 	void* pool;
 
-	ScopedAutoReleasePool (const ScopedAutoReleasePool&);
-	ScopedAutoReleasePool& operator= (const ScopedAutoReleasePool&);
+	JUCE_DECLARE_NON_COPYABLE (ScopedAutoReleasePool);
 };
 
 #define JUCE_AUTORELEASEPOOL  const JUCE_NAMESPACE::ScopedAutoReleasePool pool;
@@ -14155,7 +14538,7 @@ public:
 		will be true and then false. Others only send a single event when the
 		button is pressed.
 	*/
-	virtual void buttonPressed (const ButtonType buttonId, const bool isDown) = 0;
+	virtual void buttonPressed (ButtonType buttonId, bool isDown) = 0;
 
 	/** Starts the device running and responding to events.
 
@@ -14166,7 +14549,7 @@ public:
 								false, it will be shared with other apps.
 		@see stop
 	*/
-	bool start (const bool inExclusiveMode);
+	bool start (bool inExclusiveMode);
 
 	/** Stops the device running.
 		@see start
@@ -14181,8 +14564,6 @@ public:
 	*/
 	int getRemoteId() const			 { return remoteId; }
 
-	juce_UseDebuggingNewOperator
-
 	/** @internal */
 	void handleCallbackInternal();
 
@@ -14191,10 +14572,9 @@ private:
 	void* queue;
 	int remoteId;
 
-	bool open (const bool openInExclusiveMode);
+	bool open (bool openInExclusiveMode);
 
-	AppleRemoteDevice (const AppleRemoteDevice&);
-	AppleRemoteDevice& operator= (const AppleRemoteDevice&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AppleRemoteDevice);
 };
 
 #endif
@@ -14298,10 +14678,11 @@ public:
 	*/
 	void setSeedRandomly();
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	int64 seed;
+
+	JUCE_LEAK_DETECTOR (Random);
 };
 
 #endif   // __JUCE_RANDOM_JUCEHEADER__
@@ -14317,6 +14698,137 @@ private:
 /*** Start of inlined file: juce_Singleton.h ***/
 #ifndef __JUCE_SINGLETON_JUCEHEADER__
 #define __JUCE_SINGLETON_JUCEHEADER__
+
+
+/*** Start of inlined file: juce_ScopedLock.h ***/
+#ifndef __JUCE_SCOPEDLOCK_JUCEHEADER__
+#define __JUCE_SCOPEDLOCK_JUCEHEADER__
+
+/**
+	Automatically locks and unlocks a CriticalSection object.
+
+	Use one of these as a local variable to control access to a CriticalSection.
+
+	e.g. @code
+
+	CriticalSection myCriticalSection;
+
+	for (;;)
+	{
+		const ScopedLock myScopedLock (myCriticalSection);
+		// myCriticalSection is now locked
+
+		...do some stuff...
+
+		// myCriticalSection gets unlocked here.
+	}
+	@endcode
+
+	@see CriticalSection, ScopedUnlock
+*/
+class JUCE_API  ScopedLock
+{
+public:
+
+	/** Creates a ScopedLock.
+
+		As soon as it is created, this will lock the CriticalSection, and
+		when the ScopedLock object is deleted, the CriticalSection will
+		be unlocked.
+
+		Make sure this object is created and deleted by the same thread,
+		otherwise there are no guarantees what will happen! Best just to use it
+		as a local stack object, rather than creating one with the new() operator.
+	*/
+	inline explicit ScopedLock (const CriticalSection& lock) throw()	: lock_ (lock) { lock.enter(); }
+
+	/** Destructor.
+
+		The CriticalSection will be unlocked when the destructor is called.
+
+		Make sure this object is created and deleted by the same thread,
+		otherwise there are no guarantees what will happen!
+	*/
+	inline ~ScopedLock() throw()					{ lock_.exit(); }
+
+private:
+
+	const CriticalSection& lock_;
+
+	JUCE_DECLARE_NON_COPYABLE (ScopedLock);
+};
+
+/**
+	Automatically unlocks and re-locks a CriticalSection object.
+
+	This is the reverse of a ScopedLock object - instead of locking the critical
+	section for the lifetime of this object, it unlocks it.
+
+	Make sure you don't try to unlock critical sections that aren't actually locked!
+
+	e.g. @code
+
+	CriticalSection myCriticalSection;
+
+	for (;;)
+	{
+		const ScopedLock myScopedLock (myCriticalSection);
+		// myCriticalSection is now locked
+
+		... do some stuff with it locked ..
+
+		while (xyz)
+		{
+			... do some stuff with it locked ..
+
+			const ScopedUnlock unlocker (myCriticalSection);
+
+			// myCriticalSection is now unlocked for the remainder of this block,
+			// and re-locked at the end.
+
+			...do some stuff with it unlocked ...
+		}
+
+		// myCriticalSection gets unlocked here.
+	}
+	@endcode
+
+	@see CriticalSection, ScopedLock
+*/
+class ScopedUnlock
+{
+public:
+
+	/** Creates a ScopedUnlock.
+
+		As soon as it is created, this will unlock the CriticalSection, and
+		when the ScopedLock object is deleted, the CriticalSection will
+		be re-locked.
+
+		Make sure this object is created and deleted by the same thread,
+		otherwise there are no guarantees what will happen! Best just to use it
+		as a local stack object, rather than creating one with the new() operator.
+	*/
+	inline explicit ScopedUnlock (const CriticalSection& lock) throw()	: lock_ (lock) { lock.exit(); }
+
+	/** Destructor.
+
+		The CriticalSection will be unlocked when the destructor is called.
+
+		Make sure this object is created and deleted by the same thread,
+		otherwise there are no guarantees what will happen!
+	*/
+	inline ~ScopedUnlock() throw()					{ lock_.enter(); }
+
+private:
+
+	const CriticalSection& lock_;
+
+	JUCE_DECLARE_NON_COPYABLE (ScopedUnlock);
+};
+
+#endif   // __JUCE_SCOPEDLOCK_JUCEHEADER__
+/*** End of inlined file: juce_ScopedLock.h ***/
 
 /**
 	Macro to declare member variables and methods for a singleton class.
@@ -14664,20 +15176,19 @@ public:
 	static const String getCpuVendor();
 
 	/** Checks whether Intel MMX instructions are available. */
-	static bool hasMMX() throw()	{ return cpuFlags.hasMMX; }
+	static bool hasMMX() throw()		{ return cpuFlags.hasMMX; }
 
 	/** Checks whether Intel SSE instructions are available. */
-	static bool hasSSE() throw()	{ return cpuFlags.hasSSE; }
+	static bool hasSSE() throw()		{ return cpuFlags.hasSSE; }
 
 	/** Checks whether Intel SSE2 instructions are available. */
-	static bool hasSSE2() throw()	   { return cpuFlags.hasSSE2; }
+	static bool hasSSE2() throw()		   { return cpuFlags.hasSSE2; }
 
 	/** Checks whether AMD 3DNOW instructions are available. */
-	static bool has3DNow() throw()	  { return cpuFlags.has3DNow; }
+	static bool has3DNow() throw()		  { return cpuFlags.has3DNow; }
 
-	/** Returns the number of CPUs.
-	*/
-	static int getNumCpus() throw()	 { return cpuFlags.numCpus; }
+	/** Returns the number of CPUs. */
+	static int getNumCpus() throw()		 { return cpuFlags.numCpus; }
 
 	/** Finds out how much RAM is in the machine.
 
@@ -14691,34 +15202,6 @@ public:
 		This is only used by programmers with beards.
 	*/
 	static int getPageSize();
-
-	/** Returns a list of MAC addresses found on this machine.
-
-		@param  addresses   an array into which the MAC addresses should be copied
-		@param  maxNum	  the number of elements in this array
-		@param littleEndian the endianness of the numbers to return. If this is true,
-							the least-significant byte of each number is the first byte
-							of the mac address. If false, the least significant byte is
-							the last number. Note that the default values of this parameter
-							are different on Mac/PC to avoid breaking old software that was
-							written before this parameter was added (when the two systems
-							defaulted to using different endiannesses). In newer
-							software you probably want to specify an explicit value
-							for this.
-		@returns		the number of MAC addresses that were found
-	*/
-	static int getMACAddresses (int64* addresses, int maxNum,
-#if JUCE_MAC
-								bool littleEndian = true);
-#else
-								bool littleEndian = false);
-#endif
-
-	/** Returns a list of MAC addresses found on this machine.
-
-		@returns		an array of strings containing the MAC addresses that were found
-	*/
-	static const StringArray getMACAddressStrings();
 
 	// not-for-public-use platform-specific method gets called at startup to initialise things.
 	static void initialiseStats();
@@ -14736,8 +15219,8 @@ private:
 	static CPUFlags cpuFlags;
 
 	SystemStats();
-	SystemStats (const SystemStats&);
-	SystemStats& operator= (const SystemStats&);
+
+	JUCE_DECLARE_NON_COPYABLE (SystemStats);
 };
 
 #endif   // __JUCE_SYSTEMSTATS_JUCEHEADER__
@@ -14823,14 +15306,13 @@ public:
 
 		@see getRawData
 	*/
-	Uuid (const uint8* const rawData);
+	Uuid (const uint8* rawData);
 
 	/** Sets this UUID from 16-bytes of raw data. */
-	Uuid& operator= (const uint8* const rawData);
-
-	juce_UseDebuggingNewOperator
+	Uuid& operator= (const uint8* rawData);
 
 private:
+
 	union
 	{
 		uint8 asBytes [16];
@@ -14838,6 +15320,8 @@ private:
 		int64 asInt64[2];
 
 	} value;
+
+	JUCE_LEAK_DETECTOR (Uuid);
 };
 
 #endif   // __JUCE_UUID_JUCEHEADER__
@@ -14880,13 +15364,14 @@ public:
 	/** Decrypts a pair of 32-bit integers. */
 	void decrypt (uint32& data1, uint32& data2) const throw();
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	uint32 p[18];
 	HeapBlock <uint32> s[4];
 
 	uint32 F (uint32 x) const throw();
+
+	JUCE_LEAK_DETECTOR (BlowFish);
 };
 
 #endif   // __JUCE_BLOWFISH_JUCEHEADER__
@@ -14925,7 +15410,7 @@ public:
 	explicit MD5 (const MemoryBlock& data);
 
 	/** Creates a checksum for a block of binary data. */
-	MD5 (const void* data, const size_t numBytes);
+	MD5 (const void* data, size_t numBytes);
 
 	/** Creates a checksum for a string.
 
@@ -14963,9 +15448,8 @@ public:
 	/** Compares this to another MD5. */
 	bool operator!= (const MD5& other) const;
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	uint8 result [16];
 
 	struct ProcessContext
@@ -14978,10 +15462,12 @@ private:
 
 		void processBlock (const void* data, size_t dataSize);
 		void transform (const void* buffer);
-		void finish (void* const result);
+		void finish (void* result);
 	};
 
 	void processStream (InputStream& input, int64 numBytesToRead);
+
+	JUCE_LEAK_DETECTOR (MD5);
 };
 
 #endif   // __JUCE_MD5_JUCEHEADER__
@@ -15032,8 +15518,8 @@ public:
 
 private:
 	Primes();
-	Primes (const Primes&);
-	Primes& operator= (const Primes&);
+
+	JUCE_DECLARE_NON_COPYABLE (Primes);
 };
 
 #endif   // __JUCE_PRIMES_JUCEHEADER__
@@ -15115,13 +15601,15 @@ public:
 							   const int* randomSeeds = 0,
 							   int numRandomSeeds = 0);
 
-	juce_UseDebuggingNewOperator
-
 protected:
+
 	BigInteger part1, part2;
 
 private:
+
 	static const BigInteger findBestCommonDivisor (const BigInteger& p, const BigInteger& q);
+
+	JUCE_LEAK_DETECTOR (RSAKey);
 };
 
 #endif   // __JUCE_RSAKEY_JUCEHEADER__
@@ -15215,10 +15703,7 @@ public:
 	*/
 	float getEstimatedProgress() const;
 
-	juce_UseDebuggingNewOperator
-
 private:
-	friend class File;
 
 	class NativeIterator
 	{
@@ -15232,15 +15717,12 @@ private:
 
 		class Pimpl;
 
-		juce_UseDebuggingNewOperator
-
 	private:
 		friend class DirectoryIterator;
 		friend class ScopedPointer<Pimpl>;
 		ScopedPointer<Pimpl> pimpl;
 
-		NativeIterator (const NativeIterator&);
-		NativeIterator& operator= (const NativeIterator&);
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (NativeIterator);
 	};
 
 	friend class ScopedPointer<NativeIterator::Pimpl>;
@@ -15250,11 +15732,11 @@ private:
 	mutable int totalNumFiles;
 	const int whatToLookFor;
 	const bool isRecursive;
+	bool hasBeenAdvanced;
 	ScopedPointer <DirectoryIterator> subIterator;
 	File currentFile;
 
-	DirectoryIterator (const DirectoryIterator&);
-	DirectoryIterator& operator= (const DirectoryIterator&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (DirectoryIterator);
 };
 
 #endif   // __JUCE_DIRECTORYITERATOR_JUCEHEADER__
@@ -15298,16 +15780,18 @@ public:
 	int64 getPosition();
 	bool setPosition (int64 pos);
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	File file;
 	void* fileHandle;
 	int64 currentPosition, totalSize;
 	bool needToSeek;
 
-	FileInputStream (const FileInputStream&);
-	FileInputStream& operator= (const FileInputStream&);
+	void openHandle();
+	void closeHandle();
+	size_t readInternal (void* buffer, size_t numBytes);
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FileInputStream);
 };
 
 #endif   // __JUCE_FILEINPUTSTREAM_JUCEHEADER__
@@ -15365,20 +15849,21 @@ public:
 	bool setPosition (int64 pos);
 	bool write (const void* data, int numBytes);
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	File file;
 	void* fileHandle;
 	int64 currentPosition;
 	int bufferSize, bytesInBuffer;
 	HeapBlock <char> buffer;
 
+	void openHandle();
+	void closeHandle();
 	void flushInternal();
-	int64 getPositionInternal() const;
+	int64 setPositionInternal (int64 newPosition);
+	int writeInternal (const void* data, int numBytes);
 
-	FileOutputStream (const FileOutputStream&);
-	FileOutputStream& operator= (const FileOutputStream&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FileOutputStream);
 };
 
 #endif   // __JUCE_FILEOUTPUTSTREAM_JUCEHEADER__
@@ -15511,12 +15996,13 @@ public:
 	bool isFileInPath (const File& fileToCheck,
 					   bool checkRecursively) const;
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	StringArray directories;
 
 	void init (const String& path);
+
+	JUCE_LEAK_DETECTOR (FileSearchPath);
 };
 
 #endif   // __JUCE_FILESEARCHPATH_JUCEHEADER__
@@ -15594,17 +16080,15 @@ public:
 	*/
 	void cancelPendingReads();
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	void* internal;
 	String currentPipeName;
 	CriticalSection lock;
 
-	NamedPipe (const NamedPipe&);
-	NamedPipe& operator= (const NamedPipe&);
-
 	bool openInternal (const String& pipeName, const bool createPipe);
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (NamedPipe);
 };
 
 #endif   // __JUCE_NAMEDPIPE_JUCEHEADER__
@@ -15729,7 +16213,10 @@ public:
 	*/
 	bool overwriteTargetFileWithTemporary() const;
 
-	juce_UseDebuggingNewOperator
+	/** Attempts to delete the temporary file, if it exists.
+		@returns true if the file is successfully deleted (or if it didn't exist).
+	*/
+	bool deleteTemporaryFile() const;
 
 private:
 
@@ -15737,8 +16224,7 @@ private:
 
 	void createTempFile (const File& parentDirectory, String name, const String& suffix, int optionFlags);
 
-	TemporaryFile (const TemporaryFile&);
-	TemporaryFile& operator= (const TemporaryFile&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (TemporaryFile);
 };
 
 #endif   // __JUCE_TEMPORARYFILE_JUCEHEADER__
@@ -15793,7 +16279,9 @@ public:
 	*/
 	virtual int64 hashCode() const = 0;
 
-	juce_UseDebuggingNewOperator
+private:
+
+	JUCE_LEAK_DETECTOR (InputSource);
 };
 
 #endif   // __JUCE_INPUTSOURCE_JUCEHEADER__
@@ -15890,20 +16378,44 @@ public:
 	*/
 	InputStream* createStreamForEntry (int index);
 
+	/** Creates a stream that can read from one of the zip file's entries.
+
+		The stream that is returned must be deleted by the caller (and
+		zero might be returned if a stream can't be opened for some reason).
+
+		The stream must not be used after the ZipFile object that created
+		has been deleted.
+	*/
+	InputStream* createStreamForEntry (ZipEntry& entry);
+
 	/** Uncompresses all of the files in the zip file.
 
-		This will expand all the entires into a target directory. The relative
+		This will expand all the entries into a target directory. The relative
 		paths of the entries are used.
 
 		@param targetDirectory	  the root folder to uncompress to
 		@param shouldOverwriteFiles whether to overwrite existing files with similarly-named ones
+		@returns true if all the files are successfully unzipped
 	*/
-	void uncompressTo (const File& targetDirectory,
+	bool uncompressTo (const File& targetDirectory,
 					   bool shouldOverwriteFiles = true);
 
-	juce_UseDebuggingNewOperator
+	/** Uncompresses one of the entries from the zip file.
+
+		This will expand the entry and write it in a target directory. The entry's path is used to
+		determine which subfolder of the target should contain the new file.
+
+		@param index		the index of the entry to uncompress
+		@param targetDirectory	  the root folder to uncompress into
+		@param shouldOverwriteFiles whether to overwrite existing files with similarly-named ones
+		@returns true if the files is successfully unzipped
+	*/
+	bool uncompressEntry (int index,
+						  const File& targetDirectory,
+						  bool shouldOverwriteFiles = true);
 
 private:
+
 	class ZipInputStream;
 	class ZipFilenameComparator;
 	class ZipEntryInfo;
@@ -15922,15 +16434,79 @@ private:
 #endif
 
 	void init();
-	int findEndOfZipEntryTable (InputStream* in, int& numEntries);
+	int findEndOfZipEntryTable (InputStream& input, int& numEntries);
 	static int compareElements (const ZipEntryInfo* first, const ZipEntryInfo* second);
 
-	ZipFile (const ZipFile&);
-	ZipFile& operator= (const ZipFile&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ZipFile);
 };
 
 #endif   // __JUCE_ZIPFILE_JUCEHEADER__
 /*** End of inlined file: juce_ZipFile.h ***/
+
+
+#endif
+#ifndef __JUCE_MACADDRESS_JUCEHEADER__
+
+/*** Start of inlined file: juce_MACAddress.h ***/
+#ifndef __JUCE_MACADDRESS_JUCEHEADER__
+#define __JUCE_MACADDRESS_JUCEHEADER__
+
+/**
+	A wrapper for a streaming (TCP) socket.
+
+	This allows low-level use of sockets; for an easier-to-use messaging layer on top of
+	sockets, you could also try the InterprocessConnection class.
+
+	@see DatagramSocket, InterprocessConnection, InterprocessConnectionServer
+*/
+class JUCE_API  MACAddress
+{
+public:
+
+	/** Populates a list of the MAC addresses of all the available network cards. */
+	static void findAllAddresses (Array<MACAddress>& results);
+
+	/** Creates a null address (00-00-00-00-00-00). */
+	MACAddress();
+
+	/** Creates a copy of another address. */
+	MACAddress (const MACAddress& other);
+
+	/** Creates a copy of another address. */
+	MACAddress& operator= (const MACAddress& other);
+
+	/** Creates an address from 6 bytes. */
+	explicit MACAddress (const uint8 bytes[6]);
+
+	/** Returns a pointer to the 6 bytes that make up this address. */
+	const uint8* getBytes() const throw()	 { return asBytes; }
+
+	/** Returns a dash-separated string in the form "11-22-33-44-55-66" */
+	const String toString() const;
+
+	/** Returns the address in the lower 6 bytes of an int64.
+
+		This uses a little-endian arrangement, with the first byte of the address being
+		stored in the least-significant byte of the result value.
+	*/
+	int64 toInt64() const throw();
+
+	/** Returns true if this address is null (00-00-00-00-00-00). */
+	bool isNull() const throw();
+
+	bool operator== (const MACAddress& other) const throw();
+	bool operator!= (const MACAddress& other) const throw();
+
+private:
+	union
+	{
+		uint64 asInt64;
+		uint8 asBytes[6];
+	};
+};
+
+#endif   // __JUCE_MACADDRESS_JUCEHEADER__
+/*** End of inlined file: juce_MACAddress.h ***/
 
 
 #endif
@@ -16062,16 +16638,15 @@ public:
 	*/
 	StreamingSocket* waitForNextConnection() const;
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	String hostName;
 	int volatile portNumber, handle;
 	bool connected, isListener;
 
 	StreamingSocket (const String& hostname, int portNumber, int handle);
-	StreamingSocket (const StreamingSocket&);
-	StreamingSocket& operator= (const StreamingSocket&);
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (StreamingSocket);
 };
 
 /**
@@ -16185,17 +16760,16 @@ public:
 	*/
 	DatagramSocket* waitForNextConnection() const;
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	String hostName;
 	int volatile portNumber, handle;
 	bool connected, allowBroadcast;
 	void* serverAddress;
 
 	DatagramSocket (const String& hostname, int portNumber, int handle, int localPortNumber);
-	DatagramSocket (const DatagramSocket&);
-	DatagramSocket& operator= (const DatagramSocket&);
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (DatagramSocket);
 };
 
 #endif   // __JUCE_SOCKET_JUCEHEADER__
@@ -16455,11 +17029,17 @@ public:
 	*/
 	static const String removeEscapeChars (const String& stringToRemoveEscapeCharsFrom);
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	String url, postData;
 	StringPairArray parameters, filesToUpload, mimeTypes;
+
+	static InputStream* createNativeStream (const String& address, bool isPost, const MemoryBlock& postData,
+											OpenStreamProgressCallback* progressCallback,
+											void* progressCallbackContext, const String& headers,
+											const int timeOutMs, StringPairArray* responseHeaders);
+
+	JUCE_LEAK_DETECTOR (URL);
 };
 
 #endif   // __JUCE_URL_JUCEHEADER__
@@ -16495,6 +17075,14 @@ public:
 						 int bufferSize,
 						 bool deleteSourceWhenDestroyed);
 
+	/** Creates a BufferedInputStream from an input source.
+
+		@param sourceStream	 the source stream to read from - the source stream  must not
+								be deleted until this object has been destroyed.
+		@param bufferSize	   the size of reservoir to use to buffer the source
+	*/
+	BufferedInputStream (InputStream& sourceStream, int bufferSize);
+
 	/** Destructor.
 
 		This may also delete the source stream, if that option was chosen when the
@@ -16509,9 +17097,8 @@ public:
 	const String readString();
 	bool isExhausted();
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	InputStream* const source;
 	ScopedPointer <InputStream> sourceToDelete;
 	int bufferSize;
@@ -16519,8 +17106,7 @@ private:
 	HeapBlock <char> buffer;
 	void ensureBuffered();
 
-	BufferedInputStream (const BufferedInputStream&);
-	BufferedInputStream& operator= (const BufferedInputStream&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (BufferedInputStream);
 };
 
 #endif   // __JUCE_BUFFEREDINPUTSTREAM_JUCEHEADER__
@@ -16543,20 +17129,19 @@ class JUCE_API  FileInputSource	 : public InputSource
 {
 public:
 
-	FileInputSource (const File& file);
+	FileInputSource (const File& file, bool useFileTimeInHashGeneration = false);
 	~FileInputSource();
 
 	InputStream* createInputStream();
 	InputStream* createInputStreamFor (const String& relatedItemPath);
 	int64 hashCode() const;
 
-	juce_UseDebuggingNewOperator
-
 private:
-	const File file;
 
-	FileInputSource (const FileInputSource&);
-	FileInputSource& operator= (const FileInputSource&);
+	const File file;
+	bool useFileTimeInHashGeneration;
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FileInputSource);
 };
 
 #endif   // __JUCE_FILEINPUTSOURCE_JUCEHEADER__
@@ -16569,8 +17154,6 @@ private:
 /*** Start of inlined file: juce_GZIPCompressorOutputStream.h ***/
 #ifndef __JUCE_GZIPCOMPRESSOROUTPUTSTREAM_JUCEHEADER__
 #define __JUCE_GZIPCOMPRESSOROUTPUTSTREAM_JUCEHEADER__
-
-class GZIPCompressorHelper;
 
 /**
 	A stream which uses zlib to compress the data written into it.
@@ -16591,13 +17174,14 @@ public:
 												indicates that a default compression level should be used.
 		@param deleteDestStreamWhenDestroyed	whether or not to delete the destStream object when
 												this stream is destroyed
-		@param noWrap			   this is used internally by the ZipFile class
-												and should be ignored by user applications
+		@param windowBits			   this is used internally to change the window size used
+												by zlib - leave it as 0 unless you specifically need to set
+												its value for some reason
 	*/
 	GZIPCompressorOutputStream (OutputStream* destStream,
 								int compressionLevel = 0,
 								bool deleteDestStreamWhenDestroyed = false,
-								bool noWrap = false);
+								int windowBits = 0);
 
 	/** Destructor. */
 	~GZIPCompressorOutputStream();
@@ -16607,17 +17191,26 @@ public:
 	bool setPosition (int64 newPosition);
 	bool write (const void* destBuffer, int howMany);
 
-	juce_UseDebuggingNewOperator
+	/** These are preset values that can be used for the constructor's windowBits paramter.
+		For more info about this, see the zlib documentation for its windowBits parameter.
+	*/
+	enum WindowBitsValues
+	{
+		windowBitsRaw = -15,
+		windowBitsGZIP = 15 + 16
+	};
 
 private:
+
 	OutputStream* const destStream;
 	ScopedPointer <OutputStream> streamToDelete;
 	HeapBlock <uint8> buffer;
+	class GZIPCompressorHelper;
+	friend class ScopedPointer <GZIPCompressorHelper>;
 	ScopedPointer <GZIPCompressorHelper> helper;
 	bool doNextBlock();
 
-	GZIPCompressorOutputStream (const GZIPCompressorOutputStream&);
-	GZIPCompressorOutputStream& operator= (const GZIPCompressorOutputStream&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (GZIPCompressorOutputStream);
 };
 
 #endif   // __JUCE_GZIPCOMPRESSOROUTPUTSTREAM_JUCEHEADER__
@@ -16630,8 +17223,6 @@ private:
 /*** Start of inlined file: juce_GZIPDecompressorInputStream.h ***/
 #ifndef __JUCE_GZIPDECOMPRESSORINPUTSTREAM_JUCEHEADER__
 #define __JUCE_GZIPDECOMPRESSORINPUTSTREAM_JUCEHEADER__
-
-class GZIPDecompressHelper;
 
 /**
 	This stream will decompress a source-stream using zlib.
@@ -16662,6 +17253,13 @@ public:
 								 bool noWrap = false,
 								 int64 uncompressedStreamLength = -1);
 
+	/** Creates a decompressor stream.
+
+		@param sourceStream	 the stream to read from - the source stream must not be
+								deleted until this object has been destroyed
+	*/
+	GZIPDecompressorInputStream (InputStream& sourceStream);
+
 	/** Destructor. */
 	~GZIPDecompressorInputStream();
 
@@ -16670,8 +17268,6 @@ public:
 	int64 getTotalLength();
 	bool isExhausted();
 	int read (void* destBuffer, int maxBytesToRead);
-
-	juce_UseDebuggingNewOperator
 
 private:
 	InputStream* const sourceStream;
@@ -16682,10 +17278,12 @@ private:
 	int activeBufferSize;
 	int64 originalSourcePos, currentPos;
 	HeapBlock <uint8> buffer;
+
+	class GZIPDecompressHelper;
+	friend class ScopedPointer <GZIPDecompressHelper>;
 	ScopedPointer <GZIPDecompressHelper> helper;
 
-	GZIPDecompressorInputStream (const GZIPDecompressorInputStream&);
-	GZIPDecompressorInputStream& operator= (const GZIPDecompressorInputStream&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (GZIPDecompressorInputStream);
 };
 
 #endif   // __JUCE_GZIPDECOMPRESSORINPUTSTREAM_JUCEHEADER__
@@ -16750,15 +17348,13 @@ public:
 	bool isExhausted();
 	int read (void* destBuffer, int maxBytesToRead);
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	const char* data;
 	size_t dataSize, position;
 	MemoryBlock internalCopy;
 
-	MemoryInputStream (const MemoryInputStream&);
-	MemoryInputStream& operator= (const MemoryInputStream&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MemoryInputStream);
 };
 
 #endif   // __JUCE_MEMORYINPUTSTREAM_JUCEHEADER__
@@ -16847,15 +17443,13 @@ public:
 	bool setPosition (int64 newPosition);
 	int writeFromInputStream (InputStream& source, int64 maxNumBytesToWrite);
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	MemoryBlock& data;
 	MemoryBlock internalBlock;
 	size_t position, size;
 
-	MemoryOutputStream (const MemoryOutputStream&);
-	MemoryOutputStream& operator= (const MemoryOutputStream&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MemoryOutputStream);
 };
 
 /** Copies all the data that has been written to a MemoryOutputStream into another stream. */
@@ -16919,15 +17513,12 @@ public:
 	int read (void* destBuffer, int maxBytesToRead);
 	bool isExhausted();
 
-	juce_UseDebuggingNewOperator
-
 private:
 	InputStream* const source;
 	ScopedPointer <InputStream> sourceToDelete;
 	const int64 startPositionInSourceStream, lengthOfSourceStream;
 
-	SubregionStream (const SubregionStream&);
-	SubregionStream& operator= (const SubregionStream&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SubregionStream);
 };
 
 #endif   // __JUCE_SUBREGIONSTREAM_JUCEHEADER__
@@ -17085,16 +17676,17 @@ public:
 	/** Indicates whether to use a case-insensitive search when looking up a string.
 		This defaults to true.
 	*/
-	void setIgnoresCase (const bool shouldIgnoreCase);
-
-	juce_UseDebuggingNewOperator
+	void setIgnoresCase (bool shouldIgnoreCase);
 
 private:
+
 	String languageName;
 	StringArray countryCodes;
 	StringPairArray translations;
 
 	void loadFromText (const String& fileContents);
+
+	JUCE_LEAK_DETECTOR (LocalisedStrings);
 };
 
 #endif   // __JUCE_LOCALISEDSTRINGS_JUCEHEADER__
@@ -17143,6 +17735,16 @@ private:
 
 	@endcode
 
+	Or you can use the static helper methods for quick parsing..
+
+	@code
+	XmlElement* xml = XmlDocument::parse (myXmlFile);
+
+	if (xml != 0 && xml->hasTagName ("foobar"))
+	{
+		...etc
+	@endcode
+
 	@see XmlElement
 */
 class JUCE_API  XmlDocument
@@ -17150,16 +17752,12 @@ class JUCE_API  XmlDocument
 public:
 
 	/** Creates an XmlDocument from the xml text.
-
-		The text doesn't actually get parsed until the getDocumentElement() method is
-		called.
+		The text doesn't actually get parsed until the getDocumentElement() method is called.
 	*/
 	XmlDocument (const String& documentText);
 
 	/** Creates an XmlDocument from a file.
-
-		The text doesn't actually get parsed until the getDocumentElement() method is
-		called.
+		The text doesn't actually get parsed until the getDocumentElement() method is called.
 	*/
 	XmlDocument (const File& file);
 
@@ -17172,6 +17770,9 @@ public:
 		parse error, it may returns 0 (and you can find out the error using
 		the getLastParseError() method).
 
+		See also the parse() methods, which provide a shorthand way to quickly
+		parse a file or string.
+
 		@param onlyReadOuterDocumentElement	 if true, the parser will only read the
 												first section of the file, and will only
 												return the outer document element - this
@@ -17182,7 +17783,7 @@ public:
 					there was an error.
 		@see getLastParseError
 	*/
-	XmlElement* getDocumentElement (const bool onlyReadOuterDocumentElement = false);
+	XmlElement* getDocumentElement (bool onlyReadOuterDocumentElement = false);
 
 	/** Returns the parsing error that occurred the last time getDocumentElement was called.
 
@@ -17201,7 +17802,7 @@ public:
 
 		@see InputSource
 	*/
-	void setInputSource (InputSource* const newSource) throw();
+	void setInputSource (InputSource* newSource) throw();
 
 	/** Sets a flag to change the treatment of empty text elements.
 
@@ -17210,40 +17811,46 @@ public:
 		whitespace-only text, then you should set this to false before calling the
 		getDocumentElement() method.
 	*/
-	void setEmptyTextElementsIgnored (const bool shouldBeIgnored) throw();
+	void setEmptyTextElementsIgnored (bool shouldBeIgnored) throw();
 
-	juce_UseDebuggingNewOperator
+	/** A handy static method that parses a file.
+		This is a shortcut for creating an XmlDocument object and calling getDocumentElement() on it.
+		@returns	a new XmlElement which the caller will need to delete, or null if there was an error.
+	*/
+	static XmlElement* parse (const File& file);
+
+	/** A handy static method that parses some XML data.
+		This is a shortcut for creating an XmlDocument object and calling getDocumentElement() on it.
+		@returns	a new XmlElement which the caller will need to delete, or null if there was an error.
+	*/
+	static XmlElement* parse (const String& xmlData);
 
 private:
 	String originalText;
 	const juce_wchar* input;
 	bool outOfData, errorOccurred;
 
-	bool identifierLookupTable [128];
 	String lastError, dtdText;
 	StringArray tokenisedDTD;
 	bool needToLoadDTD, ignoreEmptyTextElements;
 	ScopedPointer <InputSource> inputSource;
 
-	void setLastError (const String& desc, const bool carryOn);
+	void setLastError (const String& desc, bool carryOn);
 	void skipHeader();
 	void skipNextWhiteSpace();
 	juce_wchar readNextChar() throw();
-	XmlElement* readNextElement (const bool alsoParseSubElements);
+	XmlElement* readNextElement (bool alsoParseSubElements);
 	void readChildElements (XmlElement* parent);
 	int findNextTokenLength() throw();
 	void readQuotedString (String& result);
 	void readEntity (String& result);
-	static bool isXmlIdentifierCharSlow (juce_wchar c) throw();
-	bool isXmlIdentifierChar (juce_wchar c) const throw();
 
 	const String getFileContents (const String& filename) const;
 	const String expandEntity (const String& entity);
 	const String expandExternalEntity (const String& entity);
 	const String getParameterEntity (const String& entity);
 
-	XmlDocument (const XmlDocument&);
-	XmlDocument& operator= (const XmlDocument&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (XmlDocument);
 };
 
 #endif   // __JUCE_XMLDOCUMENT_JUCEHEADER__
@@ -17343,11 +17950,8 @@ public:
 		InterProcessLock& lock_;
 		bool lockWasSuccessful;
 
-		ScopedLockType (const ScopedLockType&);
-		ScopedLockType& operator= (const ScopedLockType&);
+		JUCE_DECLARE_NON_COPYABLE (ScopedLockType);
 	};
-
-	juce_UseDebuggingNewOperator
 
 private:
 
@@ -17358,8 +17962,7 @@ private:
 	CriticalSection lock;
 	String name;
 
-	InterProcessLock (const InterProcessLock&);
-	InterProcessLock& operator= (const InterProcessLock&);
+	JUCE_DECLARE_NON_COPYABLE (InterProcessLock);
 };
 
 #endif   // __JUCE_INTERPROCESSLOCK_JUCEHEADER__
@@ -17434,8 +18037,8 @@ public:
 
 private:
 	Process();
-	Process (const Process&);
-	Process& operator= (const Process&);
+
+	JUCE_DECLARE_NON_COPYABLE (Process);
 };
 
 #endif   // __JUCE_PROCESS_JUCEHEADER__
@@ -17511,13 +18114,11 @@ public:
 	*/
 	void reset() const throw();
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	void* internal;
 
-	WaitableEvent (const WaitableEvent&);
-	WaitableEvent& operator= (const WaitableEvent&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (WaitableEvent);
 };
 
 #endif   // __JUCE_WAITABLEEVENT_JUCEHEADER__
@@ -17758,26 +18359,28 @@ public:
 	*/
 	static void stopAllThreads (int timeoutInMillisecs);
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	const String threadName_;
 	void* volatile threadHandle_;
+	ThreadID threadId_;
 	CriticalSection startStopLock;
 	WaitableEvent startSuspensionEvent_, defaultEvent_;
-
 	int threadPriority_;
-	ThreadID threadId_;
 	uint32 affinityMask_;
 	bool volatile threadShouldExit_;
 
+	friend class MessageManager;
 	friend void JUCE_API juce_threadEntryPoint (void*);
-	static void threadEntryPoint (Thread* thread);
-	static Array<Thread*> runningThreads;
-	static CriticalSection runningThreadsLock;
 
-	Thread (const Thread&);
-	Thread& operator= (const Thread&);
+	void launchThread();
+	void closeThreadHandle();
+	void killThread();
+	void threadEntryPoint();
+	static void setCurrentThreadName (const String& name);
+	static bool setThreadPriority (void* handle, int priority);
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Thread);
 };
 
 #endif   // __JUCE_THREAD_JUCEHEADER__
@@ -17869,8 +18472,6 @@ public:
 	*/
 	void exitWrite() const throw();
 
-	juce_UseDebuggingNewOperator
-
 private:
 
 	CriticalSection accessLock;
@@ -17879,8 +18480,7 @@ private:
 	mutable Thread::ThreadID writerThreadId;
 	mutable Array <Thread::ThreadID> readerThreads;
 
-	ReadWriteLock (const ReadWriteLock&);
-	ReadWriteLock& operator= (const ReadWriteLock&);
+	JUCE_DECLARE_NON_COPYABLE (ReadWriteLock);
 };
 
 #endif   // __JUCE_READWRITELOCK_JUCEHEADER__
@@ -17948,8 +18548,7 @@ private:
 
 	const ReadWriteLock& lock_;
 
-	ScopedReadLock (const ScopedReadLock&);
-	ScopedReadLock& operator= (const ScopedReadLock&);
+	JUCE_DECLARE_NON_COPYABLE (ScopedReadLock);
 };
 
 #endif   // __JUCE_SCOPEDREADLOCK_JUCEHEADER__
@@ -18027,8 +18626,7 @@ private:
 	const CriticalSection& lock_;
 	const bool lockWasSuccessful;
 
-	ScopedTryLock (const ScopedTryLock&);
-	ScopedTryLock& operator= (const ScopedTryLock&);
+	JUCE_DECLARE_NON_COPYABLE (ScopedTryLock);
 };
 
 #endif   // __JUCE_SCOPEDTRYLOCK_JUCEHEADER__
@@ -18093,8 +18691,7 @@ private:
 
 	const ReadWriteLock& lock_;
 
-	ScopedWriteLock (const ScopedWriteLock&);
-	ScopedWriteLock& operator= (const ScopedWriteLock&);
+	JUCE_DECLARE_NON_COPYABLE (ScopedWriteLock);
 };
 
 #endif   // __JUCE_SCOPEDWRITELOCK_JUCEHEADER__
@@ -18199,8 +18796,6 @@ public:
 	*/
 	void signalJobShouldExit();
 
-	juce_UseDebuggingNewOperator
-
 private:
 	friend class ThreadPool;
 	friend class ThreadPoolThread;
@@ -18208,8 +18803,7 @@ private:
 	ThreadPool* pool;
 	bool shouldStop, isActive, shouldBeDeleted;
 
-	ThreadPoolJob (const ThreadPoolJob&);
-	ThreadPoolJob& operator= (const ThreadPoolJob&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ThreadPoolJob);
 };
 
 /**
@@ -18362,9 +18956,8 @@ public:
 	*/
 	bool setThreadPriorities (int newPriority);
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	const int threadStopTimeout;
 	int priority;
 	class ThreadPoolThread;
@@ -18378,8 +18971,7 @@ private:
 	friend class ThreadPoolThread;
 	bool runNextJob();
 
-	ThreadPool (const ThreadPool&);
-	ThreadPool& operator= (const ThreadPool&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ThreadPool);
 };
 
 #endif   // __JUCE_THREADPOOL_JUCEHEADER__
@@ -18477,8 +19069,6 @@ public:
 	/** @internal */
 	void run();
 
-	juce_UseDebuggingNewOperator
-
 private:
 	CriticalSection callbackLock, listLock;
 	Array <TimeSliceClient*> clients;
@@ -18486,8 +19076,7 @@ private:
 	TimeSliceClient* clientBeingCalled;
 	bool clientsChanged;
 
-	TimeSliceThread (const TimeSliceThread&);
-	TimeSliceThread& operator= (const TimeSliceThread&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (TimeSliceThread);
 };
 
 #endif   // __JUCE_TIMESLICETHREAD_JUCEHEADER__
@@ -18639,9 +19228,8 @@ public:
 	*/
 	static void hideWaitCursor();
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	class SharedCursorHandle;
 	friend class SharedCursorHandle;
 	SharedCursorHandle* cursorHandle;
@@ -18654,6 +19242,8 @@ private:
 	static void* createMouseCursorFromImage (const Image& image, int hotspotX, int hotspotY);
 	static void* createStandardMouseCursor (MouseCursor::StandardCursorType type);
 	static void deleteMouseCursor (void* cursorHandle, bool isStandard);
+
+	JUCE_LEAK_DETECTOR (MouseCursor);
 };
 
 #endif   // __JUCE_MOUSECURSOR_JUCEHEADER__
@@ -18972,6 +19562,10 @@ public:
 
 		This is only needed in special circumstances for up-to-date modifier information
 		at times when the app's event loop isn't running normally.
+
+		Another reason to avoid this method is that it's not stateless, and calling it may
+		update the value returned by getCurrentModifiers(), which could cause subtle changes
+		in the behaviour of some components.
 	*/
 	static const ModifierKeys getCurrentModifiersRealtime() throw();
 
@@ -19129,22 +19723,32 @@ public:
 										   float pivotY) throw();
 
 	/** Returns a transform which is the same as this one followed by a re-scaling.
-
 		The scaling is centred around the origin (0, 0).
 	*/
 	const AffineTransform scaled (float factorX,
 								  float factorY) const throw();
 
+	/** Returns a transform which is the same as this one followed by a re-scaling.
+		The scaling is centred around the origin provided.
+	*/
+	const AffineTransform scaled (float factorX, float factorY,
+								  float pivotX, float pivotY) const throw();
+
 	/** Returns a new transform which is a re-scale about the origin. */
 	static const AffineTransform scale (float factorX,
 										float factorY) throw();
 
-	/** Returns a transform which is the same as this one followed by a shear.
+	/** Returns a new transform which is a re-scale centred around the point provided. */
+	static const AffineTransform scale (float factorX, float factorY,
+										float pivotX, float pivotY) throw();
 
+	/** Returns a transform which is the same as this one followed by a shear.
 		The shear is centred around the origin (0, 0).
 	*/
-	const AffineTransform sheared (float shearX,
-								   float shearY) const throw();
+	const AffineTransform sheared (float shearX, float shearY) const throw();
+
+	/** Returns a shear transform, centred around the origin (0, 0). */
+	static const AffineTransform shear (float shearX, float shearY) throw();
 
 	/** Returns a matrix which is the inverse operation of this one.
 
@@ -19201,12 +19805,9 @@ public:
 	float mat00, mat01, mat02;
 	float mat10, mat11, mat12;
 
-	juce_UseDebuggingNewOperator
-
 private:
 
-	const AffineTransform followedBy (float mat00, float mat01, float mat02,
-									  float mat10, float mat11, float mat12) const throw();
+	JUCE_LEAK_DETECTOR (AffineTransform);
 };
 
 #endif   // __JUCE_AFFINETRANSFORM_JUCEHEADER__
@@ -19346,9 +19947,8 @@ public:
 	/** Returns the point as a string in the form "x, y". */
 	const String toString() const                                       { return String (x) + ", " + String (y); }
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	ValueType x, y;
 };
 
@@ -19627,9 +20227,8 @@ public:
 	*/
 	static int getDoubleClickTimeout() throw();
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	const Point<int> mouseDownPos;
 	const Time mouseDownTime;
 	const int numberOfClicks;
@@ -19637,6 +20236,7 @@ private:
 	static int doubleClickTimeOutMs;
 
 	MouseEvent& operator= (const MouseEvent&);
+	JUCE_LEAK_DETECTOR (MouseEvent);
 };
 
 #endif   // __JUCE_MOUSEEVENT_JUCEHEADER__
@@ -19939,13 +20539,13 @@ public:
 	static const int fastForwardKey; /**< key-code for a multimedia 'fast-forward' key, (not all keyboards will have one) */
 	static const int rewindKey;	  /**< key-code for a multimedia 'rewind' key, (not all keyboards will have one) */
 
-	juce_UseDebuggingNewOperator
-
 private:
 
 	int keyCode;
 	ModifierKeys mods;
 	juce_wchar textCharacter;
+
+	JUCE_LEAK_DETECTOR (KeyPress);
 };
 
 #endif   // __JUCE_KEYPRESS_JUCEHEADER__
@@ -20400,9 +21000,8 @@ public:
 		return Line (start, getPointAlongLine (length - jmin (distanceToShortenBy, length)));
 	}
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	Point<ValueType> start, end;
 
 	static bool findIntersection (const Point<ValueType>& p1, const Point<ValueType>& p2,
@@ -20525,6 +21124,16 @@ public:
 		if (h < 0) h = -h;
 	}
 
+	/** Creates a Rectangle from a set of left, right, top, bottom coordinates.
+		The right and bottom values must be larger than the left and top ones, or the resulting
+		rectangle will have a negative size.
+	*/
+	static const Rectangle leftTopRightBottom (const ValueType left, const ValueType top,
+											   const ValueType right, const ValueType bottom) throw()
+	{
+		return Rectangle (left, top, right - left, bottom - top);
+	}
+
 	Rectangle& operator= (const Rectangle& other) throw()
 	{
 		x = other.x; y = other.y;
@@ -20633,6 +21242,7 @@ public:
 
 	/** Moves the x position, adjusting the width so that the right-hand edge remains in the same place.
 		If the x is moved to be on the right of the current right-hand edge, the width will be set to zero.
+		@see withLeft
 	*/
 	void setLeft (const ValueType newLeft) throw()
 	{
@@ -20640,8 +21250,15 @@ public:
 		x = newLeft;
 	}
 
+	/** Returns a new rectangle with a different x position, but the same right-hand edge as this one.
+		If the new x is beyond the right of the current right-hand edge, the width will be set to zero.
+		@see setLeft
+	*/
+	const Rectangle withLeft (const ValueType newLeft) const throw()	{ return Rectangle (newLeft, y, jmax (ValueType(), x + w - newLeft), h); }
+
 	/** Moves the y position, adjusting the height so that the bottom edge remains in the same place.
 		If the y is moved to be below the current bottom edge, the height will be set to zero.
+		@see withTop
 	*/
 	void setTop (const ValueType newTop) throw()
 	{
@@ -20649,9 +21266,15 @@ public:
 		y = newTop;
 	}
 
+	/** Returns a new rectangle with a different y position, but the same bottom edge as this one.
+		If the new y is beyond the bottom of the current rectangle, the height will be set to zero.
+		@see setTop
+	*/
+	const Rectangle withTop (const ValueType newTop) const throw()	  { return Rectangle (x, newTop, w, jmax (ValueType(), y + h - newTop)); }
+
 	/** Adjusts the width so that the right-hand edge of the rectangle has this new value.
 		If the new right is below the current X value, the X will be pushed down to match it.
-		@see getRight
+		@see getRight, withRight
 	*/
 	void setRight (const ValueType newRight) throw()
 	{
@@ -20659,15 +21282,27 @@ public:
 		w = newRight - x;
 	}
 
+	/** Returns a new rectangle with a different right-hand edge position, but the same left-hand edge as this one.
+		If the new right edge is below the current left-hand edge, the width will be set to zero.
+		@see setRight
+	*/
+	const Rectangle withRight (const ValueType newRight) const throw()	  { return Rectangle (jmin (x, newRight), y, jmax (ValueType(), newRight - x), h); }
+
 	/** Adjusts the height so that the bottom edge of the rectangle has this new value.
 		If the new bottom is lower than the current Y value, the Y will be pushed down to match it.
-		@see getBottom
+		@see getBottom, withBottom
 	*/
 	void setBottom (const ValueType newBottom) throw()
 	{
 		y = jmin (y, newBottom);
 		h = newBottom - y;
 	}
+
+	/** Returns a new rectangle with a different bottom edge position, but the same top edge as this one.
+		If the new y is beyond the bottom of the current rectangle, the height will be set to zero.
+		@see setBottom
+	*/
+	const Rectangle withBottom (const ValueType newBottom) const throw()	{ return Rectangle (x, jmin (y, newBottom), w, jmax (ValueType(), newBottom - y)); }
 
 	/** Moves the rectangle's position by adding amount to its x and y co-ordinates. */
 	void translate (const ValueType deltaX,
@@ -20997,7 +21632,7 @@ public:
 
 		This should only be used on floating point rectangles.
 	*/
-	const Rectangle<ValueType> transformed (const AffineTransform& transform) const throw()
+	const Rectangle transformed (const AffineTransform& transform) const throw()
 	{
 		float x1 = x,	 y1 = y;
 		float x2 = x + w, y2 = y;
@@ -21023,8 +21658,8 @@ public:
 	{
 		const int x1 = (int) std::floor (static_cast<float> (x));
 		const int y1 = (int) std::floor (static_cast<float> (y));
-		const int x2 = (int) std::floor (static_cast<float> (x + w + 0.9999f));
-		const int y2 = (int) std::floor (static_cast<float> (y + h + 0.9999f));
+		const int x2 = (int) std::ceil (static_cast<float> (x + w));
+		const int y2 = (int) std::ceil (static_cast<float> (y + h));
 
 		return Rectangle<int> (x1, y1, x2 - x1, y2 - y1);
 	}
@@ -21125,8 +21760,6 @@ public:
 						  toks[2].trim().getIntValue(),
 						  toks[3].trim().getIntValue());
 	}
-
-	juce_UseDebuggingNewOperator
 
 private:
 	friend class RectangleList;
@@ -21550,48 +22183,62 @@ public:
 	const Point<float> getCurrentPosition() const;
 
 	/** Adds a rectangle to the path.
-
-		The rectangle is added as a new sub-path. (Any currently open paths will be
-		left open).
-
+		The rectangle is added as a new sub-path. (Any currently open paths will be left open).
 		@see addRoundedRectangle, addTriangle
 	*/
 	void addRectangle (float x, float y, float width, float height);
 
 	/** Adds a rectangle to the path.
-
-		The rectangle is added as a new sub-path. (Any currently open paths will be
-		left open).
-
+		The rectangle is added as a new sub-path. (Any currently open paths will be left open).
 		@see addRoundedRectangle, addTriangle
 	*/
-	void addRectangle (const Rectangle<int>& rectangle);
+	template <typename ValueType>
+	void addRectangle (const Rectangle<ValueType>& rectangle)
+	{
+		addRectangle (static_cast <float> (rectangle.getX()), static_cast <float> (rectangle.getY()),
+					  static_cast <float> (rectangle.getWidth()), static_cast <float> (rectangle.getHeight()));
+	}
 
 	/** Adds a rectangle with rounded corners to the path.
-
-		The rectangle is added as a new sub-path. (Any currently open paths will be
-		left open).
-
+		The rectangle is added as a new sub-path. (Any currently open paths will be left open).
 		@see addRectangle, addTriangle
 	*/
 	void addRoundedRectangle (float x, float y, float width, float height,
 							  float cornerSize);
 
 	/** Adds a rectangle with rounded corners to the path.
-
-		The rectangle is added as a new sub-path. (Any currently open paths will be
-		left open).
-
+		The rectangle is added as a new sub-path. (Any currently open paths will be left open).
 		@see addRectangle, addTriangle
 	*/
 	void addRoundedRectangle (float x, float y, float width, float height,
 							  float cornerSizeX,
 							  float cornerSizeY);
 
+	/** Adds a rectangle with rounded corners to the path.
+		The rectangle is added as a new sub-path. (Any currently open paths will be left open).
+		@see addRectangle, addTriangle
+	*/
+	template <typename ValueType>
+	void addRoundedRectangle (const Rectangle<ValueType>& rectangle, float cornerSizeX, float cornerSizeY)
+	{
+		addRoundedRectangle (static_cast <float> (rectangle.getX()), static_cast <float> (rectangle.getY()),
+							 static_cast <float> (rectangle.getWidth()), static_cast <float> (rectangle.getHeight()),
+							 cornerSizeX, cornerSizeY);
+	}
+
+	/** Adds a rectangle with rounded corners to the path.
+		The rectangle is added as a new sub-path. (Any currently open paths will be left open).
+		@see addRectangle, addTriangle
+	*/
+	template <typename ValueType>
+	void addRoundedRectangle (const Rectangle<ValueType>& rectangle, float cornerSize)
+	{
+		addRoundedRectangle (rectangle, cornerSize, cornerSize);
+	}
+
 	/** Adds a triangle to the path.
 
-		The triangle is added as a new closed sub-path. (Any currently open paths will be
-		left open).
+		The triangle is added as a new closed sub-path. (Any currently open paths will be left open).
 
 		Note that whether the vertices are specified in clockwise or anticlockwise
 		order will affect how the triangle is filled when it overlaps other
@@ -21603,8 +22250,7 @@ public:
 
 	/** Adds a quadrilateral to the path.
 
-		The quad is added as a new closed sub-path. (Any currently open paths will be
-		left open).
+		The quad is added as a new closed sub-path. (Any currently open paths will be left open).
 
 		Note that whether the vertices are specified in clockwise or anticlockwise
 		order will affect how the quad is filled when it overlaps other
@@ -21617,8 +22263,7 @@ public:
 
 	/** Adds an ellipse to the path.
 
-		The shape is added as a new sub-path. (Any currently open paths will be
-		left open).
+		The shape is added as a new sub-path. (Any currently open paths will be left open).
 
 		@see addArc
 	*/
@@ -21906,8 +22551,7 @@ public:
 		const Path& path;
 		size_t index;
 
-		Iterator (const Iterator&);
-		Iterator& operator= (const Iterator&);
+		JUCE_DECLARE_NON_COPYABLE (Iterator);
 	};
 
 	/** Loads a stored path from a data stream.
@@ -21949,9 +22593,8 @@ public:
 	*/
 	void restoreFromString (const String& stringVersion);
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	friend class PathFlatteningIterator;
 	friend class Path::Iterator;
 	ArrayAllocationBase <float, DummyCriticalSection> data;
@@ -21964,6 +22607,8 @@ private:
 	static const float quadMarker;
 	static const float cubicMarker;
 	static const float closeSubPathMarker;
+
+	JUCE_LEAK_DETECTOR (Path);
 };
 
 #endif   // __JUCE_PATH_JUCEHEADER__
@@ -22038,16 +22683,17 @@ public:
 	*/
 	virtual bool getOutlineForGlyph (int glyphNumber, Path& path) = 0;
 
-	juce_UseDebuggingNewOperator
-
 protected:
+
 	String name;
+	bool isFallbackFont;
 
 	explicit Typeface (const String& name) throw();
 
+	static const Ptr getFallbackTypeface();
+
 private:
-	Typeface (const Typeface&);
-	Typeface& operator= (const Typeface&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Typeface);
 };
 
 /** A typeface that can be populated with custom glyphs.
@@ -22128,9 +22774,8 @@ public:
 	bool getOutlineForGlyph (int glyphNumber, Path& path);
 	int getGlyphForCharacter (juce_wchar character);
 
-	juce_UseDebuggingNewOperator
-
 protected:
+
 	juce_wchar defaultCharacter;
 	float ascent;
 	bool isBold, isItalic;
@@ -22150,11 +22795,10 @@ private:
 	OwnedArray <GlyphInfo> glyphs;
 	short lookupTable [128];
 
-	CustomTypeface (const CustomTypeface&);
-	CustomTypeface& operator= (const CustomTypeface&);
-
 	GlyphInfo* findGlyph (const juce_wchar character, bool loadIfNeeded) throw();
 	GlyphInfo* findGlyphSubstituting (juce_wchar character) throw();
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (CustomTypeface);
 };
 
 #endif   // __JUCE_TYPEFACE_JUCEHEADER__
@@ -22194,8 +22838,7 @@ public:
 							just Font::plain for the normal style.
 		@see FontStyleFlags, getDefaultSansSerifFontName
 	*/
-	Font (float fontHeight,
-		  int styleFlags = plain) throw();
+	Font (float fontHeight, int styleFlags = plain);
 
 	/** Creates a font with a given typeface and parameters.
 
@@ -22206,15 +22849,13 @@ public:
 							just Font::plain for the normal style.
 		@see FontStyleFlags, getDefaultSansSerifFontName
 	*/
-	Font (const String& typefaceName,
-		  float fontHeight,
-		  int styleFlags) throw();
+	Font (const String& typefaceName, float fontHeight, int styleFlags);
 
 	/** Creates a copy of another Font object. */
 	Font (const Font& other) throw();
 
 	/** Creates a font for a typeface. */
-	Font (const Typeface::Ptr& typeface) throw();
+	Font (const Typeface::Ptr& typeface);
 
 	/** Creates a basic sans-serif font at a default height.
 
@@ -22222,7 +22863,7 @@ public:
 		on drawing with - this constructor is here to help initialise objects before changing
 		the font's settings later.
 	*/
-	Font() throw();
+	Font();
 
 	/** Copies this font from another one. */
 	Font& operator= (const Font& other) throw();
@@ -22245,7 +22886,7 @@ public:
 
 		If a suitable font isn't found on the machine, it'll just use a default instead.
 	*/
-	void setTypefaceName (const String& faceName) throw();
+	void setTypefaceName (const String& faceName);
 
 	/** Returns the name of the typeface family that this font uses.
 
@@ -22271,7 +22912,7 @@ public:
 
 		@see setTypefaceName, getDefaultSerifFontName, getDefaultMonospacedFontName
 	*/
-	static const String getDefaultSansSerifFontName() throw();
+	static const String getDefaultSansSerifFontName();
 
 	/** Returns a typeface name that represents the default sans-serif font.
 
@@ -22281,7 +22922,7 @@ public:
 
 		@see setTypefaceName, getDefaultSansSerifFontName, getDefaultMonospacedFontName
 	*/
-	static const String getDefaultSerifFontName() throw();
+	static const String getDefaultSerifFontName();
 
 	/** Returns a typeface name that represents the default sans-serif font.
 
@@ -22291,10 +22932,10 @@ public:
 
 		@see setTypefaceName, getDefaultSansSerifFontName, getDefaultSerifFontName
 	*/
-	static const String getDefaultMonospacedFontName() throw();
+	static const String getDefaultMonospacedFontName();
 
 	/** Returns the typeface names of the default fonts on the current platform. */
-	static void getPlatformDefaultFontNames (String& defaultSans, String& defaultSerif, String& defaultFixed);
+	static void getPlatformDefaultFontNames (String& defaultSans, String& defaultSerif, String& defaultFixed, String& defaultFallback);
 
 	/** Returns the total height of this font.
 
@@ -22309,13 +22950,13 @@ public:
 
 		@see getHeight, setHeightWithoutChangingWidth
 	*/
-	void setHeight (float newHeight) throw();
+	void setHeight (float newHeight);
 
 	/** Changes the font's height without changing its width.
 
 		This alters the horizontal scale to compensate for the change in height.
 	*/
-	void setHeightWithoutChangingWidth (float newHeight) throw();
+	void setHeightWithoutChangingWidth (float newHeight);
 
 	/** Returns the height of the font above its baseline.
 
@@ -22323,7 +22964,7 @@ public:
 
 		@see getHeight, getDescent
 	*/
-	float getAscent() const throw();
+	float getAscent() const;
 
 	/** Returns the amount that the font descends below its baseline.
 
@@ -22331,7 +22972,7 @@ public:
 
 		@see getAscent, getHeight
 	*/
-	float getDescent() const throw();
+	float getDescent() const;
 
 	/** Returns the font's style flags.
 
@@ -22348,20 +22989,24 @@ public:
 							enum, to set the font's properties
 		@see FontStyleFlags
 	*/
-	void setStyleFlags (int newFlags) throw();
+	void setStyleFlags (int newFlags);
 
 	/** Makes the font bold or non-bold. */
-	void setBold (bool shouldBeBold) throw();
+	void setBold (bool shouldBeBold);
+	/** Returns a copy of this font with the bold attribute set. */
+	const Font boldened() const;
 	/** Returns true if the font is bold. */
 	bool isBold() const throw();
 
 	/** Makes the font italic or non-italic. */
-	void setItalic (bool shouldBeItalic) throw();
+	void setItalic (bool shouldBeItalic);
+	/** Returns a copy of this font with the italic attribute set. */
+	const Font italicised() const;
 	/** Returns true if the font is italic. */
 	bool isItalic() const throw();
 
 	/** Makes the font underlined or non-underlined. */
-	void setUnderline (bool shouldBeUnderlined) throw();
+	void setUnderline (bool shouldBeUnderlined);
 	/** Returns true if the font is underlined. */
 	bool isUnderlined() const throw();
 
@@ -22370,7 +23015,7 @@ public:
 		@param scaleFactor  a value of 1.0 is the normal scale, less than this will be
 							narrower, greater than 1.0 will be stretched out.
 	*/
-	void setHorizontalScale (float scaleFactor) throw();
+	void setHorizontalScale (float scaleFactor);
 
 	/** Returns the font's horizontal scale.
 
@@ -22388,7 +23033,7 @@ public:
 								normal spacing, positive values spread the letters out,
 								negative values make them closer together.
 	*/
-	void setExtraKerningFactor (float extraKerning) throw();
+	void setExtraKerningFactor (float extraKerning);
 
 	/** Returns the font's kerning.
 
@@ -22404,33 +23049,33 @@ public:
 	void setSizeAndStyle (float newHeight,
 						  int newStyleFlags,
 						  float newHorizontalScale,
-						  float newKerningAmount) throw();
+						  float newKerningAmount);
 
 	/** Returns the total width of a string as it would be drawn using this font.
 
 		For a more accurate floating-point result, use getStringWidthFloat().
 	*/
-	int getStringWidth (const String& text) const throw();
+	int getStringWidth (const String& text) const;
 
 	/** Returns the total width of a string as it would be drawn using this font.
 
 		@see getStringWidth
 	*/
-	float getStringWidthFloat (const String& text) const throw();
+	float getStringWidthFloat (const String& text) const;
 
 	/** Returns the series of glyph numbers and their x offsets needed to represent a string.
 
 		An extra x offset is added at the end of the run, to indicate where the right hand
 		edge of the last character is.
 	*/
-	void getGlyphPositions (const String& text, Array <int>& glyphs, Array <float>& xOffsets) const throw();
+	void getGlyphPositions (const String& text, Array <int>& glyphs, Array <float>& xOffsets) const;
 
 	/** Returns the typeface used by this font.
 
 		Note that the object returned may go out of scope if this font is deleted
 		or has its style changed.
 	*/
-	Typeface* getTypeface() const throw();
+	Typeface* getTypeface() const;
 
 	/** Creates an array of Font objects to represent all the fonts on the system.
 
@@ -22439,7 +23084,7 @@ public:
 
 		@param results  the array to which new Font objects will be added.
 	*/
-	static void findFonts (Array<Font>& results) throw();
+	static void findFonts (Array<Font>& results);
 
 	/** Returns a list of all the available typeface names.
 
@@ -22453,12 +23098,12 @@ public:
 	/** Returns the name of the typeface to be used for rendering glyphs that aren't found
 		in the requested typeface.
 	*/
-	static const String getFallbackFontName() throw();
+	static const String getFallbackFontName();
 
 	/** Sets the (platform-specific) name of the typeface to use to find glyphs that aren't
 		available in whatever font you're trying to use.
 	*/
-	static void setFallbackFontName (const String& name) throw();
+	static void setFallbackFontName (const String& name);
 
 	/** Creates a string to describe this font.
 		The string will contain information to describe the font's typeface, size, and
@@ -22471,8 +23116,6 @@ public:
 		original font.
 	*/
 	static const Font fromString (const String& fontDescription);
-
-	juce_UseDebuggingNewOperator
 
 private:
 
@@ -22494,7 +23137,9 @@ private:
 	};
 
 	ReferenceCountedObjectPtr <SharedFontInternal> font;
-	void dupeInternalIfShared() throw();
+	void dupeInternalIfShared();
+
+	JUCE_LEAK_DETECTOR (Font);
 };
 
 #endif   // __JUCE_FONT_JUCEHEADER__
@@ -22651,8 +23296,6 @@ public:
 	/** Sets the end-cap style. */
 	void setEndStyle (EndCapStyle newStyle) throw()		 { endStyle = newStyle; }
 
-	juce_UseDebuggingNewOperator
-
 	/** Compares the stroke thickness, joint and end styles of two stroke types. */
 	bool operator== (const PathStrokeType& other) const throw();
 
@@ -22664,6 +23307,8 @@ private:
 	float thickness;
 	JointStyle jointStyle;
 	EndCapStyle endStyle;
+
+	JUCE_LEAK_DETECTOR (PathStrokeType);
 };
 
 #endif   // __JUCE_PATHSTROKETYPE_JUCEHEADER__
@@ -23541,9 +24186,8 @@ public:
 	/** Returns the colour as a hex string in the form RRGGBB or AARRGGBB. */
 	const String toDisplayString (bool includeAlphaValue) const;
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	PixelARGB argb;
 };
 
@@ -23620,8 +24264,8 @@ private:
 	// this isn't a class you should ever instantiate - it's just here for the
 	// static values in it.
 	Colours();
-	Colours (const Colours&);
-	Colours& operator= (const Colours&);
+
+	JUCE_DECLARE_NON_COPYABLE (Colours);
 };
 
 #endif   // __JUCE_COLOURS_JUCEHEADER__
@@ -23747,9 +24391,8 @@ public:
 	bool operator== (const ColourGradient& other) const throw();
 	bool operator!= (const ColourGradient& other) const throw();
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	struct ColourPoint
 	{
 		ColourPoint() throw() {}
@@ -23766,6 +24409,8 @@ private:
 	};
 
 	Array <ColourPoint> colours;
+
+	JUCE_LEAK_DETECTOR (ColourGradient);
 };
 
 #endif   // __JUCE_COLOURGRADIENT_JUCEHEADER__
@@ -23881,14 +24526,8 @@ public:
 	/** Returns the transform that should be applied to these source co-ordinates to fit them
 		into the destination rectangle using the current flags.
 	*/
-	const AffineTransform getTransformToFit (float sourceX,
-											 float sourceY,
-											 float sourceW,
-											 float sourceH,
-											 float destinationX,
-											 float destinationY,
-											 float destinationW,
-											 float destinationH) const throw();
+	const AffineTransform getTransformToFit (const Rectangle<float>& source,
+											 const Rectangle<float>& destination) const throw();
 
 private:
 
@@ -23954,7 +24593,7 @@ public:
 
 		A value of 0.0 is completely transparent, 1.0 is completely opaque.
 	*/
-	void setOpacity (const float newOpacity);
+	void setOpacity (float newOpacity);
 
 	/** Sets the context to use a gradient for its fill pattern.
 	*/
@@ -24414,6 +25053,13 @@ public:
 	*/
 	bool reduceClipRegion (int x, int y, int width, int height);
 
+	/** Intersects the current clipping region with another region.
+
+		@returns true if the resulting clipping region is non-zero in size
+		@see setOrigin, clipRegionIntersects
+	*/
+	bool reduceClipRegion (const Rectangle<int>& area);
+
 	/** Intersects the current clipping region with a rectangle list region.
 
 		@returns true if the resulting clipping region is non-zero in size
@@ -24448,14 +25094,48 @@ public:
 	bool isClipEmpty() const;
 
 	/** Saves the current graphics state on an internal stack.
-
 		To restore the state, use restoreState().
+		@see ScopedSaveState
 	*/
 	void saveState();
 
 	/** Restores a graphics state that was previously saved with saveState().
+		@see ScopedSaveState
 	*/
 	void restoreState();
+
+	/** Uses RAII to save and restore the state of a graphics context.
+		On construction, this calls Graphics::saveState(), and on destruction it calls
+		Graphics::restoreState() on the Graphics object that you supply.
+	*/
+	class ScopedSaveState
+	{
+	public:
+		ScopedSaveState (Graphics& g);
+		~ScopedSaveState();
+
+	private:
+		Graphics& context;
+
+		JUCE_DECLARE_NON_COPYABLE (ScopedSaveState);
+	};
+
+	/** Begins rendering to an off-screen bitmap which will later be flattened onto the current
+		context with the given opacity.
+
+		The context uses an internal stack of temporary image layers to do this. When you've
+		finished drawing to the layer, call endTransparencyLayer() to complete the operation and
+		composite the finished layer. Every call to beginTransparencyLayer() MUST be matched
+		by a corresponding call to endTransparencyLayer()!
+
+		This call also saves the current state, and endTransparencyLayer() restores it.
+	*/
+	void beginTransparencyLayer (float layerOpacity);
+
+	/** Completes a drawing operation to a temporary semi-transparent buffer.
+		See beginTransparencyLayer() for more details.
+	*/
+	void endTransparencyLayer();
 
 	/** Moves the position of the context's origin.
 
@@ -24465,9 +25145,19 @@ public:
 		So if you call setOrigin (100, 100), then the position that was previously
 		referred to as (100, 100) will subsequently be considered to be (0, 0).
 
-		@see reduceClipRegion
+		@see reduceClipRegion, addTransform
 	*/
 	void setOrigin (int newOriginX, int newOriginY);
+
+	/** Adds a transformation which will be performed on all the graphics operations that
+		the context subsequently performs.
+
+		After calling this, all the coordinates that are passed into the context will be
+		transformed by this matrix.
+
+		@see setOrigin
+	*/
+	void addTransform (const AffineTransform& transform);
 
 	/** Resets the current colour, brush, and font to default settings. */
 	void resetToDefaultState();
@@ -24475,13 +25165,11 @@ public:
 	/** Returns true if this context is drawing to a vector-based device, such as a printer. */
 	bool isVectorDevice() const;
 
-	juce_UseDebuggingNewOperator
-
 	/** Create a graphics that uses a given low-level renderer.
 		For internal use only.
 		NB. The context will NOT be deleted by this object when it is deleted.
 	*/
-	Graphics (LowLevelGraphicsContext* const internalContext) throw();
+	Graphics (LowLevelGraphicsContext* internalContext) throw();
 
 	/** @internal */
 	LowLevelGraphicsContext* getInternalContext() const throw()	 { return context; }
@@ -24494,8 +25182,7 @@ private:
 	bool saveStatePending;
 	void saveStateIfPending();
 
-	Graphics (const Graphics&);
-	Graphics& operator= (const Graphics& other);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Graphics);
 };
 
 #endif   // __JUCE_GRAPHICS_JUCEHEADER__
@@ -24524,9 +25211,12 @@ public:
 								its paint() method. The image may or may not have an alpha
 								channel, depending on whether the component is opaque.
 		@param destContext	  the graphics context to use to draw the resultant image.
+		@param alpha		the alpha with which to draw the resultant image to the
+								target context
 	*/
 	virtual void applyEffect (Image& sourceImage,
-							  Graphics& destContext) = 0;
+							  Graphics& destContext,
+							  float alpha) = 0;
 
 	/** Destructor. */
 	virtual ~ImageEffectFilter() {}
@@ -24830,8 +25520,7 @@ public:
 		int lineStride, pixelStride, width, height;
 
 	private:
-		BitmapData (const BitmapData&);
-		BitmapData& operator= (const BitmapData&);
+		JUCE_DECLARE_NON_COPYABLE (BitmapData);
 	};
 
 	/** Copies some pixel values to a rectangle of the image.
@@ -24857,21 +25546,12 @@ public:
 	void createSolidAreaMask (RectangleList& result,
 							  float alphaThreshold = 0.5f) const;
 
-	/** Returns a user-specified data item that was set with setTag().
-		setTag() and getTag() allow you to attach an arbitrary identifier value to an
-		image. The value is shared between all Image object that are referring to the
-		same underlying image data object.
-	*/
-	const var getTag() const;
+	/** Returns a NamedValueSet that is attached to the image and which can be used for
+		associating custom values with it.
 
-	/** Attaches a user-specified data item to this image, which can be retrieved using getTag().
-		setTag() and getTag() allow you to attach an arbitrary identifier value to an
-		image. The value is shared between all Image object that are referring to the
-		same underlying image data object.
-
-		Note that if this Image is null, this method will fail to store the data.
+		If this is a null image, this will return a null pointer.
 	*/
-	void setTag (const var& newTag);
+	NamedValueSet* getProperties() const;
 
 	/** Creates a context suitable for drawing onto this image.
 		Don't call this method directly! It's used internally by the Graphics class.
@@ -24911,15 +25591,14 @@ public:
 
 	protected:
 		friend class Image;
-		friend class Image::BitmapData;
+		friend class BitmapData;
 		const PixelFormat format;
 		const int width, height;
 		int pixelStride, lineStride;
 		uint8* imageData;
-		var userTag;
+		NamedValueSet userData;
 
-		SharedImage (const SharedImage&);
-		SharedImage& operator= (const SharedImage&);
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SharedImage);
 	};
 
 	/** @internal */
@@ -24927,10 +25606,14 @@ public:
 	/** @internal */
 	explicit Image (SharedImage* instance);
 
-	juce_UseDebuggingNewOperator
-
 private:
+
+	friend class SharedImage;
+	friend class BitmapData;
+
 	ReferenceCountedObjectPtr<SharedImage> image;
+
+	JUCE_LEAK_DETECTOR (Image);
 };
 
 #endif   // __JUCE_IMAGE_JUCEHEADER__
@@ -25132,22 +25815,20 @@ public:
 		/** Returns the current rectangle. */
 		const Rectangle<int>* getRectangle() const throw()	   { return current; }
 
-		juce_UseDebuggingNewOperator
-
 	private:
 		const Rectangle<int>* current;
 		const RectangleList& owner;
 		int index;
 
-		Iterator (const Iterator&);
-		Iterator& operator= (const Iterator&);
+		JUCE_DECLARE_NON_COPYABLE (Iterator);
 	};
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	friend class Iterator;
 	Array <Rectangle<int> > rects;
+
+	JUCE_LEAK_DETECTOR (RectangleList);
 };
 
 #endif   // __JUCE_RECTANGLELIST_JUCEHEADER__
@@ -25209,6 +25890,9 @@ public:
 	/** Returns the sum of the left and right gaps. */
 	int getLeftAndRight() const throw()		 { return left + right; }
 
+	/** Returns true if this border has no thickness along any edge. */
+	bool isEmpty() const throw()			{ return left + right + top + bottom == 0; }
+
 	/** Changes the top gap. */
 	void setTop (int newTopGap) throw();
 
@@ -25236,10 +25920,11 @@ public:
 	bool operator== (const BorderSize& other) const throw();
 	bool operator!= (const BorderSize& other) const throw();
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	int top, left, bottom, right;
+
+	JUCE_LEAK_DETECTOR (BorderSize);
 };
 
 #endif   // __JUCE_BORDERSIZE_JUCEHEADER__
@@ -25287,11 +25972,10 @@ public:
 	static void deleteAll();
 
 private:
-	DeletedAtShutdown (const DeletedAtShutdown&);
-	DeletedAtShutdown& operator= (const DeletedAtShutdown&);
-
 	static CriticalSection& getLock();
 	static Array <DeletedAtShutdown*>& getObjects();
+
+	JUCE_DECLARE_NON_COPYABLE (DeletedAtShutdown);
 };
 
 #endif   // __JUCE_DELETEDATSHUTDOWN_JUCEHEADER__
@@ -25370,6 +26054,9 @@ public:
 	*/
 	void attachCallback (Component* component, Callback* callback);
 
+	/** Brings any modal components to the front. */
+	void bringModalComponentsToFront();
+
 	/** Runs the event loop until the currently topmost modal component is dismissed, and
 		returns the exit code for that component.
 	*/
@@ -25401,6 +26088,7 @@ private:
 	void endModal (Component* component, int returnValue);
 	void endModal (Component* component);
 
+	JUCE_DECLARE_NON_COPYABLE (ModalComponentManager);
 };
 
 #endif   // __JUCE_MODALCOMPONENTMANAGER_JUCEHEADER__
@@ -25415,8 +26103,7 @@ class ComponentPeer;
 	The base class for all JUCE user-interface objects.
 
 */
-class JUCE_API  Component  : public MouseListener,
-							 public MessageListener
+class JUCE_API  Component  : public MouseListener
 {
 public:
 
@@ -25436,7 +26123,7 @@ public:
 
 	/** Destructor.
 
-		Note that when a component is deleted, any child components it contain are NOT
+		Note that when a component is deleted, any child components it contains are NOT
 		automatically deleted. It's your responsibilty to manage their lifespan - you
 		may want to use helper methods like deleteAllChildren(), or less haphazard
 		approaches like using ScopedPointers or normal object aggregation to manage them.
@@ -25468,18 +26155,6 @@ public:
 		@see getName
 	*/
 	virtual void setName (const String& newName);
-
-	/** Checks whether this Component object has been deleted.
-
-		This will check whether this object is still a valid component, or whether
-		it's been deleted.
-
-		It's safe to call this on null or dangling pointers, but note that there is a
-		small risk if another new (but different) component has been created at the
-		same memory address which this one occupied, this methods can return a
-		false positive.
-	*/
-	bool isValidComponent() const;
 
 	/** Makes the component visible or invisible.
 
@@ -25518,31 +26193,6 @@ public:
 		@see isVisible
 	*/
 	bool isShowing() const;
-
-	/** Makes a component invisible using a groovy fade-out and animated zoom effect.
-
-		To do this, this function will cunningly:
-			- take a snapshot of the component as it currently looks
-			- call setVisible(false) on the component
-			- replace it with a special component that will continue drawing the
-			  snapshot, animating it and gradually making it more transparent
-			- when it's gone, the special component will also be deleted
-
-		As soon as this method returns, the component can be safely removed and deleted
-		leaving the proxy to do the fade-out, so it's even ok to call this in a
-		component's destructor.
-
-		Passing non-zero x and y values will cause the ghostly component image to
-		also whizz off by this distance while fading out. If the scale factor is
-		not 1.0, it will also zoom from the component's current size to this new size.
-
-		One thing to be careful about is that the parent component must be able to cope
-		with this unknown component type being added to it.
-	*/
-	void fadeOutComponent (int lengthOfFadeOutInMilliseconds,
-						   int deltaXToMove = 0,
-						   int deltaYToMove = 0,
-						   float scaleFactorAtEnd = 1.0f);
 
 	/** Makes this component appear as a window on the desktop.
 
@@ -25653,15 +26303,21 @@ public:
 	*/
 	bool isAlwaysOnTop() const throw();
 
-	/** Returns the x co-ordinate of the component's left edge.
+	/** Returns the x coordinate of the component's left edge.
 		This is a distance in pixels from the left edge of the component's parent.
-		@see getScreenX
+
+		Note that if you've used setTransform() to apply a transform, then the component's
+		bounds will no longer be a direct reflection of the position at which it appears within
+		its parent, as the transform will be applied to its bounding box.
 	*/
 	inline int getX() const throw()			 { return bounds_.getX(); }
 
-	/** Returns the y co-ordinate of the top of this component.
+	/** Returns the y coordinate of the top of this component.
 		This is a distance in pixels from the top edge of the component's parent.
-		@see getScreenY
+
+		Note that if you've used setTransform() to apply a transform, then the component's
+		bounds will no longer be a direct reflection of the position at which it appears within
+		its parent, as the transform will be applied to its bounding box.
 	*/
 	inline int getY() const throw()			 { return bounds_.getY(); }
 
@@ -25671,29 +26327,50 @@ public:
 	/** Returns the component's height in pixels. */
 	inline int getHeight() const throw()			{ return bounds_.getHeight(); }
 
-	/** Returns the x co-ordinate of the component's right-hand edge.
+	/** Returns the x coordinate of the component's right-hand edge.
 		This is a distance in pixels from the left edge of the component's parent.
+
+		Note that if you've used setTransform() to apply a transform, then the component's
+		bounds will no longer be a direct reflection of the position at which it appears within
+		its parent, as the transform will be applied to its bounding box.
 	*/
 	int getRight() const throw()				{ return bounds_.getRight(); }
 
 	/** Returns the component's top-left position as a Point. */
 	const Point<int> getPosition() const throw()		{ return bounds_.getPosition(); }
 
-	/** Returns the y co-ordinate of the bottom edge of this component.
+	/** Returns the y coordinate of the bottom edge of this component.
 		This is a distance in pixels from the top edge of the component's parent.
+
+		Note that if you've used setTransform() to apply a transform, then the component's
+		bounds will no longer be a direct reflection of the position at which it appears within
+		its parent, as the transform will be applied to its bounding box.
 	*/
 	int getBottom() const throw()			   { return bounds_.getBottom(); }
 
 	/** Returns this component's bounding box.
 		The rectangle returned is relative to the top-left of the component's parent.
+
+		Note that if you've used setTransform() to apply a transform, then the component's
+		bounds will no longer be a direct reflection of the position at which it appears within
+		its parent, as the transform will be applied to its bounding box.
 	*/
 	const Rectangle<int>& getBounds() const throw()	 { return bounds_; }
 
 	/** Returns the component's bounds, relative to its own origin.
-		This is like getBounds(), but returns the rectangle in local co-ordinates, In practice, it'll
+		This is like getBounds(), but returns the rectangle in local coordinates, In practice, it'll
 		return a rectangle with position (0, 0), and the same size as this component.
 	*/
 	const Rectangle<int> getLocalBounds() const throw();
+
+	/** Returns the area of this component's parent which this component covers.
+
+		The returned area is relative to the parent's coordinate space.
+		If the component has an affine transform specified, then the resulting area will be
+		the smallest rectangle that fully covers the component's transformed bounding box.
+		If this component has no parent, the return value will simply be the same as getBounds().
+	*/
+	const Rectangle<int> getBoundsInParent() const throw();
 
 	/** Returns the region of this component that's not obscured by other, opaque components.
 
@@ -25706,13 +26383,13 @@ public:
 	void getVisibleArea (RectangleList& result,
 						 bool includeSiblings) const;
 
-	/** Returns this component's x co-ordinate relative the the screen's top-left origin.
-		@see getX, relativePositionToGlobal
+	/** Returns this component's x coordinate relative the the screen's top-left origin.
+		@see getX, localPointToGlobal
 	*/
 	int getScreenX() const;
 
-	/** Returns this component's y co-ordinate relative the the screen's top-left origin.
-		@see getY, relativePositionToGlobal
+	/** Returns this component's y coordinate relative the the screen's top-left origin.
+		@see getY, localPointToGlobal
 	*/
 	int getScreenY() const;
 
@@ -25726,25 +26403,41 @@ public:
 	*/
 	const Rectangle<int> getScreenBounds() const;
 
-	/** Converts a position relative to this component's top-left into a screen co-ordinate.
+	/** Converts a point to be relative to this component's coordinate space.
 
-		@see globalPositionToRelative, relativePositionToOtherComponent
+		This takes a point relative to a different component, and returns its position relative to this
+		component. If the sourceComponent parameter is null, the source point is assumed to be a global
+		screen coordinate.
 	*/
-	const Point<int> relativePositionToGlobal (const Point<int>& relativePosition) const;
+	const Point<int> getLocalPoint (const Component* sourceComponent,
+									const Point<int>& pointRelativeToSourceComponent) const;
 
-	/** Converts a screen co-ordinate into a position relative to this component's top-left.
+	/** Converts a rectangle to be relative to this component's coordinate space.
 
-		@see relativePositionToGlobal, relativePositionToOtherComponent
+		This takes a rectangle that is relative to a different component, and returns its position relative
+		to this component. If the sourceComponent parameter is null, the source rectangle is assumed to be
+		a screen coordinate.
+
+		If you've used setTransform() to apply one or more transforms to components, then the source rectangle
+		may not actually be rectanglular when converted to the target space, so in that situation this will return
+		the smallest rectangle that fully contains the transformed area.
 	*/
-	const Point<int> globalPositionToRelative (const Point<int>& screenPosition) const;
+	const Rectangle<int> getLocalArea (const Component* sourceComponent,
+									   const Rectangle<int>& areaRelativeToSourceComponent) const;
 
-	/** Converts a position relative to this component's top-left into a position
-		relative to another component's top-left.
-
-		@see relativePositionToGlobal, globalPositionToRelative
+	/** Converts a point relative to this component's top-left into a screen coordinate.
+		@see getLocalPoint, localAreaToGlobal
 	*/
-	const Point<int> relativePositionToOtherComponent (const Component* targetComponent,
-													   const Point<int>& positionRelativeToThis) const;
+	const Point<int> localPointToGlobal (const Point<int>& localPoint) const;
+
+	/** Converts a rectangle from this component's coordinate space to a screen coordinate.
+
+		If you've used setTransform() to apply one or more transforms to components, then the source rectangle
+		may not actually be rectanglular when converted to the target space, so in that situation this will return
+		the smallest rectangle that fully contains the transformed area.
+		@see getLocalPoint, localPointToGlobal
+	*/
+	const Rectangle<int> localAreaToGlobal (const Rectangle<int>& localArea) const;
 
 	/** Moves the component to a new position.
 
@@ -25752,6 +26445,10 @@ public:
 		The position is relative to the top-left of the component's parent.
 
 		If the component actually moves, this method will make a synchronous call to moved().
+
+		Note that if you've used setTransform() to apply a transform, then the component's
+		bounds will no longer be a direct reflection of the position at which it appears within
+		its parent, as the transform will be applied to whatever bounds you set for it.
 
 		@see setBounds, ComponentListener::componentMovedOrResized
 	*/
@@ -25763,28 +26460,50 @@ public:
 		The position is relative to the top-left of the component's parent.
 
 		If the component actually moves, this method will make a synchronous call to moved().
+
+		Note that if you've used setTransform() to apply a transform, then the component's
+		bounds will no longer be a direct reflection of the position at which it appears within
+		its parent, as the transform will be applied to whatever bounds you set for it.
 	*/
 	void setTopRightPosition (int x, int y);
 
 	/** Changes the size of the component.
 
 		A synchronous call to resized() will be occur if the size actually changes.
+
+		Note that if you've used setTransform() to apply a transform, then the component's
+		bounds will no longer be a direct reflection of the position at which it appears within
+		its parent, as the transform will be applied to whatever bounds you set for it.
 	*/
 	void setSize (int newWidth, int newHeight);
 
 	/** Changes the component's position and size.
 
-		The co-ordinates are relative to the top-left of the component's parent, or relative
+		The coordinates are relative to the top-left of the component's parent, or relative
 		to the origin of the screen is the component is on the desktop.
 
 		If this method changes the component's top-left position, it will make a synchronous
 		call to moved(). If it changes the size, it will also make a call to resized().
+
+		Note that if you've used setTransform() to apply a transform, then the component's
+		bounds will no longer be a direct reflection of the position at which it appears within
+		its parent, as the transform will be applied to whatever bounds you set for it.
 
 		@see setTopLeftPosition, setSize, ComponentListener::componentMovedOrResized
 	*/
 	void setBounds (int x, int y, int width, int height);
 
 	/** Changes the component's position and size.
+
+		The coordinates are relative to the top-left of the component's parent, or relative
+		to the origin of the screen is the component is on the desktop.
+
+		If this method changes the component's top-left position, it will make a synchronous
+		call to moved(). If it changes the size, it will also make a call to resized().
+
+		Note that if you've used setTransform() to apply a transform, then the component's
+		bounds will no longer be a direct reflection of the position at which it appears within
+		its parent, as the transform will be applied to whatever bounds you set for it.
 
 		@see setBounds
 	*/
@@ -25796,6 +26515,8 @@ public:
 		setBoundsRelative (0.2f, 0.2f, 0.5f, 0.5f) would give it half the
 		width and height of the parent, with its top-left position 20% of
 		the way across and down the parent.
+
+		@see setBounds
 	*/
 	void setBoundsRelative (float proportionalX, float proportionalY,
 							float proportionalWidth, float proportionalHeight);
@@ -25804,6 +26525,8 @@ public:
 
 		This will position the component within its parent, leaving the specified number of
 		pixels around each edge.
+
+		@see setBounds
 	*/
 	void setBoundsInset (const BorderSize& borders);
 
@@ -25818,6 +26541,8 @@ public:
 
 		It will then be positioned within the rectangle according to the justification flags
 		specified.
+
+		@see setBounds
 	*/
 	void setBoundsToFit (int x, int y, int width, int height,
 						 const Justification& justification,
@@ -25827,6 +26552,8 @@ public:
 
 		Leaves the component's size unchanged, but sets the position of its centre
 		relative to its parent's top-left.
+
+		@see setBounds
 	*/
 	void setCentrePosition (int x, int y);
 
@@ -25845,6 +26572,37 @@ public:
 		parent component), then it'll be centred within the main monitor area.
 	*/
 	void centreWithSize (int width, int height);
+
+	/** Sets a transform matrix to be applied to this component.
+
+		If you set a transform for a component, the component's position will be warped by it, relative to
+		the component's parent's top-left origin. This means that the values you pass into setBounds() will no
+		longer reflect the actual area within the parent that the component covers, as the bounds will be
+		transformed and the component will probably end up actually appearing somewhere else within its parent.
+
+		When using transforms you need to be extremely careful when converting coordinates between the
+		coordinate spaces of different components or the screen - you should always use getLocalPoint(),
+		getLocalArea(), etc to do this, and never just manually add a component's position to a point in order to
+		convert it between different components (but I'm sure you would never have done that anyway...).
+
+		Currently, transforms are not supported for desktop windows, so the transform will be ignored if you
+		put a component on the desktop.
+
+		To remove a component's transform, simply pass AffineTransform::identity as the parameter to this method.
+	*/
+	void setTransform (const AffineTransform& transform);
+
+	/** Returns the transform that is currently being applied to this component.
+		For more details about transforms, see setTransform().
+		@see setTransform
+	*/
+	const AffineTransform getTransform() const;
+
+	/** Returns true if a non-identity transform is being applied to this component.
+		For more details about transforms, see setTransform().
+		@see setTransform
+	*/
+	bool isTransformed() const throw();
 
 	/** Returns a proportion of the component's width.
 
@@ -25872,7 +26630,7 @@ public:
 	*/
 	int getParentHeight() const throw();
 
-	/** Returns the screen co-ordinates of the monitor that contains this component.
+	/** Returns the screen coordinates of the monitor that contains this component.
 
 		If there's only one monitor, this will return its size - if there are multiple
 		monitors, it will return the area of the monitor that contains the component's
@@ -25928,8 +26686,8 @@ public:
 
 	/** Adds a child component to this one, and also makes the child visible if it isn't.
 
-		Quite a useful function, this is just the same as calling addChildComponent()
-		followed by setVisible (true) on the child. See addChildComponent() for more details.
+		Quite a useful function, this is just the same as calling setVisible (true) on the child
+		and then addChildComponent(). See addChildComponent() for more details.
 	*/
 	void addAndMakeVisible (Component* child, int zOrder = -1);
 
@@ -26041,7 +26799,7 @@ public:
 		Overriding this method allows you to create components which only intercept
 		mouse-clicks within a user-defined area.
 
-		This is called to find out whether a particular x, y co-ordinate is
+		This is called to find out whether a particular x, y coordinate is
 		considered to be inside the component or not, and is used by methods such
 		as contains() and getComponentAt() to work out which component
 		the mouse is clicked on.
@@ -26063,10 +26821,10 @@ public:
 		Note that for components on the desktop, this method will be ignored, because it's
 		not always possible to implement this behaviour on all platforms.
 
-		@param x	the x co-ordinate to test, relative to the left hand edge of this
+		@param x	the x coordinate to test, relative to the left hand edge of this
 					component. This value is guaranteed to be greater than or equal to
 					zero, and less than the component's width
-		@param y	the y co-ordinate to test, relative to the top edge of this
+		@param y	the y coordinate to test, relative to the top edge of this
 					component. This value is guaranteed to be greater than or equal to
 					zero, and less than the component's height
 		@returns	true if the click is considered to be inside the component
@@ -26108,33 +26866,29 @@ public:
 
 		Never override this method! Use hitTest to create custom hit regions.
 
-		@param x	the x co-ordinate to test, relative to this component's left hand edge.
-		@param y	the y co-ordinate to test, relative to this component's top edge.
+		@param localPoint	the coordinate to test, relative to this component's top-left.
 		@returns	true if the point is within the component's hit-test area, but only if
 					that part of the component isn't clipped by its parent component. Note
 					that this won't take into account any overlapping sibling components
 					which might be in the way - for that, see reallyContains()
 		@see hitTest, reallyContains, getComponentAt
 	*/
-	virtual bool contains (int x, int y);
+	bool contains (const Point<int>& localPoint);
 
 	/** Returns true if a given point lies in this component, taking any overlapping
 		siblings into account.
 
-		@param x	the x co-ordinate to test, relative to this component's left hand edge.
-		@param y	the y co-ordinate to test, relative to this component's top edge.
-		@param returnTrueIfWithinAChild	 if the point actually lies within a child of this
-											component, this determines the value that will
-											be returned.
-
+		@param localPoint	the coordinate to test, relative to this component's top-left.
+		@param returnTrueIfWithinAChild	 if the point actually lies within a child of this component,
+											this determines whether that is counted as a hit.
 		@see contains, getComponentAt
 	*/
-	bool reallyContains (int x, int y, bool returnTrueIfWithinAChild);
+	bool reallyContains (const Point<int>& localPoint, bool returnTrueIfWithinAChild);
 
 	/** Returns the component at a certain point within this one.
 
-		@param x	the x co-ordinate to test, relative to this component's left hand edge.
-		@param y	the y co-ordinate to test, relative to this component's top edge.
+		@param x	the x coordinate to test, relative to this component's left edge.
+		@param y	the y coordinate to test, relative to this component's top edge.
 		@returns	the component that is at this position - which may be 0, this component,
 					or one of its children. Note that overlapping siblings that might actually
 					be in the way are not taken into account by this method - to account for these,
@@ -26145,7 +26899,7 @@ public:
 
 	/** Returns the component at a certain point within this one.
 
-		@param position  the co-ordinates to test, relative to this component's top-left.
+		@param position  the coordinate to test, relative to this component's top-left.
 		@returns	the component that is at this position - which may be 0, this component,
 					or one of its children. Note that overlapping siblings that might actually
 					be in the way are not taken into account by this method - to account for these,
@@ -26251,8 +27005,25 @@ public:
 
 		The graphics context may be left in an undefined state after this method returns,
 		so you may need to reset it if you're going to use it again.
+
+		If ignoreAlphaLevel is false, then the component will be drawn with the opacity level
+		specified by getAlpha(); if ignoreAlphaLevel is true, then this will be ignored and
+		an alpha of 1.0 will be used.
 	*/
-	void paintEntireComponent (Graphics& context);
+	void paintEntireComponent (Graphics& context, bool ignoreAlphaLevel);
+
+	/** This allows you to indicate that this component doesn't require its graphics
+		context to be clipped when it is being painted.
+
+		Most people will never need to use this setting, but in situations where you have a very large
+		number of simple components being rendered, and where they are guaranteed never to do any drawing
+		beyond their own boundaries, setting this to true will reduce the overhead involved in clipping
+		the graphics context that gets passed to the component's paint() callback.
+		If you enable this mode, you'll need to make sure your paint method doesn't call anything like
+		Graphics::fillAll(), and doesn't draw beyond the component's bounds, because that'll produce
+		artifacts.
+	*/
+	void setPaintingIsUnclipped (bool shouldPaintWithoutClipping) throw();
 
 	/** Adds an effect filter to alter the component's appearance.
 
@@ -26393,7 +27164,7 @@ public:
 		be focused, but where you don't want the user to be able to affect it directly
 		by clicking.
 	*/
-	void setMouseClickGrabsKeyboardFocus (const bool shouldGrabFocus);
+	void setMouseClickGrabsKeyboardFocus (bool shouldGrabFocus);
 
 	/** Returns the last value set with setMouseClickGrabsKeyboardFocus().
 
@@ -26555,6 +27326,20 @@ public:
 	*/
 	virtual void enablementChanged();
 
+	/** Changes the transparency of this component.
+		When painted, the entire component and all its children will be rendered
+		with this as the overall opacity level, where 0 is completely invisible, and
+		1.0 is fully opaque (i.e. normal).
+
+		@see getAlpha
+	*/
+	void setAlpha (float newAlpha);
+
+	/** Returns the component's current transparancy level.
+		See setAlpha() for more details.
+	*/
+	float getAlpha() const;
+
 	/** Changes the mouse cursor shape to use when the mouse is over this component.
 
 		Note that the cursor set by this method can be overridden by the getMouseCursor
@@ -26581,7 +27366,8 @@ public:
 		if you want to force the system to check that the cursor being displayed is
 		up-to-date (even if the mouse is just sitting there), call this method.
 
-		This isn't needed if you're only using setMouseCursor().
+		(If you're changing the cursor using setMouseCursor(), you don't need to bother
+		calling this).
 	*/
 	void updateMouseCursor() const;
 
@@ -26954,8 +27740,7 @@ public:
 	static bool JUCE_CALLTYPE isMouseButtonDownAnywhere() throw();
 
 	/** Returns the mouse's current position, relative to this component.
-
-		The co-ordinates are relative to the component's top-left corner.
+		The return value is relative to the component's top-left corner.
 	*/
 	const Point<int> getMouseXYRelative() const;
 
@@ -27237,14 +28022,6 @@ public:
 	*/
 	void* getWindowHandle() const;
 
-	/** When created, each component is given a number to uniquely identify it.
-
-		The number is incremented each time a new component is created, so it's a more
-		unique way of identifying a component than using its memory location (which
-		may be reused after the component is deleted, of course).
-	*/
-	uint32 getComponentUID() const throw()		{ return componentUID; }
-
 	/** Holds a pointer to some type of Component, which automatically becomes null if
 		the component is deleted.
 
@@ -27298,9 +28075,14 @@ public:
 		/** Returns the component that this pointer refers to, or null if the component no longer exists. */
 		const ComponentType* operator->() const throw()	 { jassert (comp != 0); return comp; }
 
-		juce_UseDebuggingNewOperator
+		/** If the component is valid, this deletes it and sets this pointer to null. */
+		void deleteAndZero()				{ delete comp; jassert (comp == 0); }
+
+		bool operator== (ComponentType* component) const throw()	{ return comp == component; }
+		bool operator!= (ComponentType* component) const throw()	{ return comp != component; }
 
 	private:
+
 		ComponentType* comp;
 
 		void attach()   { if (comp != 0) comp->addComponentListener (this); }
@@ -27333,11 +28115,20 @@ public:
 		SafeComponentPtr safePointer1, safePointer2;
 		Component* const component2;
 
-		BailOutChecker (const BailOutChecker&);
-		BailOutChecker& operator= (const BailOutChecker&);
+		JUCE_DECLARE_NON_COPYABLE (BailOutChecker);
 	};
 
-	juce_UseDebuggingNewOperator
+   #ifndef DOXYGEN
+	/** This method is deprecated - use localPointToGlobal instead. */
+	const Point<int> relativePositionToGlobal (const Point<int>& relativePosition) const;
+
+	/** This method is deprecated - use getLocalPoint instead. */
+	const Point<int> globalPositionToRelative (const Point<int>& screenPosition) const;
+
+	/** This method is deprecated - use getLocalPoint instead. */
+	const Point<int> relativePositionToOtherComponent (const Component* targetComponent,
+													   const Point<int>& positionRelativeToThis) const;
+   #endif
 
 private:
 
@@ -27350,16 +28141,19 @@ private:
 
 	String componentName_;
 	Component* parentComponent_;
-	uint32 componentUID;
 	Rectangle<int> bounds_;
-	int numDeepMouseListeners;
+	ScopedPointer <AffineTransform> affineTransform_;
 	Array <Component*> childComponentList_;
 	LookAndFeel* lookAndFeel_;
 	MouseCursor cursor_;
 	ImageEffectFilter* effect_;
 	Image bufferedImage_;
-	Array <MouseListener*>* mouseListeners_;
-	Array <KeyListener*>* keyListeners_;
+
+	class MouseListenerList;
+	friend class MouseListenerList;
+	friend class ScopedPointer <MouseListenerList>;
+	ScopedPointer <MouseListenerList> mouseListeners_;
+	ScopedPointer <Array <KeyListener*> > keyListeners_;
 	ListenerList <ComponentListener> componentListeners;
 	NamedValueSet properties;
 
@@ -27377,12 +28171,13 @@ private:
 		bool bufferToImageFlag	  : 1;
 		bool bringToFrontOnClickFlag	: 1;
 		bool repaintOnMouseActivityFlag : 1;
-		bool draggingFlag		   : 1;
+		bool mouseDownFlag		  : 1;
 		bool mouseOverFlag		  : 1;
 		bool mouseInsideFlag		: 1;
 		bool currentlyModalFlag	 : 1;
 		bool isDisabledFlag		 : 1;
 		bool childCompFocusedFlag	   : 1;
+		bool dontClipGraphicsFlag	   : 1;
 #if JUCE_DEBUG
 		bool isInsidePaintCall	  : 1;
 #endif
@@ -27393,6 +28188,8 @@ private:
 		uint32 componentFlags_;
 		ComponentFlags flags;
 	};
+
+	uint8 componentTransparency;
 
 	void internalMouseEnter (MouseInputSource& source, const Point<int>& relativePos, const Time& time);
 	void internalMouseExit  (MouseInputSource& source, const Point<int>& relativePos, const Time& time);
@@ -27409,7 +28206,9 @@ private:
 	void internalModifierKeysChanged();
 	void internalChildrenChanged();
 	void internalHierarchyChanged();
-	void renderComponent (Graphics& context);
+	void paintComponentAndChildren (Graphics& g);
+	void paintComponent (Graphics& g);
+	void paintWithinParentContext (Graphics& g);
 	void sendMovedResizedMessages (bool wasMoved, bool wasResized);
 	void repaintParent();
 	void sendFakeMouseMove() const;
@@ -27417,44 +28216,34 @@ private:
 	void grabFocusInternal (const FocusChangeType cause, bool canTryParent = true);
 	static void giveAwayFocus();
 	void sendEnablementChangeMessage();
-	static void* runModalLoopCallback (void*);
-	static void bringModalComponentToFront();
-	void subtractObscuredRegions (RectangleList& result, const Point<int>& delta,
-								  const Rectangle<int>& clipRect,
-								  const Component* const compToAvoid) const;
-	void clipObscuredRegions (Graphics& g, const Rectangle<int>& clipRect,
-							  int deltaX, int deltaY) const;
-
-	// how much of the component is not off the edges of its parents
-	const Rectangle<int> getUnclippedArea() const;
 	void sendVisibilityChangeMessage();
-	const Rectangle<int> getParentOrMainMonitorBounds() const;
 
+	class ComponentHelpers;
+	friend class ComponentHelpers;
+
+	/* Components aren't allowed to have copy constructors, as this would mess up parent hierarchies.
+	   You might need to give your subclasses a private dummy constructor to avoid compiler warnings.
+	*/
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Component);
+
+   #if JUCE_CATCH_DEPRECATED_CODE_MISUSE
 	// This is included here just to cause a compile error if your code is still handling
 	// drag-and-drop with this method. If so, just update it to use the new FileDragAndDropTarget
 	// class, which is easy (just make your class inherit from FileDragAndDropTarget, and
 	// implement its methods instead of this Component method).
 	virtual void filesDropped (const StringArray&, int, int) {}
 
-	// components aren't allowed to have copy constructors, as this would mess up parent
-	// hierarchies. You might need to give your subclasses a private dummy constructor like
-	// this one to avoid compiler warnings.
-	Component (const Component&);
-	Component& operator= (const Component&);
+	// This is included here to cause an error if you use or overload it - it has been deprecated in
+	// favour of contains (const Point<int>&)
+	void contains (int, int);
+   #endif
 
 protected:
+
 	/** @internal */
 	virtual void internalRepaint (int x, int y, int w, int h);
-
+	/** @internal */
 	virtual ComponentPeer* createNewPeer (int styleFlags, void* nativeWindowToAttachTo);
-
-	/** Overridden from the MessageListener parent class.
-
-		You can override this if you really need to, but be sure to pass your unwanted messages up
-		to this base class implementation, as the Component class needs to send itself messages
-		to work properly.
-	*/
-	void handleMessage (const Message&);
 };
 
 #endif   // __JUCE_COMPONENT_JUCEHEADER__
@@ -27681,6 +28470,128 @@ struct JUCE_API  ApplicationCommandInfo
 #endif   // __JUCE_APPLICATIONCOMMANDINFO_JUCEHEADER__
 /*** End of inlined file: juce_ApplicationCommandInfo.h ***/
 
+
+/*** Start of inlined file: juce_MessageListener.h ***/
+#ifndef __JUCE_MESSAGELISTENER_JUCEHEADER__
+#define __JUCE_MESSAGELISTENER_JUCEHEADER__
+
+
+/*** Start of inlined file: juce_Message.h ***/
+#ifndef __JUCE_MESSAGE_JUCEHEADER__
+#define __JUCE_MESSAGE_JUCEHEADER__
+
+class MessageListener;
+class MessageManager;
+
+/** The base class for objects that can be delivered to a MessageListener.
+
+	The simplest Message object contains a few integer and pointer parameters
+	that the user can set, and this is enough for a lot of purposes. For passing more
+	complex data, subclasses of Message can also be used.
+
+	@see MessageListener, MessageManager, ActionListener, ChangeListener
+*/
+class JUCE_API  Message
+{
+public:
+
+	/** Creates an uninitialised message.
+
+		The class's variables will also be left uninitialised.
+	*/
+	Message() throw();
+
+	/** Creates a message object, filling in the member variables.
+
+		The corresponding public member variables will be set from the parameters
+		passed in.
+	*/
+	Message (int intParameter1,
+			 int intParameter2,
+			 int intParameter3,
+			 void* pointerParameter) throw();
+
+	/** Destructor. */
+	virtual ~Message();
+
+	// These values can be used for carrying simple data that the application needs to
+	// pass around. For more complex messages, just create a subclass.
+
+	int intParameter1;	  /**< user-defined integer value. */
+	int intParameter2;	  /**< user-defined integer value. */
+	int intParameter3;	  /**< user-defined integer value. */
+	void* pointerParameter;	 /**< user-defined pointer value. */
+
+private:
+	friend class MessageListener;
+	friend class MessageManager;
+	MessageListener* messageRecipient;
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Message);
+};
+
+#endif   // __JUCE_MESSAGE_JUCEHEADER__
+/*** End of inlined file: juce_Message.h ***/
+
+/**
+	MessageListener subclasses can post and receive Message objects.
+
+	@see Message, MessageManager, ActionListener, ChangeListener
+*/
+class JUCE_API  MessageListener
+{
+protected:
+
+	/** Creates a MessageListener. */
+	MessageListener() throw();
+
+public:
+
+	/** Destructor.
+
+		When a MessageListener is deleted, it removes itself from a global list
+		of registered listeners, so that the isValidMessageListener() method
+		will no longer return true.
+	*/
+	virtual ~MessageListener();
+
+	/** This is the callback method that receives incoming messages.
+
+		This is called by the MessageManager from its dispatch loop.
+
+		@see postMessage
+	*/
+	virtual void handleMessage (const Message& message) = 0;
+
+	/** Sends a message to the message queue, for asynchronous delivery to this listener
+		later on.
+
+		This method can be called safely by any thread.
+
+		@param message	  the message object to send - this will be deleted
+							automatically by the message queue, so don't keep any
+							references to it after calling this method.
+		@see handleMessage
+	*/
+	void postMessage (Message* message) const throw();
+
+	/** Checks whether this MessageListener has been deleted.
+
+		Although not foolproof, this method is safe to call on dangling or null
+		pointers. A list of active MessageListeners is kept internally, so this
+		checks whether the object is on this list or not.
+
+		Note that it's possible to get a false-positive here, if an object is
+		deleted and another is subsequently created that happens to be at the
+		exact same memory location, but I can't think of a good way of avoiding
+		this.
+	*/
+	bool isValidMessageListener() const throw();
+};
+
+#endif   // __JUCE_MESSAGELISTENER_JUCEHEADER__
+/*** End of inlined file: juce_MessageListener.h ***/
+
 /**
 	A command target publishes a list of command IDs that it can perform.
 
@@ -27710,7 +28621,7 @@ public:
 	struct JUCE_API  InvocationInfo
 	{
 
-		InvocationInfo (const CommandID commandID) throw();
+		InvocationInfo (const CommandID commandID);
 
 		/** The UID of the command that should be performed. */
 		CommandID commandID;
@@ -27874,14 +28785,13 @@ public:
 	*/
 	ApplicationCommandTarget* findFirstTargetParentComponent();
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	// (for async invocation of commands)
 	class CommandTargetMessageInvoker  : public MessageListener
 	{
 	public:
-		CommandTargetMessageInvoker (ApplicationCommandTarget* const owner);
+		CommandTargetMessageInvoker (ApplicationCommandTarget* owner);
 		~CommandTargetMessageInvoker();
 
 		void handleMessage (const Message& message);
@@ -27889,17 +28799,15 @@ private:
 	private:
 		ApplicationCommandTarget* const owner;
 
-		CommandTargetMessageInvoker (const CommandTargetMessageInvoker&);
-		CommandTargetMessageInvoker& operator= (const CommandTargetMessageInvoker&);
+		JUCE_DECLARE_NON_COPYABLE (CommandTargetMessageInvoker);
 	};
 
 	ScopedPointer <CommandTargetMessageInvoker> messageInvoker;
 
 	friend class CommandTargetMessageInvoker;
-	bool tryToInvoke (const InvocationInfo& info, const bool async);
+	bool tryToInvoke (const InvocationInfo& info, bool async);
 
-	ApplicationCommandTarget (const ApplicationCommandTarget&);
-	ApplicationCommandTarget& operator= (const ApplicationCommandTarget&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ApplicationCommandTarget);
 };
 
 #endif   // __JUCE_APPLICATIONCOMMANDTARGET_JUCEHEADER__
@@ -27916,7 +28824,7 @@ private:
 	Used by various classes, e.g. buttons when they are pressed, to tell listeners
 	about something that's happened.
 
-	@see ActionListenerList, ActionBroadcaster, ChangeListener
+	@see ActionBroadcaster, ChangeListener
 */
 class JUCE_API  ActionListener
 {
@@ -27927,7 +28835,7 @@ public:
 	/** Overridden by your subclass to receive the callback.
 
 		@param message  the string that was specified when the event was triggered
-						by a call to ActionListenerList::sendActionMessage()
+						by a call to ActionBroadcaster::sendActionMessage()
 	*/
 	virtual void actionListenerCallback (const String& message) = 0;
 };
@@ -27949,11 +28857,8 @@ public:
 	e.g. @code
 		class MyJUCEApp  : public JUCEApplication
 		{
-			MyApplicationWindow* myMainWindow;
-
 		public:
 			MyJUCEApp()
-				: myMainWindow (0)
 			{
 			}
 
@@ -27970,7 +28875,7 @@ public:
 
 			void shutdown()
 			{
-				delete myMainWindow;
+				myMainWindow = 0;
 			}
 
 			const String getApplicationName()
@@ -27982,6 +28887,9 @@ public:
 			{
 				return "1.0";
 			}
+
+		private:
+			ScopedPointer <MyApplicationWindow> myMainWindow;
 		};
 
 		// this creates wrapper code to actually launch the app properly.
@@ -28171,6 +29079,8 @@ public:
 	/** @internal */
 	int shutdownApp();
 	/** @internal */
+	static void appWillTerminateByForce();
+	/** @internal */
 	typedef JUCEApplication* (*CreateInstanceFunction)();
 	/** @internal */
 	static CreateInstanceFunction createInstance;
@@ -28183,8 +29093,7 @@ private:
 	ScopedPointer<InterProcessLock> appLock;
 	static JUCEApplication* appInstance;
 
-	JUCEApplication (const JUCEApplication&);
-	JUCEApplication& operator= (const JUCEApplication&);
+	JUCE_DECLARE_NON_COPYABLE (JUCEApplication);
 };
 
 #endif   // __JUCE_APPLICATION_JUCEHEADER__
@@ -28311,6 +29220,140 @@ private:
 #endif   // __JUCE_TIMER_JUCEHEADER__
 /*** End of inlined file: juce_Timer.h ***/
 
+
+/*** Start of inlined file: juce_ComponentAnimator.h ***/
+#ifndef __JUCE_COMPONENTANIMATOR_JUCEHEADER__
+#define __JUCE_COMPONENTANIMATOR_JUCEHEADER__
+
+/**
+	Animates a set of components, moving them to a new position and/or fading their
+	alpha levels.
+
+	To animate a component, create a ComponentAnimator instance or (preferably) use the
+	global animator object provided by Desktop::getAnimator(), and call its animateComponent()
+	method to commence the movement.
+
+	If you're using your own ComponentAnimator instance, you'll need to make sure it isn't
+	deleted before it finishes moving the components, or they'll be abandoned before reaching their
+	destinations.
+
+	It's ok to delete components while they're being animated - the animator will detect this
+	and safely stop using them.
+
+	The class is a ChangeBroadcaster and sends a notification when any components
+	start or finish being animated.
+
+	@see Desktop::getAnimator
+*/
+class JUCE_API  ComponentAnimator  : public ChangeBroadcaster,
+									 private Timer
+{
+public:
+
+	/** Creates a ComponentAnimator. */
+	ComponentAnimator();
+
+	/** Destructor. */
+	~ComponentAnimator();
+
+	/** Starts a component moving from its current position to a specified position.
+
+		If the component is already in the middle of an animation, that will be abandoned,
+		and a new animation will begin, moving the component from its current location.
+
+		The start and end speed parameters let you apply some acceleration to the component's
+		movement.
+
+		@param component		the component to move
+		@param finalBounds	  the destination bounds to which the component should move. To leave the
+									component in the same place, just pass component->getBounds() for this value
+		@param finalAlpha	   the alpha value that the component should have at the end of the animation
+		@param animationDurationMilliseconds	how long the animation should last, in milliseconds
+		@param useProxyComponent	if true, this means the component should be replaced by an internally
+									managed temporary component which is a snapshot of the original component.
+									This avoids the component having to paint itself as it moves, so may
+									be more efficient. This option also allows you to delete the original
+									component immediately after starting the animation, because the animation
+									can proceed without it. If you use a proxy, the original component will be
+									made invisible by this call, and then will become visible again at the end
+									of the animation. It'll also mean that the proxy component will be temporarily
+									added to the component's parent, so avoid it if this might confuse the parent
+									component, or if there's a chance the parent might decide to delete its children.
+		@param startSpeed	   a value to indicate the relative start speed of the animation. If this is 0,
+									the component will start by accelerating from rest; higher values mean that it
+									will have an initial speed greater than zero. If the value if greater than 1, it
+									will decelerate towards the middle of its journey. To move the component at a
+									constant rate for its entire animation, set both the start and end speeds to 1.0
+		@param endSpeed		 a relative speed at which the component should be moving when the animation finishes.
+									If this is 0, the component will decelerate to a standstill at its final position;
+									higher values mean the component will still be moving when it stops. To move the component
+									at a constant rate for its entire animation, set both the start and end speeds to 1.0
+	*/
+	void animateComponent (Component* component,
+						   const Rectangle<int>& finalBounds,
+						   float finalAlpha,
+						   int animationDurationMilliseconds,
+						   bool useProxyComponent,
+						   double startSpeed,
+						   double endSpeed);
+
+	/** Begins a fade-out of this components alpha level.
+		This is a quick way of invoking animateComponent() with a target alpha value of 0.0f, using
+		a proxy. You're safe to delete the component after calling this method, and this won't
+		interfere with the animation's progress.
+	*/
+	void fadeOut (Component* component, int millisecondsToTake);
+
+	/** Begins a fade-in of a component.
+		This is a quick way of invoking animateComponent() with a target alpha value of 1.0f.
+	*/
+	void fadeIn (Component* component, int millisecondsToTake);
+
+	/** Stops a component if it's currently being animated.
+
+		If moveComponentToItsFinalPosition is true, then the component will
+		be immediately moved to its destination position and size. If false, it will be
+		left in whatever location it currently occupies.
+	*/
+	void cancelAnimation (Component* component,
+						  bool moveComponentToItsFinalPosition);
+
+	/** Clears all of the active animations.
+
+		If moveComponentsToTheirFinalPositions is true, all the components will
+		be immediately set to their final positions. If false, they will be
+		left in whatever locations they currently occupy.
+	*/
+	void cancelAllAnimations (bool moveComponentsToTheirFinalPositions);
+
+	/** Returns the destination position for a component.
+
+		If the component is being animated, this will return the target position that
+		was specified when animateComponent() was called.
+
+		If the specified component isn't currently being animated, this method will just
+		return its current position.
+	*/
+	const Rectangle<int> getComponentDestination (Component* component);
+
+	/** Returns true if the specified component is currently being animated. */
+	bool isAnimating (Component* component) const;
+
+private:
+
+	class AnimationTask;
+	OwnedArray <AnimationTask> tasks;
+	uint32 lastTime;
+
+	AnimationTask* findTaskFor (Component* component) const;
+	void timerCallback();
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ComponentAnimator);
+};
+
+#endif   // __JUCE_COMPONENTANIMATOR_JUCEHEADER__
+/*** End of inlined file: juce_ComponentAnimator.h ***/
+
 class MouseInputSource;
 class MouseInputSourceInternal;
 class MouseListener;
@@ -28374,6 +29417,10 @@ public:
 	/** Returns the mouse position.
 
 		The co-ordinates are relative to the top-left of the main monitor.
+
+		Note that this is just a shortcut for calling getMainMouseSource().getScreenPosition(), and
+		you should only resort to grabbing the global mouse position if there's really no
+		way to get the coordinates via a mouse event callback instead.
 	*/
 	static const Point<int> getMousePosition();
 
@@ -28384,15 +29431,20 @@ public:
 	static void setMousePosition (const Point<int>& newPosition);
 
 	/** Returns the last position at which a mouse button was pressed.
+
+		Note that this is just a shortcut for calling getMainMouseSource().getLastMouseDownPosition(),
+		and in a multi-touch environment, it doesn't make much sense. ALWAYS prefer to
+		get this information via other means, such as MouseEvent::getMouseDownScreenPosition()
+		if possible, and only ever call this as a last resort.
 	*/
-	static const Point<int> getLastMouseDownPosition() throw();
+	static const Point<int> getLastMouseDownPosition();
 
 	/** Returns the number of times the mouse button has been clicked since the
 		app started.
 
 		Each mouse-down event increments this number by 1.
 	*/
-	static int getMouseButtonClickCounter() throw();
+	static int getMouseButtonClickCounter();
 
 	/** This lets you prevent the screensaver from becoming active.
 
@@ -28491,6 +29543,17 @@ public:
 	*/
 	Component* findComponentAt (const Point<int>& screenPosition) const;
 
+	/** The Desktop object has a ComponentAnimator instance which can be used for performing
+		your animations.
+
+		Having a single shared ComponentAnimator object makes it more efficient when multiple
+		components are being moved around simultaneously. It's also more convenient than having
+		to manage your own instance of one.
+
+		@see ComponentAnimator
+	*/
+	ComponentAnimator& getAnimator() throw()			{ return animator; }
+
 	/** Returns the number of MouseInputSource objects the system has at its disposal.
 		In a traditional single-mouse system, there might be only one object. On a multi-touch
 		system, there could be one input source per potential finger.
@@ -28525,7 +29588,33 @@ public:
 	*/
 	MouseInputSource* getDraggingMouseSource (int index) const throw();
 
-	juce_UseDebuggingNewOperator
+	/** In a tablet device which can be turned around, this is used to inidicate the orientation. */
+	enum DisplayOrientation
+	{
+		upright		 = 1,  /**< Indicates that the display is the normal way up. */
+		upsideDown		  = 2,  /**< Indicates that the display is upside-down. */
+		rotatedClockwise	= 4,  /**< Indicates that the display is turned 90 degrees clockwise from its upright position. */
+		rotatedAntiClockwise	= 8,  /**< Indicates that the display is turned 90 degrees anti-clockwise from its upright position. */
+
+		allOrientations	 = 1 + 2 + 4 + 8   /**< A combination of all the orientation values */
+	};
+
+	/** In a tablet device which can be turned around, this returns the current orientation. */
+	DisplayOrientation getCurrentOrientation() const;
+
+	/** Sets which orientations the display is allowed to auto-rotate to.
+
+		For devices that support rotating desktops, this lets you specify which of the orientations your app can use.
+
+		The parameter is a bitwise or-ed combination of the values in DisplayOrientation, and must contain at least one
+		set bit.
+	*/
+	void setOrientationsEnabled (int allowedOrientations);
+
+	/** Returns whether the display is allowed to auto-rotate to the given orientation.
+		Each orientation can be enabled using setOrientationEnabled(). By default, all orientations are allowed.
+	*/
+	bool isOrientationEnabled (DisplayOrientation orientation) const throw();
 
 	/** Tells this object to refresh its idea of what the screen resolution is.
 
@@ -28565,6 +29654,10 @@ private:
 	Component* kioskModeComponent;
 	Rectangle<int> kioskComponentOriginalBounds;
 
+	int allowedOrientations;
+
+	ComponentAnimator animator;
+
 	void timerCallback();
 	void resetTimer();
 
@@ -28581,8 +29674,7 @@ private:
 	Desktop();
 	~Desktop();
 
-	Desktop (const Desktop&);
-	Desktop& operator= (const Desktop&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Desktop);
 };
 
 #endif   // __JUCE_DESKTOP_JUCEHEADER__
@@ -28715,7 +29807,7 @@ public:
 
 		The index is between 0 and (getNumCommands() - 1).
 	*/
-	const ApplicationCommandInfo* getCommandForIndex (int index) const throw()	{ return commands [index]; }
+	const ApplicationCommandInfo* getCommandForIndex (int index) const throw()	  { return commands [index]; }
 
 	/** Returns the details about a given command ID.
 
@@ -28748,13 +29840,13 @@ public:
 
 		@see getCommandsInCategory()
 	*/
-	const StringArray getCommandCategories() const throw();
+	const StringArray getCommandCategories() const;
 
 	/** Returns a list of all the command UIDs in a particular category.
 
 		@see getCommandCategories()
 	*/
-	const Array <CommandID> getCommandsInCategory (const String& categoryName) const throw();
+	const Array <CommandID> getCommandsInCategory (const String& categoryName) const;
 
 	/** Returns the manager's internal set of key mappings.
 
@@ -28836,10 +29928,10 @@ public:
 												   ApplicationCommandInfo& upToDateInfo);
 
 	/** Registers a listener that will be called when various events occur. */
-	void addListener (ApplicationCommandManagerListener* listener) throw();
+	void addListener (ApplicationCommandManagerListener* listener);
 
 	/** Deregisters a previously-added listener. */
-	void removeListener (ApplicationCommandManagerListener* listener) throw();
+	void removeListener (ApplicationCommandManagerListener* listener);
 
 	/** Looks for a suitable command target based on which Components have the keyboard focus.
 
@@ -28859,8 +29951,6 @@ public:
 	*/
 	static ApplicationCommandTarget* findTargetForComponent (Component* component);
 
-	juce_UseDebuggingNewOperator
-
 private:
 
 	OwnedArray <ApplicationCommandInfo> commands;
@@ -28872,12 +29962,13 @@ private:
 	void handleAsyncUpdate();
 	void globalFocusChanged (Component*);
 
-	// xxx this is just here to cause a compile error in old code that hasn't been changed to use the new
+   #if JUCE_CATCH_DEPRECATED_CODE_MISUSE
+	// This is just here to cause a compile error in old code that hasn't been changed to use the new
 	// version of this method.
 	virtual short getFirstCommandTarget() { return 0; }
+   #endif
 
-	ApplicationCommandManager (const ApplicationCommandManager&);
-	ApplicationCommandManager& operator= (const ApplicationCommandManager&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ApplicationCommandManager);
 };
 
 /**
@@ -29069,8 +30160,6 @@ public:
 												 const String& folderName,
 												 bool commonToAllUsers);
 
-	juce_UseDebuggingNewOperator
-
 protected:
 	virtual void propertyChanged();
 
@@ -29087,8 +30176,7 @@ private:
 
 	void timerCallback();
 
-	PropertiesFile (const PropertiesFile&);
-	PropertiesFile& operator= (const PropertiesFile&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PropertiesFile);
 };
 
 #endif   // __JUCE_PROPERTIESFILE_JUCEHEADER__
@@ -29124,10 +30212,9 @@ public:
 		Before using it, you must call setStorageParameters() to give it the info
 		it needs to create the property files.
 	*/
-	ApplicationProperties() throw();
+	ApplicationProperties();
 
-	/** Destructor.
-	*/
+	/** Destructor. */
 	~ApplicationProperties();
 
 	juce_DeclareSingleton (ApplicationProperties, false)
@@ -29141,7 +30228,8 @@ public:
 							   const String& fileNameSuffix,
 							   const String& folderName,
 							   int millisecondsBeforeSaving,
-							   int propertiesFileOptions) throw();
+							   int propertiesFileOptions,
+							   InterProcessLock* processLock = 0);
 
 	/** Tests whether the files can be successfully written to, and can show
 		an error message if not.
@@ -29168,7 +30256,7 @@ public:
 
 		@see getCommonSettings
 	*/
-	PropertiesFile* getUserSettings() throw();
+	PropertiesFile* getUserSettings();
 
 	/** Returns the common settings file.
 
@@ -29184,7 +30272,7 @@ public:
 							the common settings, even if any changes to them can't be saved.
 		@see getUserSettings
 	*/
-	PropertiesFile* getCommonSettings (bool returnUserPropsIfReadOnly) throw();
+	PropertiesFile* getCommonSettings (bool returnUserPropsIfReadOnly);
 
 	/** Saves both files if they need to be saved.
 
@@ -29200,8 +30288,6 @@ public:
 	*/
 	void closeFiles();
 
-	juce_UseDebuggingNewOperator
-
 private:
 
 	ScopedPointer <PropertiesFile> userProps, commonProps;
@@ -29209,11 +30295,11 @@ private:
 	String appName, fileSuffix, folderName;
 	int msBeforeSaving, options;
 	int commonSettingsAreReadOnly;
+	InterProcessLock* processLock;
 
-	ApplicationProperties (const ApplicationProperties&);
-	ApplicationProperties& operator= (const ApplicationProperties&);
+	void openFiles();
 
-	void openFiles() throw();
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ApplicationProperties);
 };
 
 #endif   // __JUCE_APPLICATIONPROPERTIES_JUCEHEADER__
@@ -29236,6 +30322,612 @@ private:
 /*** Start of inlined file: juce_AudioFormatReader.h ***/
 #ifndef __JUCE_AUDIOFORMATREADER_JUCEHEADER__
 #define __JUCE_AUDIOFORMATREADER_JUCEHEADER__
+
+
+/*** Start of inlined file: juce_AudioDataConverters.h ***/
+#ifndef __JUCE_AUDIODATACONVERTERS_JUCEHEADER__
+#define __JUCE_AUDIODATACONVERTERS_JUCEHEADER__
+
+/**
+	This class a container which holds all the classes pertaining to the AudioData::Pointer
+	audio sample format class.
+
+	@see AudioData::Pointer.
+*/
+class JUCE_API  AudioData
+{
+public:
+
+	// These types can be used as the SampleFormat template parameter for the AudioData::Pointer class.
+
+	class Int8;	   /**< Used as a template parameter for AudioData::Pointer. Indicates an 8-bit integer packed data format. */
+	class UInt8;	  /**< Used as a template parameter for AudioData::Pointer. Indicates an 8-bit unsigned integer packed data format. */
+	class Int16;	  /**< Used as a template parameter for AudioData::Pointer. Indicates an 16-bit integer packed data format. */
+	class Int24;	  /**< Used as a template parameter for AudioData::Pointer. Indicates an 24-bit integer packed data format. */
+	class Int32;	  /**< Used as a template parameter for AudioData::Pointer. Indicates an 32-bit integer packed data format. */
+	class Float32;	/**< Used as a template parameter for AudioData::Pointer. Indicates an 32-bit float data format. */
+
+	// These types can be used as the Endianness template parameter for the AudioData::Pointer class.
+
+	class BigEndian;	  /**< Used as a template parameter for AudioData::Pointer. Indicates that the samples are stored in big-endian order. */
+	class LittleEndian;   /**< Used as a template parameter for AudioData::Pointer. Indicates that the samples are stored in little-endian order. */
+	class NativeEndian;   /**< Used as a template parameter for AudioData::Pointer. Indicates that the samples are stored in the CPU's native endianness. */
+
+	// These types can be used as the InterleavingType template parameter for the AudioData::Pointer class.
+
+	class NonInterleaved; /**< Used as a template parameter for AudioData::Pointer. Indicates that the samples are stored contiguously. */
+	class Interleaved;	/**< Used as a template parameter for AudioData::Pointer. Indicates that the samples are interleaved with a number of other channels. */
+
+	// These types can be used as the Constness template parameter for the AudioData::Pointer class.
+
+	class NonConst; /**< Used as a template parameter for AudioData::Pointer. Indicates that the pointer can be used for non-const data. */
+	class Const;	/**< Used as a template parameter for AudioData::Pointer. Indicates that the samples can only be used for const data.. */
+
+  #ifndef DOXYGEN
+
+	class BigEndian
+	{
+	public:
+		template <class SampleFormatType> static inline float getAsFloat (SampleFormatType& s) throw()			  { return s.getAsFloatBE(); }
+		template <class SampleFormatType> static inline void setAsFloat (SampleFormatType& s, float newValue) throw()	   { s.setAsFloatBE (newValue); }
+		template <class SampleFormatType> static inline int32 getAsInt32 (SampleFormatType& s) throw()			  { return s.getAsInt32BE(); }
+		template <class SampleFormatType> static inline void setAsInt32 (SampleFormatType& s, int32 newValue) throw()	   { s.setAsInt32BE (newValue); }
+		template <class SourceType, class DestType> static inline void copyFrom (DestType& dest, SourceType& source) throw()	{ dest.copyFromBE (source); }
+		enum { isBigEndian = 1 };
+	};
+
+	class LittleEndian
+	{
+	public:
+		template <class SampleFormatType> static inline float getAsFloat (SampleFormatType& s) throw()			  { return s.getAsFloatLE(); }
+		template <class SampleFormatType> static inline void setAsFloat (SampleFormatType& s, float newValue) throw()	   { s.setAsFloatLE (newValue); }
+		template <class SampleFormatType> static inline int32 getAsInt32 (SampleFormatType& s) throw()			  { return s.getAsInt32LE(); }
+		template <class SampleFormatType> static inline void setAsInt32 (SampleFormatType& s, int32 newValue) throw()	   { s.setAsInt32LE (newValue); }
+		template <class SourceType, class DestType> static inline void copyFrom (DestType& dest, SourceType& source) throw()	{ dest.copyFromLE (source); }
+		enum { isBigEndian = 0 };
+	};
+
+	#if JUCE_BIG_ENDIAN
+	 class NativeEndian   : public BigEndian  {};
+	#else
+	 class NativeEndian   : public LittleEndian  {};
+	#endif
+
+	class Int8
+	{
+	public:
+		inline Int8 (void* data_) throw()   : data (static_cast <int8*> (data_))  {}
+
+		inline void advance() throw()			   { ++data; }
+		inline void skip (int numSamples) throw()		   { data += numSamples; }
+		inline float getAsFloatLE() const throw()		   { return (float) (*data * (1.0 / (1.0 + maxValue))); }
+		inline float getAsFloatBE() const throw()		   { return getAsFloatLE(); }
+		inline void setAsFloatLE (float newValue) throw()	   { *data = (int8) jlimit ((int) -maxValue, (int) maxValue, roundToInt (newValue * (1.0 + maxValue))); }
+		inline void setAsFloatBE (float newValue) throw()	   { setAsFloatLE (newValue); }
+		inline int32 getAsInt32LE() const throw()		   { return (int) (*data << 24); }
+		inline int32 getAsInt32BE() const throw()		   { return getAsInt32LE(); }
+		inline void setAsInt32LE (int newValue) throw()	 { *data = (int8) (newValue >> 24); }
+		inline void setAsInt32BE (int newValue) throw()	 { setAsInt32LE (newValue); }
+		inline void clear() throw()				 { *data = 0; }
+		inline void clearMultiple (int num) throw()		 { zeromem (data, num * bytesPerSample) ;}
+		template <class SourceType> inline void copyFromLE (SourceType& source) throw()	 { setAsInt32LE (source.getAsInt32()); }
+		template <class SourceType> inline void copyFromBE (SourceType& source) throw()	 { setAsInt32BE (source.getAsInt32()); }
+		inline void copyFromSameType (Int8& source) throw()	 { *data = *source.data; }
+
+		int8* data;
+		enum { bytesPerSample = 1, maxValue = 0x7f, resolution = (1 << 24), isFloat = 0 };
+	};
+
+	class UInt8
+	{
+	public:
+		inline UInt8 (void* data_) throw()   : data (static_cast <uint8*> (data_))  {}
+
+		inline void advance() throw()			   { ++data; }
+		inline void skip (int numSamples) throw()		   { data += numSamples; }
+		inline float getAsFloatLE() const throw()		   { return (float) ((*data - 128) * (1.0 / (1.0 + maxValue))); }
+		inline float getAsFloatBE() const throw()		   { return getAsFloatLE(); }
+		inline void setAsFloatLE (float newValue) throw()	   { *data = (uint8) jlimit (0, 255, 128 + roundToInt (newValue * (1.0 + maxValue))); }
+		inline void setAsFloatBE (float newValue) throw()	   { setAsFloatLE (newValue); }
+		inline int32 getAsInt32LE() const throw()		   { return (int) ((*data - 128) << 24); }
+		inline int32 getAsInt32BE() const throw()		   { return getAsInt32LE(); }
+		inline void setAsInt32LE (int newValue) throw()	 { *data = (uint8) (128 + (newValue >> 24)); }
+		inline void setAsInt32BE (int newValue) throw()	 { setAsInt32LE (newValue); }
+		inline void clear() throw()				 { *data = 128; }
+		inline void clearMultiple (int num) throw()		 { memset (data, 128, num) ;}
+		template <class SourceType> inline void copyFromLE (SourceType& source) throw()	 { setAsInt32LE (source.getAsInt32()); }
+		template <class SourceType> inline void copyFromBE (SourceType& source) throw()	 { setAsInt32BE (source.getAsInt32()); }
+		inline void copyFromSameType (UInt8& source) throw()	{ *data = *source.data; }
+
+		uint8* data;
+		enum { bytesPerSample = 1, maxValue = 0x7f, resolution = (1 << 24), isFloat = 0 };
+	};
+
+	class Int16
+	{
+	public:
+		inline Int16 (void* data_) throw()   : data (static_cast <uint16*> (data_))  {}
+
+		inline void advance() throw()			   { ++data; }
+		inline void skip (int numSamples) throw()		   { data += numSamples; }
+		inline float getAsFloatLE() const throw()		   { return (float) ((1.0 / (1.0 + maxValue)) * (int16) ByteOrder::swapIfBigEndian (*data)); }
+		inline float getAsFloatBE() const throw()		   { return (float) ((1.0 / (1.0 + maxValue)) * (int16) ByteOrder::swapIfLittleEndian (*data)); }
+		inline void setAsFloatLE (float newValue) throw()	   { *data = ByteOrder::swapIfBigEndian ((uint16) jlimit ((int16) -maxValue, (int16) maxValue, (int16) roundToInt (newValue * (1.0 + maxValue)))); }
+		inline void setAsFloatBE (float newValue) throw()	   { *data = ByteOrder::swapIfLittleEndian ((uint16) jlimit ((int16) -maxValue, (int16) maxValue, (int16) roundToInt (newValue * (1.0 + maxValue)))); }
+		inline int32 getAsInt32LE() const throw()		   { return (int32) (ByteOrder::swapIfBigEndian ((uint16) *data) << 16); }
+		inline int32 getAsInt32BE() const throw()		   { return (int32) (ByteOrder::swapIfLittleEndian ((uint16) *data) << 16); }
+		inline void setAsInt32LE (int32 newValue) throw()	   { *data = ByteOrder::swapIfBigEndian ((uint16) (newValue >> 16)); }
+		inline void setAsInt32BE (int32 newValue) throw()	   { *data = ByteOrder::swapIfLittleEndian ((uint16) (newValue >> 16)); }
+		inline void clear() throw()				 { *data = 0; }
+		inline void clearMultiple (int num) throw()		 { zeromem (data, num * bytesPerSample) ;}
+		template <class SourceType> inline void copyFromLE (SourceType& source) throw()	 { setAsInt32LE (source.getAsInt32()); }
+		template <class SourceType> inline void copyFromBE (SourceType& source) throw()	 { setAsInt32BE (source.getAsInt32()); }
+		inline void copyFromSameType (Int16& source) throw()	{ *data = *source.data; }
+
+		uint16* data;
+		enum { bytesPerSample = 2, maxValue = 0x7fff, resolution = (1 << 16), isFloat = 0 };
+	};
+
+	class Int24
+	{
+	public:
+		inline Int24 (void* data_) throw()   : data (static_cast <char*> (data_))  {}
+
+		inline void advance() throw()			   { data += 3; }
+		inline void skip (int numSamples) throw()		   { data += 3 * numSamples; }
+		inline float getAsFloatLE() const throw()		   { return (float) (ByteOrder::littleEndian24Bit (data) * (1.0 / (1.0 + maxValue))); }
+		inline float getAsFloatBE() const throw()		   { return (float) (ByteOrder::bigEndian24Bit (data) * (1.0 / (1.0 + maxValue))); }
+		inline void setAsFloatLE (float newValue) throw()	   { ByteOrder::littleEndian24BitToChars (jlimit ((int) -maxValue, (int) maxValue, roundToInt (newValue * (1.0 + maxValue))), data); }
+		inline void setAsFloatBE (float newValue) throw()	   { ByteOrder::bigEndian24BitToChars (jlimit ((int) -maxValue, (int) maxValue, roundToInt (newValue * (1.0 + maxValue))), data); }
+		inline int32 getAsInt32LE() const throw()		   { return (int32) ByteOrder::littleEndian24Bit (data) << 8; }
+		inline int32 getAsInt32BE() const throw()		   { return (int32) ByteOrder::bigEndian24Bit (data) << 8; }
+		inline void setAsInt32LE (int32 newValue) throw()	   { ByteOrder::littleEndian24BitToChars (newValue >> 8, data); }
+		inline void setAsInt32BE (int32 newValue) throw()	   { ByteOrder::bigEndian24BitToChars (newValue >> 8, data); }
+		inline void clear() throw()				 { data[0] = 0; data[1] = 0; data[2] = 0; }
+		inline void clearMultiple (int num) throw()		 { zeromem (data, num * bytesPerSample) ;}
+		template <class SourceType> inline void copyFromLE (SourceType& source) throw()	 { setAsInt32LE (source.getAsInt32()); }
+		template <class SourceType> inline void copyFromBE (SourceType& source) throw()	 { setAsInt32BE (source.getAsInt32()); }
+		inline void copyFromSameType (Int24& source) throw()	{ data[0] = source.data[0]; data[1] = source.data[1]; data[2] = source.data[2]; }
+
+		char* data;
+		enum { bytesPerSample = 3, maxValue = 0x7fffff, resolution = (1 << 8), isFloat = 0 };
+	};
+
+	class Int32
+	{
+	public:
+		inline Int32 (void* data_) throw()   : data (static_cast <uint32*> (data_))  {}
+
+		inline void advance() throw()			   { ++data; }
+		inline void skip (int numSamples) throw()		   { data += numSamples; }
+		inline float getAsFloatLE() const throw()		   { return (float) ((1.0 / (1.0 + maxValue)) * (int32) ByteOrder::swapIfBigEndian (*data)); }
+		inline float getAsFloatBE() const throw()		   { return (float) ((1.0 / (1.0 + maxValue)) * (int32) ByteOrder::swapIfLittleEndian (*data)); }
+		inline void setAsFloatLE (float newValue) throw()	   { *data = ByteOrder::swapIfBigEndian ((uint32) jlimit ((int) -maxValue, (int) maxValue, roundToInt (newValue * (1.0 + maxValue)))); }
+		inline void setAsFloatBE (float newValue) throw()	   { *data = ByteOrder::swapIfLittleEndian ((uint32) jlimit ((int) -maxValue, (int) maxValue, roundToInt (newValue * (1.0 + maxValue)))); }
+		inline int32 getAsInt32LE() const throw()		   { return (int32) ByteOrder::swapIfBigEndian (*data); }
+		inline int32 getAsInt32BE() const throw()		   { return (int32) ByteOrder::swapIfLittleEndian (*data); }
+		inline void setAsInt32LE (int32 newValue) throw()	   { *data = ByteOrder::swapIfBigEndian ((uint32) newValue); }
+		inline void setAsInt32BE (int32 newValue) throw()	   { *data = ByteOrder::swapIfLittleEndian ((uint32) newValue); }
+		inline void clear() throw()				 { *data = 0; }
+		inline void clearMultiple (int num) throw()		 { zeromem (data, num * bytesPerSample) ;}
+		template <class SourceType> inline void copyFromLE (SourceType& source) throw()	 { setAsInt32LE (source.getAsInt32()); }
+		template <class SourceType> inline void copyFromBE (SourceType& source) throw()	 { setAsInt32BE (source.getAsInt32()); }
+		inline void copyFromSameType (Int32& source) throw()	{ *data = *source.data; }
+
+		uint32* data;
+		enum { bytesPerSample = 4, maxValue = 0x7fffffff, resolution = 1, isFloat = 0 };
+	};
+
+	class Float32
+	{
+	public:
+		inline Float32 (void* data_) throw()  : data (static_cast <float*> (data_))  {}
+
+		inline void advance() throw()			   { ++data; }
+		inline void skip (int numSamples) throw()		   { data += numSamples; }
+	   #if JUCE_BIG_ENDIAN
+		inline float getAsFloatBE() const throw()		   { return *data; }
+		inline void setAsFloatBE (float newValue) throw()	   { *data = newValue; }
+		inline float getAsFloatLE() const throw()		   { union { uint32 asInt; float asFloat; } n; n.asInt = ByteOrder::swap (*(uint32*) data); return n.asFloat; }
+		inline void setAsFloatLE (float newValue) throw()	   { union { uint32 asInt; float asFloat; } n; n.asFloat = newValue; *(uint32*) data = ByteOrder::swap (n.asInt); }
+	   #else
+		inline float getAsFloatLE() const throw()		   { return *data; }
+		inline void setAsFloatLE (float newValue) throw()	   { *data = newValue; }
+		inline float getAsFloatBE() const throw()		   { union { uint32 asInt; float asFloat; } n; n.asInt = ByteOrder::swap (*(uint32*) data); return n.asFloat; }
+		inline void setAsFloatBE (float newValue) throw()	   { union { uint32 asInt; float asFloat; } n; n.asFloat = newValue; *(uint32*) data = ByteOrder::swap (n.asInt); }
+	   #endif
+		inline int32 getAsInt32LE() const throw()		   { return (int32) roundToInt (jlimit (-1.0f, 1.0f, getAsFloatLE()) * (1.0 + maxValue)); }
+		inline int32 getAsInt32BE() const throw()		   { return (int32) roundToInt (jlimit (-1.0f, 1.0f, getAsFloatBE()) * (1.0 + maxValue)); }
+		inline void setAsInt32LE (int32 newValue) throw()	   { setAsFloatLE ((float) (newValue * (1.0 / (1.0 + maxValue)))); }
+		inline void setAsInt32BE (int32 newValue) throw()	   { setAsFloatBE ((float) (newValue * (1.0 / (1.0 + maxValue)))); }
+		inline void clear() throw()				 { *data = 0; }
+		inline void clearMultiple (int num) throw()		 { zeromem (data, num * bytesPerSample) ;}
+		template <class SourceType> inline void copyFromLE (SourceType& source) throw()	 { setAsFloatLE (source.getAsFloat()); }
+		template <class SourceType> inline void copyFromBE (SourceType& source) throw()	 { setAsFloatBE (source.getAsFloat()); }
+		inline void copyFromSameType (Float32& source) throw()  { *data = *source.data; }
+
+		float* data;
+		enum { bytesPerSample = 4, maxValue = 0x7fffffff, resolution = (1 << 8), isFloat = 1 };
+	};
+
+	class NonInterleaved
+	{
+	public:
+		inline NonInterleaved() throw() {}
+		inline NonInterleaved (const NonInterleaved&) throw() {}
+		inline NonInterleaved (const int) throw() {}
+		inline void copyFrom (const NonInterleaved&) throw() {}
+		template <class SampleFormatType> inline void advanceData (SampleFormatType& s) throw()			 { s.advance(); }
+		template <class SampleFormatType> inline void advanceDataBy (SampleFormatType& s, int numSamples) throw()   { s.skip (numSamples); }
+		template <class SampleFormatType> inline void clear (SampleFormatType& s, int numSamples) throw()	   { s.clearMultiple (numSamples); }
+		template <class SampleFormatType> inline static int getNumBytesBetweenSamples (const SampleFormatType&) throw() { return SampleFormatType::bytesPerSample; }
+
+		enum { isInterleavedType = 0, numInterleavedChannels = 1 };
+	};
+
+	class Interleaved
+	{
+	public:
+		inline Interleaved() throw() : numInterleavedChannels (1) {}
+		inline Interleaved (const Interleaved& other) throw() : numInterleavedChannels (other.numInterleavedChannels) {}
+		inline Interleaved (const int numInterleavedChannels_) throw() : numInterleavedChannels (numInterleavedChannels_) {}
+		inline void copyFrom (const Interleaved& other) throw()  { numInterleavedChannels = other.numInterleavedChannels; }
+		template <class SampleFormatType> inline void advanceData (SampleFormatType& s) throw()			 { s.skip (numInterleavedChannels); }
+		template <class SampleFormatType> inline void advanceDataBy (SampleFormatType& s, int numSamples) throw()   { s.skip (numInterleavedChannels * numSamples); }
+		template <class SampleFormatType> inline void clear (SampleFormatType& s, int numSamples) throw()	   { while (--numSamples >= 0) { s.clear(); s.skip (numInterleavedChannels); } }
+		template <class SampleFormatType> inline int getNumBytesBetweenSamples (const SampleFormatType&) const throw()  { return numInterleavedChannels * SampleFormatType::bytesPerSample; }
+		int numInterleavedChannels;
+		enum { isInterleavedType = 1 };
+	};
+
+	class NonConst
+	{
+	public:
+		typedef void VoidType;
+		static inline void* toVoidPtr (VoidType* v) throw() { return v; }
+		enum { isConst = 0 };
+	};
+
+	class Const
+	{
+	public:
+		typedef const void VoidType;
+		static inline void* toVoidPtr (VoidType* v) throw() { return const_cast<void*> (v); }
+		enum { isConst = 1 };
+	};
+  #endif
+
+	/**
+		A pointer to a block of audio data with a particular encoding.
+
+		This object can be used to read and write from blocks of encoded audio samples. To create one, you specify
+		the audio format as a series of template parameters, e.g.
+		@code
+		// this creates a pointer for reading from a const array of 16-bit little-endian packed samples.
+		AudioData::Pointer <AudioData::Int16,
+							AudioData::LittleEndian,
+							AudioData::NonInterleaved,
+							AudioData::Const> pointer (someRawAudioData);
+
+		// These methods read the sample that is being pointed to
+		float firstSampleAsFloat = pointer.getAsFloat();
+		int32 firstSampleAsInt = pointer.getAsInt32();
+		++pointer; // moves the pointer to the next sample.
+		pointer += 3; // skips the next 3 samples.
+		@endcode
+
+		The convertSamples() method lets you copy a range of samples from one format to another, automatically
+		converting its format.
+
+		@see AudioData::Converter
+	*/
+	template <typename SampleFormat,
+			  typename Endianness,
+			  typename InterleavingType,
+			  typename Constness>
+	class Pointer
+	{
+	public:
+
+		/** Creates a non-interleaved pointer from some raw data in the appropriate format.
+			This constructor is only used if you've specified the AudioData::NonInterleaved option -
+			for interleaved formats, use the constructor that also takes a number of channels.
+		*/
+		Pointer (typename Constness::VoidType* sourceData) throw()
+			: data (Constness::toVoidPtr (sourceData))
+		{
+			// If you're using interleaved data, call the other constructor! If you're using non-interleaved data,
+			// you should pass NonInterleaved as the template parameter for the interleaving type!
+			static_jassert (InterleavingType::isInterleavedType == 0);
+		}
+
+		/** Creates a pointer from some raw data in the appropriate format with the specified number of interleaved channels.
+			For non-interleaved data, use the other constructor.
+		*/
+		Pointer (typename Constness::VoidType* sourceData, int numInterleavedChannels) throw()
+			: data (Constness::toVoidPtr (sourceData)),
+			  interleaving (numInterleavedChannels)
+		{
+		}
+
+		/** Creates a copy of another pointer. */
+		Pointer (const Pointer& other) throw()
+			: data (other.data),
+			  interleaving (other.interleaving)
+		{
+		}
+
+		Pointer& operator= (const Pointer& other) throw()
+		{
+			data = other.data;
+			interleaving.copyFrom (other.interleaving);
+			return *this;
+		}
+
+		/** Returns the value of the first sample as a floating point value.
+			The value will be in the range -1.0 to 1.0 for integer formats. For floating point
+			formats, the value could be outside that range, although -1 to 1 is the standard range.
+		*/
+		inline float getAsFloat() const throw()		 { return Endianness::getAsFloat (data); }
+
+		/** Sets the value of the first sample as a floating point value.
+
+			(This method can only be used if the AudioData::NonConst option was used).
+			The value should be in the range -1.0 to 1.0 - for integer formats, values outside that
+			range will be clipped. For floating point formats, any value passed in here will be
+			written directly, although -1 to 1 is the standard range.
+		*/
+		inline void setAsFloat (float newValue) throw()
+		{
+			static_jassert (Constness::isConst == 0); // trying to write to a const pointer! For a writeable one, use AudioData::NonConst instead!
+			Endianness::setAsFloat (data, newValue);
+		}
+
+		/** Returns the value of the first sample as a 32-bit integer.
+			The value returned will be in the range 0x80000000 to 0x7fffffff, and shorter values will be
+			shifted to fill this range (e.g. if you're reading from 24-bit data, the values will be shifted up
+			by 8 bits when returned here). If the source data is floating point, values beyond -1.0 to 1.0 will
+			be clipped so that -1.0 maps onto -0x7fffffff and 1.0 maps to 0x7fffffff.
+		*/
+		inline int32 getAsInt32() const throw()		 { return Endianness::getAsInt32 (data); }
+
+		/** Sets the value of the first sample as a 32-bit integer.
+			This will be mapped to the range of the format that is being written - see getAsInt32().
+		*/
+		inline void setAsInt32 (int32 newValue) throw()
+		{
+			static_jassert (Constness::isConst == 0); // trying to write to a const pointer! For a writeable one, use AudioData::NonConst instead!
+			Endianness::setAsInt32 (data, newValue);
+		}
+
+		/** Moves the pointer along to the next sample. */
+		inline Pointer& operator++() throw()			{ advance(); return *this; }
+
+		/** Moves the pointer back to the previous sample. */
+		inline Pointer& operator--() throw()			{ interleaving.advanceDataBy (data, -1); return *this; }
+
+		/** Adds a number of samples to the pointer's position. */
+		Pointer& operator+= (int samplesToJump) throw()	 { interleaving.advanceDataBy (data, samplesToJump); return *this; }
+
+		/** Writes a stream of samples into this pointer from another pointer.
+			This will copy the specified number of samples, converting between formats appropriately.
+		*/
+		void convertSamples (Pointer source, int numSamples) const throw()
+		{
+			static_jassert (Constness::isConst == 0); // trying to write to a const pointer! For a writeable one, use AudioData::NonConst instead!
+
+			Pointer dest (*this);
+			while (--numSamples >= 0)
+			{
+				dest.data.copyFromSameType (source.data);
+				dest.advance();
+				source.advance();
+			}
+		}
+
+		/** Writes a stream of samples into this pointer from another pointer.
+			This will copy the specified number of samples, converting between formats appropriately.
+		*/
+		template <class OtherPointerType>
+		void convertSamples (OtherPointerType source, int numSamples) const throw()
+		{
+			static_jassert (Constness::isConst == 0); // trying to write to a const pointer! For a writeable one, use AudioData::NonConst instead!
+
+			Pointer dest (*this);
+
+			if (source.getRawData() != getRawData() || source.getNumBytesBetweenSamples() >= getNumBytesBetweenSamples())
+			{
+				while (--numSamples >= 0)
+				{
+					Endianness::copyFrom (dest.data, source);
+					dest.advance();
+					++source;
+				}
+			}
+			else // copy backwards if we're increasing the sample width..
+			{
+				dest += numSamples;
+				source += numSamples;
+
+				while (--numSamples >= 0)
+					Endianness::copyFrom ((--dest).data, --source);
+			}
+		}
+
+		/** Sets a number of samples to zero. */
+		void clearSamples (int numSamples) const throw()
+		{
+			Pointer dest (*this);
+			dest.interleaving.clear (dest.data, numSamples);
+		}
+
+		/** Returns true if the pointer is using a floating-point format. */
+		static bool isFloatingPoint() throw()		   { return (bool) SampleFormat::isFloat; }
+
+		/** Returns true if the format is big-endian. */
+		static bool isBigEndian() throw()			   { return (bool) Endianness::isBigEndian; }
+
+		/** Returns the number of bytes in each sample (ignoring the number of interleaved channels). */
+		static int getBytesPerSample() throw()		  { return (int) SampleFormat::bytesPerSample; }
+
+		/** Returns the number of interleaved channels in the format. */
+		int getNumInterleavedChannels() const throw()	   { return (int) this->numInterleavedChannels; }
+
+		/** Returns the number of bytes between the start address of each sample. */
+		int getNumBytesBetweenSamples() const throw()	   { return interleaving.getNumBytesBetweenSamples (data); }
+
+		/** Returns the accuracy of this format when represented as a 32-bit integer.
+			This is the smallest number above 0 that can be represented in the sample format, converted to
+			a 32-bit range. E,g. if the format is 8-bit, its resolution is 0x01000000; if the format is 24-bit,
+			its resolution is 0x100.
+		*/
+		static int get32BitResolution() throw()		 { return (int) SampleFormat::resolution; }
+
+		/** Returns a pointer to the underlying data. */
+		const void* getRawData() const throw()		  { return data.data; }
+
+	private:
+
+		SampleFormat data;
+		InterleavingType interleaving;  // annoyingly, making the interleaving type a superclass to take
+										// advantage of EBCO causes an internal compiler error in VC6..
+
+		inline void advance() throw()			   { interleaving.advanceData (data); }
+
+		Pointer operator++ (int); // private to force you to use the more efficient pre-increment!
+		Pointer operator-- (int);
+	};
+
+	/** A base class for objects that are used to convert between two different sample formats.
+
+		The AudioData::ConverterInstance implements this base class and can be templated, so
+		you can create an instance that converts between two particular formats, and then
+		store this in the abstract base class.
+
+		@see AudioData::ConverterInstance
+	*/
+	class Converter
+	{
+	public:
+		virtual ~Converter() {}
+
+		/** Converts a sequence of samples from the converter's source format into the dest format. */
+		virtual void convertSamples (void* destSamples, const void* sourceSamples, int numSamples) const = 0;
+
+		/** Converts a sequence of samples from the converter's source format into the dest format.
+			This method takes sub-channel indexes, which can be used with interleaved formats in order to choose a
+			particular sub-channel of the data to be used.
+		*/
+		virtual void convertSamples (void* destSamples, int destSubChannel,
+									 const void* sourceSamples, int sourceSubChannel, int numSamples) const = 0;
+	};
+
+	/**
+		A class that converts between two templated AudioData::Pointer types, and which
+		implements the AudioData::Converter interface.
+
+		This can be used as a concrete instance of the AudioData::Converter abstract class.
+
+		@see AudioData::Converter
+	*/
+	template <class SourceSampleType, class DestSampleType>
+	class ConverterInstance  : public Converter
+	{
+	public:
+		ConverterInstance (int numSourceChannels = 1, int numDestChannels = 1)
+			: sourceChannels (numSourceChannels), destChannels (numDestChannels)
+		{}
+
+		~ConverterInstance() {}
+
+		void convertSamples (void* dest, const void* source, int numSamples) const
+		{
+			SourceSampleType s (source, sourceChannels);
+			DestSampleType d (dest, destChannels);
+			d.convertSamples (s, numSamples);
+		}
+
+		void convertSamples (void* dest, int destSubChannel,
+							 const void* source, int sourceSubChannel, int numSamples) const
+		{
+			jassert (destSubChannel < destChannels && sourceSubChannel < sourceChannels);
+
+			SourceSampleType s (addBytesToPointer (source, sourceSubChannel * SourceSampleType::getBytesPerSample()), sourceChannels);
+			DestSampleType d (addBytesToPointer (dest, destSubChannel * DestSampleType::getBytesPerSample()), destChannels);
+			d.convertSamples (s, numSamples);
+		}
+
+	private:
+		JUCE_DECLARE_NON_COPYABLE (ConverterInstance);
+
+		const int sourceChannels, destChannels;
+	};
+};
+
+/**
+	A set of routines to convert buffers of 32-bit floating point data to and from
+	various integer formats.
+
+*/
+class JUCE_API  AudioDataConverters
+{
+public:
+
+	static void convertFloatToInt16LE (const float* source, void* dest, int numSamples, int destBytesPerSample = 2);
+	static void convertFloatToInt16BE (const float* source, void* dest, int numSamples, int destBytesPerSample = 2);
+
+	static void convertFloatToInt24LE (const float* source, void* dest, int numSamples, int destBytesPerSample = 3);
+	static void convertFloatToInt24BE (const float* source, void* dest, int numSamples, int destBytesPerSample = 3);
+
+	static void convertFloatToInt32LE (const float* source, void* dest, int numSamples, int destBytesPerSample = 4);
+	static void convertFloatToInt32BE (const float* source, void* dest, int numSamples, int destBytesPerSample = 4);
+
+	static void convertFloatToFloat32LE (const float* source, void* dest, int numSamples, int destBytesPerSample = 4);
+	static void convertFloatToFloat32BE (const float* source, void* dest, int numSamples, int destBytesPerSample = 4);
+
+	static void convertInt16LEToFloat (const void* source, float* dest, int numSamples, int srcBytesPerSample = 2);
+	static void convertInt16BEToFloat (const void* source, float* dest, int numSamples, int srcBytesPerSample = 2);
+
+	static void convertInt24LEToFloat (const void* source, float* dest, int numSamples, int srcBytesPerSample = 3);
+	static void convertInt24BEToFloat (const void* source, float* dest, int numSamples, int srcBytesPerSample = 3);
+
+	static void convertInt32LEToFloat (const void* source, float* dest, int numSamples, int srcBytesPerSample = 4);
+	static void convertInt32BEToFloat (const void* source, float* dest, int numSamples, int srcBytesPerSample = 4);
+
+	static void convertFloat32LEToFloat (const void* source, float* dest, int numSamples, int srcBytesPerSample = 4);
+	static void convertFloat32BEToFloat (const void* source, float* dest, int numSamples, int srcBytesPerSample = 4);
+
+	enum DataFormat
+	{
+		int16LE,
+		int16BE,
+		int24LE,
+		int24BE,
+		int32LE,
+		int32BE,
+		float32LE,
+		float32BE,
+	};
+
+	static void convertFloatToFormat (DataFormat destFormat,
+									  const float* source, void* dest, int numSamples);
+
+	static void convertFormatToFloat (DataFormat sourceFormat,
+									  const void* source, float* dest, int numSamples);
+
+	static void interleaveSamples (const float** source, float* dest,
+								   int numSamples, int numChannels);
+
+	static void deinterleaveSamples (const float* source, float** dest,
+									 int numSamples, int numChannels);
+
+private:
+	AudioDataConverters();
+	JUCE_DECLARE_NON_COPYABLE (AudioDataConverters);
+};
+
+#endif   // __JUCE_AUDIODATACONVERTERS_JUCEHEADER__
+/*** End of inlined file: juce_AudioDataConverters.h ***/
 
 class AudioFormat;
 
@@ -29311,7 +31003,7 @@ public:
 									error - the reader should just return zeros for these regions
 		@see readMaxLevels
 	*/
-	bool read (int** destSamples,
+	bool read (int* const* destSamples,
 			   int numDestChannels,
 			   int64 startSampleInSource,
 			   int numSamplesToRead,
@@ -29416,13 +31108,37 @@ public:
 							  int64 startSampleInFile,
 							  int numSamples) = 0;
 
-	juce_UseDebuggingNewOperator
+protected:
+
+	/** Used by AudioFormatReader subclasses to copy data to different formats. */
+	template <class DestSampleType, class SourceSampleType, class SourceEndianness>
+	struct ReadHelper
+	{
+		typedef AudioData::Pointer <DestSampleType, AudioData::NativeEndian, AudioData::NonInterleaved, AudioData::NonConst>	DestType;
+		typedef AudioData::Pointer <SourceSampleType, SourceEndianness, AudioData::Interleaved, AudioData::Const>		   SourceType;
+
+		static void read (int** destData, int destOffset, int numDestChannels, const void* sourceData, int numSourceChannels, int numSamples) throw()
+		{
+			for (int i = 0; i < numDestChannels; ++i)
+			{
+				if (destData[i] != 0)
+				{
+					DestType dest (destData[i]);
+					dest += destOffset;
+
+					if (i < numSourceChannels)
+						dest.convertSamples (SourceType (addBytesToPointer (sourceData, i * SourceType::getBytesPerSample()), numSourceChannels), numSamples);
+					else
+						dest.clearSamples (numSamples);
+				}
+			}
+		}
+	};
 
 private:
 	String formatName;
 
-	AudioFormatReader (const AudioFormatReader&);
-	AudioFormatReader& operator= (const AudioFormatReader&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioFormatReader);
 };
 
 #endif   // __JUCE_AUDIOFORMATREADER_JUCEHEADER__
@@ -29523,7 +31239,7 @@ public:
 	*/
 	float* getSampleData (const int channelNumber) const throw()
 	{
-		jassert (((unsigned int) channelNumber) < (unsigned int) numChannels);
+		jassert (isPositiveAndBelow (channelNumber, numChannels));
 		return channels [channelNumber];
 	}
 
@@ -29535,8 +31251,8 @@ public:
 	float* getSampleData (const int channelNumber,
 						  const int sampleOffset) const throw()
 	{
-		jassert (((unsigned int) channelNumber) < (unsigned int) numChannels);
-		jassert (((unsigned int) sampleOffset) < (unsigned int) size);
+		jassert (isPositiveAndBelow (channelNumber, numChannels));
+		jassert (isPositiveAndBelow (sampleOffset, size));
 		return channels [channelNumber] + sampleOffset;
 	}
 
@@ -29547,7 +31263,7 @@ public:
 	*/
 	float** getArrayOfChannels() const throw()	  { return channels; }
 
-	/** Chages the buffer's size or number of channels.
+	/** Changes the buffer's size or number of channels.
 
 		This can expand or contract the buffer's length, and add or remove channels.
 
@@ -29828,9 +31544,8 @@ public:
 							 int startSample,
 							 int numSamples) const;
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	int numChannels, size;
 	size_t allocatedBytes;
 	float** channels;
@@ -29839,6 +31554,8 @@ private:
 
 	void allocateData();
 	void allocateChannels (float** dataToReferTo);
+
+	JUCE_LEAK_DETECTOR (AudioSampleBuffer);
 };
 
 #endif   // __JUCE_AUDIOSAMPLEBUFFER_JUCEHEADER__
@@ -29886,6 +31603,15 @@ struct JUCE_API  AudioSourceChannelInfo
 /**
 	Base class for objects that can produce a continuous stream of audio.
 
+	An AudioSource has two states: 'prepared' and 'unprepared'.
+
+	When a source needs to be played, it is first put into a 'prepared' state by a call to
+	prepareToPlay(), and then repeated calls will be made to its getNextAudioBlock() method to
+	process the audio data.
+
+	Once playback has finished, the releaseResources() method is called to put the stream
+	back into an 'unprepared' state.
+
 	@see AudioFormatReaderSource, ResamplingAudioSource
 */
 class JUCE_API  AudioSource
@@ -29901,7 +31627,14 @@ public:
 
 	/** Tells the source to prepare for playing.
 
-		The source can use this opportunity to initialise anything it needs to.
+		An AudioSource has two states: prepared and unprepared.
+
+		The prepareToPlay() method is guaranteed to be called at least once on an 'unpreprared'
+		source to put it into a 'prepared' state before any calls will be made to getNextAudioBlock().
+		This callback allows the source to initialise any resources it might need when playing.
+
+		Once playback has finished, the releaseResources() method is called to put the stream
+		back into an 'unprepared' state.
 
 		Note that this method could be called more than once in succession without
 		a matching call to releaseResources(), so make sure your code is robust and
@@ -29952,6 +31685,8 @@ public:
 
 #endif   // __JUCE_AUDIOSOURCE_JUCEHEADER__
 /*** End of inlined file: juce_AudioSource.h ***/
+
+class AudioThumbnail;
 
 /**
 	Writes samples to an audio file stream.
@@ -30045,6 +31780,12 @@ public:
 							   int numSamplesToRead,
 							   int samplesPerBlock = 2048);
 
+	/** Writes some samples from an AudioSampleBuffer.
+
+	*/
+	bool writeFromAudioSampleBuffer (const AudioSampleBuffer& source,
+									 int startSample, int numSamples);
+
 	/** Returns the sample rate being used. */
 	double getSampleRate() const throw()	{ return sampleRate; }
 
@@ -30057,9 +31798,58 @@ public:
 	/** Returns true if it's a floating-point format, false if it's fixed-point. */
 	bool isFloatingPoint() const throw()	{ return usesFloatingPointData; }
 
-	juce_UseDebuggingNewOperator
+	/**
+		Provides a FIFO for an AudioFormatWriter, allowing you to push incoming
+		data into a buffer which will be flushed to disk by a background thread.
+	*/
+	class ThreadedWriter
+	{
+	public:
+		/** Creates a ThreadedWriter for a given writer and a thread.
+
+			The writer object which is passed in here will be owned and deleted by
+			the ThreadedWriter when it is no longer needed.
+
+			To stop the writer and flush the buffer to disk, simply delete this object.
+		*/
+		ThreadedWriter (AudioFormatWriter* writer,
+						TimeSliceThread& backgroundThread,
+						int numSamplesToBuffer);
+
+		/** Destructor. */
+		~ThreadedWriter();
+
+		/** Pushes some incoming audio data into the FIFO.
+
+			If there's enough free space in the buffer, this will add the data to it,
+
+			If the FIFO is too full to accept this many samples, the method will return
+			false - then you could either wait until the background thread has had time to
+			consume some of the buffered data and try again, or you can give up
+			and lost this block.
+
+			The data must be an array containing the same number of channels as the
+			AudioFormatWriter object is using. None of these channels can be null.
+		*/
+		bool write (const float** data, int numSamples);
+
+		/** Allows you to specify a thumbnail that this writer should update with the
+			incoming data.
+			The thumbnail will be cleared and will the writer will begin adding data to
+			it as it arrives. Pass a null pointer to stop the writer updating any thumbnails.
+		*/
+		void setThumbnailToUpdate (AudioThumbnail* thumbnailToUpdate);
+
+		/** @internal */
+		class Buffer; // (only public for VC6 compatibility)
+
+	private:
+		friend class ScopedPointer<Buffer>;
+		ScopedPointer<Buffer> buffer;
+	};
 
 protected:
+
 	/** The sample rate of the stream. */
 	double sampleRate;
 
@@ -30075,11 +31865,37 @@ protected:
 	/** The output stream for Use by subclasses. */
 	OutputStream* output;
 
+	/** Used by AudioFormatWriter subclasses to copy data to different formats. */
+	template <class DestSampleType, class SourceSampleType, class DestEndianness>
+	struct WriteHelper
+	{
+		typedef AudioData::Pointer <DestSampleType, DestEndianness, AudioData::Interleaved, AudioData::NonConst>		DestType;
+		typedef AudioData::Pointer <SourceSampleType, AudioData::NativeEndian, AudioData::NonInterleaved, AudioData::Const>	 SourceType;
+
+		static void write (void* destData, int numDestChannels, const int** source, int numSamples) throw()
+		{
+			for (int i = 0; i < numDestChannels; ++i)
+			{
+				const DestType dest (addBytesToPointer (destData, i * DestType::getBytesPerSample()), numDestChannels);
+
+				if (*source != 0)
+				{
+					dest.convertSamples (SourceType (*source), numSamples);
+					++source;
+				}
+				else
+				{
+					dest.clearSamples (numSamples);
+				}
+			}
+		}
+	};
+
 private:
 	String formatName;
+	friend class ThreadedWriter;
 
-	AudioFormatWriter (const AudioFormatWriter&);
-	AudioFormatWriter& operator= (const AudioFormatWriter&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioFormatWriter);
 };
 
 #endif   // __JUCE_AUDIOFORMATWRITER_JUCEHEADER__
@@ -30162,7 +31978,7 @@ public:
 		@see AudioFormatReader
 	*/
 	virtual AudioFormatReader* createReaderFor (InputStream* sourceStream,
-												const bool deleteStreamIfOpeningFails) = 0;
+												bool deleteStreamIfOpeningFails) = 0;
 
 	/** Tries to create an object that can write to a stream with this audio format.
 
@@ -30246,7 +32062,7 @@ public:
 #endif
 
 	AudioFormatReader* createReaderFor (InputStream* sourceStream,
-										const bool deleteStreamIfOpeningFails);
+										bool deleteStreamIfOpeningFails);
 
 	AudioFormatWriter* createWriterFor (OutputStream* streamToWriteTo,
 										double sampleRateToUse,
@@ -30255,7 +32071,8 @@ public:
 										const StringPairArray& metadataValues,
 										int qualityOptionIndex);
 
-	juce_UseDebuggingNewOperator
+private:
+	JUCE_LEAK_DETECTOR (AiffAudioFormat);
 };
 
 #endif   // __JUCE_AIFFAUDIOFORMAT_JUCEHEADER__
@@ -30334,7 +32151,7 @@ public:
 		@returns	true if it's now enabled. If the device doesn't support it, this
 					will always return false.
 	*/
-	bool setBufferUnderrunProtection (const bool shouldBeEnabled);
+	bool setBufferUnderrunProtection (bool shouldBeEnabled);
 
 	/** Returns the number of free blocks on the disk.
 
@@ -30390,14 +32207,15 @@ public:
 	*/
 	void abortBurn();
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	AudioCDBurner (const int deviceIndex);
 
 	class Pimpl;
 	friend class ScopedPointer<Pimpl>;
 	ScopedPointer<Pimpl> pimpl;
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioCDBurner);
 };
 
 #endif
@@ -30532,12 +32350,14 @@ public:
 	*/
 	void ejectDisk();
 
-	static const int framesPerSecond = 75;
-	static const int samplesPerFrame = 44100 / framesPerSecond;
-
-	juce_UseDebuggingNewOperator
+	enum
+	{
+		framesPerSecond = 75,
+		samplesPerFrame = 44100 / framesPerSecond
+	};
 
 private:
+
 	Array<int> trackStartSamples;
 
 #if JUCE_MAC
@@ -30560,8 +32380,7 @@ private:
 	AudioCDReader();
 #endif
 
-	AudioCDReader (const AudioCDReader&);
-	AudioCDReader& operator= (const AudioCDReader&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioCDReader);
 };
 
 #endif
@@ -30678,11 +32497,12 @@ public:
 	*/
 	AudioFormatReader* createReaderFor (InputStream* audioFileStream);
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	OwnedArray<AudioFormat> knownFormats;
 	int defaultFormatIndex;
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioFormatManager);
 };
 
 #endif   // __JUCE_AUDIOFORMATMANAGER_JUCEHEADER__
@@ -30747,15 +32567,13 @@ public:
 						float& lowestRight,
 						float& highestRight);
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	AudioFormatReader* const source;
 	int64 startSample, length;
 	const bool deleteSourceWhenDeleted;
 
-	AudioSubsectionReader (const AudioSubsectionReader&);
-	AudioSubsectionReader& operator= (const AudioSubsectionReader&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioSubsectionReader);
 };
 
 #endif   // __JUCE_AUDIOSUBSECTIONREADER_JUCEHEADER__
@@ -30789,9 +32607,7 @@ class AudioThumbnailCache;
 
 	@see AudioThumbnailCache
 */
-class JUCE_API  AudioThumbnail	: public ChangeBroadcaster,
-									public TimeSliceClient,
-									private Timer
+class JUCE_API  AudioThumbnail	: public ChangeBroadcaster
 {
 public:
 
@@ -30813,6 +32629,9 @@ public:
 	/** Destructor. */
 	~AudioThumbnail();
 
+	/** Clears and resets the thumbnail. */
+	void clear();
+
 	/** Specifies the file or stream that contains the audio file.
 
 		For a file, just call
@@ -30821,35 +32640,58 @@ public:
 		@endcode
 
 		You can pass a zero in here to clear the thumbnail.
-
-		The source that is passed in will be deleted by this object when it is no
-		longer needed
+		The source that is passed in will be deleted by this object when it is no longer needed.
+		@returns true if the source could be opened as a valid audio file, false if this failed for
+		some reason.
 	*/
-	void setSource (InputSource* newSource);
+	bool setSource (InputSource* newSource);
+
+	/** Gives the thumbnail an AudioFormatReader to use directly.
+		This will start parsing the audio in a background thread (unless the hash code
+		can be looked-up successfully in the thumbnail cache). Note that the reader
+		object will be held by the thumbnail and deleted later when no longer needed.
+		The thumbnail will actually keep hold of this reader until you clear the thumbnail
+		or change the input source, so the file will be held open for all this time. If
+		you don't want the thumbnail to keep a file handle open continuously, you
+		should use the setSource() method instead, which will only open the file when
+		it needs to.
+	*/
+	void setReader (AudioFormatReader* newReader, int64 hashCode);
+
+	/** Resets the thumbnail, ready for adding data with the specified format.
+		If you're going to generate a thumbnail yourself, call this before using addBlock()
+		to add the data.
+	*/
+	void reset (int numChannels, double sampleRate);
+
+	/** Adds a block of level data to the thumbnail.
+		Call reset() before using this, to tell the thumbnail about the data format.
+	*/
+	void addBlock (int64 sampleNumberInSource, const AudioSampleBuffer& newData,
+				   int startOffsetInBuffer, int numSamples);
 
 	/** Reloads the low res thumbnail data from an input stream.
 
-		The thumb will automatically attempt to reload itself from its
-		AudioThumbnailCache.
+		This is not an audio file stream! It takes a stream of thumbnail data that would
+		previously have been created by the saveTo() method.
+		@see saveTo
 	*/
 	void loadFrom (InputStream& input);
 
 	/** Saves the low res thumbnail data to an output stream.
 
-		The thumb will automatically attempt to save itself to its
-		AudioThumbnailCache after it finishes scanning the wave file.
+		The data that is written can later be reloaded using loadFrom().
+		@see loadFrom
 	*/
 	void saveTo (OutputStream& output) const;
 
-	/** Returns the number of channels in the file.
-	*/
+	/** Returns the number of channels in the file. */
 	int getNumChannels() const throw();
 
-	/** Returns the length of the audio file, in seconds.
-	*/
+	/** Returns the length of the audio file, in seconds. */
 	double getTotalLength() const throw();
 
-	/** Renders the waveform shape for a channel.
+	/** Draws the waveform for a channel.
 
 		The waveform will be drawn within  the specified rectangle, where startTime
 		and endTime specify the times within the audio file that should be positioned
@@ -30860,51 +32702,65 @@ public:
 		with the verticalZoomFactor parameter.
 	*/
 	void drawChannel (Graphics& g,
-					  int x, int y, int w, int h,
+					  const Rectangle<int>& area,
 					  double startTimeSeconds,
 					  double endTimeSeconds,
 					  int channelNum,
 					  float verticalZoomFactor);
 
-	/** Returns true if the low res preview is fully generated.
+	/** Draws the waveforms for all channels in the thumbnail.
+
+		This will call drawChannel() to render each of the thumbnail's channels, stacked
+		above each other within the specified area.
+
+		@see drawChannel
 	*/
+	void drawChannels (Graphics& g,
+					   const Rectangle<int>& area,
+					   double startTimeSeconds,
+					   double endTimeSeconds,
+					   float verticalZoomFactor);
+
+	/** Returns true if the low res preview is fully generated. */
 	bool isFullyLoaded() const throw();
 
-	/** @internal */
-	bool useTimeSlice();
-	/** @internal */
-	void timerCallback();
+	/** Returns the hash code that was set by setSource() or setReader(). */
+	int64 getHashCode() const;
 
-	juce_UseDebuggingNewOperator
+	// (this is only public to avoid a VC6 bug)
+	class LevelDataSource;
 
 private:
+
 	AudioFormatManager& formatManagerToUse;
 	AudioThumbnailCache& cache;
-	ScopedPointer <InputSource> source;
 
-	CriticalSection readerLock;
-	ScopedPointer <AudioFormatReader> reader;
+	struct MinMaxValue;
+	class ThumbData;
+	class CachedWindow;
 
-	MemoryBlock data, cachedLevels;
-	int orginalSamplesPerThumbnailSample;
+	friend class LevelDataSource;
+	friend class ScopedPointer<LevelDataSource>;
+	friend class ThumbData;
+	friend class OwnedArray<ThumbData>;
+	friend class CachedWindow;
+	friend class ScopedPointer<CachedWindow>;
 
-	int numChannelsCached, numSamplesCached;
-	double cachedStart, cachedTimePerPixel;
-	bool cacheNeedsRefilling;
+	ScopedPointer<LevelDataSource> source;
+	ScopedPointer<CachedWindow> window;
+	OwnedArray<ThumbData> channels;
 
-	void clear();
-	AudioFormatReader* createReader() const;
-	void generateSection (AudioFormatReader& reader, int64 startSample, int numSamples);
-	char* getChannelData (int channel) const;
-	void refillCache (int numSamples, double startTime, double timePerPixel);
+	int32 samplesPerThumbSample;
+	int64 totalSamples, numSamplesFinished;
+	int32 numChannels;
+	double sampleRate;
+	CriticalSection lock;
 
-	friend class AudioThumbnailCache;
+	bool setDataSource (LevelDataSource* newSource);
+	void setLevels (const MinMaxValue* const* values, int thumbIndex, int numChans, int numValues);
+	void createChannels (int length);
 
-	// true if it needs more callbacks from the readNextBlockFromAudioFile() method
-	bool initialiseFromAudioFile (AudioFormatReader& reader);
-
-	// returns true if more needs to be read
-	bool readNextBlockFromAudioFile (AudioFormatReader& reader);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioThumbnail);
 };
 
 #endif   // __JUCE_AUDIOTHUMBNAIL_JUCEHEADER__
@@ -30962,16 +32818,14 @@ public:
 	*/
 	void storeThumb (const AudioThumbnail& thumb, int64 hashCode);
 
-	juce_UseDebuggingNewOperator
-
 private:
 
 	OwnedArray <ThumbnailCacheEntry> thumbs;
 	int maxNumThumbsToStore;
 
-	friend class AudioThumbnail;
-	void addThumbnail (AudioThumbnail* thumb);
-	void removeThumbnail (AudioThumbnail* thumb);
+	ThumbnailCacheEntry* findThumbFor (int64 hash) const;
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioThumbnailCache);
 };
 
 #endif   // __JUCE_AUDIOTHUMBNAILCACHE_JUCEHEADER__
@@ -31010,7 +32864,7 @@ public:
 	bool isCompressed();
 
 	AudioFormatReader* createReaderFor (InputStream* sourceStream,
-										const bool deleteStreamIfOpeningFails);
+										bool deleteStreamIfOpeningFails);
 
 	AudioFormatWriter* createWriterFor (OutputStream* streamToWriteTo,
 										double sampleRateToUse,
@@ -31019,7 +32873,8 @@ public:
 										const StringPairArray& metadataValues,
 										int qualityOptionIndex);
 
-	juce_UseDebuggingNewOperator
+private:
+	JUCE_LEAK_DETECTOR (FlacAudioFormat);
 };
 
 #endif
@@ -31070,7 +32925,7 @@ public:
 	int estimateOggFileQuality (const File& source);
 
 	AudioFormatReader* createReaderFor (InputStream* sourceStream,
-										const bool deleteStreamIfOpeningFails);
+										bool deleteStreamIfOpeningFails);
 
 	AudioFormatWriter* createWriterFor (OutputStream* streamToWriteTo,
 										double sampleRateToUse,
@@ -31079,7 +32934,8 @@ public:
 										const StringPairArray& metadataValues,
 										int qualityOptionIndex);
 
-	juce_UseDebuggingNewOperator
+private:
+	JUCE_LEAK_DETECTOR (OggVorbisAudioFormat);
 };
 
 #endif
@@ -31120,7 +32976,7 @@ public:
 	bool canDoMono();
 
 	AudioFormatReader* createReaderFor (InputStream* sourceStream,
-										const bool deleteStreamIfOpeningFails);
+										bool deleteStreamIfOpeningFails);
 
 	AudioFormatWriter* createWriterFor (OutputStream* streamToWriteTo,
 										double sampleRateToUse,
@@ -31129,7 +32985,8 @@ public:
 										const StringPairArray& metadataValues,
 										int qualityOptionIndex);
 
-	juce_UseDebuggingNewOperator
+private:
+	JUCE_LEAK_DETECTOR (QuickTimeAudioFormat);
 };
 
 #endif
@@ -31237,7 +33094,7 @@ public:
 	bool canDoMono();
 
 	AudioFormatReader* createReaderFor (InputStream* sourceStream,
-										const bool deleteStreamIfOpeningFails);
+										bool deleteStreamIfOpeningFails);
 
 	AudioFormatWriter* createWriterFor (OutputStream* streamToWriteTo,
 										double sampleRateToUse,
@@ -31253,7 +33110,8 @@ public:
 	*/
 	bool replaceMetadataInFile (const File& wavFile, const StringPairArray& newMetadata);
 
-	juce_UseDebuggingNewOperator
+private:
+	JUCE_LEAK_DETECTOR (WavAudioFormat);
 };
 
 #endif   // __JUCE_WAVAUDIOFORMAT_JUCEHEADER__
@@ -31313,6 +33171,9 @@ public:
 
 	/** Returns true if this source is actually playing in a loop. */
 	virtual bool isLooping() const = 0;
+
+	/** Tells the source whether you'd like it to play in a loop. */
+	virtual void setLooping (bool shouldLoop)	   { (void) shouldLoop; }
 };
 
 #endif   // __JUCE_POSITIONABLEAUDIOSOURCE_JUCEHEADER__
@@ -31334,8 +33195,8 @@ public:
 												when this object is deleted; if false it will be
 												left up to the caller to manage its lifetime
 	*/
-	AudioFormatReaderSource (AudioFormatReader* const sourceReader,
-							 const bool deleteReaderWhenThisIsDeleted);
+	AudioFormatReaderSource (AudioFormatReader* sourceReader,
+							 bool deleteReaderWhenThisIsDeleted);
 
 	/** Destructor. */
 	~AudioFormatReaderSource();
@@ -31347,7 +33208,7 @@ public:
 
 		@see isLooping
 	*/
-	void setLooping (const bool shouldLoop) throw();
+	void setLooping (bool shouldLoop);
 
 	/** Returns whether loop-mode is turned on or not. */
 	bool isLooping() const					  { return looping; }
@@ -31373,9 +33234,8 @@ public:
 	/** Implements the PositionableAudioSource method. */
 	int getTotalLength() const;
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	AudioFormatReader* reader;
 	bool deleteReader;
 
@@ -31384,8 +33244,7 @@ private:
 
 	void readBufferSection (int start, int length, AudioSampleBuffer& buffer, int startSample);
 
-	AudioFormatReaderSource (const AudioFormatReaderSource&);
-	AudioFormatReaderSource& operator= (const AudioFormatReaderSource&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioFormatReaderSource);
 };
 
 #endif   // __JUCE_AUDIOFORMATREADERSOURCE_JUCEHEADER__
@@ -31740,7 +33599,7 @@ public:
 	/** Sets a gain to apply to the audio data.
 		@see getGain
 	*/
-	void setGain (const float newGain) throw();
+	void setGain (float newGain) throw();
 
 	/** Returns the current gain.
 		@see setGain
@@ -31760,8 +33619,6 @@ public:
 	/** Implementation of the AudioIODeviceCallback method. */
 	void audioDeviceStopped();
 
-	juce_UseDebuggingNewOperator
-
 private:
 
 	CriticalSection readLock;
@@ -31774,8 +33631,7 @@ private:
 	AudioSampleBuffer tempBuffer;
 	float lastGain, gain;
 
-	AudioSourcePlayer (const AudioSourcePlayer&);
-	AudioSourcePlayer& operator= (const AudioSourcePlayer&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioSourcePlayer);
 };
 
 #endif   // __JUCE_AUDIOSOURCEPLAYER_JUCEHEADER__
@@ -31815,7 +33671,7 @@ public:
 		@param numberOfSamplesToBuffer  the size of buffer to use for reading ahead
 	*/
 	BufferingAudioSource (PositionableAudioSource* source,
-						  const bool deleteSourceWhenDeleted,
+						  bool deleteSourceWhenDeleted,
 						  int numberOfSamplesToBuffer);
 
 	/** Destructor.
@@ -31846,8 +33702,6 @@ public:
 	/** Implements the PositionableAudioSource method. */
 	bool isLooping() const			  { return source->isLooping(); }
 
-	juce_UseDebuggingNewOperator
-
 private:
 
 	PositionableAudioSource* source;
@@ -31863,8 +33717,7 @@ private:
 	bool readNextBufferChunk();
 	void readBufferSection (int start, int length, int bufferOffset);
 
-	BufferingAudioSource (const BufferingAudioSource&);
-	BufferingAudioSource& operator= (const BufferingAudioSource&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (BufferingAudioSource);
 };
 
 #endif   // __JUCE_BUFFERINGAUDIOSOURCE_JUCEHEADER__
@@ -31891,8 +33744,8 @@ public:
 										this object is deleted
 		@param numChannels		  the number of channels to process
 	*/
-	ResamplingAudioSource (AudioSource* const inputSource,
-						   const bool deleteInputWhenDeleted,
+	ResamplingAudioSource (AudioSource* inputSource,
+						   bool deleteInputWhenDeleted,
 						   int numChannels = 2);
 
 	/** Destructor. */
@@ -31906,7 +33759,7 @@ public:
 											values will speed it up; lower values will slow it
 											down. The ratio must be greater than 0
 	*/
-	void setResamplingRatio (const double samplesInPerOutputSample);
+	void setResamplingRatio (double samplesInPerOutputSample);
 
 	/** Returns the current resampling ratio.
 
@@ -31918,9 +33771,8 @@ public:
 	void releaseResources();
 	void getNextAudioBlock (const AudioSourceChannelInfo& bufferToFill);
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	AudioSource* const input;
 	const bool deleteInputWhenDeleted;
 	double ratio, lastRatio;
@@ -31933,7 +33785,7 @@ private:
 	HeapBlock<float*> destBuffers, srcBuffers;
 
 	void setFilterCoefficients (double c1, double c2, double c3, double c4, double c5, double c6);
-	void createLowPass (const double proportionalRate);
+	void createLowPass (double proportionalRate);
 
 	struct FilterState
 	{
@@ -31945,8 +33797,7 @@ private:
 
 	void applyFilter (float* samples, int num, FilterState& fs);
 
-	ResamplingAudioSource (const ResamplingAudioSource&);
-	ResamplingAudioSource& operator= (const ResamplingAudioSource&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ResamplingAudioSource);
 };
 
 #endif   // __JUCE_RESAMPLINGAUDIOSOURCE_JUCEHEADER__
@@ -31995,7 +33846,7 @@ public:
 												adjusted to maintain playback at the correct pitch. If
 												this is 0, no sample-rate adjustment will be performed
 	*/
-	void setSource (PositionableAudioSource* const newSource,
+	void setSource (PositionableAudioSource* newSource,
 					int readAheadBufferSize = 0,
 					double sourceSampleRateToCorrectFor = 0.0);
 
@@ -32013,6 +33864,9 @@ public:
 		This is a time in seconds.
 	*/
 	double getCurrentPosition() const;
+
+	/** Returns the stream's length in seconds. */
+	double getLengthInSeconds() const;
 
 	/** Returns true if the player has stopped because its input stream ran out of data.
 	*/
@@ -32040,7 +33894,7 @@ public:
 		@param newGain  a factor by which to multiply the outgoing samples,
 						so 1.0 = 0dB, 0.5 = -6dB, 2.0 = 6dB, etc.
 	*/
-	void setGain (const float newGain) throw();
+	void setGain (float newGain) throw();
 
 	/** Returns the current gain setting.
 
@@ -32069,9 +33923,8 @@ public:
 	/** Implements the PositionableAudioSource method. */
 	bool isLooping() const;
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	PositionableAudioSource* source;
 	ResamplingAudioSource* resamplerSource;
 	BufferingAudioSource* bufferingSource;
@@ -32085,8 +33938,7 @@ private:
 	int blockSize, readAheadBufferSize;
 	bool isPrepared, inputStreamEOF;
 
-	AudioTransportSource (const AudioTransportSource&);
-	AudioTransportSource& operator= (const AudioTransportSource&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioTransportSource);
 };
 
 #endif   // __JUCE_AUDIOTRANSPORTSOURCE_JUCEHEADER__
@@ -32129,8 +33981,8 @@ public:
 							when this object is deleted, if false, the caller is
 							responsible for its deletion
 	*/
-	ChannelRemappingAudioSource (AudioSource* const source,
-								 const bool deleteSourceWhenDeleted);
+	ChannelRemappingAudioSource (AudioSource* source,
+								 bool deleteSourceWhenDeleted);
 
 	/** Destructor. */
 	~ChannelRemappingAudioSource();
@@ -32138,14 +33990,14 @@ public:
 	/** Specifies a number of channels that this audio source must produce from its
 		getNextAudioBlock() callback.
 	*/
-	void setNumberOfChannelsToProduce (const int requiredNumberOfChannels) throw();
+	void setNumberOfChannelsToProduce (int requiredNumberOfChannels);
 
 	/** Clears any mapped channels.
 
 		After this, no channels are mapped, so this object will produce silence. Create
 		some mappings with setInputChannelMapping() and setOutputChannelMapping().
 	*/
-	void clearAllMappings() throw();
+	void clearAllMappings();
 
 	/** Creates an input channel mapping.
 
@@ -32157,8 +34009,8 @@ public:
 		@param sourceChannelIndex   the index of the input channel in the incoming audio data buffer
 									during our getNextAudioBlock() callback
 	*/
-	void setInputChannelMapping (const int destChannelIndex,
-								 const int sourceChannelIndex) throw();
+	void setInputChannelMapping (int destChannelIndex,
+								 int sourceChannelIndex);
 
 	/** Creates an output channel mapping.
 
@@ -32170,38 +34022,37 @@ public:
 		@param destChannelIndex	 the index of the output channel in the incoming audio data buffer
 									during our getNextAudioBlock() callback
 	*/
-	void setOutputChannelMapping (const int sourceChannelIndex,
-								  const int destChannelIndex) throw();
+	void setOutputChannelMapping (int sourceChannelIndex,
+								  int destChannelIndex);
 
 	/** Returns the channel from our input that will be sent to channel inputChannelIndex of
 		our input audio source.
 	*/
-	int getRemappedInputChannel (const int inputChannelIndex) const throw();
+	int getRemappedInputChannel (int inputChannelIndex) const;
 
 	/** Returns the output channel to which channel outputChannelIndex of our input audio
 		source will be sent to.
 	*/
-	int getRemappedOutputChannel (const int outputChannelIndex) const throw();
+	int getRemappedOutputChannel (int outputChannelIndex) const;
 
 	/** Returns an XML object to encapsulate the state of the mappings.
 
 		@see restoreFromXml
 	*/
-	XmlElement* createXml() const throw();
+	XmlElement* createXml() const;
 
 	/** Restores the mappings from an XML object created by createXML().
 
 		@see createXml
 	*/
-	void restoreFromXml (const XmlElement& e) throw();
+	void restoreFromXml (const XmlElement& e);
 
 	void prepareToPlay (int samplesPerBlockExpected, double sampleRate);
 	void releaseResources();
 	void getNextAudioBlock (const AudioSourceChannelInfo& bufferToFill);
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	int requiredNumberOfChannels;
 	Array <int> remappedInputs, remappedOutputs;
 
@@ -32213,8 +34064,7 @@ private:
 
 	CriticalSection lock;
 
-	ChannelRemappingAudioSource (const ChannelRemappingAudioSource&);
-	ChannelRemappingAudioSource& operator= (const ChannelRemappingAudioSource&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ChannelRemappingAudioSource);
 };
 
 #endif   // __JUCE_CHANNELREMAPPINGAUDIOSOURCE_JUCEHEADER__
@@ -32329,9 +34179,8 @@ public:
 	*/
 	void copyCoefficientsFrom (const IIRFilter& other) throw();
 
-	juce_UseDebuggingNewOperator
-
 protected:
+
 	CriticalSection processLock;
 
 	void setCoefficients (double c1, double c2, double c3,
@@ -32343,6 +34192,7 @@ protected:
 
 	// (use the copyCoefficientsFrom() method instead of this operator)
 	IIRFilter& operator= (const IIRFilter&);
+	JUCE_LEAK_DETECTOR (IIRFilter);
 };
 
 #endif   // __JUCE_IIRFILTER_JUCEHEADER__
@@ -32361,8 +34211,8 @@ public:
 		@param deleteInputWhenDeleted   if true, the input source will be deleted when
 										this object is deleted
 	*/
-	IIRFilterAudioSource (AudioSource* const inputSource,
-						  const bool deleteInputWhenDeleted);
+	IIRFilterAudioSource (AudioSource* inputSource,
+						  bool deleteInputWhenDeleted);
 
 	/** Destructor. */
 	~IIRFilterAudioSource();
@@ -32375,16 +34225,13 @@ public:
 	void releaseResources();
 	void getNextAudioBlock (const AudioSourceChannelInfo& bufferToFill);
 
-	juce_UseDebuggingNewOperator
-
 private:
 
 	AudioSource* const input;
 	const bool deleteInputWhenDeleted;
 	OwnedArray <IIRFilter> iirFilters;
 
-	IIRFilterAudioSource (const IIRFilterAudioSource&);
-	IIRFilterAudioSource& operator= (const IIRFilterAudioSource&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (IIRFilterAudioSource);
 };
 
 #endif   // __JUCE_IIRFILTERAUDIOSOURCE_JUCEHEADER__
@@ -32429,8 +34276,7 @@ public:
 									called (unless the source is previously removed
 									with the removeInputSource method)
 	*/
-	void addInputSource (AudioSource* newInput,
-						 const bool deleteWhenRemoved);
+	void addInputSource (AudioSource* newInput, bool deleteWhenRemoved);
 
 	/** Removes an input source.
 
@@ -32440,8 +34286,7 @@ public:
 		@param input		the source to remove
 		@param deleteSource	 whether to delete this source after it's been removed
 	*/
-	void removeInputSource (AudioSource* input,
-							const bool deleteSource);
+	void removeInputSource (AudioSource* input, bool deleteSource);
 
 	/** Removes all the input sources.
 
@@ -32468,8 +34313,6 @@ public:
 	/** Implementation of the AudioSource method. */
 	void getNextAudioBlock (const AudioSourceChannelInfo& bufferToFill);
 
-	juce_UseDebuggingNewOperator
-
 private:
 
 	Array <AudioSource*> inputs;
@@ -32479,8 +34322,7 @@ private:
 	double currentSampleRate;
 	int bufferSizeExpected;
 
-	MixerAudioSource (const MixerAudioSource&);
-	MixerAudioSource& operator= (const MixerAudioSource&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MixerAudioSource);
 };
 
 #endif   // __JUCE_MIXERAUDIOSOURCE_JUCEHEADER__
@@ -32515,10 +34357,10 @@ public:
 	~ToneGeneratorAudioSource();
 
 	/** Sets the signal's amplitude. */
-	void setAmplitude (const float newAmplitude);
+	void setAmplitude (float newAmplitude);
 
 	/** Sets the signal's frequency. */
-	void setFrequency (const double newFrequencyHz);
+	void setFrequency (double newFrequencyHz);
 
 	/** Implementation of the AudioSource method. */
 	void prepareToPlay (int samplesPerBlockExpected, double sampleRate);
@@ -32529,16 +34371,13 @@ public:
 	/** Implementation of the AudioSource method. */
 	void getNextAudioBlock (const AudioSourceChannelInfo& bufferToFill);
 
-	juce_UseDebuggingNewOperator
-
 private:
 
 	double frequency, sampleRate;
 	double currentPhase, phasePerSample;
 	float amplitude;
 
-	ToneGeneratorAudioSource (const ToneGeneratorAudioSource&);
-	ToneGeneratorAudioSource& operator= (const ToneGeneratorAudioSource&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ToneGeneratorAudioSource);
 };
 
 #endif   // __JUCE_TONEGENERATORAUDIOSOURCE_JUCEHEADER__
@@ -32663,8 +34502,7 @@ protected:
 private:
 	String typeName;
 
-	AudioIODeviceType (const AudioIODeviceType&);
-	AudioIODeviceType& operator= (const AudioIODeviceType&);
+	JUCE_DECLARE_NON_COPYABLE (AudioIODeviceType);
 };
 
 #endif   // __JUCE_AUDIOIODEVICETYPE_JUCEHEADER__
@@ -33481,42 +35319,42 @@ public:
 	static const String getMidiNoteName (int noteNumber,
 										 bool useSharps,
 										 bool includeOctaveNumber,
-										 int octaveNumForMiddleC) throw();
+										 int octaveNumForMiddleC);
 
 	/** Returns the frequency of a midi note number.
 
+		The frequencyOfA parameter is an optional frequency for 'A', normally 440-444Hz for concert pitch.
 		@see getMidiNoteName
 	*/
-	static const double getMidiNoteInHertz (int noteNumber) throw();
+	static const double getMidiNoteInHertz (int noteNumber, const double frequencyOfA = 440.0) throw();
 
 	/** Returns the standard name of a GM instrument.
 
 		@param midiInstrumentNumber	 the program number 0 to 127
 		@see getProgramChangeNumber
 	*/
-	static const String getGMInstrumentName (int midiInstrumentNumber) throw();
+	static const String getGMInstrumentName (int midiInstrumentNumber);
 
 	/** Returns the name of a bank of GM instruments.
 
 		@param midiBankNumber   the bank, 0 to 15
 	*/
-	static const String getGMInstrumentBankName (int midiBankNumber) throw();
+	static const String getGMInstrumentBankName (int midiBankNumber);
 
 	/** Returns the standard name of a channel 10 percussion sound.
 
 		@param midiNoteNumber   the key number, 35 to 81
 	*/
-	static const String getRhythmInstrumentName (int midiNoteNumber) throw();
+	static const String getRhythmInstrumentName (int midiNoteNumber);
 
 	/** Returns the name of a controller type number.
 
 		@see getControllerNumber
 	*/
-	static const String getControllerName (int controllerNumber) throw();
-
-	juce_UseDebuggingNewOperator
+	static const String getControllerName (int controllerNumber);
 
 private:
+
 	double timeStamp;
 	uint8* data;
 	int size;
@@ -33667,17 +35505,16 @@ public:
 	*/
 	virtual void stop();
 
-	juce_UseDebuggingNewOperator
-
 protected:
+
 	String name;
 	void* internal;
 
 	explicit MidiInput (const String& name);
 
 private:
-	MidiInput (const MidiInput&);
-	MidiInput& operator= (const MidiInput&);
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MidiInput);
 };
 
 #endif   // __JUCE_MIDIINPUT_JUCEHEADER__
@@ -33718,7 +35555,7 @@ public:
 	MidiBuffer& operator= (const MidiBuffer& other) throw();
 
 	/** Destructor */
-	~MidiBuffer() throw();
+	~MidiBuffer();
 
 	/** Removes all events from the buffer. */
 	void clear() throw();
@@ -33728,8 +35565,7 @@ public:
 		All events for which (start <= event position < start + numSamples) will
 		be removed.
 	*/
-	void clear (const int start,
-				const int numSamples) throw();
+	void clear (int start, int numSamples);
 
 	/** Returns true if the buffer is empty.
 
@@ -33756,8 +35592,7 @@ public:
 
 		To retrieve events, use a MidiBuffer::Iterator object
 	*/
-	void addEvent (const MidiMessage& midiMessage,
-				   const int sampleNumber) throw();
+	void addEvent (const MidiMessage& midiMessage, int sampleNumber);
 
 	/** Adds an event to the buffer from raw midi data.
 
@@ -33775,9 +35610,9 @@ public:
 
 		To retrieve events, use a MidiBuffer::Iterator object
 	*/
-	void addEvent (const uint8* const rawMidiData,
-				   const int maxBytesOfMidiData,
-				   const int sampleNumber) throw();
+	void addEvent (const void* rawMidiData,
+				   int maxBytesOfMidiData,
+				   int sampleNumber);
 
 	/** Adds some events from another buffer to this one.
 
@@ -33794,9 +35629,9 @@ public:
 									that are added to this buffer
 	*/
 	void addEvents (const MidiBuffer& otherBuffer,
-					const int startSample,
-					const int numSamples,
-					const int sampleDeltaToAdd) throw();
+					int startSample,
+					int numSamples,
+					int sampleDeltaToAdd);
 
 	/** Returns the sample number of the first event in the buffer.
 
@@ -33815,7 +35650,7 @@ public:
 		This is a quick operation, because no memory allocating or copying is done, it
 		just swaps the internal state of the two buffers.
 	*/
-	void swapWith (MidiBuffer& other);
+	void swapWith (MidiBuffer& other) throw();
 
 	/** Preallocates some memory for the buffer to use.
 		This helps to avoid needing to reallocate space when the buffer has messages
@@ -33844,7 +35679,7 @@ public:
 		/** Repositions the iterator so that the next event retrieved will be the first
 			one whose sample position is at greater than or equal to the given position.
 		*/
-		void setNextSamplePosition (const int samplePosition) throw();
+		void setNextSamplePosition (int samplePosition) throw();
 
 		/** Retrieves a copy of the next event from the buffer.
 
@@ -33873,28 +35708,27 @@ public:
 						   int& numBytesOfMidiData,
 						   int& samplePosition) throw();
 
-		juce_UseDebuggingNewOperator
-
 	private:
+
 		const MidiBuffer& buffer;
 		const uint8* data;
 
-		Iterator (const Iterator&);
-		Iterator& operator= (const Iterator&);
+		JUCE_DECLARE_NON_COPYABLE (Iterator);
 	};
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	friend class MidiBuffer::Iterator;
 	MemoryBlock data;
 	int bytesUsed;
 
 	uint8* getData() const throw();
-	uint8* findEventAfter (uint8* d, const int samplePosition) const throw();
+	uint8* findEventAfter (uint8* d, int samplePosition) const throw();
 	static int getEventTime (const void* d) throw();
 	static uint16 getEventDataSize (const void* d) throw();
 	static uint16 getEventTotalSize (const void* d) throw();
+
+	JUCE_LEAK_DETECTOR (MidiBuffer);
 };
 
 #endif   // __JUCE_MIDIBUFFER_JUCEHEADER__
@@ -34009,9 +35843,8 @@ public:
 	*/
 	virtual void stopBackgroundThread();
 
-	juce_UseDebuggingNewOperator
-
 protected:
+
 	void* internal;
 
 	struct PendingMessage
@@ -34020,8 +35853,6 @@ protected:
 
 		MidiMessage message;
 		PendingMessage* next;
-
-		juce_UseDebuggingNewOperator
 	};
 
 	CriticalSection lock;
@@ -34031,8 +35862,7 @@ protected:
 	void run();
 
 private:
-	MidiOutput (const MidiOutput&);
-	MidiOutput& operator= (const MidiOutput&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MidiOutput);
 };
 
 #endif   // __JUCE_MIDIOUTPUT_JUCEHEADER__
@@ -34116,13 +35946,16 @@ public:
 	/** Destructor. */
 	virtual ~SettableTooltipClient()				{}
 
+	/** Assigns a new tooltip to this object. */
 	virtual void setTooltip (const String& newTooltip)		  { tooltipString = newTooltip; }
 
+	/** Returns the tooltip assigned to this object. */
 	virtual const String getTooltip()				   { return tooltipString; }
 
-	juce_UseDebuggingNewOperator
-
 protected:
+	SettableTooltipClient() {}
+
+private:
 	String tooltipString;
 };
 
@@ -34189,8 +36022,6 @@ public:
 		outlineColourId	 = 0x1001c10	 /**< The colour to use to draw an outline around the tooltip. */
 	};
 
-	juce_UseDebuggingNewOperator
-
 private:
 
 	int millisecondsBeforeTipAppears;
@@ -34209,12 +36040,15 @@ private:
 	void showFor (const String& tip);
 	void hide();
 
-	TooltipWindow (const TooltipWindow&);
-	TooltipWindow& operator= (const TooltipWindow&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (TooltipWindow);
 };
 
 #endif   // __JUCE_TOOLTIPWINDOW_JUCEHEADER__
 /*** End of inlined file: juce_TooltipWindow.h ***/
+
+#if JUCE_VC6
+ #define Listener ButtonListener
+#endif
 
 /**
 	A base class for buttons.
@@ -34228,7 +36062,7 @@ private:
 class JUCE_API  Button  : public Component,
 						  public SettableTooltipClient,
 						  public ApplicationCommandManagerListener,
-						  public Value::Listener,
+						  public ValueListener,
 						  private KeyListener
 {
 protected:
@@ -34351,7 +36185,7 @@ public:
 
 		@see Button::addButtonListener, Button::removeButtonListener
 	*/
-	class JUCE_API  Listener
+	class Listener
 	{
 	public:
 		/** Destructor. */
@@ -34541,8 +36375,6 @@ public:
 	*/
 	void setState (const ButtonState newState);
 
-	juce_UseDebuggingNewOperator
-
 protected:
 
 	/** This method is called when the button has been clicked.
@@ -34655,20 +36487,24 @@ private:
 	void repeatTimerCallback();
 	RepeatTimer& getRepeatTimer();
 
-	ButtonState updateState (const MouseEvent* const e);
+	ButtonState updateState();
+	ButtonState updateState (bool isOver, bool isDown);
 	bool isShortcutPressed() const;
-	void turnOffOtherButtonsInGroup (const bool sendChangeNotification);
+	void turnOffOtherButtonsInGroup (bool sendChangeNotification);
 
 	void flashButtonState();
 	void sendClickMessage (const ModifierKeys& modifiers);
 	void sendStateMessage();
 
-	Button (const Button&);
-	Button& operator= (const Button&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Button);
 };
 
 /** This typedef is just for compatibility with old code - newer code should use Button::Listener instead. */
 typedef Button::Listener ButtonListener;
+
+#if JUCE_VC6
+ #undef Listener
+#endif
 
 #endif   // __JUCE_BUTTON_JUCEHEADER__
 /*** End of inlined file: juce_Button.h ***/
@@ -34943,8 +36779,6 @@ public:
 	/** @internal */
 	void resized();
 
-	juce_UseDebuggingNewOperator
-
 private:
 
 	Range <double> totalRange, visibleRange;
@@ -34961,8 +36795,7 @@ private:
 	void updateThumbPosition();
 	void timerCallback();
 
-	ScrollBar (const ScrollBar&);
-	ScrollBar& operator= (const ScrollBar&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ScrollBar);
 };
 
 /** This typedef is just for compatibility with old code - newer code should use the ScrollBar::Listener class directly. */
@@ -35173,8 +37006,6 @@ public:
 	*/
 	ScrollBar* getHorizontalScrollBar() throw()		 { return &horizontalScrollBar; }
 
-	juce_UseDebuggingNewOperator
-
 	/** @internal */
 	void resized();
 	/** @internal */
@@ -35189,6 +37020,7 @@ public:
 	bool useMouseWheelMoveIfNeeded (const MouseEvent& e, float wheelIncrementX, float wheelIncrementY);
 
 private:
+
 	Component::SafePointer<Component> contentComp;
 	Rectangle<int> lastVisibleArea;
 	int scrollBarThickness;
@@ -35199,9 +37031,9 @@ private:
 	ScrollBar horizontalScrollBar;
 
 	void updateVisibleArea();
+	void deleteContentComp();
 
-	Viewport (const Viewport&);
-	Viewport& operator= (const Viewport&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Viewport);
 };
 
 #endif   // __JUCE_VIEWPORT_JUCEHEADER__
@@ -35439,14 +37271,15 @@ public:
 		This is the same as show(), but uses a specific location (in global screen
 		co-ordinates) rather than the current mouse position.
 
-		Note that the co-ordinates don't specify the top-left of the menu - they
-		indicate a point of interest, and the menu will position itself nearby to
-		this point, trying to keep it fully on-screen.
+		The screenAreaToAttachTo parameter indicates a screen area to which the menu
+		will be adjacent. Depending on where this is, the menu will decide which edge to
+		attach itself to, in order to fit itself fully on-screen. If you just want to
+		trigger a menu at a specific point, you can pass in a rectangle of size (0, 0)
+		with the position that you want.
 
 		@see show()
 	*/
-	int showAt (int screenX,
-				int screenY,
+	int showAt (const Rectangle<int>& screenAreaToAttachTo,
 				int itemIdThatMustBeVisible = 0,
 				int minimumWidth = 0,
 				int maximumNumColumns = 0,
@@ -35542,19 +37375,16 @@ public:
 		Image customImage;
 		ApplicationCommandManager* commandManager;
 
-		juce_UseDebuggingNewOperator
-
 	private:
+
 		const PopupMenu& menu;
 		int index;
 
-		MenuItemIterator (const MenuItemIterator&);
-		MenuItemIterator& operator= (const MenuItemIterator&);
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MenuItemIterator);
 	};
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	class Item;
 	class ItemComponent;
 	class Window;
@@ -35565,6 +37395,7 @@ private:
 	friend class PopupMenuCustomComponent;
 	friend class MenuBarComponent;
 	friend class OwnedArray <Item>;
+	friend class OwnedArray <ItemComponent>;
 	friend class ScopedPointer <Window>;
 
 	OwnedArray <Item> items;
@@ -35573,14 +37404,11 @@ private:
 
 	void addSeparatorIfPending();
 
-	int showMenu (const Rectangle<int>& target,
-				  int itemIdThatMustBeVisible,
-				  int minimumWidth,
-				  int maximumNumColumns,
-				  int standardItemHeight,
-				  bool alignToRectangle,
-				  Component* componentAttachedTo,
-				  ModalComponentManager::Callback* callback);
+	int showMenu (const Rectangle<int>& target, int itemIdThatMustBeVisible,
+				  int minimumWidth, int maximumNumColumns, int standardItemHeight,
+				  Component* componentAttachedTo, ModalComponentManager::Callback* callback);
+
+	JUCE_LEAK_DETECTOR (PopupMenu);
 };
 
 #endif   // __JUCE_POPUPMENU_JUCEHEADER__
@@ -36151,8 +37979,6 @@ public:
 	*/
 	virtual void performPopupMenuAction (int menuItemID);
 
-	juce_UseDebuggingNewOperator
-
 protected:
 
 	/** Scrolls the minimum distance needed to get the caret into view. */
@@ -36261,8 +38087,7 @@ private:
 	void repaintText (const Range<int>& range);
 	UndoManager* getUndoManager() throw();
 
-	TextEditor (const TextEditor&);
-	TextEditor& operator= (const TextEditor&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (TextEditor);
 };
 
 /** This typedef is just for compatibility with old code - newer code should use the TextEditor::Listener class directly. */
@@ -36271,15 +38096,19 @@ typedef TextEditor::Listener TextEditorListener;
 #endif   // __JUCE_TEXTEDITOR_JUCEHEADER__
 /*** End of inlined file: juce_TextEditor.h ***/
 
+#if JUCE_VC6
+ #define Listener ButtonListener
+#endif
+
 /**
 	A component that displays a text string, and can optionally become a text
 	editor when clicked.
 */
 class JUCE_API  Label  : public Component,
 						 public SettableTooltipClient,
-						 protected TextEditor::Listener,
+						 protected TextEditorListener,
 						 private ComponentListener,
-						 private Value::Listener
+						 private ValueListener
 {
 public:
 
@@ -36311,7 +38140,7 @@ public:
 											the user has finished typing and pressed the return
 											key.
 	*/
-	const String getText (bool returnActiveEditorContents = false) const throw();
+	const String getText (bool returnActiveEditorContents = false) const;
 
 	/** Returns the text content as a Value object.
 		You can call Value::referTo() on this object to make the label read and control
@@ -36323,7 +38152,7 @@ public:
 
 		@see getFont
 	*/
-	void setFont (const Font& newFont) throw();
+	void setFont (const Font& newFont);
 
 	/** Returns the font currently being used.
 
@@ -36353,7 +38182,7 @@ public:
 
 		(The default is Justification::centredLeft)
 	*/
-	void setJustificationType (const Justification& justification) throw();
+	void setJustificationType (const Justification& justification);
 
 	/** Returns the type of justification, as set in setJustificationType(). */
 	const Justification getJustificationType() const throw()			{ return justification; }
@@ -36428,10 +38257,10 @@ public:
 	};
 
 	/** Registers a listener that will be called when the label's text changes. */
-	void addListener (Listener* listener) throw();
+	void addListener (Listener* listener);
 
 	/** Deregisters a previously-registered listener. */
-	void removeListener (Listener* listener) throw();
+	void removeListener (Listener* listener);
 
 	/** Makes the label turn into a TextEditor when clicked.
 
@@ -36455,7 +38284,7 @@ public:
 	*/
 	void setEditable (bool editOnSingleClick,
 					  bool editOnDoubleClick = false,
-					  bool lossOfFocusDiscardsChanges = false) throw();
+					  bool lossOfFocusDiscardsChanges = false);
 
 	/** Returns true if this option was set using setEditable(). */
 	bool isEditableOnSingleClick() const throw()			{ return editSingleClick; }
@@ -36488,9 +38317,8 @@ public:
 	/** Returns true if the editor is currently focused and active. */
 	bool isBeingEdited() const throw();
 
-	juce_UseDebuggingNewOperator
-
 protected:
+
 	/** Creates the TextEditor component that will be used when the user has clicked on the label.
 		Subclasses can override this if they need to customise this component in some way.
 	*/
@@ -36544,6 +38372,7 @@ protected:
 	void valueChanged (Value&);
 
 private:
+
 	Value textValue;
 	String lastTextValue;
 	Font font;
@@ -36561,15 +38390,22 @@ private:
 	bool updateFromTextEditorContents();
 	void callChangeListeners();
 
-	Label (const Label&);
-	Label& operator= (const Label&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Label);
 };
 
 /** This typedef is just for compatibility with old code - newer code should use the Label::Listener class directly. */
 typedef Label::Listener LabelListener;
 
+#if JUCE_VC6
+ #undef Listener
+#endif
+
 #endif   // __JUCE_LABEL_JUCEHEADER__
 /*** End of inlined file: juce_Label.h ***/
+
+#if JUCE_VC6
+ #define Listener SliderListener
+#endif
 
 /**
 	A component that lets the user choose from a drop-down list of choices.
@@ -36588,7 +38424,7 @@ typedef Label::Listener LabelListener;
 class JUCE_API  ComboBox  : public Component,
 							public SettableTooltipClient,
 							public LabelListener,  // (can't use Label::Listener due to idiotic VC2005 bug)
-							public Value::Listener,
+							public ValueListener,
 							private AsyncUpdater
 {
 public:
@@ -36623,7 +38459,7 @@ public:
 		The default is Justification::centredLeft. The text is displayed using a
 		Label component inside the ComboBox.
 	*/
-	void setJustificationType (const Justification& justification) throw();
+	void setJustificationType (const Justification& justification);
 
 	/** Returns the current justification for the text box.
 		@see setJustificationType
@@ -36634,17 +38470,17 @@ public:
 
 		@param newItemText	  the text of the item to show in the list
 		@param newItemId	an associated ID number that can be set or retrieved - see
-								getSelectedId() and setSelectedId()
+								getSelectedId() and setSelectedId(). Note that this value can not
+								be 0!
 		@see setItemEnabled, addSeparator, addSectionHeading, removeItem, getNumItems, getItemText, getItemId
 	*/
-	void addItem (const String& newItemText,
-				  int newItemId) throw();
+	void addItem (const String& newItemText, int newItemId);
 
 	/** Adds a separator line to the drop-down list.
 
 		This is like adding a separator to a popup menu. See PopupMenu::addSeparator().
 	*/
-	void addSeparator() throw();
+	void addSeparator();
 
 	/** Adds a heading to the drop-down list, so that you can group the items into
 		different sections.
@@ -36655,7 +38491,7 @@ public:
 
 		@see addItem, addSeparator
 	*/
-	void addSectionHeading (const String& headingName) throw();
+	void addSectionHeading (const String& headingName);
 
 	/** This allows items in the drop-down list to be selectively disabled.
 
@@ -36665,13 +38501,11 @@ public:
 		If you disable an item which is already selected, this won't change the
 		current selection - it just stops the user choosing that item from the list.
 	*/
-	void setItemEnabled (int itemId,
-						 bool shouldBeEnabled) throw();
+	void setItemEnabled (int itemId, bool shouldBeEnabled);
 
 	/** Changes the text for an existing item.
 	*/
-	void changeItemText (int itemId,
-						 const String& newText) throw();
+	void changeItemText (int itemId, const String& newText);
 
 	/** Removes all the items from the drop-down list.
 
@@ -36694,7 +38528,7 @@ public:
 
 		@param index	the item's index from 0 to (getNumItems() - 1)
 	*/
-	const String getItemText (int index) const throw();
+	const String getItemText (int index) const;
 
 	/** Returns the ID for one of the items in the list.
 
@@ -36724,7 +38558,7 @@ public:
 		You can call Value::referTo() on this object to make the combo box control
 		another Value object.
 	*/
-	Value& getSelectedIdAsValue() throw()		   { return currentId; }
+	Value& getSelectedIdAsValue()			   { return currentId; }
 
 	/** Sets one of the items to be the current selection.
 
@@ -36736,8 +38570,7 @@ public:
 										change notification
 		@see getSelectedId, setSelectedItemIndex, setText
 	*/
-	void setSelectedId (int newItemId,
-						bool dontSendChangeMessage = false) throw();
+	void setSelectedId (int newItemId, bool dontSendChangeMessage = false);
 
 	/** Returns the index of the item that's currently shown in the box.
 
@@ -36747,7 +38580,7 @@ public:
 
 		@see setSelectedItemIndex, getSelectedId, getText
 	*/
-	int getSelectedItemIndex() const throw();
+	int getSelectedItemIndex() const;
 
 	/** Sets one of the items to be the current selection.
 
@@ -36759,8 +38592,7 @@ public:
 										change notification
 		@see getSelectedItemIndex, setSelectedId, setText
 	*/
-	void setSelectedItemIndex (int newItemIndex,
-							   bool dontSendChangeMessage = false) throw();
+	void setSelectedItemIndex (int newItemIndex, bool dontSendChangeMessage = false);
 
 	/** Returns the text that is currently shown in the combo-box's text field.
 
@@ -36770,7 +38602,7 @@ public:
 
 		@see setText, getSelectedId, getSelectedItemIndex
 	*/
-	const String getText() const throw();
+	const String getText() const;
 
 	/** Sets the contents of the combo-box's text field.
 
@@ -36784,8 +38616,7 @@ public:
 										change notification
 		@see getText
 	*/
-	void setText (const String& newText,
-				  bool dontSendChangeMessage = false) throw();
+	void setText (const String& newText, bool dontSendChangeMessage = false);
 
 	/** Programmatically opens the text editor to allow the user to edit the current item.
 
@@ -36816,22 +38647,22 @@ public:
 	};
 
 	/** Registers a listener that will be called when the box's content changes. */
-	void addListener (Listener* listener) throw();
+	void addListener (Listener* listener);
 
 	/** Deregisters a previously-registered listener. */
-	void removeListener (Listener* listener) throw();
+	void removeListener (Listener* listener);
 
 	/** Sets a message to display when there is no item currently selected.
 
 		@see getTextWhenNothingSelected
 	*/
-	void setTextWhenNothingSelected (const String& newMessage) throw();
+	void setTextWhenNothingSelected (const String& newMessage);
 
 	/** Returns the text that is shown when no item is selected.
 
 		@see setTextWhenNothingSelected
 	*/
-	const String getTextWhenNothingSelected() const throw();
+	const String getTextWhenNothingSelected() const;
 
 	/** Sets the message to show when there are no items in the list, and the user clicks
 		on the drop-down box.
@@ -36839,12 +38670,12 @@ public:
 		By default it just says "no choices", but this lets you change it to something more
 		meaningful.
 	*/
-	void setTextWhenNoChoicesAvailable (const String& newMessage) throw();
+	void setTextWhenNoChoicesAvailable (const String& newMessage);
 
 	/** Returns the text shown when no items have been added to the list.
 		@see setTextWhenNoChoicesAvailable
 	*/
-	const String getTextWhenNoChoicesAvailable() const throw();
+	const String getTextWhenNoChoicesAvailable() const;
 
 	/** Gives the ComboBox a tooltip. */
 	void setTooltip (const String& newTooltip);
@@ -36900,17 +38731,17 @@ public:
 	/** @internal */
 	void valueChanged (Value&);
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	struct ItemInfo
 	{
+		ItemInfo (const String& name, int itemId, bool isEnabled, bool isHeading);
+		bool isSeparator() const throw();
+		bool isRealItem() const throw();
+
 		String name;
 		int itemId;
 		bool isEnabled : 1, isHeading : 1;
-
-		bool isSeparator() const throw();
-		bool isRealItem() const throw();
 	};
 
 	class Callback;
@@ -36927,12 +38758,15 @@ private:
 	ItemInfo* getItemForId (int itemId) const throw();
 	ItemInfo* getItemForIndex (int index) const throw();
 
-	ComboBox (const ComboBox&);
-	ComboBox& operator= (const ComboBox&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ComboBox);
 };
 
 /** This typedef is just for compatibility with old code - newer code should use the ComboBox::Listener class directly. */
 typedef ComboBox::Listener ComboBoxListener;
+
+#if JUCE_VC6
+ #undef Listener
+#endif
 
 #endif   // __JUCE_COMBOBOX_JUCEHEADER__
 /*** End of inlined file: juce_ComboBox.h ***/
@@ -37319,7 +39153,17 @@ public:
 	*/
 	double getCurrentInputLevel() const;
 
-	juce_UseDebuggingNewOperator
+	/** Returns the a lock that can be used to synchronise access to the audio callback.
+		Obviously while this is locked, you're blocking the audio thread from running, so
+		it must only be used for very brief periods when absolutely necessary.
+	*/
+	CriticalSection& getAudioCallbackLock() throw()	 { return audioCallbackLock; }
+
+	/** Returns the a lock that can be used to synchronise access to the midi callback.
+		Obviously while this is locked, you're blocking the midi system from running, so
+		it must only be used for very brief periods when absolutely necessary.
+	*/
+	CriticalSection& getMidiCallbackLock() throw()	  { return midiCallbackLock; }
 
 private:
 
@@ -37393,12 +39237,12 @@ private:
 	void scanDevicesIfNeeded();
 	void deleteCurrentDevice();
 	double chooseBestSampleRate (double preferred) const;
+	int chooseBestBufferSize (int preferred) const;
 	void insertDefaultDeviceNames (AudioDeviceSetup& setup) const;
 
 	AudioIODeviceType* findType (const String& inputName, const String& outputName);
 
-	AudioDeviceManager (const AudioDeviceManager&);
-	AudioDeviceManager& operator= (const AudioDeviceManager&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioDeviceManager);
 };
 
 #endif   // __JUCE_AUDIODEVICEMANAGER_JUCEHEADER__
@@ -37420,79 +39264,90 @@ private:
 #endif
 #ifndef __JUCE_AUDIODATACONVERTERS_JUCEHEADER__
 
-/*** Start of inlined file: juce_AudioDataConverters.h ***/
-#ifndef __JUCE_AUDIODATACONVERTERS_JUCEHEADER__
-#define __JUCE_AUDIODATACONVERTERS_JUCEHEADER__
+#endif
+#ifndef __JUCE_AUDIOSAMPLEBUFFER_JUCEHEADER__
+
+#endif
+#ifndef __JUCE_DECIBELS_JUCEHEADER__
+
+/*** Start of inlined file: juce_Decibels.h ***/
+#ifndef __JUCE_DECIBELS_JUCEHEADER__
+#define __JUCE_DECIBELS_JUCEHEADER__
 
 /**
-	A set of routines to convert buffers of 32-bit floating point data to and from
-	various integer formats.
-
+	This class contains some helpful static methods for dealing with decibel values.
 */
-class JUCE_API  AudioDataConverters
+class Decibels
 {
 public:
 
-	static void convertFloatToInt16LE (const float* source, void* dest, int numSamples, int destBytesPerSample = 2);
-	static void convertFloatToInt16BE (const float* source, void* dest, int numSamples, int destBytesPerSample = 2);
+	/** Converts a dBFS value to its equivalent gain level.
 
-	static void convertFloatToInt24LE (const float* source, void* dest, int numSamples, int destBytesPerSample = 3);
-	static void convertFloatToInt24BE (const float* source, void* dest, int numSamples, int destBytesPerSample = 3);
-
-	static void convertFloatToInt32LE (const float* source, void* dest, int numSamples, int destBytesPerSample = 4);
-	static void convertFloatToInt32BE (const float* source, void* dest, int numSamples, int destBytesPerSample = 4);
-
-	static void convertFloatToFloat32LE (const float* source, void* dest, int numSamples, int destBytesPerSample = 4);
-	static void convertFloatToFloat32BE (const float* source, void* dest, int numSamples, int destBytesPerSample = 4);
-
-	static void convertInt16LEToFloat (const void* source, float* dest, int numSamples, int srcBytesPerSample = 2);
-	static void convertInt16BEToFloat (const void* source, float* dest, int numSamples, int srcBytesPerSample = 2);
-
-	static void convertInt24LEToFloat (const void* source, float* dest, int numSamples, int srcBytesPerSample = 3);
-	static void convertInt24BEToFloat (const void* source, float* dest, int numSamples, int srcBytesPerSample = 3);
-
-	static void convertInt32LEToFloat (const void* source, float* dest, int numSamples, int srcBytesPerSample = 4);
-	static void convertInt32BEToFloat (const void* source, float* dest, int numSamples, int srcBytesPerSample = 4);
-
-	static void convertFloat32LEToFloat (const void* source, float* dest, int numSamples, int srcBytesPerSample = 4);
-	static void convertFloat32BEToFloat (const void* source, float* dest, int numSamples, int srcBytesPerSample = 4);
-
-	enum DataFormat
+		A gain of 1.0 = 0 dB, and lower gains map onto negative decibel values. Any
+		decibel value lower than minusInfinityDb will return a gain of 0.
+	*/
+	template <typename Type>
+	static Type decibelsToGain (const Type decibels,
+								const Type minusInfinityDb = (Type) defaultMinusInfinitydB)
 	{
-		int16LE,
-		int16BE,
-		int24LE,
-		int24BE,
-		int32LE,
-		int32BE,
-		float32LE,
-		float32BE,
-	};
+		return decibels > minusInfinityDb ? powf ((Type) 10.0, decibels * (Type) 0.05)
+										  : Type();
+	}
 
-	static void convertFloatToFormat (DataFormat destFormat,
-									  const float* source, void* dest, int numSamples);
+	/** Converts a gain level into a dBFS value.
 
-	static void convertFormatToFloat (DataFormat sourceFormat,
-									  const void* source, float* dest, int numSamples);
+		A gain of 1.0 = 0 dB, and lower gains map onto negative decibel values.
+		If the gain is 0 (or negative), then the method will return the value
+		provided as minusInfinityDb.
+	*/
+	template <typename Type>
+	static Type gainToDecibels (const Type gain,
+								const Type minusInfinityDb = (Type) defaultMinusInfinitydB)
+	{
+		return gain > Type() ? jmax (minusInfinityDb, (Type) std::log (gain) * (Type) 20.0)
+							 : minusInfinityDb;
+	}
 
-	static void interleaveSamples (const float** source, float* dest,
-								   int numSamples, int numChannels);
+	/** Converts a decibel reading to a string, with the 'dB' suffix.
+		If the decibel value is lower than minusInfinityDb, the return value will
+		be "-INF dB".
+	*/
+	template <typename Type>
+	static const String toString (const Type decibels,
+								  const int decimalPlaces = 2,
+								  const Type minusInfinityDb = (Type) defaultMinusInfinitydB)
+	{
+		String s;
 
-	static void deinterleaveSamples (const float* source, float** dest,
-									 int numSamples, int numChannels);
+		if (decibels <= minusInfinityDb)
+		{
+			s = "-INF dB";
+		}
+		else
+		{
+			if (decibels >= Type())
+				s << '+';
+
+			s << String (decibels, decimalPlaces) << " dB";
+		}
+
+		return s;
+	}
 
 private:
-	AudioDataConverters();
-	AudioDataConverters (const AudioDataConverters&);
-	AudioDataConverters& operator= (const AudioDataConverters&);
+
+	enum
+	{
+		defaultMinusInfinitydB = -100
+	};
+
+	Decibels(); // This class can't be instantiated, it's just a holder for static methods..
+	JUCE_DECLARE_NON_COPYABLE (Decibels);
 };
 
-#endif   // __JUCE_AUDIODATACONVERTERS_JUCEHEADER__
-/*** End of inlined file: juce_AudioDataConverters.h ***/
+#endif   // __JUCE_DECIBELS_JUCEHEADER__
+/*** End of inlined file: juce_Decibels.h ***/
 
-
-#endif
-#ifndef __JUCE_AUDIOSAMPLEBUFFER_JUCEHEADER__
 
 #endif
 #ifndef __JUCE_IIRFILTER_JUCEHEADER__
@@ -37564,11 +39419,11 @@ public:
 		*/
 		MidiEventHolder* noteOffObject;
 
-		juce_UseDebuggingNewOperator
-
 	private:
+
 		friend class MidiMessageSequence;
 		MidiEventHolder (const MidiMessage& message);
+		JUCE_LEAK_DETECTOR (MidiEventHolder);
 	};
 
 	/** Clears the sequence. */
@@ -37737,8 +39592,6 @@ public:
 	/** Swaps this sequence with another one. */
 	void swapWith (MidiMessageSequence& other) throw();
 
-	juce_UseDebuggingNewOperator
-
 	/** @internal */
 	static int compareElements (const MidiMessageSequence::MidiEventHolder* first,
 								const MidiMessageSequence::MidiEventHolder* second) throw();
@@ -37749,6 +39602,8 @@ private:
 	OwnedArray <MidiEventHolder> list;
 
 	void sort();
+
+	JUCE_LEAK_DETECTOR (MidiMessageSequence);
 };
 
 #endif   // __JUCE_MIDIMESSAGESEQUENCE_JUCEHEADER__
@@ -37788,7 +39643,7 @@ public:
 		@returns a pointer to the track, or 0 if the index is out-of-range
 		@see getNumTracks, addTrack
 	*/
-	const MidiMessageSequence* getTrack (const int index) const throw();
+	const MidiMessageSequence* getTrack (int index) const throw();
 
 	/** Adds a midi track to the file.
 
@@ -37827,7 +39682,7 @@ public:
 		@param ticksPerQuarterNote  e.g. 96, 960
 		@see setSmpteTimeFormat
 	*/
-	void setTicksPerQuarterNote (const int ticksPerQuarterNote) throw();
+	void setTicksPerQuarterNote (int ticksPerQuarterNote) throw();
 
 	/** Sets the time format to use when this file is written to a stream.
 
@@ -37841,8 +39696,8 @@ public:
 									timing, setSmpteTimeFormat (25, 40)
 		@see setTicksPerBeat
 	*/
-	void setSmpteTimeFormat (const int framesPerSecond,
-							 const int subframeResolution) throw();
+	void setSmpteTimeFormat (int framesPerSecond,
+							 int subframeResolution) throw();
 
 	/** Makes a list of all the tempo-change meta-events from all tracks in the midi file.
 
@@ -37892,21 +39747,15 @@ public:
 	*/
 	void convertTimestampTicksToSeconds();
 
-	juce_UseDebuggingNewOperator
-
-	/** @internal */
-	static int compareElements (const MidiMessageSequence::MidiEventHolder* const first,
-								const MidiMessageSequence::MidiEventHolder* const second);
-
 private:
+
 	OwnedArray <MidiMessageSequence> tracks;
 	short timeFormat;
 
-	MidiFile (const MidiFile&);
-	MidiFile& operator= (const MidiFile&);
-
 	void readNextTrack (const uint8* data, int size);
-	void writeTrack (OutputStream& mainOut, const int trackNum);
+	void writeTrack (OutputStream& mainOut, int trackNum);
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MidiFile);
 };
 
 #endif   // __JUCE_MIDIFILE_JUCEHEADER__
@@ -37993,7 +39842,7 @@ public:
 		The channel number must be between 1 and 16. If you want to see if any notes are
 		on for a range of channels, use the isNoteOnForChannels() method.
 	*/
-	bool isNoteOn (const int midiChannel, const int midiNoteNumber) const throw();
+	bool isNoteOn (int midiChannel, int midiNoteNumber) const throw();
 
 	/** Returns true if the given midi key is currently held down on any of a set of midi channels.
 
@@ -38002,7 +39851,7 @@ public:
 
 		If a note is on for at least one of the specified channels, this returns true.
 	*/
-	bool isNoteOnForChannels (const int midiChannelMask, const int midiNoteNumber) const throw();
+	bool isNoteOnForChannels (int midiChannelMask, int midiNoteNumber) const throw();
 
 	/** Turns a specified note on.
 
@@ -38012,7 +39861,7 @@ public:
 		It will also trigger a synchronous callback to the listeners to tell them that the key has
 		gone down.
 	*/
-	void noteOn (const int midiChannel, const int midiNoteNumber, const float velocity);
+	void noteOn (int midiChannel, int midiNoteNumber, float velocity);
 
 	/** Turns a specified note off.
 
@@ -38024,7 +39873,7 @@ public:
 
 		But if the note isn't acutally down for the given channel, this method will in fact do nothing.
 	*/
-	void noteOff (const int midiChannel, const int midiNoteNumber);
+	void noteOff (int midiChannel, int midiNoteNumber);
 
 	/** This will turn off any currently-down notes for the given midi channel.
 
@@ -38033,7 +39882,7 @@ public:
 		Calling this method will make calls to noteOff(), so can trigger synchronous callbacks
 		and events being added to the midi stream.
 	*/
-	void allNotesOff (const int midiChannel);
+	void allNotesOff (int midiChannel);
 
 	/** Looks at a key-up/down event and uses it to update the state of this object.
 
@@ -38061,35 +39910,33 @@ public:
 		instead.
 	*/
 	void processNextMidiBuffer (MidiBuffer& buffer,
-								const int startSample,
-								const int numSamples,
-								const bool injectIndirectEvents);
+								int startSample,
+								int numSamples,
+								bool injectIndirectEvents);
 
 	/** Registers a listener for callbacks when keys go up or down.
 
 		@see removeListener
 	*/
-	void addListener (MidiKeyboardStateListener* const listener) throw();
+	void addListener (MidiKeyboardStateListener* listener);
 
 	/** Deregisters a listener.
 
 		@see addListener
 	*/
-	void removeListener (MidiKeyboardStateListener* const listener) throw();
-
-	juce_UseDebuggingNewOperator
+	void removeListener (MidiKeyboardStateListener* listener);
 
 private:
+
 	CriticalSection lock;
 	uint16 noteStates [128];
 	MidiBuffer eventsToAdd;
 	Array <MidiKeyboardStateListener*> listeners;
 
-	void noteOnInternal  (const int midiChannel, const int midiNoteNumber, const float velocity);
-	void noteOffInternal  (const int midiChannel, const int midiNoteNumber);
+	void noteOnInternal (int midiChannel, int midiNoteNumber, float velocity);
+	void noteOffInternal (int midiChannel, int midiNoteNumber);
 
-	MidiKeyboardState (const MidiKeyboardState&);
-	MidiKeyboardState& operator= (const MidiKeyboardState&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MidiKeyboardState);
 };
 
 #endif   // __JUCE_MIDIKEYBOARDSTATE_JUCEHEADER__
@@ -38164,16 +40011,14 @@ public:
 	/** @internal */
 	void handleIncomingMidiMessage (MidiInput* source, const MidiMessage& message);
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	double lastCallbackTime;
 	CriticalSection midiCallbackLock;
 	MidiBuffer incomingMessages;
 	double sampleRate;
 
-	MidiMessageCollector (const MidiMessageCollector&);
-	MidiMessageCollector& operator= (const MidiMessageCollector&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MidiMessageCollector);
 };
 
 #endif   // __JUCE_MIDIMESSAGECOLLECTOR_JUCEHEADER__
@@ -38226,7 +40071,7 @@ protected:
 
 	/** Creates an editor for the specified processor.
 	*/
-	AudioProcessorEditor (AudioProcessor* const owner);
+	AudioProcessorEditor (AudioProcessor* owner);
 
 public:
 	/** Destructor. */
@@ -38239,8 +40084,7 @@ private:
 
 	AudioProcessor* const owner;
 
-	AudioProcessorEditor (const AudioProcessorEditor&);
-	AudioProcessorEditor& operator= (const AudioProcessorEditor&);
+	JUCE_DECLARE_NON_COPYABLE (AudioProcessorEditor);
 };
 
 #endif   // __JUCE_AUDIOPROCESSOREDITOR_JUCEHEADER__
@@ -38322,7 +40166,7 @@ public:
 		to trigger an AsyncUpdater or ChangeBroadcaster which you can respond to later on the
 		message thread.
 
-		@see audioPluginParameterChangeGestureStart
+		@see audioProcessorParameterChangeGestureBegin
 	*/
 	virtual void audioProcessorParameterChangeGestureEnd (AudioProcessor* processor,
 														  int parameterIndex);
@@ -38584,14 +40428,14 @@ public:
 		The host might not supply very useful names for channels, and this might be
 		something like "1", "2", "left", "right", etc.
 	*/
-	virtual const String getInputChannelName (const int channelIndex) const = 0;
+	virtual const String getInputChannelName (int channelIndex) const = 0;
 
 	/** Returns the name of one of the output channels, as returned by the host.
 
 		The host might not supply very useful names for channels, and this might be
 		something like "1", "2", "left", "right", etc.
 	*/
-	virtual const String getOutputChannelName (const int channelIndex) const = 0;
+	virtual const String getOutputChannelName (int channelIndex) const = 0;
 
 	/** Returns true if the specified channel is part of a stereo pair with its neighbour. */
 	virtual bool isInputChannelStereoPair (int index) const = 0;
@@ -38612,7 +40456,7 @@ public:
 		The filter should call this as soon as it can during initialisation, and can call it
 		later if the value changes.
 	*/
-	void setLatencySamples (const int newLatency);
+	void setLatencySamples (int newLatency);
 
 	/** Returns true if the processor wants midi messages. */
 	virtual bool acceptsMidi() const = 0;
@@ -38661,7 +40505,7 @@ public:
 
 		@see getCallbackLock
 	*/
-	void suspendProcessing (const bool shouldBeSuspended);
+	void suspendProcessing (bool shouldBeSuspended);
 
 	/** Returns true if processing is currently suspended.
 		@see suspendProcessing
@@ -38692,7 +40536,7 @@ public:
 
 		Whatever value is passed-in will be
 	*/
-	void setNonRealtime (const bool isNonRealtime) throw();
+	void setNonRealtime (bool isNonRealtime) throw();
 
 	/** Creates the filter's UI.
 
@@ -38700,7 +40544,8 @@ public:
 		a generic UI that lets the user twiddle the parameters directly.
 
 		If you do want to pass back a component, the component should be created and set to
-		the correct size before returning it.
+		the correct size before returning it. If you implement this method, you must
+		also implement the hasEditor() method and make it return true.
 
 		Remember not to do anything silly like allowing your filter to keep a pointer to
 		the component that gets created - it could be deleted later without any warning, which
@@ -38717,8 +40562,15 @@ public:
 		  not open one at all. Your filter mustn't rely on it being there.
 		- An editor object may be deleted and a replacement one created again at any time.
 		- It's safe to assume that an editor will be deleted before its filter.
+
+		@see hasEditor
 	*/
 	virtual AudioProcessorEditor* createEditor() = 0;
+
+	/** Your filter must override this and return true if it can create an editor component.
+		@see createEditor
+	*/
+	virtual bool hasEditor() const = 0;
 
 	/** Returns the active editor, if there is one.
 
@@ -38899,23 +40751,24 @@ public:
 	virtual void setCurrentProgramStateInformation (const void* data, int sizeInBytes);
 
 	/** Adds a listener that will be called when an aspect of this processor changes. */
-	void addListener (AudioProcessorListener* const newListener) throw();
+	void addListener (AudioProcessorListener* newListener);
 
 	/** Removes a previously added listener. */
-	void removeListener (AudioProcessorListener* const listenerToRemove) throw();
+	void removeListener (AudioProcessorListener* listenerToRemove);
+
+	/** Tells the processor to use this playhead object.
+		The processor will not take ownership of the object, so the caller must delete it when
+		it is no longer being used.
+	*/
+	void setPlayHead (AudioPlayHead* newPlayHead) throw();
 
 	/** Not for public use - this is called before deleting an editor component. */
-	void editorBeingDeleted (AudioProcessorEditor* const editor) throw();
-
-	/** Not for public use - this is called to initialise the processor. */
-	void setPlayHead (AudioPlayHead* const newPlayHead) throw();
+	void editorBeingDeleted (AudioProcessorEditor* editor) throw();
 
 	/** Not for public use - this is called to initialise the processor before playing. */
-	void setPlayConfigDetails (const int numIns, const int numOuts,
-							   const double sampleRate,
-							   const int blockSize) throw();
-
-	juce_UseDebuggingNewOperator
+	void setPlayConfigDetails (int numIns, int numOuts,
+							   double sampleRate,
+							   int blockSize) throw();
 
 protected:
 
@@ -38935,14 +40788,13 @@ protected:
 		This might return 0 if the data's unsuitable or corrupted. Otherwise it will return
 		an XmlElement object that the caller must delete when no longer needed.
 	*/
-	static XmlElement* getXmlFromBinary (const void* data,
-										 const int sizeInBytes);
+	static XmlElement* getXmlFromBinary (const void* data, int sizeInBytes);
 
 	/** @internal */
 	AudioPlayHead* playHead;
 
 	/** @internal */
-	void sendParamChangeMessageToListeners (const int parameterIndex, const float newValue);
+	void sendParamChangeMessageToListeners (int parameterIndex, float newValue);
 
 private:
 	Array <AudioProcessorListener*> listeners;
@@ -38956,8 +40808,7 @@ private:
 	BigInteger changingParams;
 #endif
 
-	AudioProcessor (const AudioProcessor&);
-	AudioProcessor& operator= (const AudioProcessor&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioProcessor);
 };
 
 #endif   // __JUCE_AUDIOPROCESSOR_JUCEHEADER__
@@ -38982,13 +40833,19 @@ class JUCE_API  PluginDescription
 {
 public:
 
-	PluginDescription() throw();
-	PluginDescription (const PluginDescription& other) throw();
-	PluginDescription& operator= (const PluginDescription& other) throw();
-	~PluginDescription() throw();
+	PluginDescription();
+	PluginDescription (const PluginDescription& other);
+	PluginDescription& operator= (const PluginDescription& other);
+	~PluginDescription();
 
 	/** The name of the plugin. */
 	String name;
+
+	/** A more descriptive name for the plugin.
+		This may be the same as the 'name' field, but some plugins may provide an
+		alternative name.
+	*/
+	String descriptiveName;
 
 	/** The plugin format, e.g. "VST", "AudioUnit", etc.
 	*/
@@ -39049,7 +40906,7 @@ public:
 		plugin's file location, so can be used to store a plugin ID for use
 		across different machines.
 	*/
-	const String createIdentifierString() const throw();
+	const String createIdentifierString() const;
 
 	/** Creates an XML object containing these details.
 
@@ -39064,7 +40921,9 @@ public:
 	*/
 	bool loadFromXml (const XmlElement& xml);
 
-	juce_UseDebuggingNewOperator
+private:
+
+	JUCE_LEAK_DETECTOR (PluginDescription);
 };
 
 #endif   // __JUCE_PLUGINDESCRIPTION_JUCEHEADER__
@@ -39093,13 +40952,18 @@ public:
 	*/
 	virtual void fillInPluginDescription (PluginDescription& description) const = 0;
 
-	juce_UseDebuggingNewOperator
+	/** Returns a pointer to some kind of platform-specific data about the plugin.
+
+		E.g. For a VST, this value can be cast to an AEffect*. For an AudioUnit, it can be
+		cast to an AudioUnit handle.
+	*/
+	virtual void* getPlatformSpecificData();
 
 protected:
+
 	AudioPluginInstance();
 
-	AudioPluginInstance (const AudioPluginInstance&);
-	AudioPluginInstance& operator= (const AudioPluginInstance&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioPluginInstance);
 };
 
 #endif   // __JUCE_AUDIOPLUGININSTANCE_JUCEHEADER__
@@ -39178,13 +41042,11 @@ public:
 	*/
 	virtual const FileSearchPath getDefaultLocationsToSearch() = 0;
 
-	juce_UseDebuggingNewOperator
-
 protected:
+
 	AudioPluginFormat() throw();
 
-	AudioPluginFormat (const AudioPluginFormat&);
-	AudioPluginFormat& operator= (const AudioPluginFormat&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioPluginFormat);
 };
 
 #endif   // __JUCE_AUDIOPLUGINFORMAT_JUCEHEADER__
@@ -39211,11 +41073,9 @@ public:
 	bool doesPluginStillExist (const PluginDescription& desc);
 	const FileSearchPath getDefaultLocationsToSearch();
 
-	juce_UseDebuggingNewOperator
-
 private:
-	AudioUnitPluginFormat (const AudioUnitPluginFormat&);
-	AudioUnitPluginFormat& operator= (const AudioUnitPluginFormat&);
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioUnitPluginFormat);
 };
 
 #endif
@@ -39252,11 +41112,8 @@ public:
 	const String getNameOfPluginFromIdentifier (const String& fileOrIdentifier)  { return fileOrIdentifier; }
 	const FileSearchPath getDefaultLocationsToSearch();
 
-	juce_UseDebuggingNewOperator
-
 private:
-	DirectXPluginFormat (const DirectXPluginFormat&);
-	DirectXPluginFormat& operator= (const DirectXPluginFormat&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (DirectXPluginFormat);
 };
 
 #endif
@@ -39293,11 +41150,8 @@ public:
 	const String getNameOfPluginFromIdentifier (const String& fileOrIdentifier)  { return fileOrIdentifier; }
 	const FileSearchPath getDefaultLocationsToSearch();
 
-	juce_UseDebuggingNewOperator
-
 private:
-	LADSPAPluginFormat (const LADSPAPluginFormat&);
-	LADSPAPluginFormat& operator= (const LADSPAPluginFormat&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (LADSPAPluginFormat);
 };
 
 #endif
@@ -39353,7 +41207,7 @@ public:
 		{
 			if (e->type == kVstSysExType)
 			{
-				juce_free (((VstMidiSysexEvent*) e)->sysexDump);
+				delete[] (((VstMidiSysexEvent*) e)->sysexDump);
 				e->type = kVstMidiType;
 				e->byteSize = sizeof (VstMidiEvent);
 				e->noteLength = 0;
@@ -39370,10 +41224,9 @@ public:
 			VstMidiSysexEvent* const se = (VstMidiSysexEvent*) e;
 
 			if (se->type == kVstSysExType)
-				se->sysexDump = (char*) juce_realloc (se->sysexDump, numBytes);
-			else
-				se->sysexDump = (char*) juce_malloc (numBytes);
+				delete[] se->sysexDump;
 
+			se->sysexDump = new char [numBytes];
 			memcpy (se->sysexDump, midiData, numBytes);
 
 			se->type = kVstSysExType;
@@ -39447,7 +41300,7 @@ public:
 				VstMidiEvent* const e = (VstMidiEvent*) (events->events[i]);
 
 				if (e->type == kVstSysExType)
-					juce_free (((VstMidiSysexEvent*) e)->sysexDump);
+					delete[] (((VstMidiSysexEvent*) e)->sysexDump);
 
 				juce_free (e);
 			}
@@ -39497,13 +41350,11 @@ public:
 	bool doesPluginStillExist (const PluginDescription& desc);
 	const FileSearchPath getDefaultLocationsToSearch();
 
-	juce_UseDebuggingNewOperator
-
 private:
-	VSTPluginFormat (const VSTPluginFormat&);
-	VSTPluginFormat& operator= (const VSTPluginFormat&);
 
 	void recursiveFileSearch (StringArray& results, const File& dir, const bool recursive);
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (VSTPluginFormat);
 };
 
 #endif
@@ -39530,10 +41381,10 @@ class JUCE_API  AudioPluginFormatManager  : public DeletedAtShutdown
 {
 public:
 
-	AudioPluginFormatManager() throw();
+	AudioPluginFormatManager();
 
 	/** Destructor. */
-	~AudioPluginFormatManager() throw();
+	~AudioPluginFormatManager();
 
 	juce_DeclareSingleton_SingleThreaded (AudioPluginFormatManager, false);
 
@@ -39545,19 +41396,19 @@ public:
 
 		Use getFormat() to get one of them.
 	*/
-	int getNumFormats() throw();
+	int getNumFormats();
 
 	/** Returns one of the available formats.
 
 		@see getNumFormats
 	*/
-	AudioPluginFormat* getFormat (const int index) throw();
+	AudioPluginFormat* getFormat (int index);
 
 	/** Adds a format to the list.
 
 		The object passed in will be owned and deleted by the manager.
 	*/
-	void addFormat (AudioPluginFormat* const format) throw();
+	void addFormat (AudioPluginFormat* format);
 
 	/** Tries to load the type for this description, by trying all the formats
 		that this manager knows about.
@@ -39576,13 +41427,11 @@ public:
 	*/
 	bool doesPluginStillExist (const PluginDescription& description) const;
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	OwnedArray <AudioPluginFormat> formats;
 
-	AudioPluginFormatManager (const AudioPluginFormatManager&);
-	AudioPluginFormatManager& operator= (const AudioPluginFormatManager&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioPluginFormatManager);
 };
 
 #endif   // __JUCE_AUDIOPLUGINFORMATMANAGER_JUCEHEADER__
@@ -39633,20 +41482,20 @@ public:
 
 	/** Looks for a type in the list which comes from this file.
 	*/
-	PluginDescription* getTypeForFile (const String& fileOrIdentifier) const throw();
+	PluginDescription* getTypeForFile (const String& fileOrIdentifier) const;
 
 	/** Looks for a type in the list which matches a plugin type ID.
 
 		The identifierString parameter must have been created by
 		PluginDescription::createIdentifierString().
 	*/
-	PluginDescription* getTypeForIdentifierString (const String& identifierString) const throw();
+	PluginDescription* getTypeForIdentifierString (const String& identifierString) const;
 
 	/** Adds a type manually from its description. */
 	bool addType (const PluginDescription& type);
 
 	/** Removes a type. */
-	void removeType (int index) throw();
+	void removeType (int index);
 
 	/** Looks for all types that can be loaded from a given file, and adds them
 		to the list.
@@ -39668,7 +41517,7 @@ public:
 	/** Returns true if the specified file is already known about and if it
 		hasn't been modified since our entry was created.
 	*/
-	bool isListingUpToDate (const String& possiblePluginFileOrIdentifier) const throw();
+	bool isListingUpToDate (const String& possiblePluginFileOrIdentifier) const;
 
 	/** Scans and adds a bunch of files that might have been dragged-and-dropped.
 
@@ -39717,13 +41566,11 @@ public:
 	*/
 	void recreateFromXml (const XmlElement& xml);
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	OwnedArray <PluginDescription> types;
 
-	KnownPluginList (const KnownPluginList&);
-	KnownPluginList& operator= (const KnownPluginList&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (KnownPluginList);
 };
 
 #endif   // __JUCE_KNOWNPLUGINLIST_JUCEHEADER__
@@ -39791,13 +41638,18 @@ public:
 	*/
 	bool scanNextFile (bool dontRescanIfAlreadyInList);
 
+	/** Skips over the next file without scanning it.
+		Returns false when there are no more files to try.
+	*/
+	bool skipNextFile();
+
 	/** Returns the description of the plugin that will be scanned during the next
 		call to scanNextFile().
 
 		This is handy if you want to show the user which file is currently getting
 		scanned.
 	*/
-	const String getNextPluginFileThatWillBeScanned() const throw();
+	const String getNextPluginFileThatWillBeScanned() const;
 
 	/** Returns the estimated progress, between 0 and 1.
 	*/
@@ -39808,9 +41660,8 @@ public:
 	*/
 	const StringArray& getFailedFiles() const throw()		   { return failedFiles; }
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	KnownPluginList& list;
 	AudioPluginFormat& format;
 	StringArray filesOrIdentifiersToScan;
@@ -39819,11 +41670,10 @@ private:
 	int nextIndex;
 	float progress;
 
-	const StringArray getDeadMansPedalFile() throw();
-	void setDeadMansPedalFile (const StringArray& newContents) throw();
+	const StringArray getDeadMansPedalFile();
+	void setDeadMansPedalFile (const StringArray& newContents);
 
-	PluginDirectoryScanner (const PluginDirectoryScanner&);
-	PluginDirectoryScanner& operator= (const PluginDirectoryScanner&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PluginDirectoryScanner);
 };
 
 #endif   // __JUCE_PLUGINDIRECTORYSCANNER_JUCEHEADER__
@@ -39984,8 +41834,8 @@ public:
 		The model pointer passed-in can be null, in which case you can set it later
 		with setModel().
 	*/
-	ListBox (const String& componentName,
-			 ListBoxModel* model);
+	ListBox (const String& componentName = String::empty,
+			 ListBoxModel* model = 0);
 
 	/** Destructor. */
 	~ListBox();
@@ -40325,7 +42175,7 @@ public:
 
 		@see Component::createComponentSnapshot
 	*/
-	const Image createSnapshotOfSelectedRows (int& x, int& y);
+	virtual const Image createSnapshotOfSelectedRows (int& x, int& y);
 
 	/** Returns the viewport that this ListBox uses.
 
@@ -40359,8 +42209,6 @@ public:
 	/** @internal */
 	void startDragAndDrop (const MouseEvent& e, const String& dragDescription);
 
-	juce_UseDebuggingNewOperator
-
 private:
 
 	friend class ListViewport;
@@ -40379,8 +42227,7 @@ private:
 							bool deselectOthersFirst,
 							bool isMouseClick);
 
-	ListBox (const ListBox&);
-	ListBox& operator= (const ListBox&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ListBox);
 };
 
 #endif   // __JUCE_LISTBOX_JUCEHEADER__
@@ -40448,8 +42295,6 @@ public:
 	*/
 	virtual const Font getFont();
 
-	juce_UseDebuggingNewOperator
-
 protected:
 	/** @internal */
 	void paintButton (Graphics& g, bool isMouseOverButton, bool isButtonDown);
@@ -40457,8 +42302,8 @@ protected:
 	void colourChanged();
 
 private:
-	TextButton (const TextButton&);
-	TextButton& operator= (const TextButton&);
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (TextButton);
 };
 
 #endif   // __JUCE_TEXTBUTTON_JUCEHEADER__
@@ -40505,24 +42350,22 @@ public:
 	/** @internal */
 	void buttonClicked (Button* b);
 	/** @internal */
-	void changeListenerCallback (void*);
+	void changeListenerCallback (ChangeBroadcaster*);
 	/** @internal */
 	void timerCallback();
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	KnownPluginList& list;
 	File deadMansPedalFile;
-	ListBox* listBox;
-	TextButton* optionsButton;
+	ListBox listBox;
+	TextButton optionsButton;
 	PropertiesFile* propertiesToUse;
 	int typeToScan;
 
 	void scanFor (AudioPluginFormat* format);
 
-	PluginListComponent (const PluginListComponent&);
-	PluginListComponent& operator= (const PluginListComponent&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PluginListComponent);
 };
 
 #endif   // __JUCE_PLUGINLISTCOMPONENT_JUCEHEADER__
@@ -40590,9 +42433,8 @@ public:
 		*/
 		const uint32 id;
 
-		/** The actual processor object that this node represents.
-		*/
-		AudioProcessor* const processor;
+		/** The actual processor object that this node represents. */
+		AudioProcessor* getProcessor() const throw()		{ return processor; }
 
 		/** A set of user-definable properties that are associated with this node.
 
@@ -40606,11 +42448,11 @@ public:
 		*/
 		typedef ReferenceCountedObjectPtr <Node> Ptr;
 
-		juce_UseDebuggingNewOperator
-
 	private:
+
 		friend class AudioProcessorGraph;
 
+		const ScopedPointer<AudioProcessor> processor;
 		bool isPrepared;
 
 		Node (uint32 id, AudioProcessor* processor);
@@ -40618,8 +42460,7 @@ public:
 		void prepare (double sampleRate, int blockSize, AudioProcessorGraph* graph);
 		void unprepare();
 
-		Node (const Node&);
-		Node& operator= (const Node&);
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Node);
 	};
 
 	/** Represents a connection between two channels of two nodes in an AudioProcessorGraph.
@@ -40658,9 +42499,9 @@ public:
 		*/
 		int destChannelIndex;
 
-		juce_UseDebuggingNewOperator
-
 	private:
+
+		JUCE_LEAK_DETECTOR (Connection);
 	};
 
 	/** Deletes all nodes and connections from this graph.
@@ -40826,13 +42667,14 @@ public:
 		void releaseResources();
 		void processBlock (AudioSampleBuffer& buffer, MidiBuffer& midiMessages);
 
-		const String getInputChannelName (const int channelIndex) const;
-		const String getOutputChannelName (const int channelIndex) const;
+		const String getInputChannelName (int channelIndex) const;
+		const String getOutputChannelName (int channelIndex) const;
 		bool isInputChannelStereoPair (int index) const;
 		bool isOutputChannelStereoPair (int index) const;
 		bool acceptsMidi() const;
 		bool producesMidi() const;
 
+		bool hasEditor() const;
 		AudioProcessorEditor* createEditor();
 
 		int getNumParameters();
@@ -40853,14 +42695,11 @@ public:
 		/** @internal */
 		void setParentGraph (AudioProcessorGraph* graph);
 
-		juce_UseDebuggingNewOperator
-
 	private:
 		const IODeviceType type;
 		AudioProcessorGraph* graph;
 
-		AudioGraphIOProcessor (const AudioGraphIOProcessor&);
-		AudioGraphIOProcessor& operator= (const AudioGraphIOProcessor&);
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioGraphIOProcessor);
 	};
 
 	// AudioProcessor methods:
@@ -40871,14 +42710,15 @@ public:
 	void releaseResources();
 	void processBlock (AudioSampleBuffer& buffer, MidiBuffer& midiMessages);
 
-	const String getInputChannelName (const int channelIndex) const;
-	const String getOutputChannelName (const int channelIndex) const;
+	const String getInputChannelName (int channelIndex) const;
+	const String getOutputChannelName (int channelIndex) const;
 	bool isInputChannelStereoPair (int index) const;
 	bool isOutputChannelStereoPair (int index) const;
 
 	bool acceptsMidi() const;
 	bool producesMidi() const;
 
+	bool hasEditor() const			  { return false; }
 	AudioProcessorEditor* createEditor()		{ return 0; }
 
 	int getNumParameters()			  { return 0; }
@@ -40899,9 +42739,8 @@ public:
 	/** @internal */
 	void handleAsyncUpdate();
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	ReferenceCountedArray <Node> nodes;
 	OwnedArray <Connection> connections;
 	int lastNodeId;
@@ -40922,8 +42761,7 @@ private:
 
 	bool isAnInputTo (uint32 possibleInputId, uint32 possibleDestinationId, int recursionCheck) const;
 
-	AudioProcessorGraph (const AudioProcessorGraph&);
-	AudioProcessorGraph& operator= (const AudioProcessorGraph&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioProcessorGraph);
 };
 
 #endif   // __JUCE_AUDIOPROCESSORGRAPH_JUCEHEADER__
@@ -40968,7 +42806,7 @@ public:
 		The processor that is passed in will not be deleted or owned by this object.
 		To stop anything playing, pass in 0 to this method.
 	*/
-	void setProcessor (AudioProcessor* const processorToPlay);
+	void setProcessor (AudioProcessor* processorToPlay);
 
 	/** Returns the current audio processor that is being played.
 	*/
@@ -40993,9 +42831,8 @@ public:
 	/** @internal */
 	void handleIncomingMidiMessage (MidiInput* source, const MidiMessage& message);
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	AudioProcessor* processor;
 	CriticalSection lock;
 	double sampleRate;
@@ -41009,8 +42846,7 @@ private:
 	MidiBuffer incomingMidi;
 	MidiMessageCollector messageCollector;
 
-	AudioProcessorPlayer (const AudioProcessorPlayer&);
-	AudioProcessorPlayer& operator= (const AudioProcessorPlayer&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioProcessorPlayer);
 };
 
 #endif   // __JUCE_AUDIOPROCESSORPLAYER_JUCEHEADER__
@@ -41108,15 +42944,16 @@ public:
 	/** By default, this just repaints the component. */
 	void enablementChanged();
 
-	juce_UseDebuggingNewOperator
-
 protected:
 	/** Used by the PropertyPanel to determine how high this component needs to be.
-
 		A subclass can update this value in its constructor but shouldn't alter it later
 		as changes won't necessarily be picked up.
 	*/
 	int preferredHeight;
+
+private:
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PropertyComponent);
 };
 
 #endif   // __JUCE_PROPERTYCOMPONENT_JUCEHEADER__
@@ -41234,8 +43071,6 @@ public:
 	/** @internal */
 	void resized();
 
-	juce_UseDebuggingNewOperator
-
 private:
 	Viewport viewport;
 	class PropertyHolderComponent;
@@ -41244,6 +43079,8 @@ private:
 
 	void updatePropHolderLayout() const;
 	void updatePropHolderLayout (int width) const;
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PropertyPanel);
 };
 
 #endif   // __JUCE_PROPERTYPANEL_JUCEHEADER__
@@ -41262,19 +43099,17 @@ class JUCE_API  GenericAudioProcessorEditor	  : public AudioProcessorEditor
 {
 public:
 
-	GenericAudioProcessorEditor (AudioProcessor* const owner);
+	GenericAudioProcessorEditor (AudioProcessor* owner);
 	~GenericAudioProcessorEditor();
 
 	void paint (Graphics& g);
 	void resized();
 
-	juce_UseDebuggingNewOperator
-
 private:
-	PropertyPanel* panel;
 
-	GenericAudioProcessorEditor (const GenericAudioProcessorEditor&);
-	GenericAudioProcessorEditor& operator= (const GenericAudioProcessorEditor&);
+	PropertyPanel panel;
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (GenericAudioProcessorEditor);
 };
 
 #endif   // __JUCE_GENERICAUDIOPROCESSOREDITOR_JUCEHEADER__
@@ -41333,7 +43168,9 @@ public:
 	*/
 	typedef ReferenceCountedObjectPtr <SynthesiserSound> Ptr;
 
-	juce_UseDebuggingNewOperator
+private:
+
+	JUCE_LEAK_DETECTOR (SynthesiserSound);
 };
 
 /**
@@ -41450,8 +43287,6 @@ public:
 	*/
 	void setCurrentPlaybackSampleRate (double newRate);
 
-	juce_UseDebuggingNewOperator
-
 protected:
 
 	/** Returns the current target sample rate at which rendering is being done.
@@ -41482,6 +43317,8 @@ private:
 	int currentlyPlayingNote;
 	uint32 noteOnTime;
 	SynthesiserSound::Ptr currentlyPlayingSound;
+
+	JUCE_LEAK_DETECTOR (SynthesiserVoice);
 };
 
 /**
@@ -41585,9 +43422,9 @@ public:
 		This method will be called automatically according to the midi data passed into
 		renderNextBlock(), but may be called explicitly too.
 	*/
-	virtual void noteOn (const int midiChannel,
-						 const int midiNoteNumber,
-						 const float velocity);
+	virtual void noteOn (int midiChannel,
+						 int midiNoteNumber,
+						 float velocity);
 
 	/** Triggers a note-off event.
 
@@ -41599,9 +43436,9 @@ public:
 		This method will be called automatically according to the midi data passed into
 		renderNextBlock(), but may be called explicitly too.
 	*/
-	virtual void noteOff (const int midiChannel,
-						  const int midiNoteNumber,
-						  const bool allowTailOff);
+	virtual void noteOff (int midiChannel,
+						  int midiNoteNumber,
+						  bool allowTailOff);
 
 	/** Turns off all notes.
 
@@ -41616,8 +43453,8 @@ public:
 		This method will be called automatically according to the midi data passed into
 		renderNextBlock(), but may be called explicitly too.
 	*/
-	virtual void allNotesOff (const int midiChannel,
-							  const bool allowTailOff);
+	virtual void allNotesOff (int midiChannel,
+							  bool allowTailOff);
 
 	/** Sends a pitch-wheel message.
 
@@ -41630,8 +43467,8 @@ public:
 		@param midiChannel	  the midi channel for the event
 		@param wheelValue	   the wheel position, from 0 to 0x3fff, as returned by MidiMessage::getPitchWheelValue()
 	*/
-	virtual void handlePitchWheel (const int midiChannel,
-								   const int wheelValue);
+	virtual void handlePitchWheel (int midiChannel,
+								   int wheelValue);
 
 	/** Sends a midi controller message.
 
@@ -41645,9 +43482,9 @@ public:
 		@param controllerNumber	 the midi controller type, as returned by MidiMessage::getControllerNumber()
 		@param controllerValue	  the midi controller value, between 0 and 127, as returned by MidiMessage::getControllerValue()
 	*/
-	virtual void handleController (const int midiChannel,
-								   const int controllerNumber,
-								   const int controllerValue);
+	virtual void handleController (int midiChannel,
+								   int controllerNumber,
+								   int controllerValue);
 
 	/** Tells the synthesiser what the sample rate is for the audio it's being used to
 		render.
@@ -41655,7 +43492,7 @@ public:
 		This value is propagated to the voices so that they can use it to render the correct
 		pitches.
 	*/
-	void setCurrentPlaybackSampleRate (const double sampleRate);
+	void setCurrentPlaybackSampleRate (double sampleRate);
 
 	/** Creates the next block of audio output.
 
@@ -41673,8 +43510,6 @@ public:
 						  const MidiBuffer& inputMidi,
 						  int startSample,
 						  int numSamples);
-
-	juce_UseDebuggingNewOperator
 
 protected:
 
@@ -41708,16 +43543,17 @@ protected:
 					 int midiNoteNumber,
 					 float velocity);
 
-	/** xxx Temporary method here to cause a compiler error - note the new parameters for this method. */
+   #if JUCE_CATCH_DEPRECATED_CODE_MISUSE
+	// Temporary method here to cause a compiler error - note the new parameters for this method.
 	int findFreeVoice (const bool) const { return 0; }
+   #endif
 
 private:
 	double sampleRate;
 	uint32 lastNoteOnCounter;
 	bool shouldStealNotes;
 
-	Synthesiser (const Synthesiser&);
-	Synthesiser& operator= (const Synthesiser&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Synthesiser);
 };
 
 #endif   // __JUCE_SYNTHESISER_JUCEHEADER__
@@ -41778,9 +43614,8 @@ public:
 	bool appliesToNote (const int midiNoteNumber);
 	bool appliesToChannel (const int midiChannel);
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	friend class SamplerVoice;
 
 	String name;
@@ -41789,6 +43624,8 @@ private:
 	BigInteger midiNotes;
 	int length, attackSamples, releaseSamples;
 	int midiRootNote;
+
+	JUCE_LEAK_DETECTOR (SamplerSound);
 };
 
 /**
@@ -41825,13 +43662,14 @@ public:
 
 	void renderNextBlock (AudioSampleBuffer& outputBuffer, int startSample, int numSamples);
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	double pitchRatio;
 	double sourceSamplePosition;
 	float lgain, rgain, attackReleaseLevel, attackDelta, releaseDelta;
 	bool isInAttack, isInRelease;
+
+	JUCE_LEAK_DETECTOR (SamplerVoice);
 };
 
 #endif   // __JUCE_SAMPLER_JUCEHEADER__
@@ -41848,96 +43686,29 @@ private:
 #ifndef __JUCE_ACTIONBROADCASTER_JUCEHEADER__
 #define __JUCE_ACTIONBROADCASTER_JUCEHEADER__
 
-
-/*** Start of inlined file: juce_ActionListenerList.h ***/
-#ifndef __JUCE_ACTIONLISTENERLIST_JUCEHEADER__
-#define __JUCE_ACTIONLISTENERLIST_JUCEHEADER__
-
-/**
-	A set of ActionListeners.
-
-	Listeners can be added and removed from the list, and messages can be
-	broadcast to all the listeners.
-
-	@see ActionListener, ActionBroadcaster
-*/
-class JUCE_API  ActionListenerList  : public MessageListener
-{
-public:
-
-	/** Creates an empty list. */
-	ActionListenerList() throw();
-
-	/** Destructor. */
-	~ActionListenerList() throw();
-
-	/** Adds a listener to the list.
-
-		(Trying to add a listener that's already on the list will have no effect).
-	*/
-	void addActionListener (ActionListener* listener) throw();
-
-	/** Removes a listener from the list.
-
-		If the listener isn't on the list, this won't have any effect.
-	*/
-	void removeActionListener (ActionListener* listener) throw();
-
-	/** Removes all listeners from the list. */
-	void removeAllActionListeners() throw();
-
-	/** Broadcasts a message to all the registered listeners.
-
-		This sends the message asynchronously.
-
-		If a listener is on the list when this method is called but is removed from
-		the list before the message arrives, it won't receive the message. Similarly
-		listeners that are added to the list after the message is sent but before it
-		arrives won't get the message either.
-	*/
-	void sendActionMessage (const String& message) const;
-
-	/** @internal */
-	void handleMessage (const Message&);
-
-	juce_UseDebuggingNewOperator
-
-private:
-	SortedSet <void*> actionListeners_;
-	CriticalSection actionListenerLock_;
-
-	ActionListenerList (const ActionListenerList&);
-	ActionListenerList& operator= (const ActionListenerList&);
-};
-
-#endif   // __JUCE_ACTIONLISTENERLIST_JUCEHEADER__
-/*** End of inlined file: juce_ActionListenerList.h ***/
-
 /** Manages a list of ActionListeners, and can send them messages.
 
 	To quickly add methods to your class that can add/remove action
 	listeners and broadcast to them, you can derive from this.
 
-	@see ActionListenerList, ActionListener
+	@see ActionListener, ChangeListener
 */
 class JUCE_API  ActionBroadcaster
 {
 public:
 
 	/** Creates an ActionBroadcaster. */
-	ActionBroadcaster() throw();
+	ActionBroadcaster();
 
 	/** Destructor. */
 	virtual ~ActionBroadcaster();
 
 	/** Adds a listener to the list.
-
-		(Trying to add a listener that's already on the list will have no effect).
+		Trying to add a listener that's already on the list will have no effect.
 	*/
 	void addActionListener (ActionListener* listener);
 
 	/** Removes a listener from the list.
-
 		If the listener isn't on the list, this won't have any effect.
 	*/
 	void removeActionListener (ActionListener* listener);
@@ -41946,17 +43717,27 @@ public:
 	void removeAllActionListeners();
 
 	/** Broadcasts a message to all the registered listeners.
-
-		@see ActionListenerList::sendActionMessage
+		@see ActionListener::actionListenerCallback
 	*/
 	void sendActionMessage (const String& message) const;
 
 private:
 
-	ActionListenerList actionListenerList;
+	class CallbackReceiver  : public MessageListener
+	{
+	public:
+		CallbackReceiver();
+		void handleMessage (const Message&);
 
-	ActionBroadcaster (const ActionBroadcaster&);
-	ActionBroadcaster& operator= (const ActionBroadcaster&);
+		ActionBroadcaster* owner;
+	};
+
+	friend class CallbackReceiver;
+	CallbackReceiver callback;
+	SortedSet <ActionListener*> actionListeners;
+	CriticalSection actionListenerLock;
+
+	JUCE_DECLARE_NON_COPYABLE (ActionBroadcaster);
 };
 
 #endif   // __JUCE_ACTIONBROADCASTER_JUCEHEADER__
@@ -41965,9 +43746,6 @@ private:
 
 #endif
 #ifndef __JUCE_ACTIONLISTENER_JUCEHEADER__
-
-#endif
-#ifndef __JUCE_ACTIONLISTENERLIST_JUCEHEADER__
 
 #endif
 #ifndef __JUCE_ASYNCUPDATER_JUCEHEADER__
@@ -41989,6 +43767,9 @@ private:
 	just call the post() method to send them, and when they arrive, your
 	messageCallback() method will automatically be invoked.
 
+	Always create an instance of a CallbackMessage on the heap, as it will be
+	deleted automatically after the message has been delivered.
+
 	@see MessageListener, MessageManager, ActionListener, ChangeListener
 */
 class JUCE_API  CallbackMessage   : public Message
@@ -41998,7 +43779,7 @@ public:
 	CallbackMessage() throw();
 
 	/** Destructor. */
-	~CallbackMessage() throw();
+	~CallbackMessage();
 
 	/** Called when the message is delivered.
 
@@ -42019,11 +43800,9 @@ public:
 	*/
 	void post();
 
-	juce_UseDebuggingNewOperator
-
 private:
-	CallbackMessage (const CallbackMessage&);
-	CallbackMessage& operator= (const CallbackMessage&);
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (CallbackMessage);
 };
 
 #endif   // __JUCE_CALLBACKMESSAGE_JUCEHEADER__
@@ -42035,9 +43814,6 @@ private:
 
 #endif
 #ifndef __JUCE_CHANGELISTENER_JUCEHEADER__
-
-#endif
-#ifndef __JUCE_CHANGELISTENERLIST_JUCEHEADER__
 
 #endif
 #ifndef __JUCE_INTERPROCESSCONNECTION_JUCEHEADER__
@@ -42191,9 +43967,8 @@ public:
 	*/
 	virtual void messageReceived (const MemoryBlock& message) = 0;
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	CriticalSection pipeAndSocketLock;
 	ScopedPointer <StreamingSocket> socket;
 	ScopedPointer <NamedPipe> pipe;
@@ -42216,8 +43991,7 @@ private:
 	bool readNextMessageInt();
 	void run();
 
-	InterprocessConnection (const InterprocessConnection&);
-	InterprocessConnection& operator= (const InterprocessConnection&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (InterprocessConnection);
 };
 
 #endif   // __JUCE_INTERPROCESSCONNECTION_JUCEHEADER__
@@ -42282,17 +44056,13 @@ protected:
 	*/
 	virtual InterprocessConnection* createConnectionObject() = 0;
 
-public:
-
-	juce_UseDebuggingNewOperator
-
 private:
+
 	ScopedPointer <StreamingSocket> socket;
 
 	void run();
 
-	InterprocessConnectionServer (const InterprocessConnectionServer&);
-	InterprocessConnectionServer& operator= (const InterprocessConnectionServer&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (InterprocessConnectionServer);
 };
 
 #endif   // __JUCE_INTERPROCESSCONNECTIONSERVER_JUCEHEADER__
@@ -42415,7 +44185,7 @@ public:
 								method of the broadcast listeners in the other app.
 		@see registerBroadcastListener, ActionListener
 	*/
-	static void broadcastMessage (const String& messageText) throw();
+	static void broadcastMessage (const String& messageText);
 
 	/** Registers a listener to get told about broadcast messages.
 
@@ -42424,10 +44194,10 @@ public:
 
 		@see broadcastMessage
 	*/
-	void registerBroadcastListener (ActionListener* listener) throw();
+	void registerBroadcastListener (ActionListener* listener);
 
 	/** Deregisters a broadcast listener. */
-	void deregisterBroadcastListener (ActionListener* listener) throw();
+	void deregisterBroadcastListener (ActionListener* listener);
 
 	/** @internal */
 	void deliverMessage (Message*);
@@ -42436,9 +44206,8 @@ public:
 	/** @internal */
 	~MessageManager() throw();
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	MessageManager() throw();
 
 	friend class MessageListener;
@@ -42448,7 +44217,7 @@ private:
 	static MessageManager* instance;
 
 	SortedSet <const MessageListener*> messageListeners;
-	ScopedPointer <ActionListenerList> broadcastListeners;
+	ScopedPointer <ActionBroadcaster> broadcaster;
 
 	friend class JUCEApplication;
 	bool quitMessagePosted, quitMessageReceived;
@@ -42457,7 +44226,6 @@ private:
 	static void* exitModalLoopCallback (void*);
 
 	void postMessageToQueue (Message* message);
-	void postCallbackMessage (Message* message);
 
 	static void doPlatformSpecificInitialisation();
 	static void doPlatformSpecificShutdown();
@@ -42466,8 +44234,7 @@ private:
 	Thread::ThreadID volatile threadWithLock;
 	CriticalSection lockingLock;
 
-	MessageManager (const MessageManager&);
-	MessageManager& operator= (const MessageManager&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MessageManager);
 };
 
 /** Used to make sure that the calling thread has exclusive access to the message loop.
@@ -42546,14 +44313,14 @@ public:
 		@endcode
 
 	*/
-	MessageManagerLock (Thread* threadToCheckForExitSignal = 0) throw();
+	MessageManagerLock (Thread* threadToCheckForExitSignal = 0);
 
 	/** This has the same behaviour as the other constructor, but takes a ThreadPoolJob
 		instead of a thread.
 
 		See the MessageManagerLock (Thread*) constructor for details on how this works.
 	*/
-	MessageManagerLock (ThreadPoolJob* jobToCheckForExitSignal) throw();
+	MessageManagerLock (ThreadPoolJob* jobToCheckForExitSignal);
 
 	/** Releases the current thread's lock on the message manager.
 
@@ -42576,10 +44343,9 @@ private:
 	SharedEvents* sharedEvents;
 	bool locked;
 
-	void init (Thread* thread, ThreadPoolJob* job) throw();
+	void init (Thread* thread, ThreadPoolJob* job);
 
-	MessageManagerLock (const MessageManagerLock&);
-	MessageManagerLock& operator= (const MessageManagerLock&);
+	JUCE_DECLARE_NON_COPYABLE (MessageManagerLock);
 };
 
 #endif   // __JUCE_MESSAGEMANAGER_JUCEHEADER__
@@ -42749,13 +44515,14 @@ public:
 							  int newShadowOffsetY);
 
 	/** @internal */
-	void applyEffect (Image& sourceImage, Graphics& destContext);
-
-	juce_UseDebuggingNewOperator
+	void applyEffect (Image& sourceImage, Graphics& destContext, float alpha);
 
 private:
+
 	int offsetX, offsetY;
 	float radius, opacity;
+
+	JUCE_LEAK_DETECTOR (DropShadowEffect);
 };
 
 #endif   // __JUCE_DROPSHADOWEFFECT_JUCEHEADER__
@@ -42784,9 +44551,8 @@ public:
 	/** Destructor. */
 	~ArrowButton();
 
-	juce_UseDebuggingNewOperator
-
 protected:
+
 	/** @internal */
 	void paintButton (Graphics& g,
 					  bool isMouseOverButton,
@@ -42802,8 +44568,7 @@ private:
 	Path path;
 	int offset;
 
-	ArrowButton (const ArrowButton&);
-	ArrowButton& operator= (const ArrowButton&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ArrowButton);
 };
 
 #endif   // __JUCE_ARROWBUTTON_JUCEHEADER__
@@ -42831,21 +44596,7 @@ private:
 #define __JUCE_RELATIVECOORDINATE_JUCEHEADER__
 
 /**
-	Expresses a coordinate as an absolute or proportional distance from other
-	named coordinates.
-
-	A RelativeCoordinate represents a position as either:
-		- an absolute distance from the origin
-		- an absolute distance from another named RelativeCoordinate
-		- a proportion of the distance between two other named RelativeCoordinates
-
-	Of course, the coordinates that this one is relative to may themselves be relative
-	to other coordinates, so complex arrangements can be built up (as long as you're careful
-	not to create recursive loops!)
-
-	Rather than keeping pointers to the coordinates that this one is dependent on, it
-	stores their names, and when resolving this coordinate to an absolute value, a
-	NamedCoordinateFinder class is required to retrieve these coordinates by name.
+	Expresses a coordinate as a dynamically evaluated expression.
 
 	@see RelativePoint, RelativeRectangle
 */
@@ -42855,6 +44606,9 @@ public:
 
 	/** Creates a zero coordinate. */
 	RelativeCoordinate();
+	RelativeCoordinate (const Expression& expression);
+	RelativeCoordinate (const RelativeCoordinate& other);
+	RelativeCoordinate& operator= (const RelativeCoordinate& other);
 
 	/** Creates an absolute position from the parent origin on either the X or Y axis.
 
@@ -42862,52 +44616,12 @@ public:
 	*/
 	RelativeCoordinate (double absoluteDistanceFromOrigin);
 
-	/** Creates an absolute position relative to a named coordinate.
-
-		@param absoluteDistanceFromAnchor   the distance to add to the named anchor point
-		@param anchorPoint	  the name of the coordinate from which this one will be relative. See the constructor
-								notes for a description of the syntax for coordinate names.
-	*/
-	RelativeCoordinate (double absoluteDistanceFromAnchor, const String& anchorPoint);
-
-	/** Creates a relative position between two named points.
-
-		@param relativeProportionBetweenAnchors	 a value between 0 and 1 indicating this coordinate's relative position
-								between anchorPoint1 and anchorPoint2.
-		@param anchorPoint1	 the name of the first coordinate from which this one will be relative. See the constructor
-								notes for a description of the syntax for coordinate names.
-		@param anchorPoint2	 the name of the first coordinate from which this one will be relative. See the constructor
-								notes for a description of the syntax for coordinate names.
-	*/
-	RelativeCoordinate (double relativeProportionBetweenAnchors, const String& anchorPoint1, const String& anchorPoint2);
-
 	/** Recreates a coordinate from a string description.
-
-		The string can be in one of the following formats:
-			- "123"                         = 123 pixels from parent origin (this is equivalent to "parent.left + 123"
-												or "parent.top + 123", depending on which axis the coordinate is using)
-			- "anchor"                      = the same position as the coordinate named "anchor"
-			- "anchor + 123"                = the coordinate named "anchor" + 123 pixels
-			- "anchor - 123"                = the coordinate named "anchor" - 123 pixels
-			- "50%"                         = 50% of the distance between the coordinate space's top-left origin and its extent
-												(this is equivalent to "50% * parent.left -> parent.right" or "50% * parent.top -> parent.bottom")
-			- "50% * anchor"                = 50% of the distance between the coordinate space's origin and the coordinate named "anchor"
-												(this is equivalent to "50% * parent.left -> anchor" or "50% * parent.top -> anchor")
-			- "50% * anchor1 -> anchor2"    = 50% of the distance between the coordinate "anchor1" and the coordinate "anchor2"
-
-		An anchor name can either be just a single identifier (letters, digits and underscores only - no spaces),
-		e.g. "marker1", or it can be a two-part name in the form "objectName.edge". For example "parent.left" is
-		the origin, or "myComponent.top" is the top edge of a component called "myComponent". The exact names that
-		will be recognised are dependent on the NamedCoordinateFinder that you provide for looking them up, but
-		"parent.left" and "parent.top" are always available, meaning the origin. "parent.right" and "parent.bottom"
-		may also be available if the coordinate space has a fixed size.
-
-		@param stringVersion	the string to parse
-		@param isHorizontal	 this must be true if this is an X coordinate, or false if it's on the Y axis.
-
+		The string will be parsed by ExpressionParser::parse().
+		@param stringVersion	the expression to use
 		@see toString
 	*/
-	RelativeCoordinate (const String& stringVersion, bool isHorizontal);
+	RelativeCoordinate (const String& stringVersion);
 
 	/** Destructor. */
 	~RelativeCoordinate();
@@ -42915,44 +44629,20 @@ public:
 	bool operator== (const RelativeCoordinate& other) const throw();
 	bool operator!= (const RelativeCoordinate& other) const throw();
 
-	/**
-		Provides an interface for looking up the position of a named anchor when resolving a RelativeCoordinate.
-
-		When using RelativeCoordinates, to resolve their names you need to provide a subclass of this which
-		can retrieve a coordinate by name.
-	*/
-	class JUCE_API  NamedCoordinateFinder
-	{
-	public:
-		/** Destructor. */
-		virtual ~NamedCoordinateFinder() {}
-
-		/** Returns the coordinate for a given name.
-
-			The objectName parameter will be the first section of the name, and the edge the name of the second part.
-			E.g. for "parent.right", objectName would be "parent" and edge would be "right". If the name
-			has no dot, the edge parameter will be an empty string.
-
-			This method must be able to resolve "parent.left", "parent.top", "parent.right" and "parent.bottom", as
-			well as any other objects that your application uses.
-		*/
-		virtual const RelativeCoordinate findNamedCoordinate (const String& objectName, const String& edge) const = 0;
-	};
-
 	/** Calculates the absolute position of this coordinate.
 
-		You'll need to provide a suitable NamedCoordinateFinder for looking up any coordinates that may
+		You'll need to provide a suitable Expression::EvaluationContext for looking up any coordinates that may
 		be needed to calculate the result.
 	*/
-	double resolve (const NamedCoordinateFinder* nameFinder) const;
+	double resolve (const Expression::EvaluationContext* evaluationContext) const;
 
 	/** Returns true if this coordinate uses the specified coord name at any level in its evaluation.
 		This will recursively check any coordinates upon which this one depends.
 	*/
-	bool references (const String& coordName, const NamedCoordinateFinder* nameFinder) const;
+	bool references (const String& coordName, const Expression::EvaluationContext* evaluationContext) const;
 
 	/** Returns true if there's a recursive loop when trying to resolve this coordinate's position. */
-	bool isRecursive (const NamedCoordinateFinder* nameFinder) const;
+	bool isRecursive (const Expression::EvaluationContext* evaluationContext) const;
 
 	/** Returns true if this coordinate depends on any other coordinates for its position. */
 	bool isDynamic() const;
@@ -42963,72 +44653,13 @@ public:
 		or relative position to whatever value is necessary to make its resultant position
 		match the position that is provided.
 	*/
-	void moveToAbsolute (double absoluteTargetPosition, const NamedCoordinateFinder* nameFinder);
+	void moveToAbsolute (double absoluteTargetPosition, const Expression::EvaluationContext* evaluationContext);
 
-	/** Returns true if the coordinate is calculated as a proportion of the distance between two other points.
-		@see toggleProportionality
-	*/
-	bool isProportional() const throw()			 { return anchor2.isNotEmpty(); }
+	/** Changes the name of a symbol if it is used as part of the coordinate's expression. */
+	void renameSymbolIfUsed (const String& oldName, const String& newName);
 
-	/** Toggles the coordinate between using a proportional or absolute position.
-		Note that calling this will reset the names of any anchor points, and just make the
-		coordinate relative to the parent origin and parent size.
-	*/
-	void toggleProportionality (const NamedCoordinateFinder* nameFinder,
-								const String& proportionalAnchor1, const String& proportionalAnchor2);
-
-	/** Returns a value that can be edited to set this coordinate's position.
-		The meaning of this number depends on the coordinate's mode. If the coordinate is
-		proportional, the number will be a percentage between 0 and 100. If the
-		coordinate is absolute, then it will be the number of pixels from its anchor point.
-		@see setEditableNumber
-	 */
-	const double getEditableNumber() const;
-
-	/** Sets the value that controls this coordinate's position.
-		The meaning of this number depends on the coordinate's mode. If the coordinate is
-		proportional, the number must be a percentage between 0 and 100. If the
-		coordinate is absolute, then it indicates the number of pixels from its anchor point.
-		@see setEditableNumber
-	*/
-	void setEditableNumber (const double newValue);
-
-	/** Returns the name of the first anchor point from which this coordinate is relative.
-	*/
-	const String getAnchorName1 (const String& returnValueIfOrigin) const;
-
-	/** Returns the name of the second anchor point from which this coordinate is relative.
-		The second anchor is only valid if the coordinate is in proportional mode.
-	*/
-	const String getAnchorName2 (const String& returnValueIfOrigin) const;
-
-	/** Returns the first anchor point as a coordinate. */
-	const RelativeCoordinate getAnchorCoordinate1() const;
-
-	/** Returns the first anchor point as a coordinate.
-		The second anchor is only valid if the coordinate is in proportional mode.
-	*/
-	const RelativeCoordinate getAnchorCoordinate2() const;
-
-	/** Changes the first anchor point, keeping the resultant position of this coordinate in
-		the same place it was previously.
-	*/
-	void changeAnchor1 (const String& newAnchor, const NamedCoordinateFinder* nameFinder);
-
-	/** Changes the second anchor point, keeping the resultant position of this coordinate in
-		the same place it was previously.
-	*/
-	void changeAnchor2 (const String& newAnchor, const NamedCoordinateFinder* nameFinder);
-
-	/** Tells the coordinate that an object is changing its name or being deleted.
-
-		If either of this coordinates anchor points match this name, they will be replaced.
-		If the newName string is empty, it indicates that the object is being removed, so if
-		this coordinate was using it, the coordinate is changed to be relative to the origin
-		instead.
-	*/
-	void renameAnchorIfUsed (const String& oldName, const String& newName,
-							 const NamedCoordinateFinder* nameFinder);
+	/** Returns the expression that defines this coordinate. */
+	const Expression& getExpression() const	 { return term; }
 
 	/** Returns a string which represents this coordinate.
 		For details of the string syntax, see the constructor notes.
@@ -43057,11 +44688,7 @@ public:
 
 private:
 
-	String anchor1, anchor2;
-	double value;
-
-	double resolve (const NamedCoordinateFinder* nameFinder, int recursionCounter) const;
-	static double resolveAnchor (const String& anchorName, const NamedCoordinateFinder* nameFinder, int recursionCounter);
+	Expression term;
 };
 
 /**
@@ -43096,10 +44723,10 @@ public:
 
 	/** Calculates the absolute position of this point.
 
-		You'll need to provide a suitable NamedCoordinateFinder for looking up any coordinates that may
+		You'll need to provide a suitable Expression::EvaluationContext for looking up any coordinates that may
 		be needed to calculate the result.
 	*/
-	const Point<float> resolve (const RelativeCoordinate::NamedCoordinateFinder* nameFinder) const;
+	const Point<float> resolve (const Expression::EvaluationContext* evaluationContext) const;
 
 	/** Changes the values of this point's coordinates to make it resolve to the specified position.
 
@@ -43107,7 +44734,7 @@ public:
 		or relative positions to whatever values are necessary to make the resultant position
 		match the position that is provided.
 	*/
-	void moveToAbsolute (const Point<float>& newPos, const RelativeCoordinate::NamedCoordinateFinder* nameFinder);
+	void moveToAbsolute (const Point<float>& newPos, const Expression::EvaluationContext* evaluationContext);
 
 	/** Returns a string which represents this point.
 		This returns a comma-separated pair of coordinates. For details of the string syntax used by the
@@ -43116,11 +44743,10 @@ public:
 	*/
 	const String toString() const;
 
-	/** Tells the point that an object is changing its name or being deleted.
+	/** Renames a symbol if it is used by any of the coordinates.
 		This calls RelativeCoordinate::renameAnchorIfUsed() on its X and Y coordinates.
 	*/
-	void renameAnchorIfUsed (const String& oldName, const String& newName,
-							 const RelativeCoordinate::NamedCoordinateFinder* nameFinder);
+	void renameSymbolIfUsed (const String& oldName, const String& newName);
 
 	/** Returns true if this point depends on any other coordinates for its position. */
 	bool isDynamic() const;
@@ -43163,10 +44789,10 @@ public:
 
 	/** Calculates the absolute position of this rectangle.
 
-		You'll need to provide a suitable NamedCoordinateFinder for looking up any coordinates that may
+		You'll need to provide a suitable Expression::EvaluationContext for looking up any coordinates that may
 		be needed to calculate the result.
 	*/
-	const Rectangle<float> resolve (const RelativeCoordinate::NamedCoordinateFinder* nameFinder) const;
+	const Rectangle<float> resolve (const Expression::EvaluationContext* evaluationContext) const;
 
 	/** Changes the values of this rectangle's coordinates to make it resolve to the specified position.
 
@@ -43174,7 +44800,7 @@ public:
 		or relative positions to whatever values are necessary to make the resultant position
 		match the position that is provided.
 	*/
-	void moveToAbsolute (const Rectangle<float>& newPos, const RelativeCoordinate::NamedCoordinateFinder* nameFinder);
+	void moveToAbsolute (const Rectangle<float>& newPos, const Expression::EvaluationContext* evaluationContext);
 
 	/** Returns a string which represents this point.
 		This returns a comma-separated list of coordinates, in the order left, top, right, bottom. For details of
@@ -43183,11 +44809,10 @@ public:
 	*/
 	const String toString() const;
 
-	/** Tells the rectangle that an object is changing its name or being deleted.
-		This calls RelativeCoordinate::renameAnchorIfUsed() on the rectangle's coordinates.
+	/** Renames a symbol if it is used by any of the coordinates.
+		This calls RelativeCoordinate::renameSymbolIfUsed() on the rectangle's coordinates.
 	*/
-	void renameAnchorIfUsed (const String& oldName, const String& newName,
-							 const RelativeCoordinate::NamedCoordinateFinder* nameFinder);
+	void renameSymbolIfUsed (const String& oldName, const String& newName);
 
 	// The actual rectangle coords...
 	RelativeCoordinate left, right, top, bottom;
@@ -43212,7 +44837,7 @@ public:
 	~RelativePointPath();
 
 	/** Resolves this points in this path and adds them to a normal Path object. */
-	void createPath (Path& path, RelativeCoordinate::NamedCoordinateFinder* coordFinder);
+	void createPath (Path& path, Expression::EvaluationContext* coordFinder);
 
 	/** Returns true if the path contains any non-fixed points. */
 	bool containsAnyDynamicPoints() const;
@@ -43244,14 +44869,13 @@ public:
 		ElementBase (ElementType type);
 		virtual ~ElementBase() {}
 		virtual const ValueTree createTree() const = 0;
-		virtual void addToPath (Path& path, RelativeCoordinate::NamedCoordinateFinder* coordFinder) const = 0;
+		virtual void addToPath (Path& path, Expression::EvaluationContext* coordFinder) const = 0;
 		virtual RelativePoint* getControlPoints (int& numPoints) = 0;
 
 		const ElementType type;
 
 	private:
-		ElementBase (const ElementBase&);
-		ElementBase& operator= (const ElementBase&);
+		JUCE_DECLARE_NON_COPYABLE (ElementBase);
 	};
 
 	class JUCE_API  StartSubPath  : public ElementBase
@@ -43260,14 +44884,13 @@ public:
 		StartSubPath (const RelativePoint& pos);
 		~StartSubPath() {}
 		const ValueTree createTree() const;
-		void addToPath (Path& path, RelativeCoordinate::NamedCoordinateFinder* coordFinder) const;
+		void addToPath (Path& path, Expression::EvaluationContext* coordFinder) const;
 		RelativePoint* getControlPoints (int& numPoints);
 
 		RelativePoint startPos;
 
 	private:
-		StartSubPath (const StartSubPath&);
-		StartSubPath& operator= (const StartSubPath&);
+		JUCE_DECLARE_NON_COPYABLE (StartSubPath);
 	};
 
 	class JUCE_API  CloseSubPath  : public ElementBase
@@ -43276,12 +44899,11 @@ public:
 		CloseSubPath();
 		~CloseSubPath() {}
 		const ValueTree createTree() const;
-		void addToPath (Path& path, RelativeCoordinate::NamedCoordinateFinder* coordFinder) const;
+		void addToPath (Path& path, Expression::EvaluationContext* coordFinder) const;
 		RelativePoint* getControlPoints (int& numPoints);
 
 	private:
-		CloseSubPath (const CloseSubPath&);
-		CloseSubPath& operator= (const CloseSubPath&);
+		JUCE_DECLARE_NON_COPYABLE (CloseSubPath);
 	};
 
 	class JUCE_API  LineTo  : public ElementBase
@@ -43290,14 +44912,13 @@ public:
 		LineTo (const RelativePoint& endPoint);
 		~LineTo() {}
 		const ValueTree createTree() const;
-		void addToPath (Path& path, RelativeCoordinate::NamedCoordinateFinder* coordFinder) const;
+		void addToPath (Path& path, Expression::EvaluationContext* coordFinder) const;
 		RelativePoint* getControlPoints (int& numPoints);
 
 		RelativePoint endPoint;
 
 	private:
-		LineTo (const LineTo&);
-		LineTo& operator= (const LineTo&);
+		JUCE_DECLARE_NON_COPYABLE (LineTo);
 	};
 
 	class JUCE_API  QuadraticTo  : public ElementBase
@@ -43306,14 +44927,13 @@ public:
 		QuadraticTo (const RelativePoint& controlPoint, const RelativePoint& endPoint);
 		~QuadraticTo() {}
 		const ValueTree createTree() const;
-		void addToPath (Path& path, RelativeCoordinate::NamedCoordinateFinder* coordFinder) const;
+		void addToPath (Path& path, Expression::EvaluationContext* coordFinder) const;
 		RelativePoint* getControlPoints (int& numPoints);
 
 		RelativePoint controlPoints[2];
 
 	private:
-		QuadraticTo (const QuadraticTo&);
-		QuadraticTo& operator= (const QuadraticTo&);
+		JUCE_DECLARE_NON_COPYABLE (QuadraticTo);
 	};
 
 	class JUCE_API  CubicTo  : public ElementBase
@@ -43322,14 +44942,13 @@ public:
 		CubicTo (const RelativePoint& controlPoint1, const RelativePoint& controlPoint2, const RelativePoint& endPoint);
 		~CubicTo() {}
 		const ValueTree createTree() const;
-		void addToPath (Path& path, RelativeCoordinate::NamedCoordinateFinder* coordFinder) const;
+		void addToPath (Path& path, Expression::EvaluationContext* coordFinder) const;
 		RelativePoint* getControlPoints (int& numPoints);
 
 		RelativePoint controlPoints[3];
 
 	private:
-		CubicTo (const CubicTo&);
-		CubicTo& operator= (const CubicTo&);
+		JUCE_DECLARE_NON_COPYABLE (CubicTo);
 	};
 
 	OwnedArray <ElementBase> elements;
@@ -43353,15 +44972,16 @@ class JUCE_API  RelativeParallelogram
 public:
 
 	RelativeParallelogram();
+	RelativeParallelogram (const Rectangle<float>& simpleRectangle);
 	RelativeParallelogram (const RelativePoint& topLeft, const RelativePoint& topRight, const RelativePoint& bottomLeft);
 	RelativeParallelogram (const String& topLeft, const String& topRight, const String& bottomLeft);
 	~RelativeParallelogram();
 
-	void resolveThreePoints (Point<float>* points, RelativeCoordinate::NamedCoordinateFinder* coordFinder) const;
-	void resolveFourCorners (Point<float>* points, RelativeCoordinate::NamedCoordinateFinder* coordFinder) const;
-	const Rectangle<float> getBounds (RelativeCoordinate::NamedCoordinateFinder* coordFinder) const;
-	void getPath (Path& path, RelativeCoordinate::NamedCoordinateFinder* coordFinder) const;
-	const AffineTransform resetToPerpendicular (RelativeCoordinate::NamedCoordinateFinder* coordFinder);
+	void resolveThreePoints (Point<float>* points, Expression::EvaluationContext* coordFinder) const;
+	void resolveFourCorners (Point<float>* points, Expression::EvaluationContext* coordFinder) const;
+	const Rectangle<float> getBounds (Expression::EvaluationContext* coordFinder) const;
+	void getPath (Path& path, Expression::EvaluationContext* coordFinder) const;
+	const AffineTransform resetToPerpendicular (Expression::EvaluationContext* coordFinder);
 
 	bool operator== (const RelativeParallelogram& other) const throw();
 	bool operator!= (const RelativeParallelogram& other) const throw();
@@ -43382,7 +45002,7 @@ class DrawableComposite;
 
 	@see DrawableComposite, DrawableImage, DrawablePath, DrawableText
 */
-class JUCE_API  Drawable
+class JUCE_API  Drawable  : public Component
 {
 protected:
 
@@ -43403,6 +45023,11 @@ public:
 	virtual Drawable* createCopy() const = 0;
 
 	/** Renders this Drawable object.
+
+		Note that the preferred way to render a drawable in future is by using it
+		as a component and adding it to a parent, so you might want to consider that
+		before using this method.
+
 		@see drawWithin
 	*/
 	void draw (Graphics& g, float opacity,
@@ -43416,10 +45041,12 @@ public:
 		@code
 		draw (g, AffineTransform::translation (x, y)).
 		@endcode
+
+		Note that the preferred way to render a drawable in future is by using it
+		as a component and adding it to a parent, so you might want to consider that
+		before using this method.
 	*/
-	void drawAt (Graphics& g,
-				 float x, float y,
-				 float opacity) const;
+	void drawAt (Graphics& g, float x, float y, float opacity) const;
 
 	/** Renders the Drawable within a rectangle, scaling it to fit neatly inside without
 		changing its aspect-ratio.
@@ -43427,66 +45054,33 @@ public:
 		The object can placed arbitrarily within the rectangle based on a Justification type,
 		and can either be made as big as possible, or just reduced to fit.
 
+		Note that the preferred way to render a drawable in future is by using it
+		as a component and adding it to a parent, so you might want to consider that
+		before using this method.
+
 		@param g			the graphics context to render onto
-		@param destX			top-left of the target rectangle to fit it into
-		@param destY			top-left of the target rectangle to fit it into
-		@param destWidth		size of the target rectangle to fit the image into
-		@param destHeight		   size of the target rectangle to fit the image into
+		@param destArea		 the target rectangle to fit the drawable into
 		@param placement		defines the alignment and rescaling to use to fit
 										this object within the target rectangle.
 		@param opacity		  the opacity to use, in the range 0 to 1.0
 	*/
 	void drawWithin (Graphics& g,
-					 int destX,
-					 int destY,
-					 int destWidth,
-					 int destHeight,
+					 const Rectangle<float>& destArea,
 					 const RectanglePlacement& placement,
 					 float opacity) const;
 
-	/** Holds the information needed when telling a drawable to render itself.
-		@see Drawable::draw
+	/** Resets any transformations on this drawable, and positions its origin within
+		its parent component.
 	*/
-	class RenderingContext
-	{
-	public:
-		RenderingContext (Graphics& g, const AffineTransform& transform, float opacity) throw();
+	void setOriginWithOriginalSize (const Point<float>& originWithinParent);
 
-		Graphics& g;
-		AffineTransform transform;
-		float opacity;
-
-	private:
-		RenderingContext& operator= (const RenderingContext&);
-	};
-
-	/** Renders this Drawable object.
-		@see draw
+	/** Sets a transform for this drawable that will position it within the specified
+		area of its parent component.
 	*/
-	virtual void render (const RenderingContext& context) const = 0;
-
-	/** Returns the smallest rectangle that can contain this Drawable object.
-
-		Co-ordinates are relative to the object's own origin.
-	*/
-	virtual const Rectangle<float> getBounds() const = 0;
-
-	/** Returns true if the given point is somewhere inside this Drawable.
-
-		Co-ordinates are relative to the object's own origin.
-	*/
-	virtual bool hitTest (float x, float y) const = 0;
-
-	/** Returns the name given to this drawable.
-		@see setName
-	*/
-	const String& getName() const throw()		   { return name; }
-
-	/** Assigns a name to this drawable. */
-	void setName (const String& newName) throw()	{ name = newName; }
+	void setTransformToFit (const Rectangle<float>& areaInParent, const RectanglePlacement& placement);
 
 	/** Returns the DrawableComposite that contains this object, if there is one. */
-	DrawableComposite* getParent() const throw()	{ return parent; }
+	DrawableComposite* getParent() const;
 
 	/** Tries to turn some kind of image file into a drawable.
 
@@ -43556,7 +45150,7 @@ public:
 	/** Tries to refresh a Drawable from the same ValueTree that was used to create it.
 		@returns the damage rectangle that will need repainting due to any changes that were made.
 	*/
-	virtual const Rectangle<float> refreshFromValueTree (const ValueTree& tree, ImageProvider* imageProvider) = 0;
+	virtual void refreshFromValueTree (const ValueTree& tree, ImageProvider* imageProvider) = 0;
 
 	/** Creates a ValueTree to represent this Drawable.
 		The VarTree that is returned can be turned back into a Drawable with
@@ -43568,6 +45162,12 @@ public:
 
 	/** Returns the tag ID that is used for a ValueTree that stores this type of drawable.  */
 	virtual const Identifier getValueTreeType() const = 0;
+
+	/** Returns the area that this drawble covers.
+		The result is expressed in this drawable's own coordinate space, and does not take
+		into account any transforms that may be applied to the component.
+	*/
+	virtual const Rectangle<float> getDrawableBounds() const = 0;
 
 	/** Internal class used to manage ValueTrees that represent Drawables. */
 	class ValueTreeWrapperBase
@@ -43582,35 +45182,31 @@ public:
 		void setID (const String& newID, UndoManager* undoManager);
 		static const Identifier idProperty;
 
-		static const FillType readFillType (const ValueTree& v, RelativePoint* gradientPoint1,
-											RelativePoint* gradientPoint2, RelativePoint* gradientPoint3,
-											RelativeCoordinate::NamedCoordinateFinder* nameFinder,
-											ImageProvider* imageProvider);
-
-		static void writeFillType (ValueTree& v, const FillType& fillType,
-								   const RelativePoint* gradientPoint1, const RelativePoint* gradientPoint2,
-								   const RelativePoint* gradientPoint3, ImageProvider* imageProvider,
-								   UndoManager* undoManager);
-
 		ValueTree state;
-		static const Identifier type, gradientPoint1, gradientPoint2, gradientPoint3,
-								colour, radial, colours, imageId, imageOpacity;
 	};
 
-	juce_UseDebuggingNewOperator
-
 protected:
-	friend class DrawableComposite;
-	DrawableComposite* parent;
-	virtual void invalidatePoints() = 0;
 
+	friend class DrawableComposite;
+	friend class DrawableShape;
+
+	/** @internal */
 	static Drawable* createChildFromValueTree (DrawableComposite* parent, const ValueTree& tree, ImageProvider* imageProvider);
+	/** @internal */
+	void transformContextToCorrectOrigin (Graphics& g);
+	/** @internal */
+	void markerHasMoved();
+	/** @internal */
+	void parentHierarchyChanged();
+	/** @internal */
+	void setBoundsToEnclose (const Rectangle<float>& area);
+
+	Point<int> originRelativeToComponent;
 
 private:
-	String name;
+	void nonConstDraw (Graphics& g, float opacity, const AffineTransform& transform);
 
-	Drawable (const Drawable&);
-	Drawable& operator= (const Drawable&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Drawable);
 };
 
 #endif   // __JUCE_DRAWABLE_JUCEHEADER__
@@ -43727,30 +45323,44 @@ public:
 	void setEdgeIndent (int numPixelsIndent);
 
 	/** Returns the image that the button is currently displaying. */
-	const Drawable* getCurrentImage() const throw();
-	const Drawable* getNormalImage() const throw();
-	const Drawable* getOverImage() const throw();
-	const Drawable* getDownImage() const throw();
+	Drawable* getCurrentImage() const throw();
+	Drawable* getNormalImage() const throw();
+	Drawable* getOverImage() const throw();
+	Drawable* getDownImage() const throw();
 
-	juce_UseDebuggingNewOperator
+	/** A set of colour IDs to use to change the colour of various aspects of the link.
+
+		These constants can be used either via the Component::setColour(), or LookAndFeel::setColour()
+		methods.
+
+		@see Component::setColour, Component::findColour, LookAndFeel::setColour, LookAndFeel::findColour
+	*/
+	enum ColourIds
+	{
+		textColourId		 = 0x1004010, /**< The colour to use for the URL text. */
+	};
 
 protected:
+
 	/** @internal */
 	void paintButton (Graphics& g,
 					  bool isMouseOverButton,
 					  bool isButtonDown);
+	/** @internal */
+	void buttonStateChanged();
+	/** @internal */
+	void resized();
 
 private:
 
 	ButtonStyle style;
 	ScopedPointer <Drawable> normalImage, overImage, downImage, disabledImage;
 	ScopedPointer <Drawable> normalImageOn, overImageOn, downImageOn, disabledImageOn;
+	Drawable* currentImage;
 	Colour backgroundOff, backgroundOn;
 	int edgeIndent;
 
-	void deleteImages();
-	DrawableButton (const DrawableButton&);
-	DrawableButton& operator= (const DrawableButton&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (DrawableButton);
 };
 
 #endif   // __JUCE_DRAWABLEBUTTON_JUCEHEADER__
@@ -43820,9 +45430,8 @@ public:
 	*/
 	void changeWidthToFitText();
 
-	juce_UseDebuggingNewOperator
-
 protected:
+
 	/** @internal */
 	void clicked();
 	/** @internal */
@@ -43833,6 +45442,7 @@ protected:
 					  bool isButtonDown);
 
 private:
+
 	URL url;
 	Font font;
 	bool resizeFont;
@@ -43840,8 +45450,7 @@ private:
 
 	const Font getFontToUse() const;
 
-	HyperlinkButton (const HyperlinkButton&);
-	HyperlinkButton& operator= (const HyperlinkButton&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (HyperlinkButton);
 };
 
 #endif   // __JUCE_HYPERLINKBUTTON_JUCEHEADER__
@@ -43951,9 +45560,8 @@ public:
 	*/
 	const Image getDownImage() const;
 
-	juce_UseDebuggingNewOperator
-
 protected:
+
 	/** @internal */
 	bool hitTest (int x, int y);
 	/** @internal */
@@ -43972,8 +45580,7 @@ private:
 
 	const Image getCurrentImage() const;
 
-	ImageButton (const ImageButton&);
-	ImageButton& operator= (const ImageButton&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ImageButton);
 };
 
 #endif   // __JUCE_IMAGEBUTTON_JUCEHEADER__
@@ -44042,8 +45649,6 @@ public:
 	void setOutline (const Colour& outlineColour,
 					 float outlineStrokeWidth);
 
-	juce_UseDebuggingNewOperator
-
 protected:
 	/** @internal */
 	void paintButton (Graphics& g,
@@ -44051,14 +45656,14 @@ protected:
 					  bool isButtonDown);
 
 private:
+
 	Colour normalColour, overColour, downColour, outlineColour;
 	DropShadowEffect shadow;
 	Path shape;
 	bool maintainShapeProportions;
 	float outlineWidth;
 
-	ShapeButton (const ShapeButton&);
-	ShapeButton& operator= (const ShapeButton&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ShapeButton);
 };
 
 #endif   // __JUCE_SHAPEBUTTON_JUCEHEADER__
@@ -44116,8 +45721,6 @@ public:
 		textColourId			= 0x1006501   /**< The colour to use for the button's text. */
 	};
 
-	juce_UseDebuggingNewOperator
-
 protected:
 	/** @internal */
 	void paintButton (Graphics& g,
@@ -44129,8 +45732,7 @@ protected:
 
 private:
 
-	ToggleButton (const ToggleButton&);
-	ToggleButton& operator= (const ToggleButton&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ToggleButton);
 };
 
 #endif   // __JUCE_TOGGLEBUTTON_JUCEHEADER__
@@ -44390,8 +45992,6 @@ public:
 	*/
 	static bool performExternalDragDropOfText (const String& text);
 
-	juce_UseDebuggingNewOperator
-
 protected:
 	/** Override this if you want to be able to perform an external drag a set of files
 		when the user drags outside of this container component.
@@ -44414,122 +46014,16 @@ protected:
 													   bool& canMoveFiles);
 
 private:
+
 	friend class DragImageComponent;
 	ScopedPointer <Component> dragImageComponent;
 	String currentDragDesc;
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (DragAndDropContainer);
 };
 
 #endif   // __JUCE_DRAGANDDROPCONTAINER_JUCEHEADER__
 /*** End of inlined file: juce_DragAndDropContainer.h ***/
-
-
-/*** Start of inlined file: juce_ComponentAnimator.h ***/
-#ifndef __JUCE_COMPONENTANIMATOR_JUCEHEADER__
-#define __JUCE_COMPONENTANIMATOR_JUCEHEADER__
-
-/**
-	Animates a set of components, moving it to a new position.
-
-	To use this, create a ComponentAnimator, and use its animateComponent() method
-	to tell it to move components to destination positions. Any number of
-	components can be animated by one ComponentAnimator object (if you've got a
-	lot of components to move, it's much more efficient to share a single animator
-	than to have many animators running at once).
-
-	You'll need to make sure the animator object isn't deleted before it finishes
-	moving the components.
-
-	The class is a ChangeBroadcaster and sends a notification when any components
-	start or finish being animated.
-*/
-class JUCE_API  ComponentAnimator  : public ChangeBroadcaster,
-									 private Timer
-{
-public:
-
-	/** Creates a ComponentAnimator. */
-	ComponentAnimator();
-
-	/** Destructor. */
-	~ComponentAnimator();
-
-	/** Starts a component moving from its current position to a specified position.
-
-		If the component is already in the middle of an animation, that will be abandoned,
-		and a new animation will begin, moving the component from its current location.
-
-		The start and end speed parameters let you apply some acceleration to the component's
-		movement.
-
-		@param component		the component to move
-		@param finalPosition	the destination position and size to move it to
-		@param millisecondsToSpendMoving	how long, in milliseconds, it should take
-									to arrive at its destination
-		@param startSpeed	   a value to indicate the relative start speed of the
-									animation. If this is 0, the component will start
-									by accelerating from rest; higher values mean that it
-									will have an initial speed greater than zero. If the
-									value if greater than 1, it will decelerate towards the
-									middle of its journey. To move the component at a constant
-									rate for its entire animation, set both the start and
-									end speeds to 1.0
-		@param endSpeed		 a relative speed at which the component should be moving
-									when the animation finishes. If this is 0, the component
-									will decelerate to a standstill at its final position; higher
-									values mean the component will still be moving when it stops.
-									To move the component at a constant rate for its entire
-									animation, set both the start and end speeds to 1.0
-	*/
-	void animateComponent (Component* component,
-						   const Rectangle<int>& finalPosition,
-						   int millisecondsToSpendMoving,
-						   double startSpeed = 1.0,
-						   double endSpeed = 1.0);
-
-	/** Stops a component if it's currently being animated.
-
-		If moveComponentToItsFinalPosition is true, then the component will
-		be immediately moved to its destination position and size. If false, it will be
-		left in whatever location it currently occupies.
-	*/
-	void cancelAnimation (Component* component,
-						  bool moveComponentToItsFinalPosition);
-
-	/** Clears all of the active animations.
-
-		If moveComponentsToTheirFinalPositions is true, all the components will
-		be immediately set to their final positions. If false, they will be
-		left in whatever locations they currently occupy.
-	*/
-	void cancelAllAnimations (bool moveComponentsToTheirFinalPositions);
-
-	/** Returns the destination position for a component.
-
-		If the component is being animated, this will return the target position that
-		was specified when animateComponent() was called.
-
-		If the specified component isn't currently being animated, this method will just
-		return its current position.
-	*/
-	const Rectangle<int> getComponentDestination (Component* component);
-
-	/** Returns true if the specified component is currently being animated.
-	*/
-	bool isAnimating (Component* component) const;
-
-	juce_UseDebuggingNewOperator
-
-private:
-	class AnimationTask;
-	Array <AnimationTask*> tasks;
-	uint32 lastTime;
-
-	AnimationTask* findTaskFor (Component* component) const;
-	void timerCallback();
-};
-
-#endif   // __JUCE_COMPONENTANIMATOR_JUCEHEADER__
-/*** End of inlined file: juce_ComponentAnimator.h ***/
 
 class ToolbarItemComponent;
 class ToolbarItemFactory;
@@ -44780,30 +46274,27 @@ public:
 	/** @internal */
 	void itemDropped (const String&, Component*, int, int);
 	/** @internal */
-	void updateAllItemPositions (const bool animate);
+	void updateAllItemPositions (bool animate);
 	/** @internal */
-	static ToolbarItemComponent* createItem (ToolbarItemFactory&, const int itemId);
-
-	juce_UseDebuggingNewOperator
+	static ToolbarItemComponent* createItem (ToolbarItemFactory&, int itemId);
 
 private:
-	Button* missingItemsButton;
+
+	ScopedPointer<Button> missingItemsButton;
 	bool vertical, isEditingActive;
 	ToolbarItemStyle toolbarStyle;
-	ComponentAnimator animator;
 	class MissingItemsComponent;
 	friend class MissingItemsComponent;
-	Array <ToolbarItemComponent*> items;
+	OwnedArray <ToolbarItemComponent> items;
 
 	friend class ItemDragAndDropOverlayComponent;
 	static const char* const toolbarDragDescriptor;
 
-	void addItemInternal (ToolbarItemFactory& factory, const int itemId, const int insertIndex);
+	void addItemInternal (ToolbarItemFactory& factory, int itemId, int insertIndex);
 
-	ToolbarItemComponent* getNextActiveComponent (int index, const int delta) const;
+	ToolbarItemComponent* getNextActiveComponent (int index, int delta) const;
 
-	Toolbar (const Toolbar&);
-	Toolbar& operator= (const Toolbar&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Toolbar);
 };
 
 #endif   // __JUCE_TOOLBAR_JUCEHEADER__
@@ -44964,8 +46455,6 @@ public:
 	/** @internal */
 	void resized();
 
-	juce_UseDebuggingNewOperator
-
 private:
 	friend class Toolbar;
 	friend class ItemDragAndDropOverlayComponent;
@@ -44977,8 +46466,7 @@ private:
 	bool isActive, isBeingDragged, isBeingUsedAsAButton;
 	Rectangle<int> contentArea;
 
-	ToolbarItemComponent (const ToolbarItemComponent&);
-	ToolbarItemComponent& operator= (const ToolbarItemComponent&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ToolbarItemComponent);
 };
 
 #endif   // __JUCE_TOOLBARITEMCOMPONENT_JUCEHEADER__
@@ -45029,14 +46517,21 @@ public:
 	void paintButtonArea (Graphics& g, int width, int height, bool isMouseOver, bool isMouseDown);
 	/** @internal */
 	void contentAreaChanged (const Rectangle<int>& newBounds);
-
-	juce_UseDebuggingNewOperator
+	/** @internal */
+	void buttonStateChanged();
+	/** @internal */
+	void resized();
+	/** @internal */
+	void enablementChanged();
 
 private:
-	ScopedPointer <Drawable> normalImage, toggledOnImage;
 
-	ToolbarButton (const ToolbarButton&);
-	ToolbarButton& operator= (const ToolbarButton&);
+	ScopedPointer<Drawable> normalImage, toggledOnImage;
+	Drawable* currentImage;
+
+	void updateDrawable();
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ToolbarButton);
 };
 
 #endif   // __JUCE_TOOLBARBUTTON_JUCEHEADER__
@@ -45119,9 +46614,9 @@ public:
 		Position (const Position& other) throw();
 
 		/** Destructor. */
-		~Position() throw();
+		~Position();
 
-		Position& operator= (const Position& other) throw();
+		Position& operator= (const Position& other);
 		bool operator== (const Position& other) const throw();
 		bool operator!= (const Position& other) const throw();
 
@@ -45131,7 +46626,7 @@ public:
 			inside.
 			@see getPosition, setLineAndIndex
 		*/
-		void setPosition (int charactersFromStartOfDocument) throw();
+		void setPosition (int charactersFromStartOfDocument);
 
 		/** Returns the position as the number of characters from the start of the document.
 			@see setPosition, getLineNumber, getIndexInLine
@@ -45147,7 +46642,7 @@ public:
 			Lines are numbered from zero, and if the line or index are beyond the bounds of the document,
 			they will be adjusted to keep them within its limits.
 		*/
-		void setLineAndIndex (int newLine, int newIndexInLine) throw();
+		void setLineAndIndex (int newLine, int newIndexInLine);
 
 		/** Returns the line number of this position.
 			The first line in the document is numbered zero, not one!
@@ -45168,34 +46663,34 @@ public:
 			when the document has text inserted or deleted, this position will be automatically
 			moved to keep it at the same position in the text.
 		*/
-		void setPositionMaintained (bool isMaintained) throw();
+		void setPositionMaintained (bool isMaintained);
 
 		/** Moves the position forwards or backwards by the specified number of characters.
 			@see movedBy
 		*/
-		void moveBy (int characterDelta) throw();
+		void moveBy (int characterDelta);
 
 		/** Returns a position which is the same as this one, moved by the specified number of
 			characters.
 			@see moveBy
 		*/
-		const Position movedBy (int characterDelta) const throw();
+		const Position movedBy (int characterDelta) const;
 
 		/** Returns a position which is the same as this one, moved up or down by the specified
 			number of lines.
 			@see movedBy
 		*/
-		const Position movedByLines (int deltaLines) const throw();
+		const Position movedByLines (int deltaLines) const;
 
 		/** Returns the character in the document at this position.
 			@see getLineText
 		*/
-		const juce_wchar getCharacter() const throw();
+		const juce_wchar getCharacter() const;
 
 		/** Returns the line from the document that this position is within.
 			@see getCharacter, getLineNumber
 		*/
-		const String getLineText() const throw();
+		const String getLineText() const;
 
 	private:
 		CodeDocument* owner;
@@ -45204,10 +46699,10 @@ public:
 	};
 
 	/** Returns the full text of the document. */
-	const String getAllContent() const throw();
+	const String getAllContent() const;
 
 	/** Returns a section of the document's text. */
-	const String getTextBetween (const Position& start, const Position& end) const throw();
+	const String getTextBetween (const Position& start, const Position& end) const;
 
 	/** Returns a line from the document. */
 	const String getLine (int lineIndex) const throw();
@@ -45385,9 +46880,8 @@ public:
 		int line, position;
 	};
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	friend class CodeDocumentInsertAction;
 	friend class CodeDocumentDeleteAction;
 	friend class Iterator;
@@ -45407,8 +46901,7 @@ private:
 	void remove (int startPos, int endPos, bool undoable);
 	void checkLastLineStatus();
 
-	CodeDocument (const CodeDocument&);
-	CodeDocument& operator= (const CodeDocument&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (CodeDocument);
 };
 
 #endif   // __JUCE_CODEDOCUMENT_JUCEHEADER__
@@ -45458,7 +46951,9 @@ public:
 	*/
 	virtual const Colour getDefaultColour (int tokenType) = 0;
 
-	juce_UseDebuggingNewOperator
+private:
+
+	JUCE_LEAK_DETECTOR (CodeTokeniser);
 };
 
 #endif   // __JUCE_CODETOKENISER_JUCEHEADER__
@@ -45532,7 +47027,7 @@ public:
 	/** Returns the on-screen position of a character in the document.
 		The rectangle returned is relative to this component's top-left origin.
 	*/
-	const Rectangle<int> getCharacterBounds (const CodeDocument::Position& pos) const throw();
+	const Rectangle<int> getCharacterBounds (const CodeDocument::Position& pos) const;
 
 	/** Finds the character at a given on-screen position.
 		The co-ordinates are relative to this component's top-left origin.
@@ -45582,8 +47077,7 @@ public:
 		This lets you change the tab size and whether pressing the tab key inserts a
 		tab character, or its equivalent number of spaces.
 	*/
-	void setTabSize (int numSpacesPerTab,
-					 bool insertSpacesInsteadOfTabCharacters) throw();
+	void setTabSize (int numSpacesPerTab, bool insertSpacesInsteadOfTabCharacters);
 
 	/** Returns the current number of spaces per tab.
 		@see setTabSize
@@ -45621,7 +47115,7 @@ public:
 		CodeTokeniser::getTokenTypes() to get a list of the token types.
 		@see setColourForTokenType
 	*/
-	const Colour getColourForTokenType (int tokenType) const throw();
+	const Colour getColourForTokenType (int tokenType) const;
 
 	/** A set of colour IDs to use to change the colour of various aspects of the editor.
 
@@ -45641,7 +47135,7 @@ public:
 	};
 
 	/** Changes the size of the scrollbars. */
-	void setScrollbarThickness (int thickness) throw();
+	void setScrollbarThickness (int thickness);
 
 	/** Returns the thickness of the scrollbars. */
 	int getScrollbarThickness() const throw()	   { return scrollbarThickness; }
@@ -45678,9 +47172,8 @@ public:
 	/** @internal */
 	bool isTextInputActive() const;
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	CodeDocument& document;
 
 	Font font;
@@ -45693,10 +47186,11 @@ private:
 
 	CodeDocument::Position caretPos;
 	CodeDocument::Position selectionStart, selectionEnd;
+
 	class CaretComponent;
-	CaretComponent* caret;
-	ScrollBar* verticalScrollBar;
-	ScrollBar* horizontalScrollBar;
+	friend class ScopedPointer <CaretComponent>;
+	ScopedPointer<CaretComponent> caret;
+	ScrollBar verticalScrollBar, horizontalScrollBar;
 
 	enum DragType
 	{
@@ -45715,7 +47209,7 @@ private:
 	void rebuildLineTokens();
 
 	OwnedArray <CodeDocument::Iterator> cachedIterators;
-	void clearCachedIterators (int firstLineToBeInvalid) throw();
+	void clearCachedIterators (int firstLineToBeInvalid);
 	void updateCachedIterators (int maxLineNum);
 	void getIteratorForPosition (int position, CodeDocument::Iterator& result);
 	void moveLineDelta (int delta, bool selecting);
@@ -45728,8 +47222,7 @@ private:
 	int indexToColumn (int line, int index) const throw();
 	int columnToIndex (int line, int column) const throw();
 
-	CodeEditorComponent (const CodeEditorComponent&);
-	CodeEditorComponent& operator= (const CodeEditorComponent&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (CodeEditorComponent);
 };
 
 #endif   // __JUCE_CODEEDITORCOMPONENT_JUCEHEADER__
@@ -45780,7 +47273,9 @@ public:
 	/** This is a handy method for checking whether a string is a c++ reserved keyword. */
 	static bool isReservedKeyword (const String& token) throw();
 
-	juce_UseDebuggingNewOperator
+private:
+
+	JUCE_LEAK_DETECTOR (CPlusPlusCodeTokeniser);
 };
 
 #endif   // __JUCE_CPLUSPLUSCODETOKENISER_JUCEHEADER__
@@ -45840,7 +47335,7 @@ public:
 		By default this is on, and the progress bar will display a text string showing
 		its current percentage.
 	*/
-	void setPercentageDisplay (const bool shouldDisplayPercentage);
+	void setPercentageDisplay (bool shouldDisplayPercentage);
 
 	/** Gives the progress bar a string to display inside it.
 
@@ -45863,9 +47358,8 @@ public:
 															 classes will probably use variations on this colour. */
 	};
 
-	juce_UseDebuggingNewOperator
-
 protected:
+
 	/** @internal */
 	void paint (Graphics& g);
 	/** @internal */
@@ -45884,8 +47378,7 @@ private:
 
 	void timerCallback();
 
-	ProgressBar (const ProgressBar&);
-	ProgressBar& operator= (const ProgressBar&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ProgressBar);
 };
 
 #endif   // __JUCE_PROGRESSBAR_JUCEHEADER__
@@ -45898,6 +47391,10 @@ private:
 /*** Start of inlined file: juce_Slider.h ***/
 #ifndef __JUCE_SLIDER_JUCEHEADER__
 #define __JUCE_SLIDER_JUCEHEADER__
+
+#if JUCE_VC6
+ #define Listener LabelListener
+#endif
 
 /**
 	A slider control for changing a value.
@@ -45924,7 +47421,7 @@ class JUCE_API  Slider  : public Component,
 						  public AsyncUpdater,
 						  public ButtonListener,  // (can't use Button::Listener due to idiotic VC2005 bug)
 						  public LabelListener,
-						  public Value::Listener
+						  public ValueListener
 {
 public:
 
@@ -45979,7 +47476,7 @@ public:
 
 		@see setSliderStyle
 	*/
-	SliderStyle getSliderStyle() const					  { return style; }
+	SliderStyle getSliderStyle() const throw()		  { return style; }
 
 	/** Changes the properties of a rotary slider.
 
@@ -46004,6 +47501,9 @@ public:
 	*/
 	void setMouseDragSensitivity (int distanceForFullScaleDrag);
 
+	/** Returns the current sensitivity value set by setMouseDragSensitivity(). */
+	int getMouseDragSensitivity() const throw()		 { return pixelsForFullDragExtent; }
+
 	/** Changes the way the the mouse is used when dragging the slider.
 
 		If true, this will turn on velocity-sensitive dragging, so that
@@ -46017,7 +47517,7 @@ public:
 	/** Returns true if velocity-based mode is active.
 		@see setVelocityBasedMode
 	*/
-	bool getVelocityBasedMode() const			   { return isVelocityBased; }
+	bool getVelocityBasedMode() const throw()		   { return isVelocityBased; }
 
 	/** Changes aspects of the scaling used when in velocity-sensitive mode.
 
@@ -46040,22 +47540,22 @@ public:
 	/** Returns the velocity sensitivity setting.
 		@see setVelocityModeParameters
 	*/
-	double getVelocitySensitivity() const			   { return velocityModeSensitivity; }
+	double getVelocitySensitivity() const throw()		   { return velocityModeSensitivity; }
 
 	/** Returns the velocity threshold setting.
 		@see setVelocityModeParameters
 	*/
-	int getVelocityThreshold() const				{ return velocityModeThreshold; }
+	int getVelocityThreshold() const throw()			{ return velocityModeThreshold; }
 
 	/** Returns the velocity offset setting.
 		@see setVelocityModeParameters
 	*/
-	double getVelocityOffset() const				{ return velocityModeOffset; }
+	double getVelocityOffset() const throw()			{ return velocityModeOffset; }
 
 	/** Returns the velocity user key setting.
 		@see setVelocityModeParameters
 	*/
-	bool getVelocityModeIsSwappable() const			 { return userKeyOverridesVelocity; }
+	bool getVelocityModeIsSwappable() const throw()		 { return userKeyOverridesVelocity; }
 
 	/** Sets up a skew factor to alter the way values are distributed.
 
@@ -46089,7 +47589,7 @@ public:
 
 		@see setSkewFactor, setSkewFactorFromMidPoint
 	*/
-	double getSkewFactor() const				{ return skewFactor; }
+	double getSkewFactor() const throw()			{ return skewFactor; }
 
 	/** Used by setIncDecButtonsMode().
 	*/
@@ -46145,17 +47645,17 @@ public:
 	/** Returns the status of the text-box.
 		@see setTextBoxStyle
 	*/
-	const TextEntryBoxPosition getTextBoxPosition() const		   { return textBoxPos; }
+	const TextEntryBoxPosition getTextBoxPosition() const throw()	   { return textBoxPos; }
 
 	/** Returns the width used for the text-box.
 		@see setTextBoxStyle
 	*/
-	int getTextBoxWidth() const						 { return textBoxWidth; }
+	int getTextBoxWidth() const throw()					 { return textBoxWidth; }
 
 	/** Returns the height used for the text-box.
 		@see setTextBoxStyle
 	*/
-	int getTextBoxHeight() const						{ return textBoxHeight; }
+	int getTextBoxHeight() const throw()					{ return textBoxHeight; }
 
 	/** Makes the text-box editable.
 
@@ -46259,7 +47759,7 @@ public:
 		your own Value object.
 		@see Value, getMinValue, getMaxValueObject
 	*/
-	Value& getMinValueObject()						  { return valueMin; }
+	Value& getMinValueObject() throw()					  { return valueMin; }
 
 	/** For a slider with two or three thumbs, this sets the lower of its values.
 
@@ -46301,7 +47801,7 @@ public:
 		your own Value object.
 		@see Value, getMaxValue, getMinValueObject
 	*/
-	Value& getMaxValueObject()						  { return valueMax; }
+	Value& getMaxValueObject() throw()					  { return valueMax; }
 
 	/** For a slider with two or three thumbs, this sets the lower of its values.
 
@@ -46452,7 +47952,7 @@ public:
 		This will return 0 for the main thumb, 1 for the minimum-value thumb, 2 for
 		the maximum-value thumb, or -1 if none is currently down.
 	*/
-	int getThumbBeingDragged() const		{ return sliderBeingDragged; }
+	int getThumbBeingDragged() const throw()		{ return sliderBeingDragged; }
 
 	/** Callback to indicate that the user is about to start dragging the slider.
 
@@ -46592,9 +48092,8 @@ public:
 		textBoxOutlineColourId	  = 0x1001700   /**< The colour to use for a border around the text-editor box. */
 	};
 
-	juce_UseDebuggingNewOperator
-
 protected:
+
 	/** @internal */
 	void labelTextChanged (Label*);
 	/** @internal */
@@ -46634,6 +48133,7 @@ protected:
 	int getNumDecimalPlacesToDisplay() const throw()	{ return numDecimalPlaces; }
 
 private:
+
 	ListenerList <Listener> listeners;
 	Value currentValue, valueMin, valueMax;
 	double lastCurrentValue, lastValueMin, lastValueMax;
@@ -46660,9 +48160,8 @@ private:
 	bool incDecButtonsSideBySide : 1, sendChangeOnlyOnRelease : 1, popupDisplayEnabled : 1;
 	bool menuEnabled : 1, menuShown : 1, mouseWasHidden : 1, incDecDragged : 1;
 	bool scrollWheelEnabled : 1, snapsToMousePos : 1;
-	Label* valueBox;
-	Button* incButton;
-	Button* decButton;
+	ScopedPointer<Label> valueBox;
+	ScopedPointer<Button> incButton, decButton;
 	ScopedPointer <Component> popupDisplay;
 	Component* parentForPopupDisplay;
 
@@ -46674,12 +48173,15 @@ private:
 	void triggerChangeMessage (bool synchronous);
 	bool incDecDragDirectionIsHorizontal() const;
 
-	Slider (const Slider&);
-	Slider& operator= (const Slider&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Slider);
 };
 
 /** This typedef is just for compatibility with old code - newer code should use the Slider::Listener class directly. */
 typedef Slider::Listener SliderListener;
+
+#if JUCE_VC6
+ #undef Listener
+#endif
 
 #endif   // __JUCE_SLIDER_JUCEHEADER__
 /*** End of inlined file: juce_Slider.h ***/
@@ -47048,8 +48550,6 @@ public:
 	/** Can be overridden for more control over the pop-up menu behaviour. */
 	virtual void showColumnChooserMenu (int columnIdClicked);
 
-	juce_UseDebuggingNewOperator
-
 private:
 	struct ColumnInfo
 	{
@@ -47078,8 +48578,7 @@ private:
 	void updateColumnUnderMouse (int x, int y);
 	void resizeColumnsToFit (int firstColumnIndex, int targetTotalWidth);
 
-	TableHeaderComponent (const TableHeaderComponent&);
-	TableHeaderComponent operator= (const TableHeaderComponent&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (TableHeaderComponent);
 };
 
 /** This typedef is just for compatibility with old code - newer code should use the TableHeaderComponent::Listener class directly. */
@@ -47264,8 +48763,8 @@ public:
 		The model pointer passed-in can be null, in which case you can set it later
 		with setModel().
 	*/
-	TableListBox (const String& componentName,
-				  TableListBoxModel* model);
+	TableListBox (const String& componentName = String::empty,
+				  TableListBoxModel* model = 0);
 
 	/** Destructor. */
 	~TableListBox();
@@ -47278,7 +48777,7 @@ public:
 	TableListBoxModel* getModel() const				 { return model; }
 
 	/** Returns the header component being used in this table. */
-	TableHeaderComponent* getHeader() const			 { return header; }
+	TableHeaderComponent& getHeader() const			 { return *header; }
 
 	/** Changes the height of the table header component.
 		@see getHeaderHeight
@@ -47365,9 +48864,8 @@ public:
 	/** @internal */
 	void resized();
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	TableHeaderComponent* header;
 	TableListBoxModel* model;
 	int columnIdNowBeingDragged;
@@ -47375,8 +48873,7 @@ private:
 
 	void updateColumnComponents() const;
 
-	TableListBox (const TableListBox&);
-	TableListBox& operator= (const TableListBox&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (TableListBox);
 };
 
 #endif   // __JUCE_TABLELISTBOX_JUCEHEADER__
@@ -47516,18 +49013,17 @@ public:
 	/** @internal */
 	void resized();
 
-	juce_UseDebuggingNewOperator
-
 private:
 	ToolbarItemFactory& factory;
 	Toolbar* toolbar;
-	Viewport* viewport;
+	Viewport viewport;
+	OwnedArray <ToolbarItemComponent> items;
 
 	friend class Toolbar;
 	void replaceComponent (ToolbarItemComponent* comp);
+	void addComponent (int itemId, int index);
 
-	ToolbarItemPalette (const ToolbarItemPalette&);
-	ToolbarItemPalette& operator= (const ToolbarItemPalette&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ToolbarItemPalette);
 };
 
 #endif   // __JUCE_TOOLBARITEMPALETTE_JUCEHEADER__
@@ -48039,9 +49535,8 @@ public:
 	*/
 	const String getItemIdentifierString() const;
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	TreeView* ownerView;
 	TreeViewItem* parentItem;
 	OwnedArray <TreeViewItem> subItems;
@@ -48066,13 +49561,12 @@ private:
 	int getNumRows() const throw();
 	TreeViewItem* getItemOnRow (int index) throw();
 	void deselectAllRecursively();
-	int countSelectedItemsRecursively() const throw();
+	int countSelectedItemsRecursively (int depth) const throw();
 	TreeViewItem* getSelectedItemWithIndex (int index) throw();
 	TreeViewItem* getNextVisibleItem (bool recurse) const throw();
 	TreeViewItem* findItemFromIdentifierString (const String& identifierString);
 
-	TreeViewItem (const TreeViewItem&);
-	TreeViewItem& operator= (const TreeViewItem&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (TreeViewItem);
 };
 
 /**
@@ -48190,10 +49684,11 @@ public:
 	void clearSelectedItems();
 
 	/** Returns the number of items that are currently selected.
-
+		If maximumDepthToSearchTo is >= 0, it lets you specify a maximum depth to which the
+		tree will be recursed.
 		@see getSelectedItem, clearSelectedItems
 	*/
-	int getNumSelectedItems() const throw();
+	int getNumSelectedItems (int maximumDepthToSearchTo = -1) const throw();
 
 	/** Returns one of the selected items in the tree.
 
@@ -48319,8 +49814,6 @@ public:
 	/** @internal */
 	void itemDropped (const String& sourceDescription, Component* sourceComponent, int x, int y);
 
-	juce_UseDebuggingNewOperator
-
 private:
 	friend class TreeViewItem;
 	friend class TreeViewContentComponent;
@@ -48354,8 +49847,7 @@ private:
 									 const StringArray& files, const String& sourceDescription,
 									 Component* sourceComponent) const throw();
 
-	TreeView (const TreeView&);
-	TreeView& operator= (const TreeView&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (TreeView);
 };
 
 #endif   // __JUCE_TREEVIEW_JUCEHEADER__
@@ -48574,8 +50066,6 @@ public:
 	static int compareElements (const DirectoryContentsList::FileInfo* first,
 								const DirectoryContentsList::FileInfo* second);
 
-	juce_UseDebuggingNewOperator
-
 private:
 	File root;
 	const FileFilter* fileFilter;
@@ -48595,8 +50085,7 @@ private:
 				  const Time& creationTime, bool isReadOnly);
 	void setTypeFlags (int newFlags);
 
-	DirectoryContentsList (const DirectoryContentsList&);
-	DirectoryContentsList& operator= (const DirectoryContentsList&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (DirectoryContentsList);
 };
 
 #endif   // __JUCE_DIRECTORYCONTENTSLIST_JUCEHEADER__
@@ -48694,14 +50183,13 @@ public:
 	/** @internal */
 	void sendMouseClickMessage (const File& file, const MouseEvent& e);
 
-	juce_UseDebuggingNewOperator
-
 protected:
+
 	DirectoryContentsList& fileList;
 	ListenerList <FileBrowserListener> listeners;
 
-	DirectoryContentsDisplayComponent (const DirectoryContentsDisplayComponent&);
-	DirectoryContentsDisplayComponent& operator= (const DirectoryContentsDisplayComponent&);
+private:
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (DirectoryContentsDisplayComponent);
 };
 
 #endif   // __JUCE_DIRECTORYCONTENTSDISPLAYCOMPONENT_JUCEHEADER__
@@ -48751,11 +50239,9 @@ public:
 	*/
 	virtual void selectedFileChanged (const File& newSelectedFile) = 0;
 
-	juce_UseDebuggingNewOperator
-
 private:
-	FilePreviewComponent (const FilePreviewComponent&);
-	FilePreviewComponent& operator= (const FilePreviewComponent&);
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FilePreviewComponent);
 };
 
 #endif   // __JUCE_FILEPREVIEWCOMPONENT_JUCEHEADER__
@@ -48923,8 +50409,6 @@ public:
 	/** @internal */
 	FilePreviewComponent* getPreviewComponent() const throw();
 
-	juce_UseDebuggingNewOperator
-
 protected:
 	virtual const BigInteger getRoots (StringArray& rootNames, StringArray& rootPaths);
 
@@ -48938,19 +50422,19 @@ private:
 	Array<File> chosenFiles;
 	ListenerList <FileBrowserListener> listeners;
 
-	DirectoryContentsDisplayComponent* fileListComponent;
+	ScopedPointer<DirectoryContentsDisplayComponent> fileListComponent;
 	FilePreviewComponent* previewComp;
-	ComboBox* currentPathBox;
-	TextEditor* filenameBox;
-	Button* goUpButton;
+	ComboBox currentPathBox;
+	TextEditor filenameBox;
+	Label fileLabel;
+	ScopedPointer<Button> goUpButton;
 
 	TimeSliceThread thread;
 
 	void sendListenerChangeMessage();
 	bool isFileOrDirSuitable (const File& f) const;
 
-	FileBrowserComponent (const FileBrowserComponent&);
-	FileBrowserComponent& operator= (const FileBrowserComponent&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FileBrowserComponent);
 };
 
 #endif   // __JUCE_FILEBROWSERCOMPONENT_JUCEHEADER__
@@ -49104,9 +50588,8 @@ public:
 	*/
 	const Array<File>& getResults() const;
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	String title, filters;
 	File startingFile;
 	Array<File> results;
@@ -49120,6 +50603,8 @@ private:
 									const String& filters, bool selectsDirectories, bool selectsFiles,
 									bool isSave, bool warnAboutOverwritingExistingFiles, bool selectMultipleFiles,
 									FilePreviewComponent* previewComponent);
+
+	JUCE_LEAK_DETECTOR (FileChooser);
 };
 
 #endif   // __JUCE_FILECHOOSER_JUCEHEADER__
@@ -49194,8 +50679,6 @@ public:
 	/** @internal */
 	void componentVisibilityChanged (Component& component);
 
-	juce_UseDebuggingNewOperator
-
 private:
 
 	Component* owner;
@@ -49207,16 +50690,11 @@ private:
 	bool inDestructor, reentrant;
 
 	void updateShadows();
-	void setShadowImage (const Image& src,
-						 const int num,
-						 const int w, const int h,
-						 const int sx, const int sy);
-
+	void setShadowImage (const Image& src, int num, int w, int h, int sx, int sy);
 	void bringShadowWindowsToFront();
 	void deleteShadowWindows();
 
-	DropShadower (const DropShadower&);
-	DropShadower& operator= (const DropShadower&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (DropShadower);
 };
 
 #endif   // __JUCE_DROPSHADOWER_JUCEHEADER__
@@ -49315,8 +50793,6 @@ public:
 	*/
 	static TopLevelWindow* getActiveTopLevelWindow() throw();
 
-	juce_UseDebuggingNewOperator
-
 	/** @internal */
 	virtual void addToDesktop (int windowStyleFlags, void* nativeWindowToAttachTo = 0);
 
@@ -49346,8 +50822,7 @@ private:
 
 	void setWindowActive (bool isNowActive);
 
-	TopLevelWindow (const TopLevelWindow&);
-	TopLevelWindow& operator= (const TopLevelWindow&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (TopLevelWindow);
 };
 
 #endif   // __JUCE_TOPLEVELWINDOW_JUCEHEADER__
@@ -49484,7 +50959,7 @@ public:
 	virtual void resizeEnd();
 
 	/** Checks the given bounds, and then sets the component to the corrected size. */
-	void setBoundsForComponent (Component* const component,
+	void setBoundsForComponent (Component* component,
 								const Rectangle<int>& bounds,
 								bool isStretchingTop,
 								bool isStretchingLeft,
@@ -49505,15 +50980,13 @@ public:
 	virtual void applyBoundsToComponent (Component* component,
 										 const Rectangle<int>& bounds);
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	int minW, maxW, minH, maxH;
 	int minOffTop, minOffLeft, minOffBottom, minOffRight;
 	double aspectRatio;
 
-	ComponentBoundsConstrainer (const ComponentBoundsConstrainer&);
-	ComponentBoundsConstrainer& operator= (const ComponentBoundsConstrainer&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ComponentBoundsConstrainer);
 };
 
 #endif   // __JUCE_COMPONENTBOUNDSCONSTRAINER_JUCEHEADER__
@@ -49535,12 +51008,12 @@ private:
 
 		void mouseDown (const MouseEvent& e)
 		{
-			myDragger.startDraggingComponent (this, 0);
+			myDragger.startDraggingComponent (this, e);
 		}
 
 		void mouseDrag (const MouseEvent& e)
 		{
-			myDragger.dragComponent (this, e);
+			myDragger.dragComponent (this, e, 0);
 		}
 	};
 	@endcode
@@ -49558,12 +51031,11 @@ public:
 	/** Call this from your component's mouseDown() method, to prepare for dragging.
 
 		@param componentToDrag	  the component that you want to drag
-		@param constrainer	  a constrainer object to use to keep the component
-									from going offscreen
+		@param e			the mouse event that is triggering the drag
 		@see dragComponent
 	*/
-	void startDraggingComponent (Component* const componentToDrag,
-								 ComponentBoundsConstrainer* constrainer);
+	void startDraggingComponent (Component* componentToDrag,
+								 const MouseEvent& e);
 
 	/** Call this from your mouseDrag() callback to move the component.
 
@@ -49574,19 +51046,20 @@ public:
 
 		@param componentToDrag	  the component that you want to drag
 		@param e			the current mouse-drag event
-		@see dragComponent
+		@param constrainer	  an optional constrainer object that should be used
+									to apply limits to the component's position. Pass
+									null if you don't want to contrain the movement.
+		@see startDraggingComponent
 	*/
-	void dragComponent (Component* const componentToDrag,
-						const MouseEvent& e);
-
-	juce_UseDebuggingNewOperator
+	void dragComponent (Component* componentToDrag,
+						const MouseEvent& e,
+						ComponentBoundsConstrainer* constrainer);
 
 private:
-	ComponentBoundsConstrainer* constrainer;
-	Point<int> originalPos;
 
-	ComponentDragger (const ComponentDragger&);
-	ComponentDragger& operator= (const ComponentDragger&);
+	Point<int> mouseDownWithinTarget;
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ComponentDragger);
 };
 
 #endif   // __JUCE_COMPONENTDRAGGER_JUCEHEADER__
@@ -49699,14 +51172,27 @@ public:
 		/** Resizes this rectangle by the given amount, moving just the edges that this zone
 			applies to.
 		*/
-		const Rectangle<int> resizeRectangleBy (Rectangle<int> original,
-												const Point<int>& distance) const throw();
+		template <typename ValueType>
+		const Rectangle<ValueType> resizeRectangleBy (Rectangle<ValueType> original,
+													  const Point<ValueType>& distance) const throw()
+		{
+			if (isDraggingWholeObject())
+				return original + distance;
 
-		/** Resizes this rectangle by the given amount, moving just the edges that this zone
-			applies to.
-		*/
-		const Rectangle<float> resizeRectangleBy (Rectangle<float> original,
-												  const Point<float>& distance) const throw();
+			if (isDraggingLeftEdge())
+				original.setLeft (jmin (original.getRight(), original.getX() + distance.getX()));
+
+			if (isDraggingRightEdge())
+				original.setWidth (jmax (ValueType(), original.getWidth() + distance.getX()));
+
+			if (isDraggingTopEdge())
+				original.setTop (jmin (original.getBottom(), original.getY() + distance.getY()));
+
+			if (isDraggingBottomEdge())
+				original.setHeight (jmax (ValueType(), original.getHeight() + distance.getY()));
+
+			return original;
+		}
 
 		/** Returns the raw flags for this zone. */
 		int getZoneFlags() const throw()		{ return zone; }
@@ -49716,9 +51202,8 @@ public:
 		int zone;
 	};
 
-	juce_UseDebuggingNewOperator
-
 protected:
+
 	/** @internal */
 	void paint (Graphics& g);
 	/** @internal */
@@ -49743,8 +51228,7 @@ private:
 
 	void updateMouseZone (const MouseEvent& e);
 
-	ResizableBorderComponent (const ResizableBorderComponent&);
-	ResizableBorderComponent& operator= (const ResizableBorderComponent&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ResizableBorderComponent);
 };
 
 #endif   // __JUCE_RESIZABLEBORDERCOMPONENT_JUCEHEADER__
@@ -49792,9 +51276,8 @@ public:
 	/** Destructor. */
 	~ResizableCornerComponent();
 
-	juce_UseDebuggingNewOperator
-
 protected:
+
 	/** @internal */
 	void paint (Graphics& g);
 	/** @internal */
@@ -49812,8 +51295,7 @@ private:
 	ComponentBoundsConstrainer* constrainer;
 	Rectangle<int> originalBounds;
 
-	ResizableCornerComponent (const ResizableCornerComponent&);
-	ResizableCornerComponent& operator= (const ResizableCornerComponent&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ResizableCornerComponent);
 };
 
 #endif   // __JUCE_RESIZABLECORNERCOMPONENT_JUCEHEADER__
@@ -50059,9 +51541,8 @@ public:
 		backgroundColourId	  = 0x1005700,  /**< A colour to use to fill the window's background. */
 	};
 
-	juce_UseDebuggingNewOperator
-
 protected:
+
 	/** @internal */
 	void paint (Graphics& g);
 	/** (if overriding this, make sure you call ResizableWindow::resized() in your subclass) */
@@ -50119,6 +51600,7 @@ protected:
 	ScopedPointer <ResizableBorderComponent> resizableBorder;
 
 private:
+
 	Component::SafePointer <Component> contentComponent;
 	bool resizeToFitContent, fullscreen;
 	ComponentDragger dragger;
@@ -50131,14 +51613,13 @@ private:
 
 	void updateLastPos();
 
-	ResizableWindow (const ResizableWindow&);
-	ResizableWindow& operator= (const ResizableWindow&);
-
-	// (xxx remove these eventually)
-	// temporarily here to stop old code compiling, as the parameters for these methods have changed..
+   #if JUCE_CATCH_DEPRECATED_CODE_MISUSE
+	// The parameters for these methods have changed - please update your code!
 	void getBorderThickness (int& left, int& top, int& right, int& bottom);
-	// temporarily here to stop old code compiling, as the parameters for these methods have changed..
 	void getContentComponentBorder (int& left, int& top, int& right, int& bottom);
+   #endif
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ResizableWindow);
 };
 
 #endif   // __JUCE_RESIZABLEWINDOW_JUCEHEADER__
@@ -50197,8 +51678,6 @@ public:
 	/** Checks to see if a point lies within this glyph. */
 	bool hitTest (float x, float y) const;
 
-	juce_UseDebuggingNewOperator
-
 private:
 
 	friend class GlyphArrangement;
@@ -50208,6 +51687,7 @@ private:
 	int glyph;
 
 	PositionedGlyph (float x, float y, float w, const Font& font, juce_wchar character, int glyph);
+	JUCE_LEAK_DETECTOR (PositionedGlyph);
 };
 
 /**
@@ -50398,15 +51878,16 @@ public:
 						float x, float y, float width, float height,
 						const Justification& justification);
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	OwnedArray <PositionedGlyph> glyphs;
 
 	int insertEllipsis (const Font& font, float maxXPos, int startIndex, int endIndex);
 	int fitLineIntoSpace (int start, int numGlyphs, float x, float y, float w, float h, const Font& font,
 						  const Justification& justification, float minimumHorizontalScale);
 	void spreadOutLine (int start, int numGlyphs, float targetWidth);
+
+	JUCE_LEAK_DETECTOR (GlyphArrangement);
 };
 
 #endif   // __JUCE_GLYPHARRANGEMENT_JUCEHEADER__
@@ -50515,14 +51996,11 @@ public:
 	/** @internal */
 	void fileDoubleClicked (const File& file);
 
-	juce_UseDebuggingNewOperator
-
 private:
 	class ContentComponent  : public Component
 	{
 	public:
-		ContentComponent();
-		~ContentComponent();
+		ContentComponent (const String& name, const String& instructions, FileBrowserComponent& chooserComponent);
 
 		void paint (Graphics& g);
 		void resized();
@@ -50530,17 +52008,17 @@ private:
 		String instructions;
 		GlyphArrangement text;
 
-		FileBrowserComponent* chooserComponent;
-		FilePreviewComponent* previewComponent;
-		TextButton* okButton;
-		TextButton* cancelButton;
+		FileBrowserComponent& chooserComponent;
+		TextButton okButton, cancelButton, newFolderButton;
 	};
 
 	ContentComponent* content;
 	const bool warnAboutOverwritingExistingFiles;
 
-	FileChooserDialogBox (const FileChooserDialogBox&);
-	FileChooserDialogBox& operator= (const FileChooserDialogBox&);
+	void okButtonPressed();
+	void createNewFolder();
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FileChooserDialogBox);
 };
 
 #endif   // __JUCE_FILECHOOSERDIALOGBOX_JUCEHEADER__
@@ -50600,7 +52078,7 @@ public:
 	void scrollToTop();
 
 	/** @internal */
-	void changeListenerCallback (void*);
+	void changeListenerCallback (ChangeBroadcaster*);
 	/** @internal */
 	int getNumRows();
 	/** @internal */
@@ -50614,13 +52092,11 @@ public:
 	/** @internal */
 	void returnKeyPressed (int currentSelectedRow);
 
-	juce_UseDebuggingNewOperator
-
 private:
-	FileListComponent (const FileListComponent&);
-	FileListComponent& operator= (const FileListComponent&);
 
 	File lastDirectory;
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FileListComponent);
 };
 
 #endif   // __JUCE_FILELISTCOMPONENT_JUCEHEADER__
@@ -50794,8 +52270,6 @@ public:
 	/** @internal */
 	void fileDragExit (const StringArray& files);
 
-	juce_UseDebuggingNewOperator
-
 private:
 
 	ComboBox filenameBox;
@@ -50811,8 +52285,7 @@ private:
 	void buttonClicked (Button* button);
 	void handleAsyncUpdate();
 
-	FilenameComponent (const FilenameComponent&);
-	FilenameComponent& operator= (const FilenameComponent&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FilenameComponent);
 };
 
 #endif   // __JUCE_FILENAMECOMPONENT_JUCEHEADER__
@@ -50843,9 +52316,7 @@ class JUCE_API  FileSearchPathListComponent  : public Component,
 {
 public:
 
-	/** Creates an empty FileSearchPathListComponent.
-
-	*/
+	/** Creates an empty FileSearchPathListComponent. */
 	FileSearchPathListComponent();
 
 	/** Destructor. */
@@ -50899,25 +52370,19 @@ public:
 	/** @internal */
 	void buttonClicked (Button* button);
 
-	juce_UseDebuggingNewOperator
-
 private:
 
 	FileSearchPath path;
 	File defaultBrowseTarget;
 
-	ListBox* listBox;
-	Button* addButton;
-	Button* removeButton;
-	TextButton* changeButton;
-	DrawableButton* upButton;
-	DrawableButton* downButton;
+	ListBox listBox;
+	TextButton addButton, removeButton, changeButton;
+	DrawableButton upButton, downButton;
 
 	void changed();
 	void updateButtons();
 
-	FileSearchPathListComponent (const FileSearchPathListComponent&);
-	FileSearchPathListComponent& operator= (const FileSearchPathListComponent&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FileSearchPathListComponent);
 };
 
 #endif   // __JUCE_FILESEARCHPATHLISTCOMPONENT_JUCEHEADER__
@@ -50982,13 +52447,11 @@ public:
 	*/
 	const String& getDragAndDropDescription() const throw()	  { return dragAndDropDescription; }
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	String dragAndDropDescription;
 
-	FileTreeComponent (const FileTreeComponent&);
-	FileTreeComponent& operator= (const FileTreeComponent&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FileTreeComponent);
 };
 
 #endif   // __JUCE_FILETREECOMPONENT_JUCEHEADER__
@@ -51025,8 +52488,6 @@ public:
 	/** @internal */
 	void timerCallback();
 
-	juce_UseDebuggingNewOperator
-
 private:
 	File fileToLoad;
 	Image currentThumbnail;
@@ -51034,8 +52495,7 @@ private:
 
 	void getThumbSize (int& w, int& h) const;
 
-	ImagePreviewComponent (const ImagePreviewComponent&);
-	ImagePreviewComponent& operator= (const ImagePreviewComponent&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ImagePreviewComponent);
 };
 
 #endif   // __JUCE_IMAGEPREVIEWCOMPONENT_JUCEHEADER__
@@ -51084,13 +52544,14 @@ public:
 	/** This always returns true. */
 	bool isDirectorySuitable (const File& file) const;
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	StringArray fileWildcards, directoryWildcards;
 
 	static void parse (const String& pattern, StringArray& result);
 	static bool match (const File& file, const StringArray& wildcards);
+
+	JUCE_LEAK_DETECTOR (WildcardFileFilter);
 };
 
 #endif   // __JUCE_WILDCARDFILEFILTER_JUCEHEADER__
@@ -51313,8 +52774,6 @@ public:
 	/** @internal */
 	void globalFocusChanged (Component* focusedComponent);
 
-	juce_UseDebuggingNewOperator
-
 private:
 
 	ApplicationCommandManager* commandManager;
@@ -51345,6 +52804,7 @@ private:
 						Component* const originatingComponent) const;
 
 	KeyPressMappingSet& operator= (const KeyPressMappingSet&);
+	JUCE_LEAK_DETECTOR (KeyPressMappingSet);
 };
 
 #endif   // __JUCE_KEYPRESSMAPPINGSET_JUCEHEADER__
@@ -51356,23 +52816,18 @@ private:
 
 	@see KeyPressMappingSet
 */
-class JUCE_API  KeyMappingEditorComponent  : public Component,
-											 public TreeViewItem,
-											 public ChangeListener,
-											 private ButtonListener  // (can't use Button::Listener due to idiotic VC2005 bug)
+class JUCE_API  KeyMappingEditorComponent  : public Component
 {
 public:
 
 	/** Creates a KeyMappingEditorComponent.
 
-		@param mappingSet   this is the set of mappings to display and
-							edit. Make sure the mappings object is not
-							deleted before this component!
-		@param showResetToDefaultButton	 if true, then at the bottom of the
-							list, the component will include a 'reset to
-							defaults' button.
+		@param mappingSet   this is the set of mappings to display and edit. Make sure the
+							mappings object is not deleted before this component!
+		@param showResetToDefaultButton	 if true, then at the bottom of the list, the
+											component will include a 'reset to defaults' button.
 	*/
-	KeyMappingEditorComponent (KeyPressMappingSet* mappingSet,
+	KeyMappingEditorComponent (KeyPressMappingSet& mappingSet,
 							   bool showResetToDefaultButton);
 
 	/** Destructor. */
@@ -51386,9 +52841,8 @@ public:
 	void setColours (const Colour& mainBackground,
 					 const Colour& textColour);
 
-	/** Returns the KeyPressMappingSet that this component is acting upon.
-	*/
-	KeyPressMappingSet* getMappings() const throw()		 { return mappings; }
+	/** Returns the KeyPressMappingSet that this component is acting upon. */
+	KeyPressMappingSet& getMappings() const throw()		 { return mappings; }
 
 	/** Can be overridden if some commands need to be excluded from the list.
 
@@ -51433,31 +52887,24 @@ public:
 	void parentHierarchyChanged();
 	/** @internal */
 	void resized();
-	/** @internal */
-	void changeListenerCallback (void*);
-	/** @internal */
-	bool mightContainSubItems();
-	/** @internal */
-	const String getUniqueName() const;
-	/** @internal */
-	void buttonClicked (Button* button);
-
-	juce_UseDebuggingNewOperator
 
 private:
 
-	KeyPressMappingSet* mappings;
-	TreeView* tree;
-	friend class KeyMappingTreeViewItem;
-	friend class KeyCategoryTreeViewItem;
-	friend class KeyMappingItemComponent;
-	friend class KeyMappingChangeButton;
-	TextButton* resetButton;
+	KeyPressMappingSet& mappings;
+	TreeView tree;
+	TextButton resetButton;
 
-	void assignNewKey (CommandID commandID, int index);
+	class TopLevelItem;
+	class ChangeKeyButton;
+	class MappingItem;
+	class CategoryItem;
+	class ItemComponent;
+	friend class TopLevelItem;
+	friend class OwnedArray <ChangeKeyButton>;
+	friend class ScopedPointer<TopLevelItem>;
+	ScopedPointer<TopLevelItem> treeItem;
 
-	KeyMappingEditorComponent (const KeyMappingEditorComponent&);
-	KeyMappingEditorComponent& operator= (const KeyMappingEditorComponent&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (KeyMappingEditorComponent);
 };
 
 #endif   // __JUCE_KEYMAPPINGEDITORCOMPONENT_JUCEHEADER__
@@ -51514,15 +52961,11 @@ public:
 	~ComponentMovementWatcher();
 
 	/** This callback happens when the component that is being watched is moved
-		relative to its top-level peer window, or when it is resized.
-	*/
+		relative to its top-level peer window, or when it is resized. */
 	virtual void componentMovedOrResized (bool wasMoved, bool wasResized) = 0;
 
-	/** This callback happens when the component's top-level peer is changed.
-	*/
+	/** This callback happens when the component's top-level peer is changed. */
 	virtual void componentPeerChanged() = 0;
-
-	juce_UseDebuggingNewOperator
 
 	/** @internal */
 	void componentParentHierarchyChanged (Component& component);
@@ -51540,8 +52983,7 @@ private:
 	void unregister();
 	void registerWithParentComps();
 
-	ComponentMovementWatcher (const ComponentMovementWatcher&);
-	ComponentMovementWatcher& operator= (const ComponentMovementWatcher&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ComponentMovementWatcher);
 };
 
 #endif   // __JUCE_COMPONENTMOVEMENTWATCHER_JUCEHEADER__
@@ -51619,8 +53061,7 @@ private:
 	String text;
 	Justification justification;
 
-	GroupComponent (const GroupComponent&);
-	GroupComponent& operator= (const GroupComponent&);
+	JUCE_DECLARE_NON_COPYABLE (GroupComponent);
 };
 
 #endif   // __JUCE_GROUPCOMPONENT_JUCEHEADER__
@@ -51659,9 +53100,7 @@ class JUCE_API  TabBarButton  : public Button
 public:
 
 	/** Creates the tab button. */
-	TabBarButton (const String& name,
-				  TabbedButtonBar* ownerBar,
-				  int tabIndex);
+	TabBarButton (const String& name, TabbedButtonBar& ownerBar);
 
 	/** Destructor. */
 	~TabBarButton();
@@ -51678,12 +53117,11 @@ public:
 	void clicked (const ModifierKeys& mods);
 	bool hitTest (int x, int y);
 
-	juce_UseDebuggingNewOperator
-
 protected:
+
 	friend class TabbedButtonBar;
-	TabbedButtonBar* const owner;
-	int tabIndex, overlapPixels;
+	TabbedButtonBar& owner;
+	int overlapPixels;
 	DropShadowEffect shadow;
 
 	/** Returns an area of the component that's safe to draw in.
@@ -51691,11 +53129,14 @@ protected:
 		This deals with the orientation of the tabs, which affects which side is
 		touching the tabbed box's content component.
 	*/
-	void getActiveArea (int& x, int& y, int& w, int& h);
+	const Rectangle<int> getActiveArea();
+
+	/** Returns this tab's index in its tab bar. */
+	int getIndex() const;
 
 private:
-	TabBarButton (const TabBarButton&);
-	TabBarButton& operator= (const TabBarButton&);
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (TabBarButton);
 };
 
 /**
@@ -51712,8 +53153,7 @@ private:
 	@see TabbedComponent
 */
 class JUCE_API  TabbedButtonBar  : public Component,
-								   public ChangeBroadcaster,
-								   public ButtonListener // (can't use Button::Listener due to idiotic VC2005 bug)
+								   public ChangeBroadcaster
 {
 public:
 
@@ -51751,6 +53191,11 @@ public:
 		@see setOrientation
 	*/
 	Orientation getOrientation() const throw()			  { return orientation; }
+
+	/** Changes the minimum scale factor to which the tabs can be compressed when trying to
+		fit a lot of tabs on-screen.
+	*/
+	void setMinimumTabScaleFactor (double newMinimumScale);
 
 	/** Deletes all the tabs from the bar.
 
@@ -51801,7 +53246,7 @@ public:
 
 		This could be an empty string if none are selected.
 	*/
-	const String& getCurrentTabName() const throw()			 { return tabs [currentTabIndex]; }
+	const String getCurrentTabName() const;
 
 	/** Returns the index of the currently selected tab.
 
@@ -51816,6 +53261,9 @@ public:
 		out of range.
 	*/
 	TabBarButton* getTabButton (int index) const;
+
+	/** Returns the index of a TabBarButton if it belongs to this bar. */
+	int indexOfTabButton (const TabBarButton* button) const;
 
 	/** Callback method to indicate the selected tab has been changed.
 
@@ -51863,11 +53311,7 @@ public:
 	/** @internal */
 	void resized();
 	/** @internal */
-	void buttonClicked (Button* button);
-	/** @internal */
 	void lookAndFeelChanged();
-
-	juce_UseDebuggingNewOperator
 
 protected:
 
@@ -51881,14 +53325,27 @@ protected:
 private:
 	Orientation orientation;
 
-	StringArray tabs;
-	Array <Colour> tabColours;
+	struct TabInfo
+	{
+		ScopedPointer<TabBarButton> component;
+		String name;
+		Colour colour;
+	};
+
+	OwnedArray <TabInfo> tabs;
+
+	double minimumScale;
 	int currentTabIndex;
-	Component* behindFrontTab;
+
+	class BehindFrontTabComp;
+	friend class BehindFrontTabComp;
+	friend class ScopedPointer<BehindFrontTabComp>;
+	ScopedPointer<BehindFrontTabComp> behindFrontTab;
 	ScopedPointer<Button> extraTabsButton;
 
-	TabbedButtonBar (const TabbedButtonBar&);
-	TabbedButtonBar& operator= (const TabbedButtonBar&);
+	void showExtraItemsMenu();
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (TabbedButtonBar);
 };
 
 #endif   // __JUCE_TABBEDBUTTONBAR_JUCEHEADER__
@@ -52023,7 +53480,7 @@ public:
 
 		@see addTab, TabbedButtonBar::getCurrentTabName()
 	*/
-	const String& getCurrentTabName() const;
+	const String getCurrentTabName() const;
 
 	/** Returns the current component that's filling the panel.
 
@@ -52070,11 +53527,9 @@ public:
 	/** @internal */
 	void lookAndFeelChanged();
 
-	juce_UseDebuggingNewOperator
-
 protected:
 
-	TabbedButtonBar* tabs;
+	ScopedPointer<TabbedButtonBar> tabs;
 
 	/** This creates one of the tab buttons.
 
@@ -52085,8 +53540,8 @@ protected:
 
 private:
 
-	Array <Component*> contentComponents;
-	Component* panelComponent;
+	OwnedArray <Component::SafePointer<Component> > contentComponents;
+	Component::SafePointer<Component> panelComponent;
 	int tabDepth;
 	int outlineThickness, edgeIndent;
 	static const Identifier deleteComponentId;
@@ -52094,8 +53549,7 @@ private:
 	friend class TabCompButtonBar;
 	void changeCallback (int newCurrentTabIndex, const String& newTabName);
 
-	TabbedComponent (const TabbedComponent&);
-	TabbedComponent& operator= (const TabbedComponent&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (TabbedComponent);
 };
 
 #endif   // __JUCE_TABBEDCOMPONENT_JUCEHEADER__
@@ -52245,14 +53699,11 @@ public:
 	/** @internal */
 	void handleAsyncUpdate();
 
-	juce_UseDebuggingNewOperator
-
 private:
 	ApplicationCommandManager* manager;
 	ListenerList <Listener> listeners;
 
-	MenuBarModel (const MenuBarModel&);
-	MenuBarModel& operator= (const MenuBarModel&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MenuBarModel);
 };
 
 /** This typedef is just for compatibility with old code - newer code should use the MenuBarModel::Listener class directly. */
@@ -52327,9 +53778,8 @@ public:
 	void menuCommandInvoked (MenuBarModel* menuBarModel,
 							 const ApplicationCommandTarget::InvocationInfo& info);
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	class AsyncCallback;
 	friend class AsyncCallback;
 	MenuBarModel* model;
@@ -52347,8 +53797,7 @@ private:
 	void repaintMenuItem (int index);
 	void menuDismissed (int topLevelIndex, int itemId);
 
-	MenuBarComponent (const MenuBarComponent&);
-	MenuBarComponent& operator= (const MenuBarComponent&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MenuBarComponent);
 };
 
 #endif   // __JUCE_MENUBARCOMPONENT_JUCEHEADER__
@@ -52558,9 +54007,8 @@ public:
 	/** @internal */
 	const Rectangle<int> getTitleBarArea();
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	int titleBarHeight, menuBarHeight, requiredButtons;
 	bool positionTitleBarButtonsOnLeft, drawTitleTextCentred;
 	ScopedPointer <Button> titleBarButtons [3];
@@ -52574,8 +54022,7 @@ private:
 
 	void repaintTitleBar();
 
-	DocumentWindow (const DocumentWindow&);
-	DocumentWindow& operator= (const DocumentWindow&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (DocumentWindow);
 };
 
 #endif   // __JUCE_DOCUMENTWINDOW_JUCEHEADER__
@@ -52613,11 +54060,12 @@ public:
 	/** @internal */
 	void broughtToFront();
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	void updateOrder();
 	MultiDocumentPanel* getOwner() const throw();
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MultiDocumentPanelWindow);
 };
 
 /**
@@ -52825,12 +54273,11 @@ public:
 	/** @internal */
 	void componentNameChanged (Component&);
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	LayoutMode mode;
 	Array <Component*> components;
-	TabbedComponent* tabComponent;
+	ScopedPointer<TabbedComponent> tabComponent;
 	Colour backgroundColour;
 	int maximumNumDocuments, numDocsBeforeTabsUsed;
 
@@ -52841,6 +54288,8 @@ private:
 	void updateOrder();
 
 	void addWindow (Component* component);
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MultiDocumentPanel);
 };
 
 #endif   // __JUCE_MULTIDOCUMENTPANEL_JUCEHEADER__
@@ -53063,9 +54512,8 @@ public:
 	void setItemPosition (int itemIndex,
 						  int newPosition);
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	struct ItemLayoutProperties
 	{
 		int itemIndex;
@@ -53084,8 +54532,7 @@ private:
 	int getMaximumSizeOfItems (int startIndex, int endIndex) const;
 	void updatePrefSizesToMatchCurrentPositions();
 
-	StretchableLayoutManager (const StretchableLayoutManager&);
-	StretchableLayoutManager& operator= (const StretchableLayoutManager&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (StretchableLayoutManager);
 };
 
 #endif   // __JUCE_STRETCHABLELAYOUTMANAGER_JUCEHEADER__
@@ -53150,15 +54597,13 @@ public:
 	/** @internal */
 	void mouseDrag (const MouseEvent& e);
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	StretchableLayoutManager* layout;
 	int itemIndex, mouseDownPos;
 	bool isVertical;
 
-	StretchableLayoutResizerBar (const StretchableLayoutResizerBar&);
-	StretchableLayoutResizerBar& operator= (const StretchableLayoutResizerBar&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (StretchableLayoutResizerBar);
 };
 
 #endif   // __JUCE_STRETCHABLELAYOUTRESIZERBAR_JUCEHEADER__
@@ -53225,9 +54670,8 @@ public:
 	/** Returns the size of one of the items. */
 	double getItemSize (int index) const throw();
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	struct Item
 	{
 		double size;
@@ -53238,8 +54682,7 @@ private:
 
 	OwnedArray <Item> items;
 
-	StretchableObjectResizer (const StretchableObjectResizer&);
-	StretchableObjectResizer& operator= (const StretchableObjectResizer&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (StretchableObjectResizer);
 };
 
 #endif   // __JUCE_STRETCHABLEOBJECTRESIZER_JUCEHEADER__
@@ -53328,6 +54771,9 @@ public:
 	void setText (const String& newText,
 				  const Font& fontToUse);
 
+	/** Returns true if the layout has not had any text added yet. */
+	bool isEmpty() const;
+
 	/** Breaks the text up to form a paragraph with the given width.
 
 		@param maximumWidth		 any text wider than this will be split
@@ -53372,13 +54818,14 @@ public:
 					 int x, int y, int w, int h,
 					 const Justification& layoutFlags) const;
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	class Token;
 	friend class OwnedArray <Token>;
 	OwnedArray <Token> tokens;
 	int totalLines;
+
+	JUCE_LEAK_DETECTOR (TextLayout);
 };
 
 #endif   // __JUCE_TEXTLAYOUT_JUCEHEADER__
@@ -53487,6 +54934,9 @@ public:
 		@see addTextEditor
 	*/
 	const String getTextEditorContents (const String& nameOfTextEditor) const;
+
+	/** Returns a pointer to a textbox that was added with addTextEditor(). */
+	TextEditor* getTextEditor (const String& nameOfTextEditor) const;
 
 	/** Adds a drop-down list of choices to the box.
 
@@ -53671,9 +55121,8 @@ public:
 		outlineColourId		 = 0x1001820   /**< An optional colour to use to draw a border around the window. */
 	};
 
-	juce_UseDebuggingNewOperator
-
 protected:
+
 	/** @internal */
 	void paint (Graphics& g);
 	/** @internal */
@@ -53692,23 +55141,27 @@ protected:
 	int getDesktopWindowStyleFlags() const;
 
 private:
+
 	String text;
 	TextLayout textLayout;
 	AlertIconType alertIconType;
 	ComponentBoundsConstrainer constrainer;
 	ComponentDragger dragger;
 	Rectangle<int> textArea;
-	Array<void*> buttons, textBoxes, comboBoxes;
-	Array<void*> progressBars, customComps, textBlocks, allComps;
+	OwnedArray<TextButton> buttons;
+	OwnedArray<TextEditor> textBoxes;
+	OwnedArray<ComboBox> comboBoxes;
+	OwnedArray<ProgressBar> progressBars;
+	Array<Component*> customComps;
+	OwnedArray<Component> textBlocks;
+	Array<Component*> allComps;
 	StringArray textboxNames, comboBoxNames;
 	Font font;
 	Component* associatedComponent;
 
 	void updateLayout (bool onlyIncreaseSize);
 
-	// disable copy constructor
-	AlertWindow (const AlertWindow&);
-	AlertWindow& operator= (const AlertWindow&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AlertWindow);
 };
 
 #endif   // __JUCE_ALERTWINDOW_JUCEHEADER__
@@ -53740,6 +55193,7 @@ class DirectoryContentsDisplayComponent;
 class FilePreviewComponent;
 class ImageButton;
 class CallOutBox;
+class Drawable;
 
 /**
 	LookAndFeel objects define the appearance of all the JUCE widgets, and subclasses
@@ -53960,9 +55414,10 @@ public:
 	virtual void fillTextEditorBackground (Graphics& g, int width, int height, TextEditor& textEditor);
 	virtual void drawTextEditorOutline (Graphics& g, int width, int height, TextEditor& textEditor);
 
-	// these return an image from the ImageCache, so use ImageCache::release() to free it
-	virtual const Image getDefaultFolderImage();
-	virtual const Image getDefaultDocumentFileImage();
+	// These return a pointer to an internally cached drawable - make sure you don't keep
+	// a copy of this pointer anywhere, as it may become invalid in the future.
+	virtual const Drawable* getDefaultFolderImage();
+	virtual const Drawable* getDefaultDocumentFileImage();
 
 	virtual void createFileChooserHeaderText (const String& title,
 											  const String& instructions,
@@ -53975,7 +55430,8 @@ public:
 									 const String& fileTimeDescription,
 									 bool isDirectory,
 									 bool isItemSelected,
-									 int itemIndex);
+									 int itemIndex,
+									 DirectoryContentsDisplayComponent& component);
 
 	virtual Button* createFileBrowserGoUpButton();
 
@@ -54279,10 +55735,11 @@ public:
 								  bool flatOnLeft, bool flatOnRight,
 								  bool flatOnTop, bool flatOnBottom) throw();
 
-	juce_UseDebuggingNewOperator
+	static Drawable* loadDrawableFromData (const void* data, size_t numBytes);
 
 private:
-	friend void JUCE_PUBLIC_FUNCTION shutdownJuce_GUI();
+
+	friend JUCE_API void JUCE_CALLTYPE shutdownJuce_GUI();
 	static void clearDefaultLookAndFeel() throw(); // called at shutdown
 
 	Array <int> colourIds;
@@ -54290,6 +55747,8 @@ private:
 
 	// default typeface names
 	String defaultSans, defaultSerif, defaultFixed;
+
+	ScopedPointer<Drawable> folderImage, documentImage;
 
 	void drawShinyButtonShape (Graphics& g,
 							   float x, float y, float w, float h, float maxCornerSize,
@@ -54300,8 +55759,10 @@ private:
 							   bool flatOnTop,
 							   bool flatOnBottom) throw();
 
-	LookAndFeel (const LookAndFeel&);
-	LookAndFeel& operator= (const LookAndFeel&);
+	// This has been deprecated - see the new parameter list..
+	virtual int drawFileBrowserRow (Graphics&, int, int, const String&, Image*, const String&, const String&, bool, bool, int) { return 0; }
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (LookAndFeel);
 };
 
 #endif   // __JUCE_LOOKANDFEEL_JUCEHEADER__
@@ -54423,13 +55884,11 @@ public:
 												Button* closeButton,
 												bool positionTitleBarButtonsOnLeft);
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	DropShadowEffect scrollbarShadow;
 
-	OldSchoolLookAndFeel (const OldSchoolLookAndFeel&);
-	OldSchoolLookAndFeel& operator= (const OldSchoolLookAndFeel&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OldSchoolLookAndFeel);
 };
 
 #endif   // __JUCE_OLDSCHOOLLOOKANDFEEL_JUCEHEADER__
@@ -54502,8 +55961,7 @@ private:
 	friend class PopupMenu::Window;
 	bool isHighlighted, isTriggeredAutomatically;
 
-	PopupMenuCustomComponent (const PopupMenuCustomComponent&);
-	PopupMenuCustomComponent& operator= (const PopupMenuCustomComponent&);
+	JUCE_DECLARE_NON_COPYABLE (PopupMenuCustomComponent);
 };
 
 #endif   // __JUCE_POPUPMENUCUSTOMCOMPONENT_JUCEHEADER__
@@ -54806,15 +56264,16 @@ public:
 	void changed (const bool synchronous = false)
 	{
 		if (synchronous)
-			sendSynchronousChangeMessage (this);
+			sendSynchronousChangeMessage();
 		else
-			sendChangeMessage (this);
+			sendChangeMessage();
 	}
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	Array <SelectableItemType> selectedItems;
+
+	JUCE_LEAK_DETECTOR (SelectedItemSet <SelectableItemType>);
 };
 
 #endif   // __JUCE_SELECTEDITEMSET_JUCEHEADER__
@@ -55014,13 +56473,14 @@ public:
 	/** @internal */
 	bool hitTest (int, int)		 { return false; }
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	Array <SelectableItemType> originalSelection;
 	LassoSource <SelectableItemType>* source;
 	int outlineThickness;
 	Point<int> dragStartPos;
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (LassoComponent);
 };
 
 #endif   // __JUCE_LASSOCOMPONENT_JUCEHEADER__
@@ -55065,7 +56525,7 @@ public:
 									is invoked. You can change this setting later with
 									the setHoverTimeMillisecs() method
 	*/
-	MouseHoverDetector (const int hoverTimeMillisecs = 400);
+	MouseHoverDetector (int hoverTimeMillisecs = 400);
 
 	/** Destructor. */
 	virtual ~MouseHoverDetector();
@@ -55073,14 +56533,14 @@ public:
 	/** Changes the time for which the mouse has to stay still before it's considered
 		to be hovering.
 	*/
-	void setHoverTimeMillisecs (const int newTimeInMillisecs);
+	void setHoverTimeMillisecs (int newTimeInMillisecs);
 
 	/** Changes the component that's being monitored for hovering.
 
 		Be careful not to delete a component that's being monitored without first
 		stopping or deleting the hover detector.
 	*/
-	void setHoverComponent (Component* const newSourceComponent);
+	void setHoverComponent (Component* newSourceComponent);
 
 protected:
 
@@ -55129,8 +56589,7 @@ private:
 	void hoverTimerCallback();
 	void checkJustHoveredCallback();
 
-	MouseHoverDetector (const MouseHoverDetector&);
-	MouseHoverDetector& operator= (const MouseHoverDetector&);
+	JUCE_DECLARE_NON_COPYABLE (MouseHoverDetector);
 };
 
 #endif   // __JUCE_MOUSEHOVERDETECTOR_JUCEHEADER__
@@ -55269,21 +56728,21 @@ public:
 	*/
 	void enableUnboundedMouseMovement (bool isEnabled, bool keepCursorVisibleUntilOffscreen = false);
 
-	juce_UseDebuggingNewOperator
-
 	/** @internal */
 	void handleEvent (ComponentPeer* peer, const Point<int>& positionWithinPeer, int64 time, const ModifierKeys& mods);
 	/** @internal */
 	void handleWheel (ComponentPeer* peer, const Point<int>& positionWithinPeer, int64 time, float x, float y);
 
 private:
+
 	friend class Desktop;
 	friend class ComponentPeer;
 	friend class MouseInputSourceInternal;
 	ScopedPointer<MouseInputSourceInternal> pimpl;
 
-	MouseInputSource (const MouseInputSource&);
-	MouseInputSource& operator= (const MouseInputSource&);
+	static const Point<int> getCurrentMousePosition();
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MouseInputSource);
 };
 
 #endif   // __JUCE_MOUSEINPUTSOURCE_JUCEHEADER__
@@ -55356,14 +56815,11 @@ public:
 	/** @internal */
 	void buttonClicked (Button*);
 
-	juce_UseDebuggingNewOperator
-
 private:
 	ToggleButton button;
 	String onText, offText;
 
-	BooleanPropertyComponent (const BooleanPropertyComponent&);
-	BooleanPropertyComponent& operator= (const BooleanPropertyComponent&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (BooleanPropertyComponent);
 };
 
 #endif   // __JUCE_BOOLEANPROPERTYCOMPONENT_JUCEHEADER__
@@ -55416,13 +56872,10 @@ public:
 	/** @internal */
 	void buttonClicked (Button*);
 
-	juce_UseDebuggingNewOperator
-
 private:
 	TextButton button;
 
-	ButtonPropertyComponent (const ButtonPropertyComponent&);
-	ButtonPropertyComponent& operator= (const ButtonPropertyComponent&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ButtonPropertyComponent);
 };
 
 #endif   // __JUCE_BUTTONPROPERTYCOMPONENT_JUCEHEADER__
@@ -55507,8 +56960,6 @@ public:
 	/** @internal */
 	void comboBoxChanged (ComboBox*);
 
-	juce_UseDebuggingNewOperator
-
 protected:
 	/** The list of options that will be shown in the combo box.
 
@@ -55525,8 +56976,7 @@ private:
 	class RemapperValueSource;
 	void createComboBox();
 
-	ChoicePropertyComponent (const ChoicePropertyComponent&);
-	ChoicePropertyComponent& operator= (const ChoicePropertyComponent&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ChoicePropertyComponent);
 };
 
 #endif   // __JUCE_CHOICEPROPERTYCOMPONENT_JUCEHEADER__
@@ -55601,22 +57051,17 @@ public:
 	/** @internal */
 	void refresh();
 	/** @internal */
-	void changeListenerCallback (void*);
-	/** @internal */
 	void sliderValueChanged (Slider*);
 
-	juce_UseDebuggingNewOperator
-
 protected:
-
 	/** The slider component being used in this component.
-
 		Your subclass has access to this in case it needs to customise it in some way.
 	*/
 	Slider slider;
 
-	SliderPropertyComponent (const SliderPropertyComponent&);
-	SliderPropertyComponent& operator= (const SliderPropertyComponent&);
+private:
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SliderPropertyComponent);
 };
 
 #endif   // __JUCE_SLIDERPROPERTYCOMPONENT_JUCEHEADER__
@@ -55682,15 +57127,12 @@ public:
 	/** @internal */
 	void textWasEdited();
 
-	juce_UseDebuggingNewOperator
-
 private:
-	Label* textEditor;
+	ScopedPointer<Label> textEditor;
 
 	void createEditor (int maxNumChars, bool isMultiLine);
 
-	TextPropertyComponent (const TextPropertyComponent&);
-	TextPropertyComponent& operator= (const TextPropertyComponent&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (TextPropertyComponent);
 };
 
 #endif   // __JUCE_TEXTPROPERTYCOMPONENT_JUCEHEADER__
@@ -55787,8 +57229,6 @@ public:
 	/** @internal */
 	void* originalWndProc;
 
-	juce_UseDebuggingNewOperator
-
 private:
 	class Pimpl;
 	friend class Pimpl;
@@ -55799,8 +57239,7 @@ private:
 	void setControlBounds (const Rectangle<int>& bounds) const;
 	void setControlVisible (bool b) const;
 
-	ActiveXControlComponent (const ActiveXControlComponent&);
-	ActiveXControlComponent& operator= (const ActiveXControlComponent&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ActiveXControlComponent);
 };
 
 #endif
@@ -55869,13 +57308,12 @@ public:
 	/** @internal */
 	void buttonClicked (Button*);
 	/** @internal */
-	void changeListenerCallback (void*);
+	void changeListenerCallback (ChangeBroadcaster*);
 	/** @internal */
 	void childBoundsChanged (Component*);
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	AudioDeviceManager& deviceManager;
 	ScopedPointer<ComboBox> deviceTypeDropDown;
 	ScopedPointer<Label> deviceTypeDropDownLabel;
@@ -55891,8 +57329,7 @@ private:
 	ScopedPointer<ComboBox> midiOutputSelector;
 	ScopedPointer<Label> midiInputsLabel, midiOutputLabel;
 
-	AudioDeviceSelectorComponent (const AudioDeviceSelectorComponent&);
-	AudioDeviceSelectorComponent& operator= (const AudioDeviceSelectorComponent&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioDeviceSelectorComponent);
 };
 
 #endif   // __JUCE_AUDIODEVICESELECTORCOMPONENT_JUCEHEADER__
@@ -56015,11 +57452,8 @@ protected:
 	virtual void paintContent (Graphics& g, int width, int height) = 0;
 
 public:
-
 	/** @internal */
 	void paint (Graphics& g);
-
-	juce_UseDebuggingNewOperator
 
 private:
 	Rectangle<int> content;
@@ -56027,8 +57461,7 @@ private:
 	float arrowTipX, arrowTipY;
 	DropShadowEffect shadow;
 
-	BubbleComponent (const BubbleComponent&);
-	BubbleComponent& operator= (const BubbleComponent&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (BubbleComponent);
 };
 
 #endif   // __JUCE_BUBBLECOMPONENT_JUCEHEADER__
@@ -56125,9 +57558,8 @@ public:
 	/** @internal */
 	void timerCallback();
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	int fadeOutLength, mouseClickCounter;
 	TextLayout textLayout;
 	int64 expiryTime;
@@ -56137,8 +57569,7 @@ private:
 			   bool removeWhenMouseClicked,
 			   bool deleteSelfAfterUse);
 
-	BubbleMessageComponent (const BubbleMessageComponent&);
-	BubbleMessageComponent& operator= (const BubbleMessageComponent&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (BubbleMessageComponent);
 };
 
 #endif   // __JUCE_BUBBLEMESSAGECOMPONENT_JUCEHEADER__
@@ -56247,20 +57678,21 @@ public:
 		labelTextColourId		   = 0x1007001	 /**< the colour used for the labels next to the sliders. */
 	};
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	class ColourSpaceView;
 	class HueSelectorComp;
 	class SwatchComponent;
 	friend class ColourSpaceView;
+	friend class ScopedPointer<ColourSpaceView>;
 	friend class HueSelectorComp;
+	friend class ScopedPointer<HueSelectorComp>;
 
 	Colour colour;
 	float h, s, v;
-	Slider* sliders[4];
-	ColourSpaceView* colourSpace;
-	HueSelectorComp* hueSelector;
+	ScopedPointer<Slider> sliders[4];
+	ScopedPointer<ColourSpaceView> colourSpace;
+	ScopedPointer<HueSelectorComp> hueSelector;
 	OwnedArray <SwatchComponent> swatchComponents;
 	const int flags;
 	int edgeGap;
@@ -56274,13 +57706,13 @@ private:
 	void paint (Graphics& g);
 	void resized();
 
-	ColourSelector (const ColourSelector&);
-	ColourSelector& operator= (const ColourSelector&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ColourSelector);
 
-	// this constructor is here temporarily to prevent old code compiling, because the parameters
+   #if JUCE_CATCH_DEPRECATED_CODE_MISUSE
+	// This constructor is here temporarily to prevent old code compiling, because the parameters
 	// have changed - if you get an error here, update your code to use the new constructor instead..
-	// (xxx - note to self: remember to remove this at some point in the future)
 	ColourSelector (bool);
+   #endif
 };
 
 #endif   // __JUCE_COLOURSELECTOR_JUCEHEADER__
@@ -56352,8 +57784,6 @@ public:
 	*/
 	void setResamplingQuality (Graphics::ResamplingQuality newQuality);
 
-	juce_UseDebuggingNewOperator
-
 	/** @internal */
 	void childBoundsChanged (Component*);
 
@@ -56378,8 +57808,7 @@ private:
 	void passOnMouseEventToPeer (const MouseEvent& e);
 	int scaleInt (int n) const;
 
-	MagnifierComponent (const MagnifierComponent&);
-	MagnifierComponent& operator= (const MagnifierComponent&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MagnifierComponent);
 };
 
 #endif   // __JUCE_MAGNIFIERCOMPONENT_JUCEHEADER__
@@ -56658,10 +58087,7 @@ public:
 	/** @internal */
 	void colourChanged();
 
-	juce_UseDebuggingNewOperator
-
 protected:
-	friend class MidiKeyboardUpDownButton;
 
 	/** Draws a white note in the given rectangle.
 
@@ -56736,6 +58162,8 @@ protected:
 
 private:
 
+	friend class MidiKeyboardUpDownButton;
+
 	MidiKeyboardState& state;
 	int xOffset, blackNoteLength;
 	float keyWidth;
@@ -56748,8 +58176,7 @@ private:
 
 	int rangeStart, rangeEnd, firstKey;
 	bool canScroll, mouseDragging, useMousePositionForVelocity;
-	Button* scrollDown;
-	Button* scrollUp;
+	ScopedPointer<Button> scrollDown, scrollUp;
 
 	Array <KeyPress> keyPresses;
 	Array <int> keyPressNotes;
@@ -56766,8 +58193,7 @@ private:
 	void updateNoteUnderMouse (const Point<int>& pos);
 	void repaintNote (const int midiNoteNumber);
 
-	MidiKeyboardComponent (const MidiKeyboardComponent&);
-	MidiKeyboardComponent& operator= (const MidiKeyboardComponent&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MidiKeyboardComponent);
 };
 
 #endif   // __JUCE_MIDIKEYBOARDCOMPONENT_JUCEHEADER__
@@ -56824,17 +58250,17 @@ public:
 	*/
 	void* getView() const;
 
+	/** Resizes this component to fit the view that it contains. */
+	void resizeToFitView();
+
 	/** @internal */
 	void paint (Graphics& g);
-
-	juce_UseDebuggingNewOperator
 
 private:
 	friend class NSViewComponentInternal;
 	ScopedPointer <NSViewComponentInternal> info;
 
-	NSViewComponent (const NSViewComponent&);
-	NSViewComponent& operator= (const NSViewComponent&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (NSViewComponent);
 };
 
 #endif
@@ -56899,7 +58325,9 @@ public:
 	static void getAvailablePixelFormats (Component* component,
 										  OwnedArray <OpenGLPixelFormat>& results);
 
-	juce_UseDebuggingNewOperator
+private:
+
+	JUCE_LEAK_DETECTOR (OpenGLPixelFormat);
 };
 
 /**
@@ -56976,10 +58404,12 @@ public:
 	*/
 	static OpenGLContext* getCurrentContext();
 
-	juce_UseDebuggingNewOperator
-
 protected:
+
 	OpenGLContext() throw();
+
+private:
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OpenGLContext);
 };
 
 /**
@@ -57132,9 +58562,6 @@ public:
 	*/
 	CriticalSection& getContextLock() throw()	   { return contextLock; }
 
-	/** @internal */
-	void paint (Graphics& g);
-
 	/** Returns the native handle of an embedded heavyweight window, if there is one.
 
 		E.g. On windows, this will return the HWND of the sub-window containing
@@ -57146,7 +58573,8 @@ public:
 		This can be called back on the same thread that created the context. */
 	void deleteContext();
 
-	juce_UseDebuggingNewOperator
+	/** @internal */
+	void paint (Graphics& g);
 
 private:
 	const OpenGLType type;
@@ -57166,8 +58594,7 @@ private:
 	void updateContextPosition();
 	void internalRepaint (int x, int y, int w, int h);
 
-	OpenGLComponent (const OpenGLComponent&);
-	OpenGLComponent& operator= (const OpenGLComponent&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OpenGLComponent);
 };
 
 #endif
@@ -57253,7 +58680,7 @@ public:
 		given size and title, and will run it modally, returning when the user
 		closes the dialog box.
 	*/
-	void showInDialogBox (const String& dialogtitle,
+	void showInDialogBox (const String& dialogTitle,
 						  int dialogWidth,
 						  int dialogHeight,
 						  const Colour& backgroundColour = Colours::white);
@@ -57278,16 +58705,14 @@ public:
 	/** @internal */
 	void buttonClicked (Button* button);
 
-	juce_UseDebuggingNewOperator
-
 private:
 
 	String currentPageName;
 	ScopedPointer <Component> currentPage;
+	OwnedArray<DrawableButton> buttons;
 	int buttonSize;
 
-	PreferencesPanel (const PreferencesPanel&);
-	PreferencesPanel& operator= (const PreferencesPanel&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PreferencesPanel);
 };
 
 #endif   // __JUCE_PREFERENCESPANEL_JUCEHEADER__
@@ -57471,9 +58896,8 @@ public:
 	/** @internal */
 	void paint (Graphics& g);
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	File movieFile;
 	bool movieLoaded, controllerVisible, looping;
 
@@ -57491,8 +58915,7 @@ private:
 	void* movie;
 #endif
 
-	QuickTimeMovieComponent (const QuickTimeMovieComponent&);
-	QuickTimeMovieComponent& operator= (const QuickTimeMovieComponent&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (QuickTimeMovieComponent);
 };
 
 #endif
@@ -57546,12 +58969,9 @@ public:
 	void paint (Graphics& g);
 #endif
 
-	juce_UseDebuggingNewOperator
-
 private:
 
-	SystemTrayIconComponent (const SystemTrayIconComponent&);
-	SystemTrayIconComponent& operator= (const SystemTrayIconComponent&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SystemTrayIconComponent);
 };
 
 #endif
@@ -57645,9 +59065,8 @@ public:
 	/** @internal */
 	void visibilityChanged();
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	WebBrowserComponentInternal* browser;
 	bool blankPageShown, unloadPageWhenBrowserIsHidden;
 	String lastURL;
@@ -57657,8 +59076,7 @@ private:
 	void reloadLastURL();
 	void checkWindowAssociation();
 
-	WebBrowserComponent (const WebBrowserComponent&);
-	WebBrowserComponent& operator= (const WebBrowserComponent&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (WebBrowserComponent);
 };
 
 #endif
@@ -57752,9 +59170,8 @@ public:
 	/** @internal */
 	void handleCommandMessage (int commandId);
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	int borderSpace;
 	float arrowSize;
 	Component& content;
@@ -57766,8 +59183,7 @@ private:
 	void refreshPath();
 	void drawCallOutBoxBackground (Graphics& g, const Path& outline, int width, int height);
 
-	CallOutBox (const CallOutBox&);
-	CallOutBox& operator= (const CallOutBox&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (CallOutBox);
 };
 
 #endif   // __JUCE_CALLOUTBOX_JUCEHEADER__
@@ -57894,10 +59310,16 @@ public:
 	virtual const Point<int> getScreenPosition() const = 0;
 
 	/** Converts a position relative to the top-left of this component to screen co-ordinates. */
-	virtual const Point<int> relativePositionToGlobal (const Point<int>& relativePosition) = 0;
+	virtual const Point<int> localToGlobal (const Point<int>& relativePosition) = 0;
+
+	/** Converts a rectangle relative to the top-left of this component to screen co-ordinates. */
+	virtual const Rectangle<int> localToGlobal (const Rectangle<int>& relativePosition);
 
 	/** Converts a screen co-ordinate to a position relative to the top-left of this component. */
-	virtual const Point<int> globalPositionToRelative (const Point<int>& screenPosition) = 0;
+	virtual const Point<int> globalToLocal (const Point<int>& screenPosition) = 0;
+
+	/** Converts a screen area to a position relative to the top-left of this component. */
+	virtual const Rectangle<int> globalToLocal (const Rectangle<int>& screenPosition);
 
 	/** Minimises the window. */
 	virtual void setMinimised (bool shouldBeMinimised) = 0;
@@ -58029,6 +59451,9 @@ public:
 	*/
 	virtual void performAnyPendingRepaintsNow() = 0;
 
+	/** Changes the window's transparency. */
+	virtual void setAlpha (float newAlpha) = 0;
+
 	void handleMouseEvent (int touchIndex, const Point<int>& positionWithinPeer, const ModifierKeys& newMods, int64 time);
 	void handleMouseWheel (int touchIndex, const Point<int>& positionWithinPeer, int64 time, float x, float y);
 
@@ -58076,15 +59501,12 @@ public:
 	*/
 	static bool isValidPeer (const ComponentPeer* peer) throw();
 
-	static void bringModalComponentToFront();
-
-	virtual const StringArray getAvailableRenderingEngines() throw();
+	virtual const StringArray getAvailableRenderingEngines();
 	virtual int getCurrentRenderingEngine() throw();
-	virtual void setCurrentRenderingEngine (int index) throw();
-
-	juce_UseDebuggingNewOperator
+	virtual void setCurrentRenderingEngine (int index);
 
 protected:
+
 	Component* const component;
 	const int styleFlags;
 	RectangleList maskedRegion;
@@ -58101,12 +59523,12 @@ private:
 	bool fakeMouseMessageSent : 1, isWindowMinimised : 1;
 
 	friend class Component;
+	friend class Desktop;
 	static ComponentPeer* getPeerFor (const Component* component) throw();
 
 	void setLastDragDropTarget (Component* comp);
 
-	ComponentPeer (const ComponentPeer&);
-	ComponentPeer& operator= (const ComponentPeer&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ComponentPeer);
 };
 
 #endif   // __JUCE_COMPONENTPEER_JUCEHEADER__
@@ -58208,17 +59630,15 @@ public:
 								bool shouldBeResizable = false,
 								bool useBottomRightCornerResizer = false);
 
-	juce_UseDebuggingNewOperator
-
 protected:
 	/** @internal */
 	void resized();
 
 private:
+
 	bool escapeKeyTriggersCloseButton;
 
-	DialogWindow (const DialogWindow&);
-	DialogWindow& operator= (const DialogWindow&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (DialogWindow);
 };
 
 #endif   // __JUCE_DIALOGWINDOW_JUCEHEADER__
@@ -58341,15 +59761,13 @@ public:
 	/** @internal */
 	void timerCallback();
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	Image backgroundImage;
 	Time earliestTimeToDelete;
 	int originalClickCounter;
 
-	SplashScreen (const SplashScreen&);
-	SplashScreen& operator= (const SplashScreen&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SplashScreen);
 };
 
 #endif   // __JUCE_SPLASHSCREEN_JUCEHEADER__
@@ -58474,9 +59892,8 @@ public:
 	*/
 	AlertWindow* getAlertWindow() const throw()	 { return alertWindow; }
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	void timerCallback();
 
 	double progress;
@@ -58485,8 +59902,7 @@ private:
 	CriticalSection messageLock;
 	const int timeOutMsWhenCancelling;
 
-	ThreadWithProgressWindow (const ThreadWithProgressWindow&);
-	ThreadWithProgressWindow& operator= (const ThreadWithProgressWindow&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ThreadWithProgressWindow);
 };
 
 #endif   // __JUCE_THREADWITHPROGRESSWINDOW_JUCEHEADER__
@@ -58564,10 +59980,10 @@ public:
 	/** Destructor. */
 	~EdgeTable();
 
-	void clipToRectangle (const Rectangle<int>& r) throw();
-	void excludeRectangle (const Rectangle<int>& r) throw();
+	void clipToRectangle (const Rectangle<int>& r);
+	void excludeRectangle (const Rectangle<int>& r);
 	void clipToEdgeTable (const EdgeTable& other);
-	void clipLineToMask (int x, int y, const uint8* mask, int maskStride, int numPixels) throw();
+	void clipLineToMask (int x, int y, const uint8* mask, int maskStride, int numPixels);
 	bool isEmpty() throw();
 	const Rectangle<int>& getMaximumBounds() const throw()	   { return bounds; }
 	void translate (float dx, int dy) throw();
@@ -58577,7 +59993,7 @@ public:
 		This will shrink the table down to use as little memory as possible - useful for
 		read-only tables that get stored and re-used for rendering.
 	*/
-	void optimiseTable() throw();
+	void optimiseTable();
 
 	/** Iterates the lines in the table, for rendering.
 
@@ -58616,7 +60032,7 @@ public:
 				while (--numPoints >= 0)
 				{
 					const int level = *++line;
-					jassert (((unsigned int) level) < (unsigned int) 256);
+					jassert (isPositiveAndBelow (level, (int) 256));
 					const int endX = *++line;
 					jassert (endX >= x);
 					const int endOfRun = (endX >> 8);
@@ -58631,13 +60047,13 @@ public:
 					{
 						// plot the fist pixel of this segment, including any accumulated
 						// levels from smaller segments that haven't been drawn yet
-						levelAccumulator += (0xff - (x & 0xff)) * level;
+						levelAccumulator += (0x100 - (x & 0xff)) * level;
 						levelAccumulator >>= 8;
 						x >>= 8;
 
 						if (levelAccumulator > 0)
 						{
-							if (levelAccumulator >> 8)
+							if (levelAccumulator >= 255)
 								iterationCallback.handleEdgeTablePixelFull (x);
 							else
 								iterationCallback.handleEdgeTablePixel (x, levelAccumulator);
@@ -58667,7 +60083,7 @@ public:
 					x >>= 8;
 					jassert (x >= bounds.getX() && x < bounds.getRight());
 
-					if (levelAccumulator >> 8)
+					if (levelAccumulator >= 255)
 						iterationCallback.handleEdgeTablePixelFull (x);
 					else
 						iterationCallback.handleEdgeTablePixel (x, levelAccumulator);
@@ -58676,21 +60092,22 @@ public:
 		}
 	}
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	// table line format: number of points; point0 x, point0 levelDelta, point1 x, point1 levelDelta, etc
 	HeapBlock<int> table;
 	Rectangle<int> bounds;
 	int maxEdgesPerLine, lineStrideElements;
 	bool needToCheckEmptinesss;
 
-	void addEdgePoint (int x, int y, int winding) throw();
-	void remapTableForNumEdges (int newNumEdgesPerLine) throw();
-	void intersectWithEdgeTableLine (int y, const int* otherLine) throw();
+	void addEdgePoint (int x, int y, int winding);
+	void remapTableForNumEdges (int newNumEdgesPerLine);
+	void intersectWithEdgeTableLine (int y, const int* otherLine);
 	void clipEdgeTableLineToRange (int* line, int x1, int x2) throw();
 	void sanitiseLevels (bool useNonZeroWinding) throw();
 	static void copyEdgeTableData (int* dest, int destLineStride, const int* src, int srcLineStride, int numLines) throw();
+
+	JUCE_LEAK_DETECTOR (EdgeTable);
 };
 
 #endif   // __JUCE_EDGETABLE_JUCEHEADER__
@@ -58805,7 +60222,8 @@ public:
 	*/
 	AffineTransform transform;
 
-	juce_UseDebuggingNewOperator
+private:
+	JUCE_LEAK_DETECTOR (FillType);
 };
 
 #endif   // __JUCE_FILLTYPE_JUCEHEADER__
@@ -58856,6 +60274,7 @@ public:
 		of (0, 0).
 	*/
 	virtual void setOrigin (int x, int y) = 0;
+	virtual void addTransform (const AffineTransform& transform) = 0;
 
 	virtual bool clipToRectangle (const Rectangle<int>& r) = 0;
 	virtual bool clipToRectangleList (const RectangleList& clipRegion) = 0;
@@ -58869,6 +60288,9 @@ public:
 
 	virtual void saveState() = 0;
 	virtual void restoreState() = 0;
+
+	virtual void beginTransparencyLayer (float opacity) = 0;
+	virtual void endTransparencyLayer() = 0;
 
 	virtual void setFill (const FillType& fillType) = 0;
 	virtual void setOpacity (float newOpacity) = 0;
@@ -58917,6 +60339,7 @@ public:
 
 	bool isVectorDevice() const;
 	void setOrigin (int x, int y);
+	void addTransform (const AffineTransform& transform);
 
 	bool clipToRectangle (const Rectangle<int>& r);
 	bool clipToRectangleList (const RectangleList& clipRegion);
@@ -58926,6 +60349,9 @@ public:
 
 	void saveState();
 	void restoreState();
+
+	void beginTransparencyLayer (float opacity);
+	void endTransparencyLayer();
 
 	bool clipRegionIntersects (const Rectangle<int>& r);
 	const Rectangle<int> getClipBounds() const;
@@ -58948,8 +60374,6 @@ public:
 	const Font getFont();
 	void setFont (const Font& newFont);
 	void drawGlyph (int glyphNumber, const AffineTransform& transform);
-
-	juce_UseDebuggingNewOperator
 
 protected:
 
@@ -58981,8 +60405,7 @@ protected:
 	void writeTransform (const AffineTransform& trans) const;
 	void writeImage (const Image& im, int sx, int sy, int maxW, int maxH) const;
 
-	LowLevelGraphicsPostScriptRenderer (const LowLevelGraphicsPostScriptRenderer& other);
-	LowLevelGraphicsPostScriptRenderer& operator= (const LowLevelGraphicsPostScriptRenderer&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (LowLevelGraphicsPostScriptRenderer);
 };
 
 #endif   // __JUCE_LOWLEVELGRAPHICSPOSTSCRIPTRENDERER_JUCEHEADER__
@@ -59014,6 +60437,7 @@ public:
 	bool isVectorDevice() const;
 
 	void setOrigin (int x, int y);
+	void addTransform (const AffineTransform& transform);
 
 	bool clipToRectangle (const Rectangle<int>& r);
 	bool clipToRectangleList (const RectangleList& clipRegion);
@@ -59027,6 +60451,9 @@ public:
 
 	void saveState();
 	void restoreState();
+
+	void beginTransparencyLayer (float opacity);
+	void endTransparencyLayer();
 
 	void setFill (const FillType& fillType);
 	void setOpacity (float opacity);
@@ -59047,8 +60474,6 @@ public:
 	void drawGlyph (int glyphNumber, float x, float y);
 	void drawGlyph (int glyphNumber, const AffineTransform& transform);
 
-	juce_UseDebuggingNewOperator
-
 protected:
 
 	Image image;
@@ -59062,8 +60487,7 @@ protected:
 	ScopedPointer <SavedState> currentState;
 	OwnedArray <SavedState> stateStack;
 
-	LowLevelGraphicsSoftwareRenderer (const LowLevelGraphicsSoftwareRenderer& other);
-	LowLevelGraphicsSoftwareRenderer& operator= (const LowLevelGraphicsSoftwareRenderer&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (LowLevelGraphicsSoftwareRenderer);
 };
 
 #endif   // __JUCE_LOWLEVELGRAPHICSSOFTWARERENDERER_JUCEHEADER__
@@ -59089,7 +60513,7 @@ protected:
 	@see Drawable
 */
 class JUCE_API  DrawableComposite  : public Drawable,
-									 public RelativeCoordinate::NamedCoordinateFinder
+									 public Expression::EvaluationContext
 {
 public:
 
@@ -59145,7 +60569,7 @@ public:
 
 		@see getDrawable
 	*/
-	int getNumDrawables() const throw()					 { return drawables.size(); }
+	int getNumDrawables() const throw();
 
 	/** Returns one of the drawables that are contained in this one.
 
@@ -59157,7 +60581,7 @@ public:
 
 		@see getNumDrawables
 	*/
-	Drawable* getDrawable (int index) const throw()				 { return drawables [index]; }
+	Drawable* getDrawable (int index) const;
 
 	/** Looks for a child drawable with the specified name. */
 	Drawable* getDrawableWithName (const String& name) const throw();
@@ -59169,20 +60593,6 @@ public:
 		@see insertDrawable, getNumDrawables
 	*/
 	void bringToFront (int index);
-
-	/** Changes the main content area.
-		The content area is actually defined by the markers named "left", "right", "top" and
-		"bottom", but this method is a shortcut that sets them all at once.
-		@see contentLeftMarkerName, contentRightMarkerName, contentTopMarkerName, contentBottomMarkerName
-	*/
-	const RelativeRectangle getContentArea() const;
-
-	/** Returns the main content rectangle.
-		The content area is actually defined by the markers named "left", "right", "top" and
-		"bottom", but this method is a shortcut that returns them all at once.
-		@see setBoundingBox, contentLeftMarkerName, contentRightMarkerName, contentTopMarkerName, contentBottomMarkerName
-	*/
-	void setContentArea (const RelativeRectangle& newArea);
 
 	/** Sets the parallelogram that defines the target position of the content rectangle when the drawable is rendered.
 		@see setContentArea
@@ -59198,6 +60608,20 @@ public:
 		be drawn at their untransformed positions.
 	*/
 	void resetBoundingBoxToContentArea();
+
+	/** Returns the main content rectangle.
+		The content area is actually defined by the markers named "left", "right", "top" and
+		"bottom", but this method is a shortcut that returns them all at once.
+		@see contentLeftMarkerName, contentRightMarkerName, contentTopMarkerName, contentBottomMarkerName
+	*/
+	const RelativeRectangle getContentArea() const;
+
+	/** Changes the main content area.
+		The content area is actually defined by the markers named "left", "right", "top" and
+		"bottom", but this method is a shortcut that sets them all at once.
+		@see setBoundingBox, contentLeftMarkerName, contentRightMarkerName, contentTopMarkerName, contentBottomMarkerName
+	*/
+	void setContentArea (const RelativeRectangle& newArea);
 
 	/** Resets the content area and the bounding transform to fit around the area occupied
 		by the child components (ignoring any markers).
@@ -59232,17 +60656,9 @@ public:
 	static const char* const contentBottomMarkerName;
 
 	/** @internal */
-	void render (const Drawable::RenderingContext& context) const;
-	/** @internal */
-	const Rectangle<float> getBounds() const;
-	/** @internal */
-	bool hitTest (float x, float y) const;
-	/** @internal */
 	Drawable* createCopy() const;
 	/** @internal */
-	void invalidatePoints();
-	/** @internal */
-	const Rectangle<float> refreshFromValueTree (const ValueTree& tree, ImageProvider* imageProvider);
+	void refreshFromValueTree (const ValueTree& tree, ImageProvider* imageProvider);
 	/** @internal */
 	const ValueTree createValueTree (ImageProvider* imageProvider) const;
 	/** @internal */
@@ -59250,10 +60666,20 @@ public:
 	/** @internal */
 	const Identifier getValueTreeType() const	{ return valueTreeType; }
 	/** @internal */
-	const RelativeCoordinate findNamedCoordinate (const String& objectName, const String& edge) const;
+	const Expression getSymbolValue (const String& symbol, const String& member) const;
+	/** @internal */
+	const Rectangle<float> getDrawableBounds() const;
+	/** @internal */
+	void markerHasMoved();
+	/** @internal */
+	void childBoundsChanged (Component*);
+	/** @internal */
+	void childrenChanged();
+	/** @internal */
+	void parentHierarchyChanged();
 
 	/** Internally-used class for wrapping a DrawableComposite's state into a ValueTree. */
-	class ValueTreeWrapper   : public ValueTreeWrapperBase
+	class ValueTreeWrapper   : public Drawable::ValueTreeWrapperBase
 	{
 	public:
 		ValueTreeWrapper (const ValueTree& state);
@@ -59281,11 +60707,10 @@ public:
 		void setMarker (bool xAxis, const Marker& marker, UndoManager* undoManager);
 		void removeMarker (bool xAxis, const ValueTree& state, UndoManager* undoManager);
 
-		static const Identifier nameProperty, posProperty;
+		static const Identifier nameProperty, posProperty, topLeft, topRight, bottomLeft;
 
 	private:
-		static const Identifier topLeft, topRight, bottomLeft, childGroupTag, markerGroupTagX,
-								markerGroupTagY, markerTag;
+		static const Identifier childGroupTag, markerGroupTagX, markerGroupTagY, markerTag;
 
 		ValueTree getChildList() const;
 		ValueTree getChildListCreating (UndoManager* undoManager);
@@ -59293,17 +60718,17 @@ public:
 		ValueTree getMarkerListCreating (bool xAxis, UndoManager* undoManager);
 	};
 
-	juce_UseDebuggingNewOperator
-
 private:
-	OwnedArray <Drawable> drawables;
+
 	RelativeParallelogram bounds;
 	OwnedArray <Marker> markersX, markersY;
+	bool updateBoundsReentrant;
 
-	const Rectangle<float> getUntransformedBounds (bool includeMarkers) const;
-	const AffineTransform calculateTransform() const;
+	void refreshTransformFromBounds();
+	void updateBoundsToFitChildren();
 
 	DrawableComposite& operator= (const DrawableComposite&);
+	JUCE_LEAK_DETECTOR (DrawableComposite);
 };
 
 #endif   // __JUCE_DRAWABLECOMPOSITE_JUCEHEADER__
@@ -59368,17 +60793,15 @@ public:
 	const RelativeParallelogram& getBoundingBox() const throw()	 { return bounds; }
 
 	/** @internal */
-	void render (const Drawable::RenderingContext& context) const;
+	void paint (Graphics& g);
 	/** @internal */
-	const Rectangle<float> getBounds() const;
-	/** @internal */
-	bool hitTest (float x, float y) const;
+	bool hitTest (int x, int y) const;
 	/** @internal */
 	Drawable* createCopy() const;
 	/** @internal */
-	void invalidatePoints();
+	const Rectangle<float> getDrawableBounds() const;
 	/** @internal */
-	const Rectangle<float> refreshFromValueTree (const ValueTree& tree, ImageProvider* imageProvider);
+	void refreshFromValueTree (const ValueTree& tree, ImageProvider* imageProvider);
 	/** @internal */
 	const ValueTree createValueTree (ImageProvider* imageProvider) const;
 	/** @internal */
@@ -59387,7 +60810,7 @@ public:
 	const Identifier getValueTreeType() const	{ return valueTreeType; }
 
 	/** Internally-used class for wrapping a DrawableImage's state into a ValueTree. */
-	class ValueTreeWrapper   : public ValueTreeWrapperBase
+	class ValueTreeWrapper   : public Drawable::ValueTreeWrapperBase
 	{
 	public:
 		ValueTreeWrapper (const ValueTree& state);
@@ -59410,17 +60833,17 @@ public:
 		static const Identifier opacity, overlay, image, topLeft, topRight, bottomLeft;
 	};
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	Image image;
 	float opacity;
 	Colour overlayColour;
 	RelativeParallelogram bounds;
 
-	const AffineTransform calculateTransform() const;
+	void refreshTransformFromBounds();
 
 	DrawableImage& operator= (const DrawableImage&);
+	JUCE_LEAK_DETECTOR (DrawableImage);
 };
 
 #endif   // __JUCE_DRAWABLEIMAGE_JUCEHEADER__
@@ -59434,30 +60857,29 @@ private:
 #ifndef __JUCE_DRAWABLEPATH_JUCEHEADER__
 #define __JUCE_DRAWABLEPATH_JUCEHEADER__
 
+
+/*** Start of inlined file: juce_DrawableShape.h ***/
+#ifndef __JUCE_DRAWABLESHAPE_JUCEHEADER__
+#define __JUCE_DRAWABLESHAPE_JUCEHEADER__
+
 /**
-	A drawable object which renders a filled or outlined shape.
+	A base class implementing common functionality for Drawable classes which
+	consist of some kind of filled and stroked outline.
 
-	@see Drawable
+	@see DrawablePath, DrawableRectangle
 */
-class JUCE_API  DrawablePath  : public Drawable
+class JUCE_API  DrawableShape   : public Drawable
 {
+protected:
+
+	DrawableShape();
+	DrawableShape (const DrawableShape&);
+
 public:
-
-	/** Creates a DrawablePath. */
-	DrawablePath();
-	DrawablePath (const DrawablePath& other);
-
 	/** Destructor. */
-	~DrawablePath();
-
-	/** Changes the path that will be drawn.
-
-		@see setFillColour, setStrokeType
-	*/
-	void setPath (const Path& newPath);
+	~DrawableShape();
 
 	/** Sets a fill type for the path.
-
 		This colour is used to fill the path - if you don't want the path to be
 		filled (e.g. if you're just drawing an outline), set this to a transparent
 		colour.
@@ -59495,45 +60917,20 @@ public:
 	/** Returns the current outline style. */
 	const PathStrokeType& getStrokeType() const throw()	 { return strokeType; }
 
-	/** Returns the current path. */
-	const Path& getPath() const;
-
-	/** Returns the current path for the outline. */
-	const Path& getStrokePath() const;
-
 	/** @internal */
-	void render (const Drawable::RenderingContext& context) const;
-	/** @internal */
-	const Rectangle<float> getBounds() const;
-	/** @internal */
-	bool hitTest (float x, float y) const;
-	/** @internal */
-	Drawable* createCopy() const;
-	/** @internal */
-	void invalidatePoints();
-	/** @internal */
-	const Rectangle<float> refreshFromValueTree (const ValueTree& tree, ImageProvider* imageProvider);
-	/** @internal */
-	const ValueTree createValueTree (ImageProvider* imageProvider) const;
-	/** @internal */
-	static const Identifier valueTreeType;
-	/** @internal */
-	const Identifier getValueTreeType() const	   { return valueTreeType; }
-
-	/** Internally-used class for wrapping a DrawablePath's state into a ValueTree. */
-	class ValueTreeWrapper   : public ValueTreeWrapperBase
+	class FillAndStrokeState  : public  Drawable::ValueTreeWrapperBase
 	{
 	public:
-		ValueTreeWrapper (const ValueTree& state);
+		FillAndStrokeState (const ValueTree& state);
 
-		const FillType getMainFill (RelativeCoordinate::NamedCoordinateFinder* nameFinder,
+		const FillType getMainFill (Expression::EvaluationContext* nameFinder,
 									ImageProvider* imageProvider) const;
 		ValueTree getMainFillState();
 		void setMainFill (const FillType& newFill, const RelativePoint* gradientPoint1,
 						  const RelativePoint* gradientPoint2, const RelativePoint* gradientPoint3,
 						  ImageProvider* imageProvider, UndoManager* undoManager);
 
-		const FillType getStrokeFill (RelativeCoordinate::NamedCoordinateFinder* nameFinder,
+		const FillType getStrokeFill (Expression::EvaluationContext* nameFinder,
 									  ImageProvider* imageProvider) const;
 		ValueTree getStrokeFillState();
 		void setStrokeFill (const FillType& newFill, const RelativePoint* gradientPoint1,
@@ -59542,6 +60939,106 @@ public:
 
 		const PathStrokeType getStrokeType() const;
 		void setStrokeType (const PathStrokeType& newStrokeType, UndoManager* undoManager);
+
+		static const FillType readFillType (const ValueTree& v, RelativePoint* gradientPoint1,
+											RelativePoint* gradientPoint2, RelativePoint* gradientPoint3,
+											Expression::EvaluationContext* nameFinder,
+											ImageProvider* imageProvider);
+
+		static void writeFillType (ValueTree& v, const FillType& fillType,
+								   const RelativePoint* gradientPoint1, const RelativePoint* gradientPoint2,
+								   const RelativePoint* gradientPoint3, ImageProvider* imageProvider,
+								   UndoManager* undoManager);
+
+		static const Identifier type, colour, colours, fill, stroke, path, jointStyle, capStyle, strokeWidth,
+								gradientPoint1, gradientPoint2, gradientPoint3, radial, imageId, imageOpacity;
+	};
+
+	/** @internal */
+	const Rectangle<float> getDrawableBounds() const;
+	/** @internal */
+	void paint (Graphics& g);
+	/** @internal */
+	bool hitTest (int x, int y) const;
+
+protected:
+
+	/** Called when the cached path should be updated. */
+	void pathChanged();
+	/** Called when the cached stroke should be updated. */
+	void strokeChanged();
+
+	/** Implemented by subclasses to regenerate the path. */
+	virtual bool rebuildPath (Path& path) const = 0;
+
+	/** True if there's a stroke with a non-zero thickness and non-transparent colour. */
+	bool isStrokeVisible() const throw();
+
+	/** Updates the details from a FillAndStrokeState object, returning true if something changed. */
+	bool refreshFillTypes (const FillAndStrokeState& newState,
+						   Expression::EvaluationContext* nameFinder,
+						   ImageProvider* imageProvider);
+
+	/** Writes the stroke and fill details to a FillAndStrokeState object. */
+	void writeTo (FillAndStrokeState& state, ImageProvider* imageProvider, UndoManager* undoManager) const;
+
+	PathStrokeType strokeType;
+	Path path, strokePath;
+
+private:
+	FillType mainFill, strokeFill;
+
+	DrawableShape& operator= (const DrawableShape&);
+};
+
+#endif   // __JUCE_DRAWABLESHAPE_JUCEHEADER__
+/*** End of inlined file: juce_DrawableShape.h ***/
+
+/**
+	A drawable object which renders a filled or outlined shape.
+
+	For details on how to change the fill and stroke, see the DrawableShape class.
+
+	@see Drawable, DrawableShape
+*/
+class JUCE_API  DrawablePath  : public DrawableShape
+{
+public:
+
+	/** Creates a DrawablePath. */
+	DrawablePath();
+	DrawablePath (const DrawablePath& other);
+
+	/** Destructor. */
+	~DrawablePath();
+
+	/** Changes the path that will be drawn.
+		@see setFillColour, setStrokeType
+	*/
+	void setPath (const Path& newPath);
+
+	/** Returns the current path. */
+	const Path& getPath() const;
+
+	/** Returns the current path for the outline. */
+	const Path& getStrokePath() const;
+
+	/** @internal */
+	Drawable* createCopy() const;
+	/** @internal */
+	void refreshFromValueTree (const ValueTree& tree, ImageProvider* imageProvider);
+	/** @internal */
+	const ValueTree createValueTree (ImageProvider* imageProvider) const;
+	/** @internal */
+	static const Identifier valueTreeType;
+	/** @internal */
+	const Identifier getValueTreeType() const	   { return valueTreeType; }
+
+	/** Internally-used class for wrapping a DrawablePath's state into a ValueTree. */
+	class ValueTreeWrapper   : public DrawableShape::FillAndStrokeState
+	{
+	public:
+		ValueTreeWrapper (const ValueTree& state);
 
 		bool usesNonZeroWinding() const;
 		void setUsesNonZeroWinding (bool b, UndoManager* undoManager);
@@ -59560,7 +61057,7 @@ public:
 			const RelativePoint getStartPoint() const;
 			const RelativePoint getEndPoint() const;
 			void setControlPoint (int index, const RelativePoint& point, UndoManager* undoManager);
-			float getLength (RelativeCoordinate::NamedCoordinateFinder* nameFinder) const;
+			float getLength (Expression::EvaluationContext* nameFinder) const;
 
 			ValueTreeWrapper getParent() const;
 			Element getPreviousElement() const;
@@ -59569,11 +61066,11 @@ public:
 			void setModeOfEndPoint (const String& newMode, UndoManager* undoManager);
 
 			void convertToLine (UndoManager* undoManager);
-			void convertToCubic (RelativeCoordinate::NamedCoordinateFinder* nameFinder, UndoManager* undoManager);
+			void convertToCubic (Expression::EvaluationContext* nameFinder, UndoManager* undoManager);
 			void convertToPathBreak (UndoManager* undoManager);
-			ValueTree insertPoint (const Point<float>& targetPoint, RelativeCoordinate::NamedCoordinateFinder* nameFinder, UndoManager* undoManager);
+			ValueTree insertPoint (const Point<float>& targetPoint, Expression::EvaluationContext* nameFinder, UndoManager* undoManager);
 			void removePoint (UndoManager* undoManager);
-			float findProportionAlongLine (const Point<float>& targetPoint, RelativeCoordinate::NamedCoordinateFinder* nameFinder) const;
+			float findProportionAlongLine (const Point<float>& targetPoint, Expression::EvaluationContext* nameFinder) const;
 
 			static const Identifier mode, startSubPathElement, closeSubPathElement,
 									lineToElement, quadraticToElement, cubicToElement;
@@ -59586,29 +61083,107 @@ public:
 
 		ValueTree getPathState();
 
-		static const Identifier fill, stroke, path, jointStyle, capStyle, strokeWidth,
-								nonZeroWinding, point1, point2, point3;
+		static const Identifier nonZeroWinding, point1, point2, point3;
 	};
 
-	juce_UseDebuggingNewOperator
+protected:
+	bool rebuildPath (Path& path) const;
 
 private:
-	FillType mainFill, strokeFill;
-	PathStrokeType strokeType;
-	ScopedPointer<RelativePointPath> relativePath;
-	mutable Path path, stroke;
-	mutable bool pathNeedsUpdating, strokeNeedsUpdating;
 
-	void updatePath() const;
-	void updateStroke() const;
-	bool isStrokeVisible() const throw();
+	ScopedPointer<RelativePointPath> relativePath;
 
 	DrawablePath& operator= (const DrawablePath&);
+	JUCE_LEAK_DETECTOR (DrawablePath);
 };
 
 #endif   // __JUCE_DRAWABLEPATH_JUCEHEADER__
 /*** End of inlined file: juce_DrawablePath.h ***/
 
+
+#endif
+#ifndef __JUCE_DRAWABLERECTANGLE_JUCEHEADER__
+
+/*** Start of inlined file: juce_DrawableRectangle.h ***/
+#ifndef __JUCE_DRAWABLERECTANGLE_JUCEHEADER__
+#define __JUCE_DRAWABLERECTANGLE_JUCEHEADER__
+
+/**
+	A Drawable object which draws a rectangle.
+
+	For details on how to change the fill and stroke, see the DrawableShape class.
+
+	@see Drawable, DrawableShape
+*/
+class JUCE_API  DrawableRectangle  : public DrawableShape
+{
+public:
+
+	DrawableRectangle();
+	DrawableRectangle (const DrawableRectangle& other);
+
+	/** Destructor. */
+	~DrawableRectangle();
+
+	/** Sets the rectangle's bounds. */
+	void setRectangle (const RelativeParallelogram& newBounds);
+
+	/** Returns the rectangle's bounds. */
+	const RelativeParallelogram& getRectangle() const throw()	   { return bounds; }
+
+	/** Returns the corner size to be used. */
+	const RelativePoint getCornerSize() const			   { return cornerSize; }
+
+	/** Sets a new corner size for the rectangle */
+	void setCornerSize (const RelativePoint& newSize);
+
+	/** @internal */
+	Drawable* createCopy() const;
+	/** @internal */
+	void refreshFromValueTree (const ValueTree& tree, ImageProvider* imageProvider);
+	/** @internal */
+	const ValueTree createValueTree (ImageProvider* imageProvider) const;
+	/** @internal */
+	static const Identifier valueTreeType;
+	/** @internal */
+	const Identifier getValueTreeType() const	{ return valueTreeType; }
+
+	/** Internally-used class for wrapping a DrawableRectangle's state into a ValueTree. */
+	class ValueTreeWrapper   : public DrawableShape::FillAndStrokeState
+	{
+	public:
+		ValueTreeWrapper (const ValueTree& state);
+
+		const RelativeParallelogram getRectangle() const;
+		void setRectangle (const RelativeParallelogram& newBounds, UndoManager* undoManager);
+
+		void setCornerSize (const RelativePoint& cornerSize, UndoManager* undoManager);
+		const RelativePoint getCornerSize() const;
+		Value getCornerSizeValue (UndoManager* undoManager) const;
+
+		static const Identifier topLeft, topRight, bottomLeft, cornerSize;
+	};
+
+protected:
+	/** @internal */
+	bool rebuildPath (Path& path) const;
+
+private:
+	RelativeParallelogram bounds;
+	RelativePoint cornerSize;
+
+	const AffineTransform calculateTransform() const;
+
+	DrawableRectangle& operator= (const DrawableRectangle&);
+	JUCE_LEAK_DETECTOR (DrawableRectangle);
+};
+
+#endif   // __JUCE_DRAWABLERECTANGLE_JUCEHEADER__
+/*** End of inlined file: juce_DrawableRectangle.h ***/
+
+
+#endif
+#ifndef __JUCE_DRAWABLESHAPE_JUCEHEADER__
 
 #endif
 #ifndef __JUCE_DRAWABLETEXT_JUCEHEADER__
@@ -59670,26 +61245,22 @@ public:
 	void setFontSizeControlPoint (const RelativePoint& newPoint);
 
 	/** @internal */
-	void render (const Drawable::RenderingContext& context) const;
-	/** @internal */
-	const Rectangle<float> getBounds() const;
-	/** @internal */
-	bool hitTest (float x, float y) const;
+	void paint (Graphics& g);
 	/** @internal */
 	Drawable* createCopy() const;
 	/** @internal */
-	void invalidatePoints();
-	/** @internal */
-	const Rectangle<float> refreshFromValueTree (const ValueTree& tree, ImageProvider* imageProvider);
+	void refreshFromValueTree (const ValueTree& tree, ImageProvider* imageProvider);
 	/** @internal */
 	const ValueTree createValueTree (ImageProvider* imageProvider) const;
 	/** @internal */
 	static const Identifier valueTreeType;
 	/** @internal */
 	const Identifier getValueTreeType() const	{ return valueTreeType; }
+	/** @internal */
+	const Rectangle<float> getDrawableBounds() const;
 
 	/** Internally-used class for wrapping a DrawableText's state into a ValueTree. */
-	class ValueTreeWrapper   : public ValueTreeWrapperBase
+	class ValueTreeWrapper   : public Drawable::ValueTreeWrapperBase
 	{
 	public:
 		ValueTreeWrapper (const ValueTree& state);
@@ -59717,9 +61288,8 @@ public:
 		static const Identifier text, colour, font, justification, topLeft, topRight, bottomLeft, fontSizeAnchor;
 	};
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	RelativeParallelogram bounds;
 	RelativePoint fontSizeControlPoint;
 	Font font;
@@ -59727,7 +61297,10 @@ private:
 	Colour colour;
 	Justification justification;
 
+	void refreshBounds();
+
 	DrawableText& operator= (const DrawableText&);
+	JUCE_LEAK_DETECTOR (DrawableText);
 };
 
 #endif   // __JUCE_DRAWABLETEXT_JUCEHEADER__
@@ -59774,13 +61347,14 @@ public:
 							const Colour& newColour);
 
 	/** @internal */
-	void applyEffect (Image& sourceImage, Graphics& destContext);
-
-	juce_UseDebuggingNewOperator
+	void applyEffect (Image& sourceImage, Graphics& destContext, float alpha);
 
 private:
+
 	float radius;
 	Colour colour;
+
+	JUCE_LEAK_DETECTOR (GlowEffect);
 };
 
 #endif   // __JUCE_GLOWEFFECT_JUCEHEADER__
@@ -59789,54 +61363,6 @@ private:
 
 #endif
 #ifndef __JUCE_IMAGEEFFECTFILTER_JUCEHEADER__
-
-#endif
-#ifndef __JUCE_REDUCEOPACITYEFFECT_JUCEHEADER__
-
-/*** Start of inlined file: juce_ReduceOpacityEffect.h ***/
-#ifndef __JUCE_REDUCEOPACITYEFFECT_JUCEHEADER__
-#define __JUCE_REDUCEOPACITYEFFECT_JUCEHEADER__
-
-/**
-	An effect filter that reduces the image's opacity.
-
-	This can be used to make a component (and its child components) more
-	transparent.
-
-	@see Component::setComponentEffect
-*/
-class JUCE_API  ReduceOpacityEffect  : public ImageEffectFilter
-{
-public:
-
-	/** Creates the effect object.
-
-		The opacity of the component to which the effect is applied will be
-		scaled by the given factor (in the range 0 to 1.0f).
-	*/
-	ReduceOpacityEffect (float opacity = 1.0f);
-
-	/** Destructor. */
-	~ReduceOpacityEffect();
-
-	/** Sets how much to scale the component's opacity.
-
-		@param newOpacity   should be between 0 and 1.0f
-	*/
-	void setOpacity (float newOpacity);
-
-	/** @internal */
-	void applyEffect (Image& sourceImage, Graphics& destContext);
-
-	juce_UseDebuggingNewOperator
-
-private:
-	float opacity;
-};
-
-#endif   // __JUCE_REDUCEOPACITYEFFECT_JUCEHEADER__
-/*** End of inlined file: juce_ReduceOpacityEffect.h ***/
-
 
 #endif
 #ifndef __JUCE_FONT_JUCEHEADER__
@@ -59932,9 +61458,8 @@ public:
 	bool isLastInSubpath() const throw()	{ return stackPos == stackBase.getData()
 														   && (index >= path.numElements || points [index] == Path::moveMarker); }
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	const Path& path;
 	const AffineTransform transform;
 	float* points;
@@ -59945,8 +61470,7 @@ private:
 	float* stackPos;
 	size_t index, stackSize;
 
-	PathFlatteningIterator (const PathFlatteningIterator&);
-	PathFlatteningIterator& operator= (const PathFlatteningIterator&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PathFlatteningIterator);
 };
 
 #endif   // __JUCE_PATHITERATOR_JUCEHEADER__
@@ -60251,9 +61775,8 @@ public:
 	/** Compares two objects. */
 	bool operator!= (const PositionedRectangle& other) const throw();
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	double x, y, w, h;
 	uint8 xMode, yMode, wMode, hMode;
 
@@ -60267,6 +61790,8 @@ private:
 	void updatePosAndSize (double& xOut, double& wOut, double x, double w,
 						   uint8 xMode, uint8 wMode,
 						   int parentPos, int parentSize) const throw();
+
+	JUCE_LEAK_DETECTOR (PositionedRectangle);
 };
 
 #endif   // __JUCE_POSITIONEDRECTANGLE_JUCEHEADER__
@@ -60395,8 +61920,6 @@ public:
 	*/
 	void removeListener (Listener* listenerToRemove);
 
-	juce_UseDebuggingNewOperator
-
 protected:
 	/** @internal */
 	CameraDevice (const String& name, int index);
@@ -60406,8 +61929,7 @@ private:
 	bool isRecording;
 	String name;
 
-	CameraDevice (const CameraDevice&);
-	CameraDevice& operator= (const CameraDevice&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (CameraDevice);
 };
 
 /** This typedef is just for compatibility with old code - newer code should use the CameraDevice::Listener class directly. */
@@ -60506,16 +62028,15 @@ public:
 	*/
 	static void setCacheTimeout (int millisecs);
 
-	juce_UseDebuggingNewOperator
-
 private:
 
 	class Pimpl;
+	friend class Pimpl;
 
 	ImageCache();
-	ImageCache (const ImageCache&);
-	ImageCache& operator= (const ImageCache&);
 	~ImageCache();
+
+	JUCE_DECLARE_NON_COPYABLE (ImageCache);
 };
 
 #endif   // __JUCE_IMAGECACHE_JUCEHEADER__
@@ -60598,15 +62119,12 @@ public:
 					   const Image& sourceImage,
 					   const Rectangle<int>& destinationArea) const;
 
-	juce_UseDebuggingNewOperator
-
 private:
+
 	HeapBlock <float> values;
 	const int size;
 
-	// no reason not to implement these one day..
-	ImageConvolutionKernel (const ImageConvolutionKernel&);
-	ImageConvolutionKernel& operator= (const ImageConvolutionKernel&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ImageConvolutionKernel);
 };
 
 #endif   // __JUCE_IMAGECONVOLUTIONKERNEL_JUCEHEADER__
@@ -60720,7 +62238,7 @@ public:
 };
 
 /**
-	A type of ImageFileFormat for reading and writing PNG files.
+	A subclass of ImageFileFormat for reading and writing PNG files.
 
 	@see ImageFileFormat, JPEGImageFormat
 */
@@ -60733,14 +62251,12 @@ public:
 
 	const String getFormatName();
 	bool canUnderstand (InputStream& input);
-
 	const Image decodeImage (InputStream& input);
-
 	bool writeImageToStream (const Image& sourceImage, OutputStream& destStream);
 };
 
 /**
-	A type of ImageFileFormat for reading and writing JPEG files.
+	A subclass of ImageFileFormat for reading and writing JPEG files.
 
 	@see ImageFileFormat, PNGImageFormat
 */
@@ -60756,18 +62272,33 @@ public:
 		@param newQuality  a value 0 to 1.0, where 0 is low quality, 1.0 is best, or
 						   any negative value is "default" quality
 	*/
-	void setQuality (const float newQuality);
+	void setQuality (float newQuality);
 
 	const String getFormatName();
-
 	bool canUnderstand (InputStream& input);
-
 	const Image decodeImage (InputStream& input);
-
 	bool writeImageToStream (const Image& sourceImage, OutputStream& destStream);
 
 private:
 	float quality;
+};
+
+/**
+	A subclass of ImageFileFormat for reading GIF files.
+
+	@see ImageFileFormat, PNGImageFormat, JPEGImageFormat
+*/
+class JUCE_API  GIFImageFormat  : public ImageFileFormat
+{
+public:
+
+	GIFImageFormat();
+	~GIFImageFormat();
+
+	const String getFormatName();
+	bool canUnderstand (InputStream& input);
+	const Image decodeImage (InputStream& input);
+	bool writeImageToStream (const Image& sourceImage, OutputStream& destStream);
 };
 
 #endif   // __JUCE_IMAGEFILEFORMAT_JUCEHEADER__
@@ -61026,18 +62557,13 @@ protected:
 	*/
 	virtual void setLastDocumentOpened (const File& file) = 0;
 
-public:
-
-	juce_UseDebuggingNewOperator
-
 private:
 
 	File documentFile;
 	bool changedSinceSave;
 	String fileExtension, fileWildcard, openFileDialogTitle, saveFileDialogTitle;
 
-	FileBasedDocument (const FileBasedDocument&);
-	FileBasedDocument& operator= (const FileBasedDocument&);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FileBasedDocument);
 };
 
 #endif   // __JUCE_FILEBASEDDOCUMENT_JUCEHEADER__
@@ -61166,12 +62692,12 @@ public:
 	*/
 	void restoreFromString (const String& stringifiedVersion);
 
-	juce_UseDebuggingNewOperator
-
 private:
 
 	StringArray files;
 	int maxNumberOfItems;
+
+	JUCE_LEAK_DETECTOR (RecentlyOpenedFilesList);
 };
 
 #endif   // __JUCE_RECENTLYOPENEDFILESLIST_JUCEHEADER__
@@ -61216,6 +62742,248 @@ public:
 #ifndef __JUCE_UNDOMANAGER_JUCEHEADER__
 
 #endif
+#ifndef __JUCE_UNITTEST_JUCEHEADER__
+
+/*** Start of inlined file: juce_UnitTest.h ***/
+#ifndef __JUCE_UNITTEST_JUCEHEADER__
+#define __JUCE_UNITTEST_JUCEHEADER__
+
+class UnitTestRunner;
+
+/**
+	This is a base class for classes that perform a unit test.
+
+	To write a test using this class, your code should look something like this:
+
+	@code
+	class MyTest  : public UnitTest
+	{
+	public:
+		MyTest()  : UnitTest ("Foobar testing") {}
+
+		void runTest()
+		{
+			beginTest ("Part 1");
+
+			expect (myFoobar.doesSomething());
+			expect (myFoobar.doesSomethingElse());
+
+			beginTest ("Part 2");
+
+			expect (myOtherFoobar.doesSomething());
+			expect (myOtherFoobar.doesSomethingElse());
+
+			...etc..
+		}
+	};
+
+	// Creating a static instance will automatically add the instance to the array
+	// returned by UnitTest::getAllTests(), so the test will be included when you call
+	// UnitTestRunner::runAllTests()
+	static MyTest test;
+	@endcode
+
+	To run a test, use the UnitTestRunner class.
+
+	@see UnitTestRunner
+*/
+class JUCE_API  UnitTest
+{
+public:
+
+	/** Creates a test with the given name. */
+	explicit UnitTest (const String& name);
+
+	/** Destructor. */
+	virtual ~UnitTest();
+
+	/** Returns the name of the test. */
+	const String getName() const throw()	{ return name; }
+
+	/** Runs the test, using the specified UnitTestRunner.
+		You shouldn't need to call this method directly - use
+		UnitTestRunner::runTests() instead.
+	*/
+	void performTest (UnitTestRunner* runner);
+
+	/** Returns the set of all UnitTest objects that currently exist. */
+	static Array<UnitTest*>& getAllTests();
+
+	/** You can optionally implement this method to set up your test.
+		This method will be called before runTest().
+	*/
+	virtual void initialise();
+
+	/** You can optionally implement this method to clear up after your test has been run.
+		This method will be called after runTest() has returned.
+	*/
+	virtual void shutdown();
+
+	/** Implement this method in your subclass to actually run your tests.
+
+		The content of your implementation should call beginTest() and expect()
+		to perform the tests.
+	*/
+	virtual void runTest() = 0;
+
+	/** Tells the system that a new subsection of tests is beginning.
+		This should be called from your runTest() method, and may be called
+		as many times as you like, to demarcate different sets of tests.
+	*/
+	void beginTest (const String& testName);
+
+	/** Checks that the result of a test is true, and logs this result.
+
+		In your runTest() method, you should call this method for each condition that
+		you want to check, e.g.
+
+		@code
+		void runTest()
+		{
+			beginTest ("basic tests");
+			expect (x + y == 2);
+			expect (getThing() == someThing);
+			...etc...
+		}
+		@endcode
+
+		If testResult is true, a pass is logged; if it's false, a failure is logged.
+		If the failure message is specified, it will be written to the log if the test fails.
+	*/
+	void expect (bool testResult, const String& failureMessage = String::empty);
+
+	/** Compares two values, and if they don't match, prints out a message containing the
+		expected and actual result values.
+	*/
+	template <class ValueType>
+	void expectEquals (ValueType actual, ValueType expected, String failureMessage = String::empty)
+	{
+		const bool result = (actual == expected);
+
+		if (! result)
+		{
+			if (failureMessage.isNotEmpty())
+				failureMessage << " -- ";
+
+			failureMessage << "Expected value: " << expected << ", Actual value: " << actual;
+		}
+
+		expect (result, failureMessage);
+	}
+
+	/** Writes a message to the test log.
+		This can only be called from within your runTest() method.
+	*/
+	void logMessage (const String& message);
+
+private:
+
+	const String name;
+	UnitTestRunner* runner;
+
+	JUCE_DECLARE_NON_COPYABLE (UnitTest);
+};
+
+/**
+	Runs a set of unit tests.
+
+	You can instantiate one of these objects and use it to invoke tests on a set of
+	UnitTest objects.
+
+	By using a subclass of UnitTestRunner, you can intercept logging messages and
+	perform custom behaviour when each test completes.
+
+	@see UnitTest
+*/
+class JUCE_API  UnitTestRunner
+{
+public:
+
+	/** */
+	UnitTestRunner();
+
+	/** Destructor. */
+	virtual ~UnitTestRunner();
+
+	/** Runs a set of tests.
+
+		The tests are performed in order, and the results are logged. To run all the
+		registered UnitTest objects that exist, use runAllTests().
+	*/
+	void runTests (const Array<UnitTest*>& tests, bool assertOnFailure);
+
+	/** Runs all the UnitTest objects that currently exist.
+		This calls runTests() for all the objects listed in UnitTest::getAllTests().
+	*/
+	void runAllTests (bool assertOnFailure);
+
+	/** Contains the results of a test.
+
+		One of these objects is instantiated each time UnitTest::beginTest() is called, and
+		it contains details of the number of subsequent UnitTest::expect() calls that are
+		made.
+	*/
+	struct TestResult
+	{
+		/** The main name of this test (i.e. the name of the UnitTest object being run). */
+		String unitTestName;
+		/** The name of the current subcategory (i.e. the name that was set when UnitTest::beginTest() was called). */
+		String subcategoryName;
+
+		/** The number of UnitTest::expect() calls that succeeded. */
+		int passes;
+		/** The number of UnitTest::expect() calls that failed. */
+		int failures;
+
+		/** A list of messages describing the failed tests. */
+		StringArray messages;
+	};
+
+	/** Returns the number of TestResult objects that have been performed.
+		@see getResult
+	*/
+	int getNumResults() const throw();
+
+	/** Returns one of the TestResult objects that describes a test that has been run.
+		@see getNumResults
+	*/
+	const TestResult* getResult (int index) const throw();
+
+protected:
+	/** Called when the list of results changes.
+		You can override this to perform some sort of behaviour when results are added.
+	*/
+	virtual void resultsUpdated();
+
+	/** Logs a message about the current test progress.
+		By default this just writes the message to the Logger class, but you could override
+		this to do something else with the data.
+	*/
+	virtual void logMessage (const String& message);
+
+private:
+
+	friend class UnitTest;
+
+	UnitTest* currentTest;
+	String currentSubCategory;
+	OwnedArray <TestResult, CriticalSection> results;
+	bool assertOnFailure;
+
+	void beginNewTest (UnitTest* test, const String& subCategory);
+	void endTest();
+
+	void addPass();
+	void addFail (const String& failureMessage);
+
+	JUCE_DECLARE_NON_COPYABLE (UnitTestRunner);
+};
+
+#endif   // __JUCE_UNITTEST_JUCEHEADER__
+/*** End of inlined file: juce_UnitTest.h ***/
+
+
+#endif
 
 #endif
 /*** End of inlined file: juce_app_includes.h ***/
@@ -61226,6 +62994,11 @@ public:
 #if JUCE_MSVC
   #pragma warning (pop)
   #pragma pack (pop)
+#endif
+
+#ifdef JUCE_DLL
+  #undef JUCE_LEAK_DETECTOR(OwnerClass)
+  #define JUCE_LEAK_DETECTOR(OwnerClass)
 #endif
 
 END_JUCE_NAMESPACE
@@ -61323,8 +63096,21 @@ END_JUCE_NAMESPACE
 #pragma comment(lib, "oleaut32.lib")
 #pragma comment(lib, "advapi32.lib")
 #pragma comment(lib, "ws2_32.lib")
-#pragma comment(lib, "comsupp.lib")
 #pragma comment(lib, "version.lib")
+
+#ifdef _NATIVE_WCHAR_T_DEFINED
+ #ifdef _DEBUG
+  #pragma comment(lib, "comsuppwd.lib")
+ #else
+  #pragma comment(lib, "comsuppw.lib")
+ #endif
+#else
+ #ifdef _DEBUG
+  #pragma comment(lib, "comsuppd.lib")
+ #else
+  #pragma comment(lib, "comsupp.lib")
+ #endif
+#endif
 
 #if JUCE_OPENGL
  #pragma comment(lib, "OpenGL32.Lib")
@@ -61338,6 +63124,11 @@ END_JUCE_NAMESPACE
 #if JUCE_USE_CAMERA
  #pragma comment (lib, "Strmiids.lib")
  #pragma comment (lib, "wmvcore.lib")
+#endif
+
+#if JUCE_DIRECT2D
+ #pragma comment (lib, "Dwrite.lib")
+ #pragma comment (lib, "D2d1.lib")
 #endif
 /*** End of inlined file: juce_win32_AutoLinkLibraries.h ***/
 

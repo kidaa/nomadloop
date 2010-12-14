@@ -31,7 +31,7 @@
 #include "../containers/juce_ScopedPointer.h"
 #include "../threads/juce_Thread.h"
 #include "../threads/juce_ThreadPool.h"
-#include "juce_ActionListenerList.h"
+#include "juce_ActionBroadcaster.h"
 #include "juce_CallbackMessage.h"
 class Component;
 class MessageManagerLock;
@@ -140,7 +140,7 @@ public:
                                 method of the broadcast listeners in the other app.
         @see registerBroadcastListener, ActionListener
     */
-    static void broadcastMessage (const String& messageText) throw();
+    static void broadcastMessage (const String& messageText);
 
     /** Registers a listener to get told about broadcast messages.
 
@@ -149,10 +149,10 @@ public:
 
         @see broadcastMessage
     */
-    void registerBroadcastListener (ActionListener* listener) throw();
+    void registerBroadcastListener (ActionListener* listener);
 
     /** Deregisters a broadcast listener. */
-    void deregisterBroadcastListener (ActionListener* listener) throw();
+    void deregisterBroadcastListener (ActionListener* listener);
 
     //==============================================================================
     /** @internal */
@@ -162,10 +162,8 @@ public:
     /** @internal */
     ~MessageManager() throw();
 
-    //==============================================================================
-    juce_UseDebuggingNewOperator
-
 private:
+    //==============================================================================
     MessageManager() throw();
 
     friend class MessageListener;
@@ -175,7 +173,7 @@ private:
     static MessageManager* instance;
 
     SortedSet <const MessageListener*> messageListeners;
-    ScopedPointer <ActionListenerList> broadcastListeners;
+    ScopedPointer <ActionBroadcaster> broadcaster;
 
     friend class JUCEApplication;
     bool quitMessagePosted, quitMessageReceived;
@@ -184,7 +182,6 @@ private:
     static void* exitModalLoopCallback (void*);
 
     void postMessageToQueue (Message* message);
-    void postCallbackMessage (Message* message);
 
     static void doPlatformSpecificInitialisation();
     static void doPlatformSpecificShutdown();
@@ -193,8 +190,7 @@ private:
     Thread::ThreadID volatile threadWithLock;
     CriticalSection lockingLock;
 
-    MessageManager (const MessageManager&);
-    MessageManager& operator= (const MessageManager&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MessageManager);
 };
 
 
@@ -275,7 +271,7 @@ public:
         @endcode
 
     */
-    MessageManagerLock (Thread* threadToCheckForExitSignal = 0) throw();
+    MessageManagerLock (Thread* threadToCheckForExitSignal = 0);
 
     //==============================================================================
     /** This has the same behaviour as the other constructor, but takes a ThreadPoolJob
@@ -283,7 +279,7 @@ public:
 
         See the MessageManagerLock (Thread*) constructor for details on how this works.
     */
-    MessageManagerLock (ThreadPoolJob* jobToCheckForExitSignal) throw();
+    MessageManagerLock (ThreadPoolJob* jobToCheckForExitSignal);
 
 
     //==============================================================================
@@ -310,12 +306,10 @@ private:
     SharedEvents* sharedEvents;
     bool locked;
 
-    void init (Thread* thread, ThreadPoolJob* job) throw();
+    void init (Thread* thread, ThreadPoolJob* job);
 
-    MessageManagerLock (const MessageManagerLock&);
-    MessageManagerLock& operator= (const MessageManagerLock&);
+    JUCE_DECLARE_NON_COPYABLE (MessageManagerLock);
 };
-
 
 
 #endif   // __JUCE_MESSAGEMANAGER_JUCEHEADER__

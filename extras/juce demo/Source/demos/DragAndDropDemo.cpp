@@ -36,8 +36,7 @@ public:
     DragAndDropDemoSource()
         : ListBox ("d+d source", 0)
     {
-        // tells the ListBox that this object supplies the info about
-        // its rows.
+        // tells the ListBox that this object supplies the info about its rows.
         setModel (this);
 
         setMultipleSelectionEnabled (true);
@@ -90,19 +89,6 @@ public:
     {
         g.fillAll (Colours::white.withAlpha (0.7f));
     }
-
-    /*void listBoxItemClicked (int row, const MouseEvent& e)
-    {
-        PopupMenu m;
-        m.addItem (1, "sdfsdfs");
-
-        m.show();
-
-        //AlertWindow::showMessageBox (AlertWindow::InfoIcon, "asdfsadfads", "srdfsdfa");
-        DocumentWindow* dw = new DocumentWindow ("sfdsd", Colours::white, DocumentWindow::allButtons, true);
-        dw->setBounds (100, 100, 500, 500);
-        dw->setVisible (true);
-    }*/
 };
 
 
@@ -110,18 +96,16 @@ public:
 // and this is a component that can have things dropped onto it..
 
 class DragAndDropDemoTarget  : public Component,
-                               public DragAndDropTarget
+                               public DragAndDropTarget,
+                               public FileDragAndDropTarget
 {
-    bool somethingIsBeingDraggedOver;
-    String message;
-
 public:
     //==============================================================================
     DragAndDropDemoTarget()
+        : message ("Drag-and-drop some rows from the top-left box onto this component!\n\n"
+                   "You can also drag-and-drop files here"),
+          somethingIsBeingDraggedOver (false)
     {
-        somethingIsBeingDraggedOver = false;
-
-        message = "Drag-and-drop some rows from the top-left box onto this component!";
     }
 
     ~DragAndDropDemoTarget()
@@ -146,6 +130,9 @@ public:
     }
 
     //==============================================================================
+    // These methods implement the DragAndDropTarget interface, and allow our component
+    // to accept drag-and-drop of objects from other Juce components..
+
     bool isInterestedInDragSource (const String& /*sourceDescription*/, Component* /*sourceComponent*/)
     {
         // normally you'd check the sourceDescription value to see if it's the
@@ -177,6 +164,46 @@ public:
         somethingIsBeingDraggedOver = false;
         repaint();
     }
+
+
+    //==============================================================================
+    // These methods implement the FileDragAndDropTarget interface, and allow our component
+    // to accept drag-and-drop of files..
+
+    bool isInterestedInFileDrag (const StringArray& /*files*/)
+    {
+        // normally you'd check these files to see if they're something that you're
+        // interested in before returning true, but for the demo, we'll say yes to anything..
+        return true;
+    }
+
+    void fileDragEnter (const StringArray& /*files*/, int /*x*/, int /*y*/)
+    {
+        somethingIsBeingDraggedOver = true;
+        repaint();
+    }
+
+    void fileDragMove (const StringArray& /*files*/, int /*x*/, int /*y*/)
+    {
+    }
+
+    void fileDragExit (const StringArray& /*files*/)
+    {
+        somethingIsBeingDraggedOver = false;
+        repaint();
+    }
+
+    void filesDropped (const StringArray& files, int /*x*/, int /*y*/)
+    {
+        message = "files dropped: " + files.joinIntoString ("\n");
+
+        somethingIsBeingDraggedOver = false;
+        repaint();
+    }
+
+private:
+    String message;
+    bool somethingIsBeingDraggedOver;
 };
 
 
@@ -184,38 +211,31 @@ public:
 class DragAndDropDemo  : public Component,
                          public DragAndDropContainer
 {
-    //==============================================================================
-    DragAndDropDemoSource* source;
-    DragAndDropDemoTarget* target;
-
 public:
     //==============================================================================
     DragAndDropDemo()
     {
         setName ("Drag-and-Drop");
 
-        source = new DragAndDropDemoSource();
-        addAndMakeVisible (source);
-
-        target = new DragAndDropDemoTarget();
-        addAndMakeVisible (target);
+        addAndMakeVisible (&source);
+        addAndMakeVisible (&target);
     }
 
     ~DragAndDropDemo()
     {
-        deleteAllChildren();
     }
 
     void resized()
     {
-        source->setBounds (10, 10, 250, 150);
-        target->setBounds (getWidth() - 260, getHeight() - 160, 250, 150);
+        source.setBounds (10, 10, 250, 150);
+        target.setBounds (getWidth() - 260, getHeight() - 160, 250, 150);
     }
 
-    //==============================================================================
-    // (need to put this in to disambiguate the new/delete operators used in the
-    // two base classes).
-    juce_UseDebuggingNewOperator
+private:
+    DragAndDropDemoSource source;
+    DragAndDropDemoTarget target;
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (DragAndDropDemo);
 };
 
 

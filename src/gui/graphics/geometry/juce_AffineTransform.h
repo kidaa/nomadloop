@@ -158,22 +158,32 @@ public:
                                            float pivotY) throw();
 
     /** Returns a transform which is the same as this one followed by a re-scaling.
-
         The scaling is centred around the origin (0, 0).
     */
     const AffineTransform scaled (float factorX,
                                   float factorY) const throw();
 
+    /** Returns a transform which is the same as this one followed by a re-scaling.
+        The scaling is centred around the origin provided.
+    */
+    const AffineTransform scaled (float factorX, float factorY,
+                                  float pivotX, float pivotY) const throw();
+
     /** Returns a new transform which is a re-scale about the origin. */
     static const AffineTransform scale (float factorX,
                                         float factorY) throw();
 
-    /** Returns a transform which is the same as this one followed by a shear.
+    /** Returns a new transform which is a re-scale centred around the point provided. */
+    static const AffineTransform scale (float factorX, float factorY,
+                                        float pivotX, float pivotY) throw();
 
+    /** Returns a transform which is the same as this one followed by a shear.
         The shear is centred around the origin (0, 0).
     */
-    const AffineTransform sheared (float shearX,
-                                   float shearY) const throw();
+    const AffineTransform sheared (float shearX, float shearY) const throw();
+
+    /** Returns a shear transform, centred around the origin (0, 0). */
+    static const AffineTransform shear (float shearX, float shearY) throw();
 
     /** Returns a matrix which is the inverse operation of this one.
 
@@ -233,13 +243,9 @@ public:
     float mat10, mat11, mat12;
 
 
-    //==============================================================================
-    juce_UseDebuggingNewOperator
-
 private:
     //==============================================================================
-    const AffineTransform followedBy (float mat00, float mat01, float mat02,
-                                      float mat10, float mat11, float mat12) const throw();
+    JUCE_LEAK_DETECTOR (AffineTransform);
 };
 
 #endif   // __JUCE_AFFINETRANSFORM_JUCEHEADER__

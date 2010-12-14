@@ -32,7 +32,7 @@ BEGIN_JUCE_NAMESPACE
 
 
 //==============================================================================
-PluginDescription::PluginDescription() throw()
+PluginDescription::PluginDescription()
     : uid (0),
       isInstrument (false),
       numInputChannels (0),
@@ -40,12 +40,13 @@ PluginDescription::PluginDescription() throw()
 {
 }
 
-PluginDescription::~PluginDescription() throw()
+PluginDescription::~PluginDescription()
 {
 }
 
-PluginDescription::PluginDescription (const PluginDescription& other) throw()
+PluginDescription::PluginDescription (const PluginDescription& other)
     : name (other.name),
+      descriptiveName (other.descriptiveName),
       pluginFormatName (other.pluginFormatName),
       category (other.category),
       manufacturerName (other.manufacturerName),
@@ -59,9 +60,10 @@ PluginDescription::PluginDescription (const PluginDescription& other) throw()
 {
 }
 
-PluginDescription& PluginDescription::operator= (const PluginDescription& other) throw()
+PluginDescription& PluginDescription::operator= (const PluginDescription& other)
 {
     name = other.name;
+    descriptiveName = other.descriptiveName;
     pluginFormatName = other.pluginFormatName;
     category = other.category;
     manufacturerName = other.manufacturerName;
@@ -82,7 +84,7 @@ bool PluginDescription::isDuplicateOf (const PluginDescription& other) const
             && uid == other.uid;
 }
 
-const String PluginDescription::createIdentifierString() const throw()
+const String PluginDescription::createIdentifierString() const
 {
     return pluginFormatName
             + "-" + name
@@ -94,6 +96,9 @@ XmlElement* PluginDescription::createXml() const
 {
     XmlElement* const e = new XmlElement ("PLUGIN");
     e->setAttribute ("name", name);
+    if (descriptiveName != name)
+        e->setAttribute ("descriptiveName", descriptiveName);
+
     e->setAttribute ("format", pluginFormatName);
     e->setAttribute ("category", category);
     e->setAttribute ("manufacturer", manufacturerName);
@@ -113,6 +118,7 @@ bool PluginDescription::loadFromXml (const XmlElement& xml)
     if (xml.hasTagName ("PLUGIN"))
     {
         name = xml.getStringAttribute ("name");
+        descriptiveName = xml.getStringAttribute ("name", name);
         pluginFormatName = xml.getStringAttribute ("format");
         category = xml.getStringAttribute ("category");
         manufacturerName = xml.getStringAttribute ("manufacturer");

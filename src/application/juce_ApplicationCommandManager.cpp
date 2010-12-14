@@ -154,7 +154,7 @@ const String ApplicationCommandManager::getDescriptionOfCommand (const CommandID
                      : String::empty;
 }
 
-const StringArray ApplicationCommandManager::getCommandCategories() const throw()
+const StringArray ApplicationCommandManager::getCommandCategories() const
 {
     StringArray s;
 
@@ -164,7 +164,7 @@ const StringArray ApplicationCommandManager::getCommandCategories() const throw(
     return s;
 }
 
-const Array <CommandID> ApplicationCommandManager::getCommandsInCategory (const String& categoryName) const throw()
+const Array <CommandID> ApplicationCommandManager::getCommandsInCategory (const String& categoryName) const
 {
     Array <CommandID> results;
 
@@ -190,13 +190,11 @@ bool ApplicationCommandManager::invoke (const ApplicationCommandTarget::Invocati
     // manager first..
     jassert (MessageManager::getInstance()->currentThreadHasLockedMessageManager());
 
-    ApplicationCommandTarget* const target = getFirstCommandTarget (info_.commandID);
+    ApplicationCommandInfo commandInfo (0);
+    ApplicationCommandTarget* const target = getTargetForCommand (info_.commandID, commandInfo);
 
     if (target == 0)
         return false;
-
-    ApplicationCommandInfo commandInfo (0);
-    target->getCommandInfo (info_.commandID, commandInfo);
 
     ApplicationCommandTarget::InvocationInfo info (info_);
     info.commandFlags = commandInfo.flags;
@@ -303,12 +301,12 @@ ApplicationCommandTarget* ApplicationCommandManager::findDefaultComponentTarget(
 }
 
 //==============================================================================
-void ApplicationCommandManager::addListener (ApplicationCommandManagerListener* const listener) throw()
+void ApplicationCommandManager::addListener (ApplicationCommandManagerListener* const listener)
 {
     listeners.add (listener);
 }
 
-void ApplicationCommandManager::removeListener (ApplicationCommandManagerListener* const listener) throw()
+void ApplicationCommandManager::removeListener (ApplicationCommandManagerListener* const listener)
 {
     listeners.remove (listener);
 }

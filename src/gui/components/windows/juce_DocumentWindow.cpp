@@ -52,13 +52,10 @@ public:
             owner.closeButtonPressed();
     }
 
-    juce_UseDebuggingNewOperator
-
 private:
     DocumentWindow& owner;
 
-    ButtonListenerProxy (const ButtonListenerProxy&);
-    ButtonListenerProxy& operator= (const ButtonListenerProxy&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ButtonListenerProxy);
 };
 
 //==============================================================================
@@ -85,6 +82,14 @@ DocumentWindow::DocumentWindow (const String& title,
 
 DocumentWindow::~DocumentWindow()
 {
+    // Don't delete or remove the resizer components yourself! They're managed by the
+    // DocumentWindow, and you should leave them alone! You may have deleted them
+    // accidentally by careless use of deleteAllChildren()..?
+    jassert (menuBar == 0 || getIndexOfChildComponent (menuBar) >= 0);
+    jassert (titleBarButtons[0] == 0 || getIndexOfChildComponent (titleBarButtons[0]) >= 0);
+    jassert (titleBarButtons[1] == 0 || getIndexOfChildComponent (titleBarButtons[1]) >= 0);
+    jassert (titleBarButtons[2] == 0 || getIndexOfChildComponent (titleBarButtons[2]) >= 0);
+
     for (int i = numElementsInArray (titleBarButtons); --i >= 0;)
         titleBarButtons[i] = 0;
 
@@ -204,8 +209,8 @@ void DocumentWindow::paint (Graphics& g)
     }
 
     const Rectangle<int> titleBarArea (getTitleBarArea());
+    g.reduceClipRegion (titleBarArea);
     g.setOrigin (titleBarArea.getX(), titleBarArea.getY());
-    g.reduceClipRegion (0, 0, titleBarArea.getWidth(), titleBarArea.getHeight());
 
     int titleSpaceX1 = 6;
     int titleSpaceX2 = titleBarArea.getWidth() - 6;

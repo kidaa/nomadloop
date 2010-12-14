@@ -45,7 +45,7 @@ protected:
     //==============================================================================
     /** Creates an editor for the specified processor.
     */
-    AudioProcessorEditor (AudioProcessor* const owner);
+    AudioProcessorEditor (AudioProcessor* owner);
 
 public:
     /** Destructor. */
@@ -61,8 +61,7 @@ private:
     //==============================================================================
     AudioProcessor* const owner;
 
-    AudioProcessorEditor (const AudioProcessorEditor&);
-    AudioProcessorEditor& operator= (const AudioProcessorEditor&);
+    JUCE_DECLARE_NON_COPYABLE (AudioProcessorEditor);
 };
 
 

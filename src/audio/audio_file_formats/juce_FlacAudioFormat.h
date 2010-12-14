@@ -57,7 +57,7 @@ public:
 
     //==============================================================================
     AudioFormatReader* createReaderFor (InputStream* sourceStream,
-                                        const bool deleteStreamIfOpeningFails);
+                                        bool deleteStreamIfOpeningFails);
 
     AudioFormatWriter* createWriterFor (OutputStream* streamToWriteTo,
                                         double sampleRateToUse,
@@ -66,8 +66,8 @@ public:
                                         const StringPairArray& metadataValues,
                                         int qualityOptionIndex);
 
-    //==============================================================================
-    juce_UseDebuggingNewOperator
+private:
+    JUCE_LEAK_DETECTOR (FlacAudioFormat);
 };
 
 

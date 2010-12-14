@@ -49,6 +49,7 @@ public:
     //==============================================================================
     bool isVectorDevice() const;
     void setOrigin (int x, int y);
+    void addTransform (const AffineTransform& transform);
 
     bool clipToRectangle (const Rectangle<int>& r);
     bool clipToRectangleList (const RectangleList& clipRegion);
@@ -58,6 +59,9 @@ public:
 
     void saveState();
     void restoreState();
+
+    void beginTransparencyLayer (float opacity);
+    void endTransparencyLayer();
 
     bool clipRegionIntersects (const Rectangle<int>& r);
     const Rectangle<int> getClipBounds() const;
@@ -83,9 +87,6 @@ public:
     const Font getFont();
     void setFont (const Font& newFont);
     void drawGlyph (int glyphNumber, const AffineTransform& transform);
-
-    //==============================================================================
-    juce_UseDebuggingNewOperator
 
 protected:
     //==============================================================================
@@ -117,8 +118,7 @@ protected:
     void writeTransform (const AffineTransform& trans) const;
     void writeImage (const Image& im, int sx, int sy, int maxW, int maxH) const;
 
-    LowLevelGraphicsPostScriptRenderer (const LowLevelGraphicsPostScriptRenderer& other);
-    LowLevelGraphicsPostScriptRenderer& operator= (const LowLevelGraphicsPostScriptRenderer&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (LowLevelGraphicsPostScriptRenderer);
 };
 
 

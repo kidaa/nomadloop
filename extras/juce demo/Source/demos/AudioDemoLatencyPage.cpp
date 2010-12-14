@@ -37,6 +37,7 @@ public:
           recordedSound (1, 1),
           playingSampleNum (0),
           recordedSampleNum (-1),
+          sampleRate (0),
           isRunning (false),
           resultsBox (resultsBox_)
     {
@@ -323,7 +324,6 @@ AudioDemoLatencyPage::~AudioDemoLatencyPage()
     deviceManager.removeAudioCallback (liveAudioDisplayComp);
 
     deviceManager.removeAudioCallback (latencyTester);
-    delete latencyTester;
     //[/Destructor_pre]
 
     deleteAndZero (liveAudioDisplayComp);

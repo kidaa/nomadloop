@@ -58,7 +58,7 @@ class DirectoryContentsDisplayComponent;
 class FilePreviewComponent;
 class ImageButton;
 class CallOutBox;
-
+class Drawable;
 
 //==============================================================================
 /**
@@ -294,9 +294,10 @@ public:
     virtual void drawTextEditorOutline (Graphics& g, int width, int height, TextEditor& textEditor);
 
     //==============================================================================
-    // these return an image from the ImageCache, so use ImageCache::release() to free it
-    virtual const Image getDefaultFolderImage();
-    virtual const Image getDefaultDocumentFileImage();
+    // These return a pointer to an internally cached drawable - make sure you don't keep
+    // a copy of this pointer anywhere, as it may become invalid in the future.
+    virtual const Drawable* getDefaultFolderImage();
+    virtual const Drawable* getDefaultDocumentFileImage();
 
     virtual void createFileChooserHeaderText (const String& title,
                                               const String& instructions,
@@ -309,7 +310,8 @@ public:
                                      const String& fileTimeDescription,
                                      bool isDirectory,
                                      bool isItemSelected,
-                                     int itemIndex);
+                                     int itemIndex,
+                                     DirectoryContentsDisplayComponent& component);
 
     virtual Button* createFileBrowserGoUpButton();
 
@@ -635,12 +637,12 @@ public:
                                   bool flatOnLeft, bool flatOnRight,
                                   bool flatOnTop, bool flatOnBottom) throw();
 
-    //==============================================================================
-    juce_UseDebuggingNewOperator
+    static Drawable* loadDrawableFromData (const void* data, size_t numBytes);
 
 
 private:
-    friend void JUCE_PUBLIC_FUNCTION shutdownJuce_GUI();
+    //==============================================================================
+    friend JUCE_API void JUCE_CALLTYPE shutdownJuce_GUI();
     static void clearDefaultLookAndFeel() throw(); // called at shutdown
 
     Array <int> colourIds;
@@ -648,6 +650,9 @@ private:
 
     // default typeface names
     String defaultSans, defaultSerif, defaultFixed;
+
+    ScopedPointer<Drawable> folderImage, documentImage;
+
 
     void drawShinyButtonShape (Graphics& g,
                                float x, float y, float w, float h, float maxCornerSize,
@@ -658,8 +663,10 @@ private:
                                bool flatOnTop,
                                bool flatOnBottom) throw();
 
-    LookAndFeel (const LookAndFeel&);
-    LookAndFeel& operator= (const LookAndFeel&);
+    // This has been deprecated - see the new parameter list..
+    virtual int drawFileBrowserRow (Graphics&, int, int, const String&, Image*, const String&, const String&, bool, bool, int) { return 0; }
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (LookAndFeel);
 };
 
 

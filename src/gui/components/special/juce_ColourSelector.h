@@ -132,21 +132,21 @@ public:
     };
 
 
-    //==============================================================================
-    juce_UseDebuggingNewOperator
-
 private:
+    //==============================================================================
     class ColourSpaceView;
     class HueSelectorComp;
     class SwatchComponent;
     friend class ColourSpaceView;
+    friend class ScopedPointer<ColourSpaceView>;
     friend class HueSelectorComp;
+    friend class ScopedPointer<HueSelectorComp>;
 
     Colour colour;
     float h, s, v;
-    Slider* sliders[4];
-    ColourSpaceView* colourSpace;
-    HueSelectorComp* hueSelector;
+    ScopedPointer<Slider> sliders[4];
+    ScopedPointer<ColourSpaceView> colourSpace;
+    ScopedPointer<HueSelectorComp> hueSelector;
     OwnedArray <SwatchComponent> swatchComponents;
     const int flags;
     int edgeGap;
@@ -160,13 +160,13 @@ private:
     void paint (Graphics& g);
     void resized();
 
-    ColourSelector (const ColourSelector&);
-    ColourSelector& operator= (const ColourSelector&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ColourSelector);
 
-    // this constructor is here temporarily to prevent old code compiling, because the parameters
+   #if JUCE_CATCH_DEPRECATED_CODE_MISUSE
+    // This constructor is here temporarily to prevent old code compiling, because the parameters
     // have changed - if you get an error here, update your code to use the new constructor instead..
-    // (xxx - note to self: remember to remove this at some point in the future)
     ColourSelector (bool);
+   #endif
 };
 
 

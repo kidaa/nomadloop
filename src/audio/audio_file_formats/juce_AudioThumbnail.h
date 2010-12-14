@@ -57,9 +57,7 @@ class AudioThumbnailCache;
 
     @see AudioThumbnailCache
 */
-class JUCE_API  AudioThumbnail    : public ChangeBroadcaster,
-                                    public TimeSliceClient,
-                                    private Timer
+class JUCE_API  AudioThumbnail    : public ChangeBroadcaster
 {
 public:
     //==============================================================================
@@ -82,6 +80,9 @@ public:
     ~AudioThumbnail();
 
     //==============================================================================
+    /** Clears and resets the thumbnail. */
+    void clear();
+
     /** Specifies the file or stream that contains the audio file.
 
         For a file, just call
@@ -90,36 +91,60 @@ public:
         @endcode
 
         You can pass a zero in here to clear the thumbnail.
-
-        The source that is passed in will be deleted by this object when it is no
-        longer needed
+        The source that is passed in will be deleted by this object when it is no longer needed.
+        @returns true if the source could be opened as a valid audio file, false if this failed for
+        some reason.
     */
-    void setSource (InputSource* newSource);
+    bool setSource (InputSource* newSource);
 
+    /** Gives the thumbnail an AudioFormatReader to use directly.
+        This will start parsing the audio in a background thread (unless the hash code
+        can be looked-up successfully in the thumbnail cache). Note that the reader
+        object will be held by the thumbnail and deleted later when no longer needed.
+        The thumbnail will actually keep hold of this reader until you clear the thumbnail
+        or change the input source, so the file will be held open for all this time. If
+        you don't want the thumbnail to keep a file handle open continuously, you
+        should use the setSource() method instead, which will only open the file when
+        it needs to.
+    */
+    void setReader (AudioFormatReader* newReader, int64 hashCode);
+
+    /** Resets the thumbnail, ready for adding data with the specified format.
+        If you're going to generate a thumbnail yourself, call this before using addBlock()
+        to add the data.
+    */
+    void reset (int numChannels, double sampleRate);
+
+    /** Adds a block of level data to the thumbnail.
+        Call reset() before using this, to tell the thumbnail about the data format.
+    */
+    void addBlock (int64 sampleNumberInSource, const AudioSampleBuffer& newData,
+                   int startOffsetInBuffer, int numSamples);
+
+    //==============================================================================
     /** Reloads the low res thumbnail data from an input stream.
 
-        The thumb will automatically attempt to reload itself from its
-        AudioThumbnailCache.
+        This is not an audio file stream! It takes a stream of thumbnail data that would
+        previously have been created by the saveTo() method.
+        @see saveTo
     */
     void loadFrom (InputStream& input);
 
     /** Saves the low res thumbnail data to an output stream.
 
-        The thumb will automatically attempt to save itself to its
-        AudioThumbnailCache after it finishes scanning the wave file.
+        The data that is written can later be reloaded using loadFrom().
+        @see loadFrom
     */
     void saveTo (OutputStream& output) const;
 
     //==============================================================================
-    /** Returns the number of channels in the file.
-    */
+    /** Returns the number of channels in the file. */
     int getNumChannels() const throw();
 
-    /** Returns the length of the audio file, in seconds.
-    */
+    /** Returns the length of the audio file, in seconds. */
     double getTotalLength() const throw();
 
-    /** Renders the waveform shape for a channel.
+    /** Draws the waveform for a channel.
 
         The waveform will be drawn within  the specified rectangle, where startTime
         and endTime specify the times within the audio file that should be positioned
@@ -130,53 +155,65 @@ public:
         with the verticalZoomFactor parameter.
     */
     void drawChannel (Graphics& g,
-                      int x, int y, int w, int h,
+                      const Rectangle<int>& area,
                       double startTimeSeconds,
                       double endTimeSeconds,
                       int channelNum,
                       float verticalZoomFactor);
 
-    /** Returns true if the low res preview is fully generated.
+    /** Draws the waveforms for all channels in the thumbnail.
+
+        This will call drawChannel() to render each of the thumbnail's channels, stacked
+        above each other within the specified area.
+
+        @see drawChannel
     */
+    void drawChannels (Graphics& g,
+                       const Rectangle<int>& area,
+                       double startTimeSeconds,
+                       double endTimeSeconds,
+                       float verticalZoomFactor);
+
+    /** Returns true if the low res preview is fully generated. */
     bool isFullyLoaded() const throw();
 
-    //==============================================================================
-    /** @internal */
-    bool useTimeSlice();
-    /** @internal */
-    void timerCallback();
+    /** Returns the hash code that was set by setSource() or setReader(). */
+    int64 getHashCode() const;
 
-    //==============================================================================
-    juce_UseDebuggingNewOperator
+    // (this is only public to avoid a VC6 bug)
+    class LevelDataSource;
 
 private:
+    //==============================================================================
     AudioFormatManager& formatManagerToUse;
     AudioThumbnailCache& cache;
-    ScopedPointer <InputSource> source;
 
-    CriticalSection readerLock;
-    ScopedPointer <AudioFormatReader> reader;
+    struct MinMaxValue;
+    class ThumbData;
+    class CachedWindow;
 
-    MemoryBlock data, cachedLevels;
-    int orginalSamplesPerThumbnailSample;
+    friend class LevelDataSource;
+    friend class ScopedPointer<LevelDataSource>;
+    friend class ThumbData;
+    friend class OwnedArray<ThumbData>;
+    friend class CachedWindow;
+    friend class ScopedPointer<CachedWindow>;
 
-    int numChannelsCached, numSamplesCached;
-    double cachedStart, cachedTimePerPixel;
-    bool cacheNeedsRefilling;
+    ScopedPointer<LevelDataSource> source;
+    ScopedPointer<CachedWindow> window;
+    OwnedArray<ThumbData> channels;
 
-    void clear();
-    AudioFormatReader* createReader() const;
-    void generateSection (AudioFormatReader& reader, int64 startSample, int numSamples);
-    char* getChannelData (int channel) const;
-    void refillCache (int numSamples, double startTime, double timePerPixel);
+    int32 samplesPerThumbSample;
+    int64 totalSamples, numSamplesFinished;
+    int32 numChannels;
+    double sampleRate;
+    CriticalSection lock;
 
-    friend class AudioThumbnailCache;
+    bool setDataSource (LevelDataSource* newSource);
+    void setLevels (const MinMaxValue* const* values, int thumbIndex, int numChans, int numValues);
+    void createChannels (int length);
 
-    // true if it needs more callbacks from the readNextBlockFromAudioFile() method
-    bool initialiseFromAudioFile (AudioFormatReader& reader);
-
-    // returns true if more needs to be read
-    bool readNextBlockFromAudioFile (AudioFormatReader& reader);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioThumbnail);
 };
 
 

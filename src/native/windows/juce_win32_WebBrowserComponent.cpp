@@ -135,9 +135,6 @@ public:
     //==============================================================================
     IWebBrowser2* browser;
 
-    //==============================================================================
-    juce_UseDebuggingNewOperator
-
 private:
     IConnectionPoint* connectionPoint;
     DWORD adviseCookie;
@@ -147,25 +144,19 @@ private:
                           public ComponentMovementWatcher
     {
     public:
-        EventHandler (WebBrowserComponent* owner_)
+        EventHandler (WebBrowserComponent* const owner_)
             : ComponentMovementWatcher (owner_),
               owner (owner_)
         {
         }
 
-        ~EventHandler()
-        {
-        }
-
         //==============================================================================
-        HRESULT __stdcall GetTypeInfoCount (UINT __RPC_FAR*)                                            { return E_NOTIMPL; }
-        HRESULT __stdcall GetTypeInfo (UINT, LCID, ITypeInfo __RPC_FAR *__RPC_FAR*)                     { return E_NOTIMPL; }
-        HRESULT __stdcall GetIDsOfNames (REFIID, LPOLESTR __RPC_FAR*, UINT, LCID, DISPID __RPC_FAR*)    { return E_NOTIMPL; }
+        HRESULT __stdcall GetTypeInfoCount (UINT*)                                  { return E_NOTIMPL; }
+        HRESULT __stdcall GetTypeInfo (UINT, LCID, ITypeInfo**)                     { return E_NOTIMPL; }
+        HRESULT __stdcall GetIDsOfNames (REFIID, LPOLESTR*, UINT, LCID, DISPID*)    { return E_NOTIMPL; }
 
-        HRESULT __stdcall Invoke (DISPID dispIdMember, REFIID /*riid*/, LCID /*lcid*/,
-                                  WORD /*wFlags*/, DISPPARAMS __RPC_FAR* pDispParams,
-                                  VARIANT __RPC_FAR* /*pVarResult*/, EXCEPINFO __RPC_FAR* /*pExcepInfo*/,
-                                  UINT __RPC_FAR* /*puArgErr*/)
+        HRESULT __stdcall Invoke (DISPID dispIdMember, REFIID /*riid*/, LCID /*lcid*/, WORD /*wFlags*/, DISPPARAMS* pDispParams,
+                                  VARIANT* /*pVarResult*/, EXCEPINFO* /*pExcepInfo*/, UINT* /*puArgErr*/)
         {
             switch (dispIdMember)
             {
@@ -203,16 +194,14 @@ private:
         }
 
         //==============================================================================
-        juce_UseDebuggingNewOperator
-
     private:
         WebBrowserComponent* const owner;
 
-        EventHandler (const EventHandler&);
-        EventHandler& operator= (const EventHandler&);
+        JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (EventHandler);
     };
-};
 
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (WebBrowserComponentInternal);
+};
 
 
 //==============================================================================

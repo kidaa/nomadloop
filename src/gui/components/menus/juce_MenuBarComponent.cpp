@@ -91,7 +91,8 @@ void MenuBarComponent::paint (Graphics& g)
     {
         for (int i = 0; i < menuNames.size(); ++i)
         {
-            g.saveState();
+            Graphics::ScopedSaveState ss (g);
+
             g.setOrigin (xPositions [i], 0);
             g.reduceClipRegion (0, 0, xPositions[i + 1] - xPositions[i], getHeight());
 
@@ -104,8 +105,6 @@ void MenuBarComponent::paint (Graphics& g)
                                               i == currentPopupIndex,
                                               isMouseOverBar,
                                               *this);
-
-            g.restoreState();
         }
     }
 }
@@ -113,13 +112,12 @@ void MenuBarComponent::paint (Graphics& g)
 void MenuBarComponent::resized()
 {
     xPositions.clear();
-    int x = 2;
+    int x = 0;
     xPositions.add (x);
 
     for (int i = 0; i < menuNames.size(); ++i)
     {
         x += getLookAndFeel().getMenuBarItemWidth (*this, i, menuNames[i]);
-
         xPositions.add (x);
     }
 }
@@ -128,14 +126,14 @@ int MenuBarComponent::getItemAt (const int x, const int y)
 {
     for (int i = 0; i < xPositions.size(); ++i)
         if (x >= xPositions[i] && x < xPositions[i + 1])
-            return reallyContains (x, y, true) ? i : -1;
+            return reallyContains (Point<int> (x, y), true) ? i : -1;
 
     return -1;
 }
 
 void MenuBarComponent::repaintMenuItem (int index)
 {
-    if (((unsigned int) index) < (unsigned int) xPositions.size())
+    if (isPositiveAndBelow (index, xPositions.size()))
     {
         const int x1 = xPositions [index];
         const int x2 = xPositions [index + 1];
@@ -182,8 +180,6 @@ public:
     {
     }
 
-    ~AsyncCallback()  {}
-
     void modalStateFinished (int returnValue)
     {
         if (bar != 0)
@@ -194,8 +190,7 @@ private:
     Component::SafePointer<MenuBarComponent> bar;
     const int topLevelIndex;
 
-    AsyncCallback (const AsyncCallback&);
-    AsyncCallback& operator= (const AsyncCallback&);
+    JUCE_DECLARE_NON_COPYABLE (AsyncCallback);
 };
 
 void MenuBarComponent::showMenu (int index)
@@ -218,8 +213,8 @@ void MenuBarComponent::showMenu (int index)
 
             const Rectangle<int> itemPos (xPositions [index], 0, xPositions [index + 1] - xPositions [index], getHeight());
 
-            m.showMenu (itemPos + getScreenPosition(),
-                        0, itemPos.getWidth(), 0, 0, true, this,
+            m.showMenu (localAreaToGlobal (itemPos),
+                        0, itemPos.getWidth(), 0, 0, this,
                         new AsyncCallback (this, index));
         }
     }
@@ -236,7 +231,7 @@ void MenuBarComponent::handleCommandMessage (int commandId)
     const Point<int> mousePos (getMouseXYRelative());
     updateItemUnderMouse (mousePos.getX(), mousePos.getY());
 
-    if (! isCurrentlyBlockedByAnotherModalComponent())
+    if (currentPopupIndex == topLevelIndexClicked)
         setOpenItem (-1);
 
     if (commandId != 0 && model != 0)

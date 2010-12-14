@@ -111,12 +111,7 @@ public:
     */
     float getEstimatedProgress() const;
 
-    //==============================================================================
-    juce_UseDebuggingNewOperator
-
 private:
-    friend class File;
-
     //==============================================================================
     class NativeIterator
     {
@@ -130,15 +125,12 @@ private:
 
         class Pimpl;
 
-        juce_UseDebuggingNewOperator
-
     private:
         friend class DirectoryIterator;
         friend class ScopedPointer<Pimpl>;
         ScopedPointer<Pimpl> pimpl;
 
-        NativeIterator (const NativeIterator&);
-        NativeIterator& operator= (const NativeIterator&);
+        JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (NativeIterator);
     };
 
     friend class ScopedPointer<NativeIterator::Pimpl>;
@@ -148,11 +140,11 @@ private:
     mutable int totalNumFiles;
     const int whatToLookFor;
     const bool isRecursive;
+    bool hasBeenAdvanced;
     ScopedPointer <DirectoryIterator> subIterator;
     File currentFile;
 
-    DirectoryIterator (const DirectoryIterator&);
-    DirectoryIterator& operator= (const DirectoryIterator&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (DirectoryIterator);
 };
 
 #endif   // __JUCE_DIRECTORYITERATOR_JUCEHEADER__

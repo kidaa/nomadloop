@@ -96,14 +96,14 @@ void BubbleComponent::setAllowedPlacement (const int newPlacement)
 
 void BubbleComponent::setPosition (Component* componentToPointTo)
 {
-    jassert (componentToPointTo->isValidComponent());
+    jassert (componentToPointTo != 0);
 
     Point<int> pos;
 
     if (getParentComponent() != 0)
-        pos = componentToPointTo->relativePositionToOtherComponent (getParentComponent(), pos);
+        pos = getParentComponent()->getLocalPoint (componentToPointTo, pos);
     else
-        pos = componentToPointTo->relativePositionToGlobal (pos);
+        pos = componentToPointTo->localPointToGlobal (pos);
 
     setPosition (Rectangle<int> (pos.getX(), pos.getY(), componentToPointTo->getWidth(), componentToPointTo->getHeight()));
 }
@@ -117,18 +117,8 @@ void BubbleComponent::setPosition (const int arrowTipX_,
 //==============================================================================
 void BubbleComponent::setPosition (const Rectangle<int>& rectangleToPointTo)
 {
-    Rectangle<int> availableSpace;
-
-    if (getParentComponent() != 0)
-    {
-        availableSpace.setSize (getParentComponent()->getWidth(),
-                                getParentComponent()->getHeight());
-    }
-    else
-    {
-        availableSpace = getParentMonitorArea();
-    }
-
+    Rectangle<int> availableSpace (getParentComponent() != 0 ? getParentComponent()->getLocalBounds()
+                                                             : getParentMonitorArea());
     int x = 0;
     int y = 0;
     int w = 150;

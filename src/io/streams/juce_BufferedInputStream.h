@@ -53,6 +53,14 @@ public:
                          int bufferSize,
                          bool deleteSourceWhenDestroyed);
 
+    /** Creates a BufferedInputStream from an input source.
+
+        @param sourceStream     the source stream to read from - the source stream  must not
+                                be deleted until this object has been destroyed.
+        @param bufferSize       the size of reservoir to use to buffer the source
+    */
+    BufferedInputStream (InputStream& sourceStream, int bufferSize);
+
     /** Destructor.
 
         This may also delete the source stream, if that option was chosen when the
@@ -70,10 +78,8 @@ public:
     bool isExhausted();
 
 
-    //==============================================================================
-    juce_UseDebuggingNewOperator
-
 private:
+    //==============================================================================
     InputStream* const source;
     ScopedPointer <InputStream> sourceToDelete;
     int bufferSize;
@@ -81,8 +87,7 @@ private:
     HeapBlock <char> buffer;
     void ensureBuffered();
 
-    BufferedInputStream (const BufferedInputStream&);
-    BufferedInputStream& operator= (const BufferedInputStream&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (BufferedInputStream);
 };
 
 #endif   // __JUCE_BUFFEREDINPUTSTREAM_JUCEHEADER__

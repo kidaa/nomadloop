@@ -242,12 +242,12 @@ CodeDocument::Position::Position (const Position& other) throw()
     jassert (*this == other);
 }
 
-CodeDocument::Position::~Position() throw()
+CodeDocument::Position::~Position()
 {
     setPositionMaintained (false);
 }
 
-CodeDocument::Position& CodeDocument::Position::operator= (const Position& other) throw()
+CodeDocument::Position& CodeDocument::Position::operator= (const Position& other)
 {
     if (this != &other)
     {
@@ -283,7 +283,7 @@ bool CodeDocument::Position::operator!= (const Position& other) const throw()
     return ! operator== (other);
 }
 
-void CodeDocument::Position::setLineAndIndex (const int newLine, const int newIndexInLine) throw()
+void CodeDocument::Position::setLineAndIndex (const int newLine, const int newIndexInLine)
 {
     jassert (owner != 0);
 
@@ -322,7 +322,7 @@ void CodeDocument::Position::setLineAndIndex (const int newLine, const int newIn
     }
 }
 
-void CodeDocument::Position::setPosition (const int newPosition) throw()
+void CodeDocument::Position::setPosition (const int newPosition)
 {
     jassert (owner != 0);
 
@@ -369,7 +369,7 @@ void CodeDocument::Position::setPosition (const int newPosition) throw()
     }
 }
 
-void CodeDocument::Position::moveBy (int characterDelta) throw()
+void CodeDocument::Position::moveBy (int characterDelta)
 {
     jassert (owner != 0);
 
@@ -390,33 +390,33 @@ void CodeDocument::Position::moveBy (int characterDelta) throw()
     setPosition (characterPos + characterDelta);
 }
 
-const CodeDocument::Position CodeDocument::Position::movedBy (const int characterDelta) const throw()
+const CodeDocument::Position CodeDocument::Position::movedBy (const int characterDelta) const
 {
     CodeDocument::Position p (*this);
     p.moveBy (characterDelta);
     return p;
 }
 
-const CodeDocument::Position CodeDocument::Position::movedByLines (const int deltaLines) const throw()
+const CodeDocument::Position CodeDocument::Position::movedByLines (const int deltaLines) const
 {
     CodeDocument::Position p (*this);
     p.setLineAndIndex (getLineNumber() + deltaLines, getIndexInLine());
     return p;
 }
 
-const juce_wchar CodeDocument::Position::getCharacter() const throw()
+const juce_wchar CodeDocument::Position::getCharacter() const
 {
     const CodeDocumentLine* const l = owner->lines [line];
     return l == 0 ? 0 : l->line [getIndexInLine()];
 }
 
-const String CodeDocument::Position::getLineText() const throw()
+const String CodeDocument::Position::getLineText() const
 {
     const CodeDocumentLine* const l = owner->lines [line];
     return l == 0 ? String::empty : l->line;
 }
 
-void CodeDocument::Position::setPositionMaintained (const bool isMaintained) throw()
+void CodeDocument::Position::setPositionMaintained (const bool isMaintained)
 {
     if (isMaintained != positionMaintained)
     {
@@ -453,13 +453,13 @@ CodeDocument::~CodeDocument()
 {
 }
 
-const String CodeDocument::getAllContent() const throw()
+const String CodeDocument::getAllContent() const
 {
     return getTextBetween (Position (this, 0),
                            Position (this, lines.size(), 0));
 }
 
-const String CodeDocument::getTextBetween (const Position& start, const Position& end) const throw()
+const String CodeDocument::getTextBetween (const Position& start, const Position& end) const
 {
     if (end.getPosition() <= start.getPosition())
         return String::empty;
@@ -604,10 +604,13 @@ bool CodeDocument::hasChangedSinceSavePoint() const throw()
 }
 
 //==============================================================================
-static int getCodeCharacterCategory (const juce_wchar character) throw()
+namespace CodeDocumentHelpers
 {
-    return (CharacterFunctions::isLetterOrDigit (character) || character == '_')
-                ? 2 : (CharacterFunctions::isWhitespace (character) ? 0 : 1);
+    int getCharacterType (const juce_wchar character) throw()
+    {
+        return (CharacterFunctions::isLetterOrDigit (character) || character == '_')
+                    ? 2 : (CharacterFunctions::isWhitespace (character) ? 0 : 1);
+    }
 }
 
 const CodeDocument::Position CodeDocument::findWordBreakAfter (const Position& position) const throw()
@@ -627,9 +630,9 @@ const CodeDocument::Position CodeDocument::findWordBreakAfter (const Position& p
 
     if (i == 0)
     {
-        const int type = getCodeCharacterCategory (p.getCharacter());
+        const int type = CodeDocumentHelpers::getCharacterType (p.getCharacter());
 
-        while (i < maxDistance && type == getCodeCharacterCategory (p.getCharacter()))
+        while (i < maxDistance && type == CodeDocumentHelpers::getCharacterType (p.getCharacter()))
         {
             ++i;
             p.moveBy (1);
@@ -676,9 +679,9 @@ const CodeDocument::Position CodeDocument::findWordBreakBefore (const Position& 
 
     if (i < maxDistance && ! stoppedAtLineStart)
     {
-        const int type = getCodeCharacterCategory (p.movedBy (-1).getCharacter());
+        const int type = CodeDocumentHelpers::getCharacterType (p.movedBy (-1).getCharacter());
 
-        while (i < maxDistance && type == getCodeCharacterCategory (p.movedBy (-1).getCharacter()))
+        while (i < maxDistance && type == CodeDocumentHelpers::getCharacterType (p.movedBy (-1).getCharacter()))
         {
             p.moveBy (-1);
             ++i;
@@ -729,13 +732,6 @@ void CodeDocument::sendListenerChangeMessage (const int startLine, const int end
 //==============================================================================
 class CodeDocumentInsertAction   : public UndoableAction
 {
-    CodeDocument& owner;
-    const String text;
-    int insertPos;
-
-    CodeDocumentInsertAction (const CodeDocumentInsertAction&);
-    CodeDocumentInsertAction& operator= (const CodeDocumentInsertAction&);
-
 public:
     CodeDocumentInsertAction (CodeDocument& owner_, const String& text_, const int insertPos_) throw()
         : owner (owner_),
@@ -743,8 +739,6 @@ public:
           insertPos (insertPos_)
     {
     }
-
-    ~CodeDocumentInsertAction() {}
 
     bool perform()
     {
@@ -761,6 +755,13 @@ public:
     }
 
     int getSizeInUnits()        { return text.length() + 32; }
+
+private:
+    CodeDocument& owner;
+    const String text;
+    int insertPos;
+
+    JUCE_DECLARE_NON_COPYABLE (CodeDocumentInsertAction);
 };
 
 void CodeDocument::insert (const String& text, const int insertPos, const bool undoable)
@@ -835,13 +836,6 @@ void CodeDocument::insert (const String& text, const int insertPos, const bool u
 //==============================================================================
 class CodeDocumentDeleteAction  : public UndoableAction
 {
-    CodeDocument& owner;
-    int startPos, endPos;
-    String removedText;
-
-    CodeDocumentDeleteAction (const CodeDocumentDeleteAction&);
-    CodeDocumentDeleteAction& operator= (const CodeDocumentDeleteAction&);
-
 public:
     CodeDocumentDeleteAction (CodeDocument& owner_, const int startPos_, const int endPos_) throw()
         : owner (owner_),
@@ -851,8 +845,6 @@ public:
         removedText = owner.getTextBetween (CodeDocument::Position (&owner, startPos),
                                             CodeDocument::Position (&owner, endPos));
     }
-
-    ~CodeDocumentDeleteAction() {}
 
     bool perform()
     {
@@ -869,6 +861,13 @@ public:
     }
 
     int getSizeInUnits()    { return removedText.length() + 32; }
+
+private:
+    CodeDocument& owner;
+    int startPos, endPos;
+    String removedText;
+
+    JUCE_DECLARE_NON_COPYABLE (CodeDocumentDeleteAction);
 };
 
 void CodeDocument::remove (const int startPos, const int endPos, const bool undoable)

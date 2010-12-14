@@ -55,15 +55,18 @@ public:
     */
     virtual void fillInPluginDescription (PluginDescription& description) const = 0;
 
+    /** Returns a pointer to some kind of platform-specific data about the plugin.
 
-    //==============================================================================
-    juce_UseDebuggingNewOperator
+        E.g. For a VST, this value can be cast to an AEffect*. For an AudioUnit, it can be
+        cast to an AudioUnit handle.
+    */
+    virtual void* getPlatformSpecificData();
 
 protected:
+    //==============================================================================
     AudioPluginInstance();
 
-    AudioPluginInstance (const AudioPluginInstance&);
-    AudioPluginInstance& operator= (const AudioPluginInstance&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioPluginInstance);
 };
 
 

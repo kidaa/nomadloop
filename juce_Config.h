@@ -117,6 +117,13 @@
   #define JUCE_OPENGL 1
 #endif
 
+/** JUCE_DIRECT2D: Enables the Windows 7 Direct2D renderer.
+    If you're building on a platform older than Vista, you won't be able to compile with this feature.
+*/
+#ifndef JUCE_DIRECT2D
+  #define JUCE_DIRECT2D 0
+#endif
+
 //=============================================================================
 /** JUCE_USE_FLAC: Enables the FLAC audio codec classes (available on all platforms).
     If your app doesn't need to read FLAC files, you might want to disable this to
@@ -140,7 +147,7 @@
     reduce code size.
 */
 #if (! defined (JUCE_USE_CDBURNER)) && ! (JUCE_WINDOWS && ! JUCE_MSVC)
-  #define JUCE_USE_CDBURNER 0
+  #define JUCE_USE_CDBURNER 1
 #endif
 
 /** JUCE_USE_CDREADER: Enables the audio CD reader code (Mac and Windows only).
@@ -148,7 +155,7 @@
     reduce code size.
 */
 #ifndef JUCE_USE_CDREADER
-  #define JUCE_USE_CDREADER 0
+  #define JUCE_USE_CDREADER 1
 #endif
 
 //=============================================================================
@@ -237,7 +244,7 @@
     Carbon isn't required for a normal app, but may be needed by specialised classes like
     plugin-hosts, which support older APIs.
 */
-#ifndef JUCE_SUPPORT_CARBON
+#if ! (defined (JUCE_SUPPORT_CARBON) || defined (__LP64__))
   #define JUCE_SUPPORT_CARBON 1
 #endif
 
@@ -267,10 +274,11 @@
 #endif
 
 //=============================================================================
-/** JUCE_CHECK_MEMORY_LEAKS: Enables a memory-leak check when an app terminates.
-    (Currently, this only affects Windows builds in debug mode).
+/** JUCE_CHECK_MEMORY_LEAKS: Enables a memory-leak check for certain objects when
+    the app terminates. See the LeakedObjectDetector class and the JUCE_LEAK_DETECTOR
+    macro for more details about enabling leak checking for specific classes.
 */
-#ifndef JUCE_CHECK_MEMORY_LEAKS
+#if JUCE_DEBUG && ! defined (JUCE_CHECK_MEMORY_LEAKS)
   #define JUCE_CHECK_MEMORY_LEAKS 1
 #endif
 

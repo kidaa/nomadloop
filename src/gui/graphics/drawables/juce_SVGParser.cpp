@@ -114,8 +114,8 @@ public:
                 const RectanglePlacement placement (placementFlags);
 
                 newState.transform
-                    = placement.getTransformToFit (vx, vy, vw, vh,
-                                                   0.0f, 0.0f, newState.width, newState.height)
+                    = placement.getTransformToFit (Rectangle<float> (vx, vy, vw, vh),
+                                                   Rectangle<float> (0.0f, 0.0f, newState.width, newState.height))
                                .followedBy (newState.transform);
             }
         }
@@ -742,8 +742,12 @@ private:
 
                 if (gradient.isRadial)
                 {
-                    gradient.point1.setXY (dx + getCoordLength (fillXml->getStringAttribute ("cx", "50%"), gradientWidth),
-                                           dy + getCoordLength (fillXml->getStringAttribute ("cy", "50%"), gradientHeight));
+                    if (userSpace)
+                        gradient.point1.setXY (dx + getCoordLength (fillXml->getStringAttribute ("cx", "50%"), gradientWidth),
+                                               dy + getCoordLength (fillXml->getStringAttribute ("cy", "50%"), gradientHeight));
+                    else
+                        gradient.point1.setXY (dx + gradientWidth * getCoordLength (fillXml->getStringAttribute ("cx", "50%"), 1.0f),
+                                               dy + gradientHeight * getCoordLength (fillXml->getStringAttribute ("cy", "50%"), 1.0f));
 
                     const float radius = getCoordLength (fillXml->getStringAttribute ("r", "50%"), gradientWidth);
                     gradient.point2 = gradient.point1 + Point<float> (radius, 0.0f);
@@ -752,11 +756,22 @@ private:
                 }
                 else
                 {
-                    gradient.point1.setXY (dx + getCoordLength (fillXml->getStringAttribute ("x1", "0%"), gradientWidth),
-                                           dy + getCoordLength (fillXml->getStringAttribute ("y1", "0%"), gradientHeight));
+                    if (userSpace)
+                    {
+                        gradient.point1.setXY (dx + getCoordLength (fillXml->getStringAttribute ("x1", "0%"), gradientWidth),
+                                               dy + getCoordLength (fillXml->getStringAttribute ("y1", "0%"), gradientHeight));
 
-                    gradient.point2.setXY (dx + getCoordLength (fillXml->getStringAttribute ("x2", "100%"), gradientWidth),
-                                           dy + getCoordLength (fillXml->getStringAttribute ("y2", "0%"), gradientHeight));
+                        gradient.point2.setXY (dx + getCoordLength (fillXml->getStringAttribute ("x2", "100%"), gradientWidth),
+                                               dy + getCoordLength (fillXml->getStringAttribute ("y2", "0%"), gradientHeight));
+                    }
+                    else
+                    {
+                        gradient.point1.setXY (dx + gradientWidth * getCoordLength (fillXml->getStringAttribute ("x1", "0%"), 1.0f),
+                                               dy + gradientHeight * getCoordLength (fillXml->getStringAttribute ("y1", "0%"), 1.0f));
+
+                        gradient.point2.setXY (dx + gradientWidth * getCoordLength (fillXml->getStringAttribute ("x2", "100%"), 1.0f),
+                                               dy + gradientHeight * getCoordLength (fillXml->getStringAttribute ("y2", "0%"), 1.0f));
+                    }
 
                     if (gradient.point1 == gradient.point2)
                         return Colour (gradient.getColour (gradient.getNumColours() - 1));
@@ -830,12 +845,12 @@ private:
 
                 Path path;
                 Drawable* s = parseShape (*e, path);
-                delete s;
+                delete s;  // xxx not finished!
             }
             else if (e->hasTagName ("tspan"))
             {
                 Drawable* s = parseText (*e);
-                delete s;
+                delete s;  // xxx not finished!
             }
         }
 

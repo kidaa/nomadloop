@@ -53,7 +53,7 @@ public:
         @param numberOfSamplesToBuffer  the size of buffer to use for reading ahead
     */
     BufferingAudioSource (PositionableAudioSource* source,
-                          const bool deleteSourceWhenDeleted,
+                          bool deleteSourceWhenDeleted,
                           int numberOfSamplesToBuffer);
 
     /** Destructor.
@@ -86,9 +86,6 @@ public:
     /** Implements the PositionableAudioSource method. */
     bool isLooping() const                      { return source->isLooping(); }
 
-    //==============================================================================
-    juce_UseDebuggingNewOperator
-
 private:
     //==============================================================================
     PositionableAudioSource* source;
@@ -104,8 +101,7 @@ private:
     bool readNextBufferChunk();
     void readBufferSection (int start, int length, int bufferOffset);
 
-    BufferingAudioSource (const BufferingAudioSource&);
-    BufferingAudioSource& operator= (const BufferingAudioSource&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (BufferingAudioSource);
 };
 
 

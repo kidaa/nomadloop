@@ -167,8 +167,6 @@ public:
         [renderContext setValues: &swapInterval forParameter: NSOpenGLCPSwapInterval];
 
         [view setOpenGLContext: renderContext];
-        [renderContext setView: view];
-
         [format release];
 
         viewHolder = new NSViewComponentInternal (view, component);
@@ -192,6 +190,10 @@ public:
     bool makeActive() const throw()
     {
         jassert (renderContext != 0);
+
+        if ([renderContext view] != view)
+            [renderContext setView: view];
+
         [view makeActive];
         return isActive();
     }
@@ -251,8 +253,6 @@ public:
     void* getNativeWindowHandle() const     { return viewHolder->view; }
 
     //==============================================================================
-    juce_UseDebuggingNewOperator
-
     NSOpenGLContext* renderContext;
     ThreadSafeNSOpenGLView* view;
 
@@ -261,8 +261,7 @@ private:
     ScopedPointer <NSViewComponentInternal> viewHolder;
 
     //==============================================================================
-    WindowedGLContext (const WindowedGLContext&);
-    WindowedGLContext& operator= (const WindowedGLContext&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (WindowedGLContext);
 };
 
 //==============================================================================
@@ -498,8 +497,6 @@ public:
     }
 
     //==============================================================================
-    juce_UseDebuggingNewOperator
-
 private:
     Component::SafePointer<Component> component;
     OpenGLPixelFormat pixelFormat;
@@ -512,8 +509,7 @@ private:
     int lastWidth, lastHeight;
 
     //==============================================================================
-    GLESContext (const GLESContext&);
-    GLESContext& operator= (const GLESContext&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (GLESContext);
 };
 
 

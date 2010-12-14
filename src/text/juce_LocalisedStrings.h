@@ -180,17 +180,17 @@ public:
     /** Indicates whether to use a case-insensitive search when looking up a string.
         This defaults to true.
     */
-    void setIgnoresCase (const bool shouldIgnoreCase);
-
-    //==============================================================================
-    juce_UseDebuggingNewOperator
+    void setIgnoresCase (bool shouldIgnoreCase);
 
 private:
+    //==============================================================================
     String languageName;
     StringArray countryCodes;
     StringPairArray translations;
 
     void loadFromText (const String& fileContents);
+
+    JUCE_LEAK_DETECTOR (LocalisedStrings);
 };
 
 

@@ -81,7 +81,6 @@ public:
                        HGLRC contextToShareWith,
                        const OpenGLPixelFormat& pixelFormat)
         : renderContext (0),
-          nativeWindow (0),
           dc (0),
           component (component_)
     {
@@ -117,7 +116,7 @@ public:
     {
         deleteContext();
         ReleaseDC ((HWND) nativeWindow->getNativeHandle(), dc);
-        delete nativeWindow;
+        nativeWindow = 0;
     }
 
     void deleteContext()
@@ -270,7 +269,7 @@ public:
             // old one and create a new one..
             jassert (nativeWindow != 0);
             ReleaseDC ((HWND) nativeWindow->getNativeHandle(), dc);
-            delete nativeWindow;
+            nativeWindow = 0;
 
             createNativeWindow();
 
@@ -380,34 +379,24 @@ public:
     }
 
     //==============================================================================
-    juce_UseDebuggingNewOperator
-
     HGLRC renderContext;
 
 private:
-    Win32ComponentPeer* nativeWindow;
+    ScopedPointer<Win32ComponentPeer> nativeWindow;
     Component* const component;
     HDC dc;
 
     //==============================================================================
     void createNativeWindow()
     {
-        nativeWindow = new Win32ComponentPeer (component, 0);
+        Win32ComponentPeer* topLevelPeer = dynamic_cast <Win32ComponentPeer*> (component->getTopLevelComponent()->getPeer());
+
+        nativeWindow = new Win32ComponentPeer (component, ComponentPeer::windowIgnoresMouseClicks,
+                                               topLevelPeer == 0 ? 0 : (HWND) topLevelPeer->getNativeHandle());
         nativeWindow->dontRepaint = true;
         nativeWindow->setVisible (true);
 
-        HWND hwnd = (HWND) nativeWindow->getNativeHandle();
-
-        Win32ComponentPeer* const peer = dynamic_cast <Win32ComponentPeer*> (component->getTopLevelComponent()->getPeer());
-
-        if (peer != 0)
-        {
-            SetParent (hwnd, (HWND) peer->getNativeHandle());
-            juce_setWindowStyleBit (hwnd, GWL_STYLE, WS_CHILD, true);
-            juce_setWindowStyleBit (hwnd, GWL_STYLE, WS_POPUP, false);
-        }
-
-        dc = GetDC (hwnd);
+        dc = GetDC ((HWND) nativeWindow->getNativeHandle());
     }
 
     bool fillInPixelFormatDetails (const int pixelFormatIndex,
@@ -500,8 +489,7 @@ private:
         return false;
     }
 
-    WindowedGLContext (const WindowedGLContext&);
-    WindowedGLContext& operator= (const WindowedGLContext&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (WindowedGLContext);
 };
 
 //==============================================================================

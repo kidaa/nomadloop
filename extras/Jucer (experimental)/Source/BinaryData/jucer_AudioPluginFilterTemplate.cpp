@@ -50,12 +50,12 @@ const String FILTERCLASSNAME::getParameterText (int index)
     return String::empty;
 }
 
-const String FILTERCLASSNAME::getInputChannelName (const int channelIndex) const
+const String FILTERCLASSNAME::getInputChannelName (int channelIndex) const
 {
     return String (channelIndex + 1);
 }
 
-const String FILTERCLASSNAME::getOutputChannelName (const int channelIndex) const
+const String FILTERCLASSNAME::getOutputChannelName (int channelIndex) const
 {
     return String (channelIndex + 1);
 }
@@ -145,6 +145,11 @@ void FILTERCLASSNAME::processBlock (AudioSampleBuffer& buffer, MidiBuffer& midiM
 }
 
 //==============================================================================
+bool FILTERCLASSNAME::hasEditor() const
+{
+    return true; // (change this to false if you choose to not supply an editor)
+}
+
 AudioProcessorEditor* FILTERCLASSNAME::createEditor()
 {
     return new EDITORCLASSNAME (this);

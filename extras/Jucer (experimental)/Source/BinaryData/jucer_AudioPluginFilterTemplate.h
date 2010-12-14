@@ -32,6 +32,7 @@ public:
 
     //==============================================================================
     AudioProcessorEditor* createEditor();
+    bool hasEditor() const;
 
     //==============================================================================
     const String getName() const;
@@ -44,8 +45,8 @@ public:
     const String getParameterName (int index);
     const String getParameterText (int index);
 
-    const String getInputChannelName (const int channelIndex) const;
-    const String getOutputChannelName (const int channelIndex) const;
+    const String getInputChannelName (int channelIndex) const;
+    const String getOutputChannelName (int channelIndex) const;
     bool isInputChannelStereoPair (int index) const;
     bool isOutputChannelStereoPair (int index) const;
 
@@ -63,9 +64,9 @@ public:
     void getStateInformation (MemoryBlock& destData);
     void setStateInformation (const void* data, int sizeInBytes);
 
+private:
     //==============================================================================
-    juce_UseDebuggingNewOperator
-
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FILTERCLASSNAME);
 };
 
 #endif  // HEADERGUARD

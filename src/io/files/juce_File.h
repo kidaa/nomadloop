@@ -919,9 +919,6 @@ public:
     /** Adds a separator character to the end of a path if it doesn't already have one. */
     static const String addTrailingSeparator (const String& path);
 
-    //==============================================================================
-    juce_UseDebuggingNewOperator
-
 private:
     //==============================================================================
     String fullPath;
@@ -939,8 +936,8 @@ private:
     bool setFileReadOnlyInternal (bool shouldBeReadOnly) const;
 
     static const String parseAbsolutePath (const String& path);
-    static bool fileTypeMatches (int whatToLookFor, bool isDir, bool isHidden);
 
+    JUCE_LEAK_DETECTOR (File);
 };
 
 #endif   // __JUCE_FILE_JUCEHEADER__

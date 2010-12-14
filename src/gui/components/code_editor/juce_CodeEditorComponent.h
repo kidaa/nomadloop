@@ -104,7 +104,7 @@ public:
     /** Returns the on-screen position of a character in the document.
         The rectangle returned is relative to this component's top-left origin.
     */
-    const Rectangle<int> getCharacterBounds (const CodeDocument::Position& pos) const throw();
+    const Rectangle<int> getCharacterBounds (const CodeDocument::Position& pos) const;
 
     /** Finds the character at a given on-screen position.
         The co-ordinates are relative to this component's top-left origin.
@@ -157,8 +157,7 @@ public:
         This lets you change the tab size and whether pressing the tab key inserts a
         tab character, or its equivalent number of spaces.
     */
-    void setTabSize (int numSpacesPerTab,
-                     bool insertSpacesInsteadOfTabCharacters) throw();
+    void setTabSize (int numSpacesPerTab, bool insertSpacesInsteadOfTabCharacters);
 
     /** Returns the current number of spaces per tab.
         @see setTabSize
@@ -196,7 +195,7 @@ public:
         CodeTokeniser::getTokenTypes() to get a list of the token types.
         @see setColourForTokenType
     */
-    const Colour getColourForTokenType (int tokenType) const throw();
+    const Colour getColourForTokenType (int tokenType) const;
 
     //==============================================================================
     /** A set of colour IDs to use to change the colour of various aspects of the editor.
@@ -218,7 +217,7 @@ public:
 
     //==============================================================================
     /** Changes the size of the scrollbars. */
-    void setScrollbarThickness (int thickness) throw();
+    void setScrollbarThickness (int thickness);
 
     /** Returns the thickness of the scrollbars. */
     int getScrollbarThickness() const throw()           { return scrollbarThickness; }
@@ -256,10 +255,8 @@ public:
     /** @internal */
     bool isTextInputActive() const;
 
-    //==============================================================================
-    juce_UseDebuggingNewOperator
-
 private:
+    //==============================================================================
     CodeDocument& document;
 
     Font font;
@@ -272,10 +269,11 @@ private:
 
     CodeDocument::Position caretPos;
     CodeDocument::Position selectionStart, selectionEnd;
+
     class CaretComponent;
-    CaretComponent* caret;
-    ScrollBar* verticalScrollBar;
-    ScrollBar* horizontalScrollBar;
+    friend class ScopedPointer <CaretComponent>;
+    ScopedPointer<CaretComponent> caret;
+    ScrollBar verticalScrollBar, horizontalScrollBar;
 
     enum DragType
     {
@@ -295,7 +293,7 @@ private:
     void rebuildLineTokens();
 
     OwnedArray <CodeDocument::Iterator> cachedIterators;
-    void clearCachedIterators (int firstLineToBeInvalid) throw();
+    void clearCachedIterators (int firstLineToBeInvalid);
     void updateCachedIterators (int maxLineNum);
     void getIteratorForPosition (int position, CodeDocument::Iterator& result);
     void moveLineDelta (int delta, bool selecting);
@@ -309,8 +307,7 @@ private:
     int indexToColumn (int line, int index) const throw();
     int columnToIndex (int line, int column) const throw();
 
-    CodeEditorComponent (const CodeEditorComponent&);
-    CodeEditorComponent& operator= (const CodeEditorComponent&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (CodeEditorComponent);
 };
 
 

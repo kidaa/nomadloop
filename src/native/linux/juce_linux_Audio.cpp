@@ -27,90 +27,90 @@
 // compiled on its own).
 #if JUCE_INCLUDED_FILE && JUCE_ALSA
 
-//==============================================================================
-static const int maxNumChans = 64;
-
 
 //==============================================================================
-static void getDeviceSampleRates (snd_pcm_t* handle, Array <int>& rates)
+namespace
 {
-    const int ratesToTry[] = { 22050, 32000, 44100, 48000, 88200, 96000, 176400, 192000, 0 };
-
-    snd_pcm_hw_params_t* hwParams;
-    snd_pcm_hw_params_alloca (&hwParams);
-
-    for (int i = 0; ratesToTry[i] != 0; ++i)
+    void getDeviceSampleRates (snd_pcm_t* handle, Array <int>& rates)
     {
-        if (snd_pcm_hw_params_any (handle, hwParams) >= 0
-             && snd_pcm_hw_params_test_rate (handle, hwParams, ratesToTry[i], 0) == 0)
+        const int ratesToTry[] = { 22050, 32000, 44100, 48000, 88200, 96000, 176400, 192000, 0 };
+
+        snd_pcm_hw_params_t* hwParams;
+        snd_pcm_hw_params_alloca (&hwParams);
+
+        for (int i = 0; ratesToTry[i] != 0; ++i)
         {
-            rates.addIfNotAlreadyThere (ratesToTry[i]);
-        }
-    }
-}
-
-static void getDeviceNumChannels (snd_pcm_t* handle, unsigned int* minChans, unsigned int* maxChans)
-{
-    snd_pcm_hw_params_t *params;
-    snd_pcm_hw_params_alloca (&params);
-
-    if (snd_pcm_hw_params_any (handle, params) >= 0)
-    {
-        snd_pcm_hw_params_get_channels_min (params, minChans);
-        snd_pcm_hw_params_get_channels_max (params, maxChans);
-    }
-}
-
-static void getDeviceProperties (const String& deviceID,
-                                 unsigned int& minChansOut,
-                                 unsigned int& maxChansOut,
-                                 unsigned int& minChansIn,
-                                 unsigned int& maxChansIn,
-                                 Array <int>& rates)
-{
-    if (deviceID.isEmpty())
-        return;
-
-    snd_ctl_t* handle;
-
-    if (snd_ctl_open (&handle, deviceID.upToLastOccurrenceOf (",", false, false).toUTF8(), SND_CTL_NONBLOCK) >= 0)
-    {
-        snd_pcm_info_t* info;
-        snd_pcm_info_alloca (&info);
-
-        snd_pcm_info_set_stream (info, SND_PCM_STREAM_PLAYBACK);
-        snd_pcm_info_set_device (info, deviceID.fromLastOccurrenceOf (",", false, false).getIntValue());
-        snd_pcm_info_set_subdevice (info, 0);
-
-        if (snd_ctl_pcm_info (handle, info) >= 0)
-        {
-            snd_pcm_t* pcmHandle;
-            if (snd_pcm_open (&pcmHandle, deviceID.toUTF8(), SND_PCM_STREAM_PLAYBACK, SND_PCM_ASYNC | SND_PCM_NONBLOCK ) >= 0)
+            if (snd_pcm_hw_params_any (handle, hwParams) >= 0
+                 && snd_pcm_hw_params_test_rate (handle, hwParams, ratesToTry[i], 0) == 0)
             {
-                getDeviceNumChannels (pcmHandle, &minChansOut, &maxChansOut);
-                getDeviceSampleRates (pcmHandle, rates);
-
-                snd_pcm_close (pcmHandle);
+                rates.addIfNotAlreadyThere (ratesToTry[i]);
             }
         }
+    }
 
-        snd_pcm_info_set_stream (info, SND_PCM_STREAM_CAPTURE);
+    void getDeviceNumChannels (snd_pcm_t* handle, unsigned int* minChans, unsigned int* maxChans)
+    {
+        snd_pcm_hw_params_t *params;
+        snd_pcm_hw_params_alloca (&params);
 
-        if (snd_ctl_pcm_info (handle, info) >= 0)
+        if (snd_pcm_hw_params_any (handle, params) >= 0)
         {
-            snd_pcm_t* pcmHandle;
-            if (snd_pcm_open (&pcmHandle, deviceID.toUTF8(), SND_PCM_STREAM_CAPTURE, SND_PCM_ASYNC | SND_PCM_NONBLOCK ) >= 0)
-            {
-                getDeviceNumChannels (pcmHandle, &minChansIn, &maxChansIn);
+            snd_pcm_hw_params_get_channels_min (params, minChans);
+            snd_pcm_hw_params_get_channels_max (params, maxChans);
+        }
+    }
 
-                if (rates.size() == 0)
+    void getDeviceProperties (const String& deviceID,
+                              unsigned int& minChansOut,
+                              unsigned int& maxChansOut,
+                              unsigned int& minChansIn,
+                              unsigned int& maxChansIn,
+                              Array <int>& rates)
+    {
+        if (deviceID.isEmpty())
+            return;
+
+        snd_ctl_t* handle;
+
+        if (snd_ctl_open (&handle, deviceID.upToLastOccurrenceOf (",", false, false).toUTF8(), SND_CTL_NONBLOCK) >= 0)
+        {
+            snd_pcm_info_t* info;
+            snd_pcm_info_alloca (&info);
+
+            snd_pcm_info_set_stream (info, SND_PCM_STREAM_PLAYBACK);
+            snd_pcm_info_set_device (info, deviceID.fromLastOccurrenceOf (",", false, false).getIntValue());
+            snd_pcm_info_set_subdevice (info, 0);
+
+            if (snd_ctl_pcm_info (handle, info) >= 0)
+            {
+                snd_pcm_t* pcmHandle;
+                if (snd_pcm_open (&pcmHandle, deviceID.toUTF8(), SND_PCM_STREAM_PLAYBACK, SND_PCM_ASYNC | SND_PCM_NONBLOCK) >= 0)
+                {
+                    getDeviceNumChannels (pcmHandle, &minChansOut, &maxChansOut);
                     getDeviceSampleRates (pcmHandle, rates);
 
-                snd_pcm_close (pcmHandle);
+                    snd_pcm_close (pcmHandle);
+                }
             }
-        }
 
-        snd_ctl_close (handle);
+            snd_pcm_info_set_stream (info, SND_PCM_STREAM_CAPTURE);
+
+            if (snd_ctl_pcm_info (handle, info) >= 0)
+            {
+                snd_pcm_t* pcmHandle;
+                if (snd_pcm_open (&pcmHandle, deviceID.toUTF8(), SND_PCM_STREAM_CAPTURE, SND_PCM_ASYNC | SND_PCM_NONBLOCK) >= 0)
+                {
+                    getDeviceNumChannels (pcmHandle, &minChansIn, &maxChansIn);
+
+                    if (rates.size() == 0)
+                        getDeviceSampleRates (pcmHandle, rates);
+
+                    snd_pcm_close (pcmHandle);
+                }
+            }
+
+            snd_ctl_close (handle);
+        }
     }
 }
 
@@ -118,13 +118,13 @@ static void getDeviceProperties (const String& deviceID,
 class ALSADevice
 {
 public:
-    ALSADevice (const String& deviceID,
-                const bool forInput)
+    ALSADevice (const String& deviceID, bool forInput)
         : handle (0),
           bitDepth (16),
           numChannelsRunning (0),
+          latency (0),
           isInput (forInput),
-          sampleFormat (AudioDataConverters::int16LE)
+          isInterleaved (true)
     {
         failed (snd_pcm_open (&handle, deviceID.toUTF8(),
                               forInput ? SND_PCM_STREAM_CAPTURE : SND_PCM_STREAM_PLAYBACK,
@@ -158,22 +158,26 @@ public:
             return false;
         }
 
-        const int formatsToTry[] = { SND_PCM_FORMAT_FLOAT_LE, 32, AudioDataConverters::float32LE,
-                                     SND_PCM_FORMAT_FLOAT_BE, 32, AudioDataConverters::float32BE,
-                                     SND_PCM_FORMAT_S32_LE, 32, AudioDataConverters::int32LE,
-                                     SND_PCM_FORMAT_S32_BE, 32, AudioDataConverters::int32BE,
-                                     SND_PCM_FORMAT_S24_3LE, 24, AudioDataConverters::int24LE,
-                                     SND_PCM_FORMAT_S24_3BE, 24, AudioDataConverters::int24BE,
-                                     SND_PCM_FORMAT_S16_LE, 16, AudioDataConverters::int16LE,
-                                     SND_PCM_FORMAT_S16_BE, 16, AudioDataConverters::int16BE };
+        enum { isFloatBit = 1 << 16, isLittleEndianBit = 1 << 17 };
+
+        const int formatsToTry[] = { SND_PCM_FORMAT_FLOAT_LE,   32 | isFloatBit | isLittleEndianBit,
+                                     SND_PCM_FORMAT_FLOAT_BE,   32 | isFloatBit,
+                                     SND_PCM_FORMAT_S32_LE,     32 | isLittleEndianBit,
+                                     SND_PCM_FORMAT_S32_BE,     32,
+                                     SND_PCM_FORMAT_S24_3LE,    24 | isLittleEndianBit,
+                                     SND_PCM_FORMAT_S24_3BE,    24,
+                                     SND_PCM_FORMAT_S16_LE,     16 | isLittleEndianBit,
+                                     SND_PCM_FORMAT_S16_BE,     16 };
         bitDepth = 0;
 
-        for (int i = 0; i < numElementsInArray (formatsToTry); i += 3)
+        for (int i = 0; i < numElementsInArray (formatsToTry); i += 2)
         {
             if (snd_pcm_hw_params_set_format (handle, hwParams, (_snd_pcm_format) formatsToTry [i]) >= 0)
             {
-                bitDepth = formatsToTry [i + 1];
-                sampleFormat = (AudioDataConverters::DataFormat) formatsToTry [i + 2];
+                bitDepth = formatsToTry [i + 1] & 255;
+                const bool isFloat = (formatsToTry [i + 1] & isFloatBit) != 0;
+                const bool isLittleEndian = (formatsToTry [i + 1] & isLittleEndianBit) != 0;
+                converter = createConverter (isInput, bitDepth, isFloat, isLittleEndian, numChannels);
                 break;
             }
         }
@@ -198,6 +202,14 @@ public:
             return false;
         }
 
+        snd_pcm_uframes_t frames = 0;
+
+        if (failed (snd_pcm_hw_params_get_period_size (hwParams, &frames, &dir))
+             || failed (snd_pcm_hw_params_get_periods (hwParams, &periods, &dir)))
+            latency = 0;
+        else
+            latency = frames * (periods - 1); // (this is the method JACK uses to guess the latency..)
+
         snd_pcm_sw_params_t* swParams;
         snd_pcm_sw_params_alloca (&swParams);
         snd_pcm_uframes_t boundary;
@@ -213,15 +225,13 @@ public:
             return false;
         }
 
-        /*
-#if JUCE_DEBUG
+      #if 0
         // enable this to dump the config of the devices that get opened
         snd_output_t* out;
         snd_output_stdio_attach (&out, stderr, 0);
         snd_pcm_hw_params_dump (hwParams, out);
         snd_pcm_sw_params_dump (swParams, out);
-#endif
-        */
+      #endif
 
         numChannelsRunning = numChannels;
 
@@ -229,48 +239,44 @@ public:
     }
 
     //==============================================================================
-    bool write (AudioSampleBuffer& outputChannelBuffer, const int numSamples)
+    bool writeToOutputDevice (AudioSampleBuffer& outputChannelBuffer, const int numSamples)
     {
         jassert (numChannelsRunning <= outputChannelBuffer.getNumChannels());
         float** const data = outputChannelBuffer.getArrayOfChannels();
+        snd_pcm_sframes_t numDone = 0;
 
         if (isInterleaved)
         {
             scratch.ensureSize (sizeof (float) * numSamples * numChannelsRunning, false);
-            float* interleaved = static_cast <float*> (scratch.getData());
 
-            AudioDataConverters::interleaveSamples ((const float**) data, interleaved, numSamples, numChannelsRunning);
-            AudioDataConverters::convertFloatToFormat (sampleFormat, interleaved, interleaved, numSamples * numChannelsRunning);
+            for (int i = 0; i < numChannelsRunning; ++i)
+                converter->convertSamples (scratch.getData(), i, data[i], 0, numSamples);
 
-            snd_pcm_sframes_t num = snd_pcm_writei (handle, interleaved, numSamples);
-
-            if (failed (num) && num != -EPIPE && num != -ESTRPIPE)
-                return false;
+            numDone = snd_pcm_writei (handle, scratch.getData(), numSamples);
         }
         else
         {
             for (int i = 0; i < numChannelsRunning; ++i)
-                if (data[i] != 0)
-                    AudioDataConverters::convertFloatToFormat (sampleFormat, data[i], data[i], numSamples);
+                converter->convertSamples (data[i], data[i], numSamples);
 
-            snd_pcm_sframes_t num = snd_pcm_writen (handle, (void**) data, numSamples);
+            numDone = snd_pcm_writen (handle, (void**) data, numSamples);
+        }
 
-            if (failed (num))
+        if (failed (numDone))
+        {
+            if (numDone == -EPIPE)
             {
-                if (num == -EPIPE)
-                {
-                    if (failed (snd_pcm_prepare (handle)))
-                        return false;
-                }
-                else if (num != -ESTRPIPE)
+                if (failed (snd_pcm_prepare (handle)))
                     return false;
             }
+            else if (numDone != -ESTRPIPE)
+                return false;
         }
 
         return true;
     }
 
-    bool read (AudioSampleBuffer& inputChannelBuffer, const int numSamples)
+    bool readFromInputDevice (AudioSampleBuffer& inputChannelBuffer, const int numSamples)
     {
         jassert (numChannelsRunning <= inputChannelBuffer.getNumChannels());
         float** const data = inputChannelBuffer.getArrayOfChannels();
@@ -278,9 +284,9 @@ public:
         if (isInterleaved)
         {
             scratch.ensureSize (sizeof (float) * numSamples * numChannelsRunning, false);
-            float* interleaved = static_cast <float*> (scratch.getData());
+            scratch.fillWith (0); // (not clearing this data causes warnings in valgrind)
 
-            snd_pcm_sframes_t num = snd_pcm_readi (handle, interleaved, numSamples);
+            snd_pcm_sframes_t num = snd_pcm_readi (handle, scratch.getData(), numSamples);
 
             if (failed (num))
             {
@@ -293,8 +299,8 @@ public:
                     return false;
             }
 
-            AudioDataConverters::convertFormatToFloat (sampleFormat, interleaved, interleaved, numSamples * numChannelsRunning);
-            AudioDataConverters::deinterleaveSamples (interleaved, data, numSamples, numChannelsRunning);
+            for (int i = 0; i < numChannelsRunning; ++i)
+                converter->convertSamples (data[i], 0, scratch.getData(), i, numSamples);
         }
         else
         {
@@ -304,26 +310,64 @@ public:
                 return false;
 
             for (int i = 0; i < numChannelsRunning; ++i)
-                if (data[i] != 0)
-                    AudioDataConverters::convertFormatToFloat (sampleFormat, data[i], data[i], numSamples);
+                converter->convertSamples (data[i], data[i], numSamples);
         }
 
         return true;
     }
 
     //==============================================================================
-    juce_UseDebuggingNewOperator
-
     snd_pcm_t* handle;
     String error;
-    int bitDepth, numChannelsRunning;
+    int bitDepth, numChannelsRunning, latency;
 
     //==============================================================================
 private:
     const bool isInput;
     bool isInterleaved;
     MemoryBlock scratch;
-    AudioDataConverters::DataFormat sampleFormat;
+    ScopedPointer<AudioData::Converter> converter;
+
+    //==============================================================================
+    template <class SampleType>
+    struct ConverterHelper
+    {
+        static AudioData::Converter* createConverter (const bool forInput, const bool isLittleEndian, const int numInterleavedChannels)
+        {
+            if (forInput)
+            {
+                typedef AudioData::Pointer <AudioData::Float32, AudioData::NativeEndian, AudioData::NonInterleaved, AudioData::NonConst> DestType;
+
+                if (isLittleEndian)
+                    return new AudioData::ConverterInstance <AudioData::Pointer <SampleType, AudioData::LittleEndian, AudioData::Interleaved, AudioData::Const>, DestType> (numInterleavedChannels, 1);
+                else
+                    return new AudioData::ConverterInstance <AudioData::Pointer <SampleType, AudioData::BigEndian, AudioData::Interleaved, AudioData::Const>, DestType> (numInterleavedChannels, 1);
+            }
+            else
+            {
+                typedef AudioData::Pointer <AudioData::Float32, AudioData::NativeEndian, AudioData::NonInterleaved, AudioData::Const> SourceType;
+
+                if (isLittleEndian)
+                    return new AudioData::ConverterInstance <SourceType, AudioData::Pointer <SampleType, AudioData::LittleEndian, AudioData::Interleaved, AudioData::NonConst> > (1, numInterleavedChannels);
+                else
+                    return new AudioData::ConverterInstance <SourceType, AudioData::Pointer <SampleType, AudioData::BigEndian, AudioData::Interleaved, AudioData::NonConst> > (1, numInterleavedChannels);
+            }
+        }
+    };
+
+    static AudioData::Converter* createConverter (const bool forInput, const int bitDepth, const bool isFloat, const bool isLittleEndian, const int numInterleavedChannels)
+    {
+        switch (bitDepth)
+        {
+            case 16:    return ConverterHelper <AudioData::Int16>::createConverter (forInput, isLittleEndian,  numInterleavedChannels);
+            case 24:    return ConverterHelper <AudioData::Int24>::createConverter (forInput, isLittleEndian,  numInterleavedChannels);
+            case 32:    return isFloat ? ConverterHelper <AudioData::Float32>::createConverter (forInput, isLittleEndian,  numInterleavedChannels)
+                                       : ConverterHelper <AudioData::Int32>::createConverter (forInput, isLittleEndian,  numInterleavedChannels);
+            default:    jassertfalse; break; // unsupported format!
+        }
+
+        return 0;
+    }
 
     //==============================================================================
     bool failed (const int errorNum)
@@ -335,6 +379,8 @@ private:
         DBG ("ALSA error: " + error + "\n");
         return true;
     }
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ALSADevice);
 };
 
 //==============================================================================
@@ -346,6 +392,8 @@ public:
         : Thread ("Juce ALSA"),
           sampleRate (0),
           bufferSize (0),
+          outputLatency (0),
+          inputLatency (0),
           callback (0),
           inputId (inputId_),
           outputId (outputId_),
@@ -427,6 +475,8 @@ public:
                 outputDevice = 0;
                 return;
             }
+
+            outputLatency = outputDevice->latency;
         }
 
         if (inputChannelDataForCallback.size() > 0 && inputId.isNotEmpty())
@@ -450,6 +500,8 @@ public:
                 inputDevice = 0;
                 return;
             }
+
+            inputLatency = inputDevice->latency;
         }
 
         if (outputDevice == 0 && inputDevice == 0)
@@ -510,7 +562,7 @@ public:
         {
             if (inputDevice != 0)
             {
-                if (! inputDevice->read (inputChannelBuffer, bufferSize))
+                if (! inputDevice->readFromInputDevice (inputChannelBuffer, bufferSize))
                 {
                     DBG ("ALSA: read failure");
                     break;
@@ -548,7 +600,7 @@ public:
 
                 failed (snd_pcm_avail_update (outputDevice->handle));
 
-                if (! outputDevice->write (outputChannelBuffer, bufferSize))
+                if (! outputDevice->writeToOutputDevice (outputChannelBuffer, bufferSize))
                 {
                     DBG ("ALSA: write failure");
                     break;
@@ -569,11 +621,9 @@ public:
     }
 
     //==============================================================================
-    juce_UseDebuggingNewOperator
-
     String error;
     double sampleRate;
-    int bufferSize;
+    int bufferSize, outputLatency, inputLatency;
     BigInteger currentInputChans, currentOutputChans;
 
     Array <int> sampleRates;
@@ -625,6 +675,8 @@ private:
         for (i = 0; i < maxChansIn; ++i)
             channelNamesIn.add ("channel " + String ((int) i + 1));
     }
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ALSAThread);
 };
 
 
@@ -648,30 +700,14 @@ public:
     {
     }
 
-    const StringArray getOutputChannelNames()
-    {
-        return internal.channelNamesOut;
-    }
+    const StringArray getOutputChannelNames()       { return internal.channelNamesOut; }
+    const StringArray getInputChannelNames()        { return internal.channelNamesIn; }
 
-    const StringArray getInputChannelNames()
-    {
-        return internal.channelNamesIn;
-    }
+    int getNumSampleRates()                         { return internal.sampleRates.size(); }
+    double getSampleRate (int index)                { return internal.sampleRates [index]; }
 
-    int getNumSampleRates()
-    {
-        return internal.sampleRates.size();
-    }
-
-    double getSampleRate (int index)
-    {
-        return internal.sampleRates [index];
-    }
-
-    int getNumBufferSizesAvailable()
-    {
-        return 50;
-    }
+    int getDefaultBufferSize()                      { return 512; }
+    int getNumBufferSizesAvailable()                { return 50; }
 
     int getBufferSizeSamples (int index)
     {
@@ -683,11 +719,6 @@ public:
                                                : (n < 2048 ? 128 : 256)));
 
         return n;
-    }
-
-    int getDefaultBufferSize()
-    {
-        return 512;
     }
 
     const String open (const BigInteger& inputChannels,
@@ -726,45 +757,19 @@ public:
         isOpen_ = false;
     }
 
-    bool isOpen()
-    {
-        return isOpen_;
-    }
+    bool isOpen()                           { return isOpen_; }
+    bool isPlaying()                        { return isStarted && internal.error.isEmpty(); }
+    const String getLastError()             { return internal.error; }
 
-    int getCurrentBufferSizeSamples()
-    {
-        return internal.bufferSize;
-    }
+    int getCurrentBufferSizeSamples()       { return internal.bufferSize; }
+    double getCurrentSampleRate()           { return internal.sampleRate; }
+    int getCurrentBitDepth()                { return internal.getBitDepth(); }
 
-    double getCurrentSampleRate()
-    {
-        return internal.sampleRate;
-    }
+    const BigInteger getActiveOutputChannels() const    { return internal.currentOutputChans; }
+    const BigInteger getActiveInputChannels() const     { return internal.currentInputChans; }
 
-    int getCurrentBitDepth()
-    {
-        return internal.getBitDepth();
-    }
-
-    const BigInteger getActiveOutputChannels() const
-    {
-        return internal.currentOutputChans;
-    }
-
-    const BigInteger getActiveInputChannels() const
-    {
-        return internal.currentInputChans;
-    }
-
-    int getOutputLatencyInSamples()
-    {
-        return 0;
-    }
-
-    int getInputLatencyInSamples()
-    {
-        return 0;
-    }
+    int getOutputLatencyInSamples()         { return internal.outputLatency; }
+    int getInputLatencyInSamples()          { return internal.inputLatency; }
 
     void start (AudioIODeviceCallback* callback)
     {
@@ -787,16 +792,6 @@ public:
 
         if (oldCallback != 0)
             oldCallback->audioDeviceStopped();
-    }
-
-    bool isPlaying()
-    {
-        return isStarted && internal.error.isEmpty();
-    }
-
-    const String getLastError()
-    {
-        return internal.error;
     }
 
     String inputId, outputId;
@@ -834,8 +829,44 @@ public:
         outputNames.clear();
         outputIds.clear();
 
-        snd_ctl_t* handle;
-        snd_ctl_card_info_t* info;
+/*        void** hints = 0;
+        if (snd_device_name_hint (-1, "pcm", &hints) >= 0)
+        {
+            for (void** hint = hints; *hint != 0; ++hint)
+            {
+                const String name (getHint (*hint, "NAME"));
+
+                if (name.isNotEmpty())
+                {
+                    const String ioid (getHint (*hint, "IOID"));
+
+                    String desc (getHint (*hint, "DESC"));
+                    if (desc.isEmpty())
+                        desc = name;
+
+                    desc = desc.replaceCharacters ("\n\r", "  ");
+
+                    DBG ("name: " << name << "\ndesc: " << desc << "\nIO: " << ioid);
+
+                    if (ioid.isEmpty() || ioid == "Input")
+                    {
+                        inputNames.add (desc);
+                        inputIds.add (name);
+                    }
+
+                    if (ioid.isEmpty() || ioid == "Output")
+                    {
+                        outputNames.add (desc);
+                        outputIds.add (name);
+                    }
+                }
+            }
+
+            snd_device_name_free_hint (hints);
+        }
+*/
+        snd_ctl_t* handle = 0;
+        snd_ctl_card_info_t* info = 0;
         snd_ctl_card_info_alloca (&info);
 
         int cardNum = -1;
@@ -945,8 +976,6 @@ public:
     }
 
     //==============================================================================
-    juce_UseDebuggingNewOperator
-
 private:
     StringArray inputNames, outputNames, inputIds, outputIds;
     bool hasScanned;
@@ -970,8 +999,15 @@ private:
         return (isInput || isOutput) && rates.size() > 0;
     }
 
-    ALSAAudioIODeviceType (const ALSAAudioIODeviceType&);
-    ALSAAudioIODeviceType& operator= (const ALSAAudioIODeviceType&);
+    /*static const String getHint (void* hint, const char* type)
+    {
+        char* const n = snd_device_name_get_hint (hint, type);
+        const String s ((const char*) n);
+        free (n);
+        return s;
+    }*/
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ALSAAudioIODeviceType);
 };
 
 //==============================================================================

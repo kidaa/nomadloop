@@ -29,124 +29,127 @@
 #if JUCE_ALSA
 
 //==============================================================================
-static snd_seq_t* iterateDevices (const bool forInput,
-                                  StringArray& deviceNamesFound,
-                                  const int deviceIndexToOpen)
+namespace
 {
-    snd_seq_t* returnedHandle = 0;
-    snd_seq_t* seqHandle;
-
-    if (snd_seq_open (&seqHandle, "default", forInput ? SND_SEQ_OPEN_INPUT
-                                                      : SND_SEQ_OPEN_OUTPUT, 0) == 0)
+    snd_seq_t* iterateMidiDevices (const bool forInput,
+                                   StringArray& deviceNamesFound,
+                                   const int deviceIndexToOpen)
     {
-        snd_seq_system_info_t* systemInfo;
-        snd_seq_client_info_t* clientInfo;
+        snd_seq_t* returnedHandle = 0;
+        snd_seq_t* seqHandle;
 
-        if (snd_seq_system_info_malloc (&systemInfo) == 0)
+        if (snd_seq_open (&seqHandle, "default", forInput ? SND_SEQ_OPEN_INPUT
+                                                          : SND_SEQ_OPEN_OUTPUT, 0) == 0)
         {
-            if (snd_seq_system_info (seqHandle, systemInfo) == 0
-                 && snd_seq_client_info_malloc (&clientInfo) == 0)
+            snd_seq_system_info_t* systemInfo;
+            snd_seq_client_info_t* clientInfo;
+
+            if (snd_seq_system_info_malloc (&systemInfo) == 0)
             {
-                int numClients = snd_seq_system_info_get_cur_clients (systemInfo);
-
-                while (--numClients >= 0 && returnedHandle == 0)
+                if (snd_seq_system_info (seqHandle, systemInfo) == 0
+                     && snd_seq_client_info_malloc (&clientInfo) == 0)
                 {
-                    if (snd_seq_query_next_client (seqHandle, clientInfo) == 0)
+                    int numClients = snd_seq_system_info_get_cur_clients (systemInfo);
+
+                    while (--numClients >= 0 && returnedHandle == 0)
                     {
-                        snd_seq_port_info_t* portInfo;
-                        if (snd_seq_port_info_malloc (&portInfo) == 0)
+                        if (snd_seq_query_next_client (seqHandle, clientInfo) == 0)
                         {
-                            int numPorts = snd_seq_client_info_get_num_ports (clientInfo);
-                            const int client = snd_seq_client_info_get_client (clientInfo);
-
-                            snd_seq_port_info_set_client (portInfo, client);
-                            snd_seq_port_info_set_port (portInfo, -1);
-
-                            while (--numPorts >= 0)
+                            snd_seq_port_info_t* portInfo;
+                            if (snd_seq_port_info_malloc (&portInfo) == 0)
                             {
-                                if (snd_seq_query_next_port (seqHandle, portInfo) == 0
-                                     && (snd_seq_port_info_get_capability (portInfo)
-                                           & (forInput ? SND_SEQ_PORT_CAP_READ
-                                                       : SND_SEQ_PORT_CAP_WRITE)) != 0)
+                                int numPorts = snd_seq_client_info_get_num_ports (clientInfo);
+                                const int client = snd_seq_client_info_get_client (clientInfo);
+
+                                snd_seq_port_info_set_client (portInfo, client);
+                                snd_seq_port_info_set_port (portInfo, -1);
+
+                                while (--numPorts >= 0)
                                 {
-                                    deviceNamesFound.add (snd_seq_client_info_get_name (clientInfo));
-
-                                    if (deviceNamesFound.size() == deviceIndexToOpen + 1)
+                                    if (snd_seq_query_next_port (seqHandle, portInfo) == 0
+                                         && (snd_seq_port_info_get_capability (portInfo)
+                                               & (forInput ? SND_SEQ_PORT_CAP_READ
+                                                           : SND_SEQ_PORT_CAP_WRITE)) != 0)
                                     {
-                                        const int sourcePort = snd_seq_port_info_get_port (portInfo);
-                                        const int sourceClient = snd_seq_client_info_get_client (clientInfo);
+                                        deviceNamesFound.add (snd_seq_client_info_get_name (clientInfo));
 
-                                        if (sourcePort != -1)
+                                        if (deviceNamesFound.size() == deviceIndexToOpen + 1)
                                         {
-                                            snd_seq_set_client_name (seqHandle,
-                                                                     forInput ? "Juce Midi Input"
-                                                                              : "Juce Midi Output");
+                                            const int sourcePort = snd_seq_port_info_get_port (portInfo);
+                                            const int sourceClient = snd_seq_client_info_get_client (clientInfo);
 
-                                            const int portId
-                                                = snd_seq_create_simple_port (seqHandle,
-                                                                              forInput ? "Juce Midi In Port"
-                                                                                       : "Juce Midi Out Port",
-                                                                              forInput ? (SND_SEQ_PORT_CAP_WRITE | SND_SEQ_PORT_CAP_SUBS_WRITE)
-                                                                                       : (SND_SEQ_PORT_CAP_READ | SND_SEQ_PORT_CAP_SUBS_READ),
-                                                                              SND_SEQ_PORT_TYPE_MIDI_GENERIC);
+                                            if (sourcePort != -1)
+                                            {
+                                                snd_seq_set_client_name (seqHandle,
+                                                                         forInput ? "Juce Midi Input"
+                                                                                  : "Juce Midi Output");
 
-                                            snd_seq_connect_from (seqHandle, portId, sourceClient, sourcePort);
+                                                const int portId
+                                                    = snd_seq_create_simple_port (seqHandle,
+                                                                                  forInput ? "Juce Midi In Port"
+                                                                                           : "Juce Midi Out Port",
+                                                                                  forInput ? (SND_SEQ_PORT_CAP_WRITE | SND_SEQ_PORT_CAP_SUBS_WRITE)
+                                                                                           : (SND_SEQ_PORT_CAP_READ | SND_SEQ_PORT_CAP_SUBS_READ),
+                                                                                  SND_SEQ_PORT_TYPE_MIDI_GENERIC);
 
-                                            returnedHandle = seqHandle;
+                                                snd_seq_connect_from (seqHandle, portId, sourceClient, sourcePort);
+
+                                                returnedHandle = seqHandle;
+                                            }
                                         }
                                     }
                                 }
-                            }
 
-                            snd_seq_port_info_free (portInfo);
+                                snd_seq_port_info_free (portInfo);
+                            }
                         }
                     }
+
+                    snd_seq_client_info_free (clientInfo);
                 }
 
-                snd_seq_client_info_free (clientInfo);
+                snd_seq_system_info_free (systemInfo);
             }
 
-            snd_seq_system_info_free (systemInfo);
+            if (returnedHandle == 0)
+                snd_seq_close (seqHandle);
         }
 
-        if (returnedHandle == 0)
-            snd_seq_close (seqHandle);
+        deviceNamesFound.appendNumbersToDuplicates (true, true);
+
+        return returnedHandle;
     }
 
-    deviceNamesFound.appendNumbersToDuplicates (true, true);
-
-    return returnedHandle;
-}
-
-static snd_seq_t* createDevice (const bool forInput,
-                                const String& deviceNameToOpen)
-{
-    snd_seq_t* seqHandle = 0;
-
-    if (snd_seq_open (&seqHandle, "default", forInput ? SND_SEQ_OPEN_INPUT
-                                                      : SND_SEQ_OPEN_OUTPUT, 0) == 0)
+    snd_seq_t* createMidiDevice (const bool forInput, const String& deviceNameToOpen)
     {
-        snd_seq_set_client_name (seqHandle,
-                                 (deviceNameToOpen + (forInput ? " Input" : " Output")).toCString());
+        snd_seq_t* seqHandle = 0;
 
-        const int portId
-            = snd_seq_create_simple_port (seqHandle,
-                                          forInput ? "in"
-                                                   : "out",
-                                          forInput ? (SND_SEQ_PORT_CAP_WRITE | SND_SEQ_PORT_CAP_SUBS_WRITE)
-                                                   : (SND_SEQ_PORT_CAP_READ | SND_SEQ_PORT_CAP_SUBS_READ),
-                                          forInput ? SND_SEQ_PORT_TYPE_APPLICATION
-                                                   : SND_SEQ_PORT_TYPE_MIDI_GENERIC);
-
-        if (portId < 0)
+        if (snd_seq_open (&seqHandle, "default", forInput ? SND_SEQ_OPEN_INPUT
+                                                          : SND_SEQ_OPEN_OUTPUT, 0) == 0)
         {
-            snd_seq_close (seqHandle);
-            seqHandle = 0;
-        }
-    }
+            snd_seq_set_client_name (seqHandle,
+                                     (deviceNameToOpen + (forInput ? " Input" : " Output")).toCString());
 
-    return seqHandle;
+            const int portId
+                = snd_seq_create_simple_port (seqHandle,
+                                              forInput ? "in"
+                                                       : "out",
+                                              forInput ? (SND_SEQ_PORT_CAP_WRITE | SND_SEQ_PORT_CAP_SUBS_WRITE)
+                                                       : (SND_SEQ_PORT_CAP_READ | SND_SEQ_PORT_CAP_SUBS_READ),
+                                              forInput ? SND_SEQ_PORT_TYPE_APPLICATION
+                                                       : SND_SEQ_PORT_TYPE_MIDI_GENERIC);
+
+            if (portId < 0)
+            {
+                snd_seq_close (seqHandle);
+                seqHandle = 0;
+            }
+        }
+
+        return seqHandle;
+    }
 }
+
 
 //==============================================================================
 class MidiOutputDevice
@@ -196,19 +199,19 @@ public:
         snd_seq_drain_output (seqHandle);
     }
 
-    juce_UseDebuggingNewOperator
-
 private:
     MidiOutput* const midiOutput;
     snd_seq_t* const seqHandle;
     snd_midi_event_t* midiParser;
     int maxEventSize;
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MidiOutputDevice);
 };
 
 const StringArray MidiOutput::getDevices()
 {
     StringArray devices;
-    iterateDevices (false, devices, -1);
+    iterateMidiDevices (false, devices, -1);
     return devices;
 }
 
@@ -222,7 +225,7 @@ MidiOutput* MidiOutput::openDevice (int deviceIndex)
     MidiOutput* newDevice = 0;
 
     StringArray devices;
-    snd_seq_t* const handle = iterateDevices (false, devices, deviceIndex);
+    snd_seq_t* const handle = iterateMidiDevices (false, devices, deviceIndex);
 
     if (handle != 0)
     {
@@ -237,7 +240,7 @@ MidiOutput* MidiOutput::createNewDevice (const String& deviceName)
 {
     MidiOutput* newDevice = 0;
 
-    snd_seq_t* const handle = createDevice (false, deviceName);
+    snd_seq_t* const handle = createMidiDevice (false, deviceName);
 
     if (handle != 0)
     {
@@ -250,8 +253,7 @@ MidiOutput* MidiOutput::createNewDevice (const String& deviceName)
 
 MidiOutput::~MidiOutput()
 {
-    MidiOutputDevice* const device = (MidiOutputDevice*) internal;
-    delete device;
+    delete static_cast <MidiOutputDevice*> (internal);
 }
 
 void MidiOutput::reset()
@@ -269,7 +271,7 @@ void MidiOutput::setVolume (float leftVol, float rightVol)
 
 void MidiOutput::sendMessageNow (const MidiMessage& message)
 {
-    ((MidiOutputDevice*) internal)->sendMessageNow (message);
+    static_cast <MidiOutputDevice*> (internal)->sendMessageNow (message);
 }
 
 
@@ -347,12 +349,12 @@ public:
         }
     };
 
-    juce_UseDebuggingNewOperator
-
 private:
     MidiInput* const midiInput;
     snd_seq_t* const seqHandle;
     MidiInputCallback* const callback;
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MidiInputThread);
 };
 
 //==============================================================================
@@ -365,18 +367,17 @@ MidiInput::MidiInput (const String& name_)
 MidiInput::~MidiInput()
 {
     stop();
-    MidiInputThread* const thread = (MidiInputThread*) internal;
-    delete thread;
+    delete static_cast <MidiInputThread*> (internal);
 }
 
 void MidiInput::start()
 {
-    ((MidiInputThread*) internal)->startThread();
+    static_cast <MidiInputThread*> (internal)->startThread();
 }
 
 void MidiInput::stop()
 {
-    ((MidiInputThread*) internal)->stopThread (3000);
+    static_cast <MidiInputThread*> (internal)->stopThread (3000);
 }
 
 int MidiInput::getDefaultDeviceIndex()
@@ -387,7 +388,7 @@ int MidiInput::getDefaultDeviceIndex()
 const StringArray MidiInput::getDevices()
 {
     StringArray devices;
-    iterateDevices (true, devices, -1);
+    iterateMidiDevices (true, devices, -1);
     return devices;
 }
 
@@ -396,7 +397,7 @@ MidiInput* MidiInput::openDevice (int deviceIndex, MidiInputCallback* callback)
     MidiInput* newDevice = 0;
 
     StringArray devices;
-    snd_seq_t* const handle = iterateDevices (true, devices, deviceIndex);
+    snd_seq_t* const handle = iterateMidiDevices (true, devices, deviceIndex);
 
     if (handle != 0)
     {
@@ -411,7 +412,7 @@ MidiInput* MidiInput::createNewDevice (const String& deviceName, MidiInputCallba
 {
     MidiInput* newDevice = 0;
 
-    snd_seq_t* const handle = createDevice (true, deviceName);
+    snd_seq_t* const handle = createMidiDevice (true, deviceName);
 
     if (handle != 0)
     {

@@ -54,6 +54,7 @@ public:
     void selectionChanged();
     void fileClicked (const File& file, const MouseEvent& e);
     void fileDoubleClicked (const File& file);
+    void showFile (const File& file);
     //[/UserMethods]
 
     void paint (Graphics& g);
@@ -73,7 +74,7 @@ private:
 
     AudioSourcePlayer audioSourcePlayer;
     AudioTransportSource transportSource;
-    AudioFormatReaderSource* currentAudioFileSource;
+    ScopedPointer<AudioFormatReaderSource> currentAudioFileSource;
 
     void loadFileIntoTransport (const File& audioFile);
     //[/UserVariables]

@@ -238,8 +238,6 @@ public:
 
 
     //==============================================================================
-    juce_UseDebuggingNewOperator
-
     /** @internal */
     void resized();
     /** @internal */
@@ -254,6 +252,7 @@ public:
     bool useMouseWheelMoveIfNeeded (const MouseEvent& e, float wheelIncrementX, float wheelIncrementY);
 
 private:
+    //==============================================================================
     Component::SafePointer<Component> contentComp;
     Rectangle<int> lastVisibleArea;
     int scrollBarThickness;
@@ -264,9 +263,9 @@ private:
     ScrollBar horizontalScrollBar;
 
     void updateVisibleArea();
+    void deleteContentComp();
 
-    Viewport (const Viewport&);
-    Viewport& operator= (const Viewport&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Viewport);
 };
 
 

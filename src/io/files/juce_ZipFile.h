@@ -128,23 +128,45 @@ public:
     */
     InputStream* createStreamForEntry (int index);
 
+    /** Creates a stream that can read from one of the zip file's entries.
+
+        The stream that is returned must be deleted by the caller (and
+        zero might be returned if a stream can't be opened for some reason).
+
+        The stream must not be used after the ZipFile object that created
+        has been deleted.
+    */
+    InputStream* createStreamForEntry (ZipEntry& entry);
+
     //==============================================================================
     /** Uncompresses all of the files in the zip file.
 
-        This will expand all the entires into a target directory. The relative
+        This will expand all the entries into a target directory. The relative
         paths of the entries are used.
 
         @param targetDirectory      the root folder to uncompress to
         @param shouldOverwriteFiles whether to overwrite existing files with similarly-named ones
+        @returns true if all the files are successfully unzipped
     */
-    void uncompressTo (const File& targetDirectory,
+    bool uncompressTo (const File& targetDirectory,
                        bool shouldOverwriteFiles = true);
 
+    /** Uncompresses one of the entries from the zip file.
 
-    //==============================================================================
-    juce_UseDebuggingNewOperator
+        This will expand the entry and write it in a target directory. The entry's path is used to
+        determine which subfolder of the target should contain the new file.
+
+        @param index                the index of the entry to uncompress
+        @param targetDirectory      the root folder to uncompress into
+        @param shouldOverwriteFiles whether to overwrite existing files with similarly-named ones
+        @returns true if the files is successfully unzipped
+    */
+    bool uncompressEntry (int index,
+                          const File& targetDirectory,
+                          bool shouldOverwriteFiles = true);
 
 private:
+    //==============================================================================
     class ZipInputStream;
     class ZipFilenameComparator;
     class ZipEntryInfo;
@@ -163,11 +185,10 @@ private:
 #endif
 
     void init();
-    int findEndOfZipEntryTable (InputStream* in, int& numEntries);
+    int findEndOfZipEntryTable (InputStream& input, int& numEntries);
     static int compareElements (const ZipEntryInfo* first, const ZipEntryInfo* second);
 
-    ZipFile (const ZipFile&);
-    ZipFile& operator= (const ZipFile&);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ZipFile);
 };
 
 #endif   // __JUCE_ZIPFILE_JUCEHEADER__

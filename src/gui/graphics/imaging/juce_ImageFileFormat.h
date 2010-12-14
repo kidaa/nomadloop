@@ -138,7 +138,7 @@ public:
 
 //==============================================================================
 /**
-    A type of ImageFileFormat for reading and writing PNG files.
+    A subclass of ImageFileFormat for reading and writing PNG files.
 
     @see ImageFileFormat, JPEGImageFormat
 */
@@ -152,16 +152,14 @@ public:
     //==============================================================================
     const String getFormatName();
     bool canUnderstand (InputStream& input);
-
     const Image decodeImage (InputStream& input);
-
     bool writeImageToStream (const Image& sourceImage, OutputStream& destStream);
 };
 
 
 //==============================================================================
 /**
-    A type of ImageFileFormat for reading and writing JPEG files.
+    A subclass of ImageFileFormat for reading and writing JPEG files.
 
     @see ImageFileFormat, PNGImageFormat
 */
@@ -178,21 +176,37 @@ public:
         @param newQuality  a value 0 to 1.0, where 0 is low quality, 1.0 is best, or
                            any negative value is "default" quality
     */
-    void setQuality (const float newQuality);
+    void setQuality (float newQuality);
 
     //==============================================================================
     const String getFormatName();
-
     bool canUnderstand (InputStream& input);
-
     const Image decodeImage (InputStream& input);
-
     bool writeImageToStream (const Image& sourceImage, OutputStream& destStream);
 
 private:
     float quality;
 };
 
+//==============================================================================
+/**
+    A subclass of ImageFileFormat for reading GIF files.
+
+    @see ImageFileFormat, PNGImageFormat, JPEGImageFormat
+*/
+class JUCE_API  GIFImageFormat  : public ImageFileFormat
+{
+public:
+    //==============================================================================
+    GIFImageFormat();
+    ~GIFImageFormat();
+
+    //==============================================================================
+    const String getFormatName();
+    bool canUnderstand (InputStream& input);
+    const Image decodeImage (InputStream& input);
+    bool writeImageToStream (const Image& sourceImage, OutputStream& destStream);
+};
 
 
 #endif   // __JUCE_IMAGEFILEFORMAT_JUCEHEADER__
