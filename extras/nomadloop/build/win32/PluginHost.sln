@@ -1,18 +1,9 @@
 ﻿
-Microsoft Visual Studio Solution File, Format Version 10.00
-# Visual C++ Express 2008
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "NomadLoop", "PluginHost.vcproj", "{A20203D2-E1C3-48E3-89DD-401D5731DCC0}"
-	ProjectSection(ProjectDependencies) = postProject
-		{AE232C11-D91C-4CA1-B24E-8B11A52EFF26} = {AE232C11-D91C-4CA1-B24E-8B11A52EFF26}
-		{E07A891C-678B-4EFF-B3BF-2FB462705262} = {E07A891C-678B-4EFF-B3BF-2FB462705262}
-		{39DADE4E-B715-4809-AD10-2F5A4213D633} = {39DADE4E-B715-4809-AD10-2F5A4213D633}
-	EndProjectSection
+Microsoft Visual Studio Solution File, Format Version 11.00
+# Visual C++ Express 2010
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "NomadLoop", "PluginHost.vcxproj", "{A20203D2-E1C3-48E3-89DD-401D5731DCC0}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "JUCE", "..\..\..\..\build\win32\vc8\JUCE.vcproj", "{AE232C11-D91C-4CA1-B24E-8B11A52EFF26}"
-EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "HarmScalePlugin", "..\..\plugins\harmscale\build\win32\JuceDemoPlugin.vcproj", "{39DADE4E-B715-4809-AD10-2F5A4213D633}"
-EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GrooveGridPlugin", "..\..\plugins\groovegrid\build\win32\GrooveGridPlugin.vcproj", "{E07A891C-678B-4EFF-B3BF-2FB462705262}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -38,22 +29,6 @@ Global
 		{AE232C11-D91C-4CA1-B24E-8B11A52EFF26}.DLL Release|Win32.Build.0 = DLL Release|Win32
 		{AE232C11-D91C-4CA1-B24E-8B11A52EFF26}.Release|Win32.ActiveCfg = Release|Win32
 		{AE232C11-D91C-4CA1-B24E-8B11A52EFF26}.Release|Win32.Build.0 = Release|Win32
-		{39DADE4E-B715-4809-AD10-2F5A4213D633}.Debug|Win32.ActiveCfg = Debug|Win32
-		{39DADE4E-B715-4809-AD10-2F5A4213D633}.Debug|Win32.Build.0 = Debug|Win32
-		{39DADE4E-B715-4809-AD10-2F5A4213D633}.DLL Debug|Win32.ActiveCfg = Debug|Win32
-		{39DADE4E-B715-4809-AD10-2F5A4213D633}.DLL Debug|Win32.Build.0 = Debug|Win32
-		{39DADE4E-B715-4809-AD10-2F5A4213D633}.DLL Release|Win32.ActiveCfg = Release|Win32
-		{39DADE4E-B715-4809-AD10-2F5A4213D633}.DLL Release|Win32.Build.0 = Release|Win32
-		{39DADE4E-B715-4809-AD10-2F5A4213D633}.Release|Win32.ActiveCfg = Release|Win32
-		{39DADE4E-B715-4809-AD10-2F5A4213D633}.Release|Win32.Build.0 = Release|Win32
-		{E07A891C-678B-4EFF-B3BF-2FB462705262}.Debug|Win32.ActiveCfg = Debug|Win32
-		{E07A891C-678B-4EFF-B3BF-2FB462705262}.Debug|Win32.Build.0 = Debug|Win32
-		{E07A891C-678B-4EFF-B3BF-2FB462705262}.DLL Debug|Win32.ActiveCfg = Debug|Win32
-		{E07A891C-678B-4EFF-B3BF-2FB462705262}.DLL Debug|Win32.Build.0 = Debug|Win32
-		{E07A891C-678B-4EFF-B3BF-2FB462705262}.DLL Release|Win32.ActiveCfg = Release|Win32
-		{E07A891C-678B-4EFF-B3BF-2FB462705262}.DLL Release|Win32.Build.0 = Release|Win32
-		{E07A891C-678B-4EFF-B3BF-2FB462705262}.Release|Win32.ActiveCfg = Release|Win32
-		{E07A891C-678B-4EFF-B3BF-2FB462705262}.Release|Win32.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

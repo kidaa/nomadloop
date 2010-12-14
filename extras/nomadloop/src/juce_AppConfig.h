@@ -38,14 +38,14 @@
     to an explicit 0 or 1 in here.
 */
 
-#define NOMAD_STATIC_LINK_PLUGINS 1
+//#define NOMAD_STATIC_LINK_PLUGINS 1
 
 #if !(LINUX)
 
 #define JUCE_ObjCExtraSuffix NomadLoop
 #define JUCE_NAMESPACE NomadJuce
 
-#define JUCE_PLUGINHOST_VST  0
+#define JUCE_PLUGINHOST_VST  1
 #define JUCE_PLUGINHOST_AU  1
 #define JUCE_SUPPORT_CARBON 1
 #else
@@ -58,7 +58,7 @@
 //#define JUCE_ONLY_BUILD_CORE_LIBRARY   1
 //#define JUCE_FORCE_DEBUG  1
 //#define JUCE_LOG_ASSERTIONS  1
-//#define JUCE_ASIO  1
+#define JUCE_ASIO  1
 //#define JUCE_ALSA  1
 #define JUCE_QUICKTIME  0
 #define JUCE_OPENGL  0

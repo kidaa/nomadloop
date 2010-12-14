@@ -1,6 +1,6 @@
 #include "UtilityFilters.h"
-#include "MidiDeviceManager.h"
-#include "MainHostWindow.h"
+#include "../host/MidiDeviceManager.h"
+#include "../host/MainHostWindow.h"
 
 GainCut::GainCut() : gain(0), gainToRampTo(0)
 {

@@ -59,7 +59,7 @@ void MidiUtilityFilter::processBlock(AudioSampleBuffer &sampleBuffer, MidiBuffer
 	
 	if (triggerSend)
 	{
-		for (int c=0; c<15; ++c)
+		for (int c=1; c<=16; ++c)
 		{
 			// program change
 			midiBuffer.addEvent(MidiMessage::programChange(c, currentProgram), 0);
