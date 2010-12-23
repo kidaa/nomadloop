@@ -35,7 +35,7 @@
 BEGIN_JUCE_NAMESPACE
 
 #include "juce_String.h"
-#include "../core/juce_Atomic.h"
+#include "../memory/juce_Atomic.h"
 #include "../io/streams/juce_OutputStream.h"
 
 #if JUCE_MSVC
@@ -45,6 +45,8 @@ BEGIN_JUCE_NAMESPACE
 #if defined (JUCE_STRINGS_ARE_UNICODE) && ! JUCE_STRINGS_ARE_UNICODE
  #error "JUCE_STRINGS_ARE_UNICODE is deprecated! All strings are now unicode by default."
 #endif
+
+NewLine newLine;
 
 //==============================================================================
 class StringHolder
@@ -777,6 +779,11 @@ JUCE_API OutputStream& JUCE_CALLTYPE operator<< (OutputStream& stream, const Str
     text.copyToUTF8 (temp, numBytes + 1);
     stream.write (temp, numBytes);
     return stream;
+}
+
+JUCE_API String& JUCE_CALLTYPE operator<< (String& string1, const NewLine&)
+{
+    return string1 += NewLine::getDefault();
 }
 
 //==============================================================================
@@ -2167,7 +2174,6 @@ void String::copyToUnicode (juce_wchar* const destBuffer, const int maxCharsToCo
         StringHolder::copyChars (destBuffer, text, jmin (maxCharsToCopy, length()));
 }
 
-
 //==============================================================================
 String::Concatenator::Concatenator (String& stringToAppendTo)
     : result (stringToAppendTo),
@@ -2191,10 +2197,13 @@ void String::Concatenator::append (const String& s)
     }
 }
 
+
+//==============================================================================
+//==============================================================================
 #if JUCE_UNIT_TESTS
 
 #include "../utilities/juce_UnitTest.h"
-#include "../core/juce_Random.h"
+#include "../maths/juce_Random.h"
 
 class StringTests  : public UnitTest
 {

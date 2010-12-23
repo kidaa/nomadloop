@@ -40,6 +40,7 @@
 #include "../../text/juce_StringArray.h"
 #include "../../containers/juce_Array.h"
 #include "../../containers/juce_NamedValueSet.h"
+#include "../../memory/juce_WeakReference.h"
 #include "juce_ModalComponentManager.h"
 
 class LookAndFeel;
@@ -1514,24 +1515,21 @@ public:
 
     //==============================================================================
     /** Ensures that a non-stop stream of mouse-drag events will be sent during the
-        next mouse-drag operation.
+        current mouse-drag operation.
 
-        This allows you to make sure that mouseDrag() events sent continuously, even
+        This allows you to make sure that mouseDrag() events are sent continuously, even
         when the mouse isn't moving. This can be useful for things like auto-scrolling
         components when the mouse is near an edge.
 
         Call this method during a mouseDown() or mouseDrag() callback, specifying the
         minimum interval between consecutive mouse drag callbacks. The callbacks
         will continue until the mouse is released, and then the interval will be reset,
-        so you need to make sure it's called every time you begin a drag event. If it
-        is called when the mouse isn't actually being pressed, it will apply to the next
-        mouse-drag operation that happens.
-
+        so you need to make sure it's called every time you begin a drag event.
         Passing an interval of 0 or less will cancel the auto-repeat.
 
-        @see mouseDrag
+        @see mouseDrag, Desktop::beginDragAutoRepeat
     */
-    static void beginDragAutoRepeat (int millisecondIntervalBetweenCallbacks);
+    static void beginDragAutoRepeat (int millisecondsBetweenCallbacks);
 
     /** Causes automatic repaints when the mouse enters or exits this component.
 
@@ -1689,9 +1687,12 @@ public:
         for which this method will return true is the one that was originally
         clicked on.
 
+        If includeChildren is true, then this will also return true if the mouse is over
+        any of the component's children (recursively) as well as the component itself.
+
         @see isMouseButtonDown. isMouseOverOrDragging, mouseDrag
     */
-    bool isMouseOver() const throw();
+    bool isMouseOver (bool includeChildren = false) const;
 
     /** Returns true if the mouse button is currently held down in this component.
 
@@ -2022,62 +2023,47 @@ public:
 
         The ComponentType typedef must be Component, or some subclass of Component.
 
-        Note that this class isn't thread-safe, and assumes that all the code that uses
-        it is running on the message thread.
+        You may also want to use a WeakReference<Component> object for the same purpose.
     */
     template <class ComponentType>
-    class SafePointer   : private ComponentListener
+    class SafePointer
     {
     public:
         /** Creates a null SafePointer. */
-        SafePointer()                                       : comp (0) {}
+        SafePointer() throw() {}
 
         /** Creates a SafePointer that points at the given component. */
-        SafePointer (ComponentType* const component)        : comp (component)   { attach(); }
+        SafePointer (ComponentType* const component)        : weakRef (component) {}
 
         /** Creates a copy of another SafePointer. */
-        SafePointer (const SafePointer& other)              : comp (other.comp)  { attach(); }
-
-        /** Destructor. */
-        ~SafePointer()                                      { detach(); }
+        SafePointer (const SafePointer& other) throw()      : weakRef (other.weakRef) {}
 
         /** Copies another pointer to this one. */
-        SafePointer& operator= (const SafePointer& other)   { return operator= (other.comp); }
+        SafePointer& operator= (const SafePointer& other)           { weakRef = other.weakRef; return *this; }
 
         /** Copies another pointer to this one. */
-        SafePointer& operator= (ComponentType* const newComponent)
-        {
-            detach();
-            comp = newComponent;
-            attach();
-            return *this;
-        }
+        SafePointer& operator= (ComponentType* const newComponent)  { weakRef = newComponent; return *this; }
 
         /** Returns the component that this pointer refers to, or null if the component no longer exists. */
-        operator ComponentType*() const throw()             { return comp; }
+        ComponentType* getComponent() const throw()         { return dynamic_cast <ComponentType*> (weakRef.get()); }
 
         /** Returns the component that this pointer refers to, or null if the component no longer exists. */
-        ComponentType* getComponent() const throw()         { return comp; }
+        operator ComponentType*() const throw()             { return getComponent(); }
 
         /** Returns the component that this pointer refers to, or null if the component no longer exists. */
-        ComponentType* operator->() throw()                 { jassert (comp != 0); return comp; }
+        ComponentType* operator->() throw()                 { return getComponent(); }
 
         /** Returns the component that this pointer refers to, or null if the component no longer exists. */
-        const ComponentType* operator->() const throw()     { jassert (comp != 0); return comp; }
+        const ComponentType* operator->() const throw()     { return getComponent(); }
 
         /** If the component is valid, this deletes it and sets this pointer to null. */
-        void deleteAndZero()                                { delete comp; jassert (comp == 0); }
+        void deleteAndZero()                                { delete getComponent(); jassert (getComponent() == 0); }
 
-        bool operator== (ComponentType* component) const throw()    { return comp == component; }
-        bool operator!= (ComponentType* component) const throw()    { return comp != component; }
+        bool operator== (ComponentType* component) const throw()    { return weakRef == component; }
+        bool operator!= (ComponentType* component) const throw()    { return weakRef != component; }
 
     private:
-        //==============================================================================
-        ComponentType* comp;
-
-        void attach()   { if (comp != 0) comp->addComponentListener (this); }
-        void detach()   { if (comp != 0) comp->removeComponentListener (this); }
-        void componentBeingDeleted (Component&)     { comp = 0; }
+        WeakReference<Component> weakRef;
     };
 
     //==============================================================================
@@ -2090,21 +2076,17 @@ public:
     class BailOutChecker
     {
     public:
-        /** Creates a checker that watches either one or two components.
-            component1 must be a valid component; component2 can be null if you only need
-            to check on one component.
-        */
-        BailOutChecker (Component* component1,
-                        Component* component2 = 0);
+        /** Creates a checker that watches one component. */
+        BailOutChecker (Component* component1);
 
-        /** Returns true if either of the two components have been deleted since this
-            object was created. */
+        /** Creates a checker that watches two components. */
+        BailOutChecker (Component* component1, Component* component2);
+
+        /** Returns true if either of the two components have been deleted since this object was created. */
         bool shouldBailOut() const throw();
 
     private:
-        typedef SafePointer<Component> SafeComponentPtr;
-        SafeComponentPtr safePointer1, safePointer2;
-        Component* const component2;
+        const WeakReference<Component> safePointer1, safePointer2;
 
         JUCE_DECLARE_NON_COPYABLE (BailOutChecker);
     };
@@ -2129,6 +2111,7 @@ private:
     friend class MouseInputSource;
     friend class MouseInputSourceInternal;
 
+   #ifndef DOXYGEN
     static Component* currentlyFocusedComponent;
 
     //==============================================================================
@@ -2149,6 +2132,10 @@ private:
     ScopedPointer <Array <KeyListener*> > keyListeners_;
     ListenerList <ComponentListener> componentListeners;
     NamedValueSet properties;
+
+    friend class WeakReference<Component>;
+    WeakReference<Component>::Master weakReferenceMaster;
+    const WeakReference<Component>::SharedRef& getWeakReference();
 
     struct ComponentFlags
     {
@@ -2171,9 +2158,9 @@ private:
         bool isDisabledFlag             : 1;
         bool childCompFocusedFlag       : 1;
         bool dontClipGraphicsFlag       : 1;
-#if JUCE_DEBUG
+      #if JUCE_DEBUG
         bool isInsidePaintCall          : 1;
-#endif
+      #endif
     };
 
     union
@@ -2200,6 +2187,7 @@ private:
     void internalModifierKeysChanged();
     void internalChildrenChanged();
     void internalHierarchyChanged();
+    Component* removeChildComponent (const int index, bool sendParentEvents, bool sendChildEvents);
     void paintComponentAndChildren (Graphics& g);
     void paintComponent (Graphics& g);
     void paintWithinParentContext (Graphics& g);
@@ -2208,7 +2196,7 @@ private:
     void sendFakeMouseMove() const;
     void takeKeyboardFocus (const FocusChangeType cause);
     void grabFocusInternal (const FocusChangeType cause, bool canTryParent = true);
-    static void giveAwayFocus();
+    static void giveAwayFocus (bool sendFocusLossEvent);
     void sendEnablementChangeMessage();
     void sendVisibilityChangeMessage();
 
@@ -2239,6 +2227,7 @@ protected:
     virtual void internalRepaint (int x, int y, int w, int h);
     /** @internal */
     virtual ComponentPeer* createNewPeer (int styleFlags, void* nativeWindowToAttachTo);
+   #endif
 };
 
 

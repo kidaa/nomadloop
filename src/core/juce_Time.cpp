@@ -50,7 +50,7 @@ BEGIN_JUCE_NAMESPACE
 
 #include "juce_Time.h"
 #include "../threads/juce_Thread.h"
-#include "../containers/juce_MemoryBlock.h"
+#include "../memory/juce_MemoryBlock.h"
 #include "../text/juce_LocalisedStrings.h"
 
 //==============================================================================
@@ -495,5 +495,22 @@ const String Time::getWeekdayName (int day, const bool threeLetterVersion)
     return TRANS (threeLetterVersion ? shortDayNames [day]
                                      : longDayNames [day]);
 }
+
+//==============================================================================
+Time& Time::operator+= (const RelativeTime& delta)        { millisSinceEpoch += delta.inMilliseconds(); return *this; }
+Time& Time::operator-= (const RelativeTime& delta)        { millisSinceEpoch -= delta.inMilliseconds(); return *this; }
+
+const Time operator+ (const Time& time, const RelativeTime& delta)  { Time t (time); return t += delta; }
+const Time operator- (const Time& time, const RelativeTime& delta)  { Time t (time); return t -= delta; }
+const Time operator+ (const RelativeTime& delta, const Time& time)  { Time t (time); return t += delta; }
+const RelativeTime operator- (const Time& time1, const Time& time2) { return RelativeTime::milliseconds (time1.toMilliseconds() - time2.toMilliseconds()); }
+
+bool operator== (const Time& time1, const Time& time2)      { return time1.toMilliseconds() == time2.toMilliseconds(); }
+bool operator!= (const Time& time1, const Time& time2)      { return time1.toMilliseconds() != time2.toMilliseconds(); }
+bool operator<  (const Time& time1, const Time& time2)      { return time1.toMilliseconds() <  time2.toMilliseconds(); }
+bool operator>  (const Time& time1, const Time& time2)      { return time1.toMilliseconds() >  time2.toMilliseconds(); }
+bool operator<= (const Time& time1, const Time& time2)      { return time1.toMilliseconds() <= time2.toMilliseconds(); }
+bool operator>= (const Time& time1, const Time& time2)      { return time1.toMilliseconds() >= time2.toMilliseconds(); }
+
 
 END_JUCE_NAMESPACE

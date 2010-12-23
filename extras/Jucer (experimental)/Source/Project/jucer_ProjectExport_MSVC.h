@@ -90,6 +90,7 @@ protected:
     const Array<RelativePath> getRTASFilesRequired() const
     {
         Array<RelativePath> s;
+
         if (isRTAS())
         {
             static const char* files[] = { "extras/audio plugins/wrapper/RTAS/juce_RTAS_DigiCode1.cpp",
@@ -522,7 +523,7 @@ public:
 
 protected:
     virtual const String getProjectVersionString() const    { return "9.00"; }
-    virtual const String getSolutionVersionString() const   { return String ("10.00") + newLine + "# Visual C++ Express 2008"; }
+    virtual const String getSolutionVersionString() const   { return "10.00" + newLine + "# Visual C++ Express 2008"; }
 
     const File getVCProjFile() const    { return getProjectFile (".vcproj"); }
     const File getSLNFile() const       { return getProjectFile (".sln"); }
@@ -846,7 +847,7 @@ public:
 
 protected:
     const String getProjectVersionString() const    { return "8.00"; }
-    const String getSolutionVersionString() const   { return String ("8.00") + newLine + "# Visual C++ Express 2005"; }
+    const String getSolutionVersionString() const   { return "8.00" + newLine + "# Visual C++ Express 2005"; }
 
     JUCE_DECLARE_NON_COPYABLE (MSVCProjectExporterVC2005);
 };

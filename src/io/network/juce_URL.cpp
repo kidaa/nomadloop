@@ -28,7 +28,7 @@
 BEGIN_JUCE_NAMESPACE
 
 #include "juce_URL.h"
-#include "../../core/juce_Random.h"
+#include "../../maths/juce_Random.h"
 #include "../../core/juce_PlatformUtilities.h"
 #include "../../text/juce_XmlDocument.h"
 #include "../../io/streams/juce_MemoryOutputStream.h"
@@ -179,7 +179,7 @@ namespace URLHelpers
 
             // just a short text attachment, so use simple url encoding..
             headers << "Content-Type: application/x-www-form-urlencoded\r\nContent-length: "
-                    << postData.getSize() << "\r\n";
+                    << (unsigned int) postData.getSize() << "\r\n";
         }
     }
 }

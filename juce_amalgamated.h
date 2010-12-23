@@ -64,7 +64,7 @@
 */
 #define JUCE_MAJOR_VERSION	  1
 #define JUCE_MINOR_VERSION	  52
-#define JUCE_BUILDNUMBER	103
+#define JUCE_BUILDNUMBER	110
 
 /** Current Juce version number.
 
@@ -483,15 +483,15 @@
   #define JUCE_QUICKTIME 0
   #undef  JUCE_OPENGL
   #define JUCE_OPENGL 0
-  #undef JUCE_USE_CDBURNER
+  #undef  JUCE_USE_CDBURNER
   #define JUCE_USE_CDBURNER 0
-  #undef JUCE_USE_CDREADER
+  #undef  JUCE_USE_CDREADER
   #define JUCE_USE_CDREADER 0
-  #undef JUCE_WEB_BROWSER
+  #undef  JUCE_WEB_BROWSER
   #define JUCE_WEB_BROWSER 0
-  #undef JUCE_PLUGINHOST_AU
+  #undef  JUCE_PLUGINHOST_AU
   #define JUCE_PLUGINHOST_AU 0
-  #undef JUCE_PLUGINHOST_VST
+  #undef  JUCE_PLUGINHOST_VST
   #define JUCE_PLUGINHOST_VST 0
 #endif
 
@@ -744,6 +744,15 @@
 
   #define JUCE_ALIGN(bytes) __attribute__ ((aligned (bytes)))
 
+#endif
+
+// Cross-compiler deprecation macros..
+#if JUCE_MSVC && ! JUCE_NO_DEPRECATION_WARNINGS
+ #define JUCE_DEPRECATED(functionDef)	 __declspec(deprecated) functionDef
+#elif JUCE_GCC  && ! JUCE_NO_DEPRECATION_WARNINGS
+ #define JUCE_DEPRECATED(functionDef)	 functionDef __attribute__ ((deprecated))
+#else
+ #define JUCE_DEPRECATED(functionDef)	 functionDef
 #endif
 
 #endif   // __JUCE_PLATFORMDEFS_JUCEHEADER__
@@ -1261,25 +1270,15 @@ inline void swapVariables (Type& variable1, Type& variable2)
 
 // Some useful maths functions that aren't always present with all compilers and build settings.
 
-/** Using juce_hypot and juce_hypotf is easier than dealing with all the different
-	versions of these functions of various platforms and compilers. */
-inline double juce_hypot (double a, double b) throw()
+/** Using juce_hypot is easier than dealing with the different types of hypot function
+	that are provided by the various platforms and compilers. */
+template <typename Type>
+inline Type juce_hypot (Type a, Type b) throw()
 {
   #if JUCE_WINDOWS
-	return _hypot (a, b);
+	return static_cast <Type> (_hypot (a, b));
   #else
-	return hypot (a, b);
-  #endif
-}
-
-/** Using juce_hypot and juce_hypotf is easier than dealing with all the different
-	versions of these functions of various platforms and compilers. */
-inline float juce_hypotf (float a, float b) throw()
-{
-  #if JUCE_WINDOWS
-	return (float) _hypot (a, b);
-  #else
-	return hypotf (a, b);
+	return static_cast <Type> (hypot (a, b));
   #endif
 }
 
@@ -3297,7 +3296,8 @@ private:
 	}
 };
 
-#if DOXYGEN || (JUCE_CHECK_MEMORY_LEAKS && ! defined (JUCE_LEAK_DETECTOR))
+#if DOXYGEN || ! defined (JUCE_LEAK_DETECTOR)
+ #if (DOXYGEN || JUCE_CHECK_MEMORY_LEAKS)
   /** This macro lets you embed a leak-detecting object inside a class.
 
 	  To use it, simply declare a JUCE_LEAK_DETECTOR(YourClassName) inside a private section
@@ -3317,8 +3317,9 @@ private:
 	  @see JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR, LeakedObjectDetector
   */
   #define JUCE_LEAK_DETECTOR(OwnerClass)	 LeakedObjectDetector<OwnerClass> JUCE_JOIN_MACRO (leakDetector, __LINE__);
-#else
+ #else
   #define JUCE_LEAK_DETECTOR(OwnerClass)
+ #endif
 #endif
 
 #endif   // __JUCE_LEAKEDOBJECTDETECTOR_JUCEHEADER__
@@ -4104,8 +4105,10 @@ public:
 #ifndef __JUCE_CRITICALSECTION_JUCEHEADER__
 #define __JUCE_CRITICALSECTION_JUCEHEADER__
 
-class JUCE_API  ScopedLock;
-class JUCE_API  ScopedUnlock;
+#ifndef DOXYGEN
+ class JUCE_API  ScopedLock;
+ class JUCE_API  ScopedUnlock;
+#endif
 
 /**
 	Prevents multiple threads from accessing shared objects at the same time.
@@ -5172,305 +5175,6 @@ private:
 #ifndef __JUCE_ARRAYALLOCATIONBASE_JUCEHEADER__
 
 #endif
-#ifndef __JUCE_BIGINTEGER_JUCEHEADER__
-
-/*** Start of inlined file: juce_BigInteger.h ***/
-#ifndef __JUCE_BIGINTEGER_JUCEHEADER__
-#define __JUCE_BIGINTEGER_JUCEHEADER__
-
-class MemoryBlock;
-
-/**
-	An arbitrarily large integer class.
-
-	A BigInteger can be used in a similar way to a normal integer, but has no size
-	limit (except for memory and performance constraints).
-
-	Negative values are possible, but the value isn't stored as 2s-complement, so
-	be careful if you use negative values and look at the values of individual bits.
-*/
-class JUCE_API  BigInteger
-{
-public:
-
-	/** Creates an empty BigInteger */
-	BigInteger();
-
-	/** Creates a BigInteger containing an integer value in its low bits.
-
-		The low 32 bits of the number are initialised with this value.
-	*/
-	BigInteger (uint32 value);
-
-	/** Creates a BigInteger containing an integer value in its low bits.
-
-		The low 32 bits of the number are initialised with the absolute value
-		passed in, and its sign is set to reflect the sign of the number.
-	*/
-	BigInteger (int32 value);
-
-	/** Creates a BigInteger containing an integer value in its low bits.
-
-		The low 64 bits of the number are initialised with the absolute value
-		passed in, and its sign is set to reflect the sign of the number.
-	*/
-	BigInteger (int64 value);
-
-	/** Creates a copy of another BigInteger. */
-	BigInteger (const BigInteger& other);
-
-	/** Destructor. */
-	~BigInteger();
-
-	/** Copies another BigInteger onto this one. */
-	BigInteger& operator= (const BigInteger& other);
-
-	/** Swaps the internal contents of this with another object. */
-	void swapWith (BigInteger& other) throw();
-
-	/** Returns the value of a specified bit in the number.
-		If the index is out-of-range, the result will be false.
-	*/
-	bool operator[] (int bit) const throw();
-
-	/** Returns true if no bits are set. */
-	bool isZero() const throw();
-
-	/** Returns true if the value is 1. */
-	bool isOne() const throw();
-
-	/** Attempts to get the lowest bits of the value as an integer.
-		If the value is bigger than the integer limits, this will return only the lower bits.
-	*/
-	int toInteger() const throw();
-
-	/** Resets the value to 0. */
-	void clear();
-
-	/** Clears a particular bit in the number. */
-	void clearBit (int bitNumber) throw();
-
-	/** Sets a specified bit to 1. */
-	void setBit (int bitNumber);
-
-	/** Sets or clears a specified bit. */
-	void setBit (int bitNumber, bool shouldBeSet);
-
-	/** Sets a range of bits to be either on or off.
-
-		@param startBit	 the first bit to change
-		@param numBits	  the number of bits to change
-		@param shouldBeSet  whether to turn these bits on or off
-	*/
-	void setRange (int startBit, int numBits, bool shouldBeSet);
-
-	/** Inserts a bit an a given position, shifting up any bits above it. */
-	void insertBit (int bitNumber, bool shouldBeSet);
-
-	/** Returns a range of bits as a new BigInteger.
-
-		e.g. getBitRangeAsInt (0, 64) would return the lowest 64 bits.
-		@see getBitRangeAsInt
-	*/
-	const BigInteger getBitRange (int startBit, int numBits) const;
-
-	/** Returns a range of bits as an integer value.
-
-		e.g. getBitRangeAsInt (0, 32) would return the lowest 32 bits.
-
-		Asking for more than 32 bits isn't allowed (obviously) - for that, use
-		getBitRange().
-	*/
-	int getBitRangeAsInt (int startBit, int numBits) const throw();
-
-	/** Sets a range of bits to an integer value.
-
-		Copies the given integer onto a range of bits, starting at startBit,
-		and using up to numBits of the available bits.
-	*/
-	void setBitRangeAsInt (int startBit, int numBits, uint32 valueToSet);
-
-	/** Shifts a section of bits left or right.
-
-		@param howManyBitsLeft  how far to move the bits (+ve numbers shift it left, -ve numbers shift it right).
-		@param startBit	 the first bit to affect - if this is > 0, only bits above that index will be affected.
-	*/
-	void shiftBits (int howManyBitsLeft, int startBit);
-
-	/** Returns the total number of set bits in the value. */
-	int countNumberOfSetBits() const throw();
-
-	/** Looks for the index of the next set bit after a given starting point.
-
-		This searches from startIndex (inclusive) upwards for the first set bit,
-		and returns its index. If no set bits are found, it returns -1.
-	*/
-	int findNextSetBit (int startIndex = 0) const throw();
-
-	/** Looks for the index of the next clear bit after a given starting point.
-
-		This searches from startIndex (inclusive) upwards for the first clear bit,
-		and returns its index.
-	*/
-	int findNextClearBit (int startIndex = 0) const throw();
-
-	/** Returns the index of the highest set bit in the number.
-		If the value is zero, this will return -1.
-	*/
-	int getHighestBit() const throw();
-
-	// All the standard arithmetic ops...
-
-	BigInteger& operator+= (const BigInteger& other);
-	BigInteger& operator-= (const BigInteger& other);
-	BigInteger& operator*= (const BigInteger& other);
-	BigInteger& operator/= (const BigInteger& other);
-	BigInteger& operator|= (const BigInteger& other);
-	BigInteger& operator&= (const BigInteger& other);
-	BigInteger& operator^= (const BigInteger& other);
-	BigInteger& operator%= (const BigInteger& other);
-	BigInteger& operator<<= (int numBitsToShift);
-	BigInteger& operator>>= (int numBitsToShift);
-	BigInteger& operator++();
-	BigInteger& operator--();
-	const BigInteger operator++ (int);
-	const BigInteger operator-- (int);
-
-	const BigInteger operator-() const;
-	const BigInteger operator+ (const BigInteger& other) const;
-	const BigInteger operator- (const BigInteger& other) const;
-	const BigInteger operator* (const BigInteger& other) const;
-	const BigInteger operator/ (const BigInteger& other) const;
-	const BigInteger operator| (const BigInteger& other) const;
-	const BigInteger operator& (const BigInteger& other) const;
-	const BigInteger operator^ (const BigInteger& other) const;
-	const BigInteger operator% (const BigInteger& other) const;
-	const BigInteger operator<< (int numBitsToShift) const;
-	const BigInteger operator>> (int numBitsToShift) const;
-
-	bool operator== (const BigInteger& other) const throw();
-	bool operator!= (const BigInteger& other) const throw();
-	bool operator<  (const BigInteger& other) const throw();
-	bool operator<= (const BigInteger& other) const throw();
-	bool operator>  (const BigInteger& other) const throw();
-	bool operator>= (const BigInteger& other) const throw();
-
-	/** Does a signed comparison of two BigIntegers.
-
-		Return values are:
-			- 0 if the numbers are the same
-			- < 0 if this number is smaller than the other
-			- > 0 if this number is bigger than the other
-	*/
-	int compare (const BigInteger& other) const throw();
-
-	/** Compares the magnitudes of two BigIntegers, ignoring their signs.
-
-		Return values are:
-			- 0 if the numbers are the same
-			- < 0 if this number is smaller than the other
-			- > 0 if this number is bigger than the other
-	*/
-	int compareAbsolute (const BigInteger& other) const throw();
-
-	/** Divides this value by another one and returns the remainder.
-
-		This number is divided by other, leaving the quotient in this number,
-		with the remainder being copied to the other BigInteger passed in.
-	*/
-	void divideBy (const BigInteger& divisor, BigInteger& remainder);
-
-	/** Returns the largest value that will divide both this value and the one passed-in.
-	*/
-	const BigInteger findGreatestCommonDivisor (BigInteger other) const;
-
-	/** Performs a combined exponent and modulo operation.
-
-		This BigInteger's value becomes (this ^ exponent) % modulus.
-	*/
-	void exponentModulo (const BigInteger& exponent, const BigInteger& modulus);
-
-	/** Performs an inverse modulo on the value.
-
-		i.e. the result is (this ^ -1) mod (modulus).
-	*/
-	void inverseModulo (const BigInteger& modulus);
-
-	/** Returns true if the value is less than zero.
-		@see setNegative, negate
-	*/
-	bool isNegative() const throw();
-
-	/** Changes the sign of the number to be positive or negative.
-		@see isNegative, negate
-	*/
-	void setNegative (bool shouldBeNegative) throw();
-
-	/** Inverts the sign of the number.
-		@see isNegative, setNegative
-	*/
-	void negate() throw();
-
-	/** Converts the number to a string.
-
-		Specify a base such as 2 (binary), 8 (octal), 10 (decimal), 16 (hex).
-		If minimumNumCharacters is greater than 0, the returned string will be
-		padded with leading zeros to reach at least that length.
-	*/
-	const String toString (int base, int minimumNumCharacters = 1) const;
-
-	/** Reads the numeric value from a string.
-
-		Specify a base such as 2 (binary), 8 (octal), 10 (decimal), 16 (hex).
-		Any invalid characters will be ignored.
-	*/
-	void parseString (const String& text, int base);
-
-	/** Turns the number into a block of binary data.
-
-		The data is arranged as little-endian, so the first byte of data is the low 8 bits
-		of the number, and so on.
-
-		@see loadFromMemoryBlock
-	*/
-	const MemoryBlock toMemoryBlock() const;
-
-	/** Converts a block of raw data into a number.
-
-		The data is arranged as little-endian, so the first byte of data is the low 8 bits
-		of the number, and so on.
-
-		@see toMemoryBlock
-	*/
-	void loadFromMemoryBlock (const MemoryBlock& data);
-
-private:
-
-	HeapBlock <uint32> values;
-	int numValues, highestBit;
-	bool negative;
-
-	void ensureSize (int numVals);
-	static const BigInteger simpleGCD (BigInteger* m, BigInteger* n);
-
-	static inline int bitToIndex (const int bit) throw()	{ return bit >> 5; }
-	static inline uint32 bitToMask (const int bit) throw()	  { return 1 << (bit & 31); }
-
-	JUCE_LEAK_DETECTOR (BigInteger);
-};
-
-/** Writes a BigInteger to an OutputStream as a UTF8 decimal string. */
-OutputStream& JUCE_CALLTYPE operator<< (OutputStream& stream, const BigInteger& value);
-
-/** For backwards compatibility, BitArray is defined to be an alias for BigInteger.
-*/
-typedef BigInteger BitArray;
-
-#endif   // __JUCE_BIGINTEGER_JUCEHEADER__
-/*** End of inlined file: juce_BigInteger.h ***/
-
-
-#endif
 #ifndef __JUCE_DYNAMICOBJECT_JUCEHEADER__
 
 /*** Start of inlined file: juce_DynamicObject.h ***/
@@ -5616,6 +5320,55 @@ private:
 /*** Start of inlined file: juce_OutputStream.h ***/
 #ifndef __JUCE_OUTPUTSTREAM_JUCEHEADER__
 #define __JUCE_OUTPUTSTREAM_JUCEHEADER__
+
+
+/*** Start of inlined file: juce_NewLine.h ***/
+#ifndef __JUCE_NEWLINE_JUCEHEADER__
+#define __JUCE_NEWLINE_JUCEHEADER__
+
+/** This class is used for represent a new-line character sequence.
+
+	To write a new-line to a stream, you can use the predefined 'newLine' variable, e.g.
+	@code
+	myOutputStream << "Hello World" << newLine << newLine;
+	@endcode
+
+	The exact character sequence that will be used for the new-line can be set and
+	retrieved with OutputStream::setNewLineString() and OutputStream::getNewLineString().
+*/
+class JUCE_API  NewLine
+{
+public:
+	/** Returns the default new-line sequence that the library uses.
+		@see OutputStream::setNewLineString()
+	*/
+	static const char* getDefault() throw()         { return "\r\n"; }
+
+	/** Returns the default new-line sequence that the library uses.
+		@see getDefault()
+	*/
+	operator const String() const		   { return getDefault(); }
+};
+
+/** An predefined object representing a new-line, which can be written to a string or stream.
+
+	To write a new-line to a stream, you can use the predefined 'newLine' variable like this:
+	@code
+	myOutputStream << "Hello World" << newLine << newLine;
+	@endcode
+*/
+extern NewLine newLine;
+
+/** Writes a new-line sequence to a string.
+	You can use the predefined object 'newLine' to invoke this, e.g.
+	@code
+	myString << "Hello World" << newLine << newLine;
+	@endcode
+*/
+JUCE_API String& JUCE_CALLTYPE operator<< (String& string1, const NewLine&);
+
+#endif   // __JUCE_NEWLINE_JUCEHEADER__
+/*** End of inlined file: juce_NewLine.h ***/
 
 
 /*** Start of inlined file: juce_InputStream.h ***/
@@ -6245,7 +5998,18 @@ public:
 	*/
 	virtual int writeFromInputStream (InputStream& source, int64 maxNumBytesToWrite);
 
+	/** Sets the string that will be written to the stream when the writeNewLine()
+		method is called.
+		By default this will be set the the value of NewLine::getDefault().
+	*/
+	void setNewLineString (const String& newLineString);
+
+	/** Returns the current new-line string that was set by setNewLineString(). */
+	const String& getNewLineString() const throw()	  { return newLineString; }
+
 private:
+
+	String newLineString;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OutputStream);
 };
@@ -6268,10 +6032,21 @@ OutputStream& JUCE_CALLTYPE operator<< (OutputStream& stream, const MemoryBlock&
 /** Writes the contents of a file to a stream. */
 OutputStream& JUCE_CALLTYPE operator<< (OutputStream& stream, const File& fileToRead);
 
+/** Writes a new-line to a stream.
+	You can use the predefined symbol 'newLine' to invoke this, e.g.
+	@code
+	myOutputStream << "Hello World" << newLine << newLine;
+	@endcode
+	@see OutputStream::setNewLineString
+*/
+OutputStream& JUCE_CALLTYPE operator<< (OutputStream& stream, const NewLine&);
+
 #endif   // __JUCE_OUTPUTSTREAM_JUCEHEADER__
 /*** End of inlined file: juce_OutputStream.h ***/
 
-class JUCE_API  DynamicObject;
+#ifndef DOXYGEN
+ class JUCE_API  DynamicObject;
+#endif
 
 /**
 	A variant class, that can be used to hold a range of primitive values.
@@ -6848,432 +6623,6 @@ private:
 
 #endif
 #ifndef __JUCE_ELEMENTCOMPARATOR_JUCEHEADER__
-
-#endif
-#ifndef __JUCE_EXPRESSION_JUCEHEADER__
-
-/*** Start of inlined file: juce_Expression.h ***/
-#ifndef __JUCE_EXPRESSION_JUCEHEADER__
-#define __JUCE_EXPRESSION_JUCEHEADER__
-
-
-/*** Start of inlined file: juce_ScopedPointer.h ***/
-#ifndef __JUCE_SCOPEDPOINTER_JUCEHEADER__
-#define __JUCE_SCOPEDPOINTER_JUCEHEADER__
-
-/**
-	This class holds a pointer which is automatically deleted when this object goes
-	out of scope.
-
-	Once a pointer has been passed to a ScopedPointer, it will make sure that the pointer
-	gets deleted when the ScopedPointer is deleted. Using the ScopedPointer on the stack or
-	as member variables is a good way to use RAII to avoid accidentally leaking dynamically
-	created objects.
-
-	A ScopedPointer can be used in pretty much the same way that you'd use a normal pointer
-	to an object. If you use the assignment operator to assign a different object to a
-	ScopedPointer, the old one will be automatically deleted.
-
-	A const ScopedPointer is guaranteed not to lose ownership of its object or change the
-	object to which it points during its lifetime. This means that making a copy of a const
-	ScopedPointer is impossible, as that would involve the new copy taking ownership from the
-	old one.
-
-	If you need to get a pointer out of a ScopedPointer without it being deleted, you
-	can use the release() method.
-*/
-template <class ObjectType>
-class ScopedPointer
-{
-public:
-
-	/** Creates a ScopedPointer containing a null pointer. */
-	inline ScopedPointer() throw()  : object (0)
-	{
-	}
-
-	/** Creates a ScopedPointer that owns the specified object. */
-	inline ScopedPointer (ObjectType* const objectToTakePossessionOf) throw()
-		: object (objectToTakePossessionOf)
-	{
-	}
-
-	/** Creates a ScopedPointer that takes its pointer from another ScopedPointer.
-
-		Because a pointer can only belong to one ScopedPointer, this transfers
-		the pointer from the other object to this one, and the other object is reset to
-		be a null pointer.
-	*/
-	ScopedPointer (ScopedPointer& objectToTransferFrom) throw()
-		: object (objectToTransferFrom.object)
-	{
-		objectToTransferFrom.object = 0;
-	}
-
-	/** Destructor.
-		This will delete the object that this ScopedPointer currently refers to.
-	*/
-	inline ~ScopedPointer()							 { delete object; }
-
-	/** Changes this ScopedPointer to point to a new object.
-
-		Because a pointer can only belong to one ScopedPointer, this transfers
-		the pointer from the other object to this one, and the other object is reset to
-		be a null pointer.
-
-		If this ScopedPointer already points to an object, that object
-		will first be deleted.
-	*/
-	ScopedPointer& operator= (ScopedPointer& objectToTransferFrom)
-	{
-		if (this != objectToTransferFrom.getAddress())
-		{
-			// Two ScopedPointers should never be able to refer to the same object - if
-			// this happens, you must have done something dodgy!
-			jassert (object == 0 || object != objectToTransferFrom.object);
-
-			ObjectType* const oldObject = object;
-			object = objectToTransferFrom.object;
-			objectToTransferFrom.object = 0;
-			delete oldObject;
-		}
-
-		return *this;
-	}
-
-	/** Changes this ScopedPointer to point to a new object.
-
-		If this ScopedPointer already points to an object, that object
-		will first be deleted.
-
-		The pointer that you pass is may be null.
-	*/
-	ScopedPointer& operator= (ObjectType* const newObjectToTakePossessionOf)
-	{
-		if (object != newObjectToTakePossessionOf)
-		{
-			ObjectType* const oldObject = object;
-			object = newObjectToTakePossessionOf;
-			delete oldObject;
-		}
-
-		return *this;
-	}
-
-	/** Returns the object that this ScopedPointer refers to.
-	*/
-	inline operator ObjectType*() const throw()					 { return object; }
-
-	/** Returns the object that this ScopedPointer refers to.
-	*/
-	inline ObjectType& operator*() const throw()					{ return *object; }
-
-	/** Lets you access methods and properties of the object that this ScopedPointer refers to. */
-	inline ObjectType* operator->() const throw()				   { return object; }
-
-	/** Removes the current object from this ScopedPointer without deleting it.
-
-		This will return the current object, and set the ScopedPointer to a null pointer.
-	*/
-	ObjectType* release() throw()						   { ObjectType* const o = object; object = 0; return o; }
-
-	/** Swaps this object with that of another ScopedPointer.
-		The two objects simply exchange their pointers.
-	*/
-	void swapWith (ScopedPointer <ObjectType>& other) throw()
-	{
-		// Two ScopedPointers should never be able to refer to the same object - if
-		// this happens, you must have done something dodgy!
-		jassert (object != other.object);
-
-		swapVariables (object, other.object);
-	}
-
-private:
-
-	ObjectType* object;
-
-	// (Required as an alternative to the overloaded & operator).
-	const ScopedPointer* getAddress() const throw()				 { return this; }
-
-  #if ! JUCE_MSVC  // (MSVC can't deal with multiple copy constructors)
-	/* This is private to stop people accidentally copying a const ScopedPointer (the compiler
-	   would let you do so by implicitly casting the source to its raw object pointer).
-
-	   A side effect of this is that you may hit a puzzling compiler error when you write something
-	   like this:
-
-		  ScopedPointer<MyClass> m = new MyClass();  // Compile error: copy constructor is private.
-
-	   Even though the compiler would normally ignore the assignment here, it can't do so when the
-	   copy constructor is private. It's very easy to fis though - just write it like this:
-
-		  ScopedPointer<MyClass> m (new MyClass());  // Compiles OK
-
-	   It's good practice to always use the latter form when writing your object declarations anyway,
-	   rather than writing them as assignments and assuming (or hoping) that the compiler will be
-	   smart enough to replace your construction + assignment with a single constructor.
-	*/
-	ScopedPointer (const ScopedPointer&);
-  #endif
-};
-
-/** Compares a ScopedPointer with another pointer.
-	This can be handy for checking whether this is a null pointer.
-*/
-template <class ObjectType>
-bool operator== (const ScopedPointer<ObjectType>& pointer1, ObjectType* const pointer2) throw()
-{
-	return static_cast <ObjectType*> (pointer1) == pointer2;
-}
-
-/** Compares a ScopedPointer with another pointer.
-	This can be handy for checking whether this is a null pointer.
-*/
-template <class ObjectType>
-bool operator!= (const ScopedPointer<ObjectType>& pointer1, ObjectType* const pointer2) throw()
-{
-	return static_cast <ObjectType*> (pointer1) != pointer2;
-}
-
-#endif   // __JUCE_SCOPEDPOINTER_JUCEHEADER__
-/*** End of inlined file: juce_ScopedPointer.h ***/
-
-/**
-	A class for dynamically evaluating simple numeric expressions.
-
-	This class can parse a simple C-style string expression involving floating point
-	numbers, named symbols and functions. The basic arithmetic operations of +, -, *, /
-	are supported, as well as parentheses, and any alphanumeric identifiers are
-	assumed to be named symbols which will be resolved when the expression is
-	evaluated.
-
-	Expressions which use identifiers and functions require a subclass of
-	Expression::EvaluationContext to be supplied when evaluating them, and this object
-	is expected to be able to resolve the symbol names and perform the functions that
-	are used.
-*/
-class JUCE_API  Expression
-{
-public:
-
-	/** Creates a simple expression with a value of 0. */
-	Expression();
-
-	/** Destructor. */
-	~Expression();
-
-	/** Creates a simple expression with a specified constant value. */
-	explicit Expression (double constant);
-
-	/** Creates a copy of an expression. */
-	Expression (const Expression& other);
-
-	/** Copies another expression. */
-	Expression& operator= (const Expression& other);
-
-	/** Creates an expression by parsing a string.
-		If there's a syntax error in the string, this will throw a ParseError exception.
-		@throws ParseError
-	*/
-	explicit Expression (const String& stringToParse);
-
-	/** Returns a string version of the expression. */
-	const String toString() const;
-
-	/** Returns an expression which is an addtion operation of two existing expressions. */
-	const Expression operator+ (const Expression& other) const;
-	/** Returns an expression which is a subtraction operation of two existing expressions. */
-	const Expression operator- (const Expression& other) const;
-	/** Returns an expression which is a multiplication operation of two existing expressions. */
-	const Expression operator* (const Expression& other) const;
-	/** Returns an expression which is a division operation of two existing expressions. */
-	const Expression operator/ (const Expression& other) const;
-	/** Returns an expression which performs a negation operation on an existing expression. */
-	const Expression operator-() const;
-
-	/** Returns an Expression which is an identifier reference. */
-	static const Expression symbol (const String& symbol);
-
-	/** Returns an Expression which is a function call. */
-	static const Expression function (const String& functionName, const Array<Expression>& parameters);
-
-	/** Returns an Expression which parses a string from a specified character index.
-
-		The index value is incremented so that on return, it indicates the character that follows
-		the end of the expression that was parsed.
-
-		If there's a syntax error in the string, this will throw a ParseError exception.
-		@throws ParseError
-	*/
-	static const Expression parse (const String& stringToParse, int& textIndexToStartFrom);
-
-	/** When evaluating an Expression object, this class is used to resolve symbols and
-		perform functions that the expression uses.
-	*/
-	class EvaluationContext
-	{
-	public:
-		EvaluationContext();
-		virtual ~EvaluationContext();
-
-		/** Returns the value of a symbol.
-			If the symbol is unknown, this can throw an Expression::EvaluationError exception.
-			The member value is set to the part of the symbol that followed the dot, if there is
-			one, e.g. for "foo.bar", symbol = "foo" and member = "bar".
-			@throws Expression::EvaluationError
-		*/
-		virtual const Expression getSymbolValue (const String& symbol, const String& member) const;
-
-		/** Executes a named function.
-			If the function name is unknown, this can throw an Expression::EvaluationError exception.
-			@throws Expression::EvaluationError
-		*/
-		virtual double evaluateFunction (const String& functionName, const double* parameters, int numParams) const;
-	};
-
-	/** Evaluates this expression, without using an EvaluationContext.
-		Without an EvaluationContext, no symbols can be used, and only basic functions such as sin, cos, tan,
-		min, max are available.
-		@throws Expression::EvaluationError
-	*/
-	double evaluate() const;
-
-	/** Evaluates this expression, providing a context that should be able to evaluate any symbols
-		or functions that it uses.
-		@throws Expression::EvaluationError
-	*/
-	double evaluate (const EvaluationContext& context) const;
-
-	/** Attempts to return an expression which is a copy of this one, but with a constant adjusted
-		to make the expression resolve to a target value.
-
-		E.g. if the expression is "x + 10" and x is 5, then asking for a target value of 8 will return
-		the expression "x + 3". Obviously some expressions can't be reversed in this way, in which
-		case they might just be adjusted by adding a constant to them.
-
-		@throws Expression::EvaluationError
-	*/
-	const Expression adjustedToGiveNewResult (double targetValue, const EvaluationContext& context) const;
-
-	/** Returns a copy of this expression in which all instances of a given symbol have been renamed. */
-	const Expression withRenamedSymbol (const String& oldSymbol, const String& newSymbol) const;
-
-	/** Returns true if this expression makes use of the specified symbol.
-		If a suitable context is supplied, the search will dereference and recursively check
-		all symbols, so that it can be determined whether this expression relies on the given
-		symbol at any level in its evaluation. If the context parameter is null, this just checks
-		whether the expression contains any direct references to the symbol.
-
-		@throws Expression::EvaluationError
-	*/
-	bool referencesSymbol (const String& symbol, const EvaluationContext* context) const;
-
-	/** Returns true if this expression contains any symbols. */
-	bool usesAnySymbols() const;
-
-	/** An exception that can be thrown by Expression::parse(). */
-	class ParseError  : public std::exception
-	{
-	public:
-		ParseError (const String& message);
-
-		String description;
-	};
-
-	/** An exception that can be thrown by Expression::evaluate(). */
-	class EvaluationError  : public std::exception
-	{
-	public:
-		EvaluationError (const String& message);
-		EvaluationError (const String& symbolName, const String& memberName);
-
-		String description;
-	};
-
-	/** Expression type.
-		@see Expression::getType()
-	*/
-	enum Type
-	{
-		constantType,
-		functionType,
-		operatorType,
-		symbolType
-	};
-
-	/** Returns the type of this expression. */
-	Type getType() const throw();
-
-	/** If this expression is a symbol, this returns its name. */
-	const String getSymbol() const;
-
-	/** If this expression is a function, this returns its name. */
-	const String getFunction() const;
-
-	/** If this expression is an operator, this returns its name.
-		E.g. "+", "-", "*", "/", etc.
-	*/
-	const String getOperator() const;
-
-	/** Returns the number of inputs to this expression.
-		@see getInput
-	*/
-	int getNumInputs() const;
-
-	/** Retrieves one of the inputs to this expression.
-		@see getNumInputs
-	*/
-	const Expression getInput (int index) const;
-
-private:
-
-	class Helpers;
-	friend class Helpers;
-
-	class Term  : public ReferenceCountedObject
-	{
-	public:
-		Term() {}
-		virtual ~Term() {}
-
-		virtual Term* clone() const = 0;
-		virtual double evaluate (const EvaluationContext&, int recursionDepth) const = 0;
-		virtual int getNumInputs() const = 0;
-		virtual Term* getInput (int index) const = 0;
-		virtual int getInputIndexFor (const Term* possibleInput) const;
-		virtual const String toString() const = 0;
-		virtual int getOperatorPrecedence() const;
-		virtual bool referencesSymbol (const String& symbol, const EvaluationContext*, int recursionDepth) const;
-		virtual const ReferenceCountedObjectPtr<Term> createTermToEvaluateInput (const EvaluationContext&, const Term* inputTerm,
-																				 double overallTarget, Term* topLevelTerm) const;
-		virtual const ReferenceCountedObjectPtr<Term> negated();
-		virtual Type getType() const throw() = 0;
-		virtual const String getSymbolName() const;
-		virtual const String getFunctionName() const;
-
-	private:
-		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Term);
-	};
-
-	friend class ScopedPointer<Term>;
-	ReferenceCountedObjectPtr<Term> term;
-
-	explicit Expression (Term* term);
-};
-
-#endif   // __JUCE_EXPRESSION_JUCEHEADER__
-/*** End of inlined file: juce_Expression.h ***/
-
-
-#endif
-#ifndef __JUCE_HEAPBLOCK_JUCEHEADER__
-
-#endif
-#ifndef __JUCE_IDENTIFIER_JUCEHEADER__
-
-#endif
-#ifndef __JUCE_MEMORYBLOCK_JUCEHEADER__
 
 #endif
 #ifndef __JUCE_NAMEDVALUESET_JUCEHEADER__
@@ -8538,73 +7887,61 @@ public:
 	~RelativeTime() throw();
 
 	/** Creates a new RelativeTime object representing a number of milliseconds.
-
 		@see minutes, hours, days, weeks
 	*/
 	static const RelativeTime milliseconds (int milliseconds) throw();
 
 	/** Creates a new RelativeTime object representing a number of milliseconds.
-
 		@see minutes, hours, days, weeks
 	*/
 	static const RelativeTime milliseconds (int64 milliseconds) throw();
 
 	/** Creates a new RelativeTime object representing a number of minutes.
-
 		@see milliseconds, hours, days, weeks
 	*/
 	static const RelativeTime minutes (double numberOfMinutes) throw();
 
 	/** Creates a new RelativeTime object representing a number of hours.
-
 		@see milliseconds, minutes, days, weeks
 	*/
 	static const RelativeTime hours (double numberOfHours) throw();
 
 	/** Creates a new RelativeTime object representing a number of days.
-
 		@see milliseconds, minutes, hours, weeks
 	*/
 	static const RelativeTime days (double numberOfDays) throw();
 
 	/** Creates a new RelativeTime object representing a number of weeks.
-
 		@see milliseconds, minutes, hours, days
 	*/
 	static const RelativeTime weeks (double numberOfWeeks) throw();
 
 	/** Returns the number of milliseconds this time represents.
-
 		@see milliseconds, inSeconds, inMinutes, inHours, inDays, inWeeks
 	*/
 	int64 inMilliseconds() const throw();
 
 	/** Returns the number of seconds this time represents.
-
 		@see inMilliseconds, inMinutes, inHours, inDays, inWeeks
 	*/
 	double inSeconds() const throw()	{ return seconds; }
 
 	/** Returns the number of minutes this time represents.
-
 		@see inMilliseconds, inSeconds, inHours, inDays, inWeeks
 	*/
 	double inMinutes() const throw();
 
 	/** Returns the number of hours this time represents.
-
 		@see inMilliseconds, inSeconds, inMinutes, inDays, inWeeks
 	*/
 	double inHours() const throw();
 
 	/** Returns the number of days this time represents.
-
 		@see inMilliseconds, inSeconds, inMinutes, inHours, inWeeks
 	*/
 	double inDays() const throw();
 
 	/** Returns the number of weeks this time represents.
-
 		@see inMilliseconds, inSeconds, inMinutes, inHours, inDays
 	*/
 	double inWeeks() const throw();
@@ -8626,30 +7963,6 @@ public:
 	*/
 	const String getDescription (const String& returnValueForZeroTime = "0") const;
 
-	/** Compares two RelativeTimes. */
-	bool operator== (const RelativeTime& other) const throw();
-	/** Compares two RelativeTimes. */
-	bool operator!= (const RelativeTime& other) const throw();
-
-	/** Compares two RelativeTimes. */
-	bool operator>  (const RelativeTime& other) const throw();
-	/** Compares two RelativeTimes. */
-	bool operator<  (const RelativeTime& other) const throw();
-	/** Compares two RelativeTimes. */
-	bool operator>= (const RelativeTime& other) const throw();
-	/** Compares two RelativeTimes. */
-	bool operator<= (const RelativeTime& other) const throw();
-
-	/** Adds another RelativeTime to this one and returns the result. */
-	const RelativeTime  operator+  (const RelativeTime& timeToAdd) const throw();
-	/** Subtracts another RelativeTime from this one and returns the result. */
-	const RelativeTime  operator-  (const RelativeTime& timeToSubtract) const throw();
-
-	/** Adds a number of seconds to this RelativeTime and returns the result. */
-	const RelativeTime  operator+  (double secondsToAdd) const throw();
-	/** Subtracts a number of seconds from this RelativeTime and returns the result. */
-	const RelativeTime  operator-  (double secondsToSubtract) const throw();
-
 	/** Adds another RelativeTime to this one. */
 	const RelativeTime& operator+= (const RelativeTime& timeToAdd) throw();
 	/** Subtracts another RelativeTime from this one. */
@@ -8657,7 +7970,6 @@ public:
 
 	/** Adds a number of seconds to this time. */
 	const RelativeTime& operator+= (double secondsToAdd) throw();
-
 	/** Subtracts a number of seconds from this time. */
 	const RelativeTime& operator-= (double secondsToSubtract) throw();
 
@@ -8665,6 +7977,24 @@ private:
 
 	double seconds;
 };
+
+/** Compares two RelativeTimes. */
+bool operator== (const RelativeTime& t1, const RelativeTime& t2) throw();
+/** Compares two RelativeTimes. */
+bool operator!= (const RelativeTime& t1, const RelativeTime& t2) throw();
+/** Compares two RelativeTimes. */
+bool operator>  (const RelativeTime& t1, const RelativeTime& t2) throw();
+/** Compares two RelativeTimes. */
+bool operator<  (const RelativeTime& t1, const RelativeTime& t2) throw();
+/** Compares two RelativeTimes. */
+bool operator>= (const RelativeTime& t1, const RelativeTime& t2) throw();
+/** Compares two RelativeTimes. */
+bool operator<= (const RelativeTime& t1, const RelativeTime& t2) throw();
+
+/** Adds two RelativeTimes together. */
+const RelativeTime  operator+  (const RelativeTime&  t1, const RelativeTime& t2) throw();
+/** Subtracts two RelativeTimes. */
+const RelativeTime  operator-  (const RelativeTime&  t1, const RelativeTime& t2) throw();
 
 #endif   // __JUCE_RELATIVETIME_JUCEHEADER__
 /*** End of inlined file: juce_RelativeTime.h ***/
@@ -8691,9 +8021,6 @@ public:
 	*/
 	Time() throw();
 
-	/** Creates a copy of another Time object. */
-	Time (const Time& other) throw();
-
 	/** Creates a time based on a number of milliseconds.
 
 		The internal millisecond count is set to 0 (1st January 1970). To create a
@@ -8703,7 +8030,7 @@ public:
 										'epoch' (midnight Jan 1st 1970).
 		@see getCurrentTime, currentTimeMillis
 	*/
-	Time (int64 millisecondsSinceEpoch) throw();
+	explicit Time (int64 millisecondsSinceEpoch) throw();
 
 	/** Creates a time from a set of date components.
 
@@ -8727,6 +8054,9 @@ public:
 		  int seconds = 0,
 		  int milliseconds = 0,
 		  bool useLocalTime = true) throw();
+
+	/** Creates a copy of another Time object. */
+	Time (const Time& other) throw();
 
 	/** Destructor. */
 	~Time() throw();
@@ -8884,32 +8214,10 @@ public:
 	*/
 	const String formatted (const String& format) const;
 
-	/** Adds a RelativeTime to this time and returns the result. */
-	const Time operator+ (const RelativeTime& delta) const throw()  { return Time (millisSinceEpoch + delta.inMilliseconds()); }
-
-	/** Subtracts a RelativeTime from this time and returns the result. */
-	const Time operator- (const RelativeTime& delta) const throw()  { return Time (millisSinceEpoch - delta.inMilliseconds()); }
-
-	/** Returns the relative time difference between this time and another one. */
-	const RelativeTime operator- (const Time& other) const throw()  { return RelativeTime::milliseconds (millisSinceEpoch - other.millisSinceEpoch); }
-
-	/** Compares two Time objects. */
-	bool operator== (const Time& other) const throw()		   { return millisSinceEpoch == other.millisSinceEpoch; }
-
-	/** Compares two Time objects. */
-	bool operator!= (const Time& other) const throw()		   { return millisSinceEpoch != other.millisSinceEpoch; }
-
-	/** Compares two Time objects. */
-	bool operator<  (const Time& other) const throw()		   { return millisSinceEpoch < other.millisSinceEpoch; }
-
-	/** Compares two Time objects. */
-	bool operator<= (const Time& other) const throw()		   { return millisSinceEpoch <= other.millisSinceEpoch; }
-
-	/** Compares two Time objects. */
-	bool operator>  (const Time& other) const throw()		   { return millisSinceEpoch > other.millisSinceEpoch; }
-
-	/** Compares two Time objects. */
-	bool operator>= (const Time& other) const throw()		   { return millisSinceEpoch >= other.millisSinceEpoch; }
+	/** Adds a RelativeTime to this time. */
+	Time& operator+= (const RelativeTime& delta);
+	/** Subtracts a RelativeTime from this time. */
+	Time& operator-= (const RelativeTime& delta);
 
 	/** Tries to set the computer's clock.
 
@@ -9021,8 +8329,214 @@ private:
 	int64 millisSinceEpoch;
 };
 
+/** Adds a RelativeTime to a Time. */
+const Time operator+ (const Time& time, const RelativeTime& delta);
+/** Adds a RelativeTime to a Time. */
+const Time operator+ (const RelativeTime& delta, const Time& time);
+
+/** Subtracts a RelativeTime from a Time. */
+const Time operator- (const Time& time, const RelativeTime& delta);
+/** Returns the relative time difference between two times. */
+const RelativeTime operator- (const Time& time1, const Time& time2);
+
+/** Compares two Time objects. */
+bool operator== (const Time& time1, const Time& time2);
+/** Compares two Time objects. */
+bool operator!= (const Time& time1, const Time& time2);
+/** Compares two Time objects. */
+bool operator<  (const Time& time1, const Time& time2);
+/** Compares two Time objects. */
+bool operator<= (const Time& time1, const Time& time2);
+/** Compares two Time objects. */
+bool operator>  (const Time& time1, const Time& time2);
+/** Compares two Time objects. */
+bool operator>= (const Time& time1, const Time& time2);
+
 #endif   // __JUCE_TIME_JUCEHEADER__
 /*** End of inlined file: juce_Time.h ***/
+
+
+/*** Start of inlined file: juce_ScopedPointer.h ***/
+#ifndef __JUCE_SCOPEDPOINTER_JUCEHEADER__
+#define __JUCE_SCOPEDPOINTER_JUCEHEADER__
+
+/**
+	This class holds a pointer which is automatically deleted when this object goes
+	out of scope.
+
+	Once a pointer has been passed to a ScopedPointer, it will make sure that the pointer
+	gets deleted when the ScopedPointer is deleted. Using the ScopedPointer on the stack or
+	as member variables is a good way to use RAII to avoid accidentally leaking dynamically
+	created objects.
+
+	A ScopedPointer can be used in pretty much the same way that you'd use a normal pointer
+	to an object. If you use the assignment operator to assign a different object to a
+	ScopedPointer, the old one will be automatically deleted.
+
+	A const ScopedPointer is guaranteed not to lose ownership of its object or change the
+	object to which it points during its lifetime. This means that making a copy of a const
+	ScopedPointer is impossible, as that would involve the new copy taking ownership from the
+	old one.
+
+	If you need to get a pointer out of a ScopedPointer without it being deleted, you
+	can use the release() method.
+*/
+template <class ObjectType>
+class ScopedPointer
+{
+public:
+
+	/** Creates a ScopedPointer containing a null pointer. */
+	inline ScopedPointer() throw()  : object (0)
+	{
+	}
+
+	/** Creates a ScopedPointer that owns the specified object. */
+	inline ScopedPointer (ObjectType* const objectToTakePossessionOf) throw()
+		: object (objectToTakePossessionOf)
+	{
+	}
+
+	/** Creates a ScopedPointer that takes its pointer from another ScopedPointer.
+
+		Because a pointer can only belong to one ScopedPointer, this transfers
+		the pointer from the other object to this one, and the other object is reset to
+		be a null pointer.
+	*/
+	ScopedPointer (ScopedPointer& objectToTransferFrom) throw()
+		: object (objectToTransferFrom.object)
+	{
+		objectToTransferFrom.object = 0;
+	}
+
+	/** Destructor.
+		This will delete the object that this ScopedPointer currently refers to.
+	*/
+	inline ~ScopedPointer()							 { delete object; }
+
+	/** Changes this ScopedPointer to point to a new object.
+
+		Because a pointer can only belong to one ScopedPointer, this transfers
+		the pointer from the other object to this one, and the other object is reset to
+		be a null pointer.
+
+		If this ScopedPointer already points to an object, that object
+		will first be deleted.
+	*/
+	ScopedPointer& operator= (ScopedPointer& objectToTransferFrom)
+	{
+		if (this != objectToTransferFrom.getAddress())
+		{
+			// Two ScopedPointers should never be able to refer to the same object - if
+			// this happens, you must have done something dodgy!
+			jassert (object == 0 || object != objectToTransferFrom.object);
+
+			ObjectType* const oldObject = object;
+			object = objectToTransferFrom.object;
+			objectToTransferFrom.object = 0;
+			delete oldObject;
+		}
+
+		return *this;
+	}
+
+	/** Changes this ScopedPointer to point to a new object.
+
+		If this ScopedPointer already points to an object, that object
+		will first be deleted.
+
+		The pointer that you pass is may be null.
+	*/
+	ScopedPointer& operator= (ObjectType* const newObjectToTakePossessionOf)
+	{
+		if (object != newObjectToTakePossessionOf)
+		{
+			ObjectType* const oldObject = object;
+			object = newObjectToTakePossessionOf;
+			delete oldObject;
+		}
+
+		return *this;
+	}
+
+	/** Returns the object that this ScopedPointer refers to.
+	*/
+	inline operator ObjectType*() const throw()					 { return object; }
+
+	/** Returns the object that this ScopedPointer refers to.
+	*/
+	inline ObjectType& operator*() const throw()					{ return *object; }
+
+	/** Lets you access methods and properties of the object that this ScopedPointer refers to. */
+	inline ObjectType* operator->() const throw()				   { return object; }
+
+	/** Removes the current object from this ScopedPointer without deleting it.
+
+		This will return the current object, and set the ScopedPointer to a null pointer.
+	*/
+	ObjectType* release() throw()						   { ObjectType* const o = object; object = 0; return o; }
+
+	/** Swaps this object with that of another ScopedPointer.
+		The two objects simply exchange their pointers.
+	*/
+	void swapWith (ScopedPointer <ObjectType>& other) throw()
+	{
+		// Two ScopedPointers should never be able to refer to the same object - if
+		// this happens, you must have done something dodgy!
+		jassert (object != other.object);
+
+		swapVariables (object, other.object);
+	}
+
+private:
+
+	ObjectType* object;
+
+	// (Required as an alternative to the overloaded & operator).
+	const ScopedPointer* getAddress() const throw()				 { return this; }
+
+  #if ! JUCE_MSVC  // (MSVC can't deal with multiple copy constructors)
+	/* This is private to stop people accidentally copying a const ScopedPointer (the compiler
+	   would let you do so by implicitly casting the source to its raw object pointer).
+
+	   A side effect of this is that you may hit a puzzling compiler error when you write something
+	   like this:
+
+		  ScopedPointer<MyClass> m = new MyClass();  // Compile error: copy constructor is private.
+
+	   Even though the compiler would normally ignore the assignment here, it can't do so when the
+	   copy constructor is private. It's very easy to fis though - just write it like this:
+
+		  ScopedPointer<MyClass> m (new MyClass());  // Compiles OK
+
+	   It's good practice to always use the latter form when writing your object declarations anyway,
+	   rather than writing them as assignments and assuming (or hoping) that the compiler will be
+	   smart enough to replace your construction + assignment with a single constructor.
+	*/
+	ScopedPointer (const ScopedPointer&);
+  #endif
+};
+
+/** Compares a ScopedPointer with another pointer.
+	This can be handy for checking whether this is a null pointer.
+*/
+template <class ObjectType>
+bool operator== (const ScopedPointer<ObjectType>& pointer1, ObjectType* const pointer2) throw()
+{
+	return static_cast <ObjectType*> (pointer1) == pointer2;
+}
+
+/** Compares a ScopedPointer with another pointer.
+	This can be handy for checking whether this is a null pointer.
+*/
+template <class ObjectType>
+bool operator!= (const ScopedPointer<ObjectType>& pointer1, ObjectType* const pointer2) throw()
+{
+	return static_cast <ObjectType*> (pointer1) != pointer2;
+}
+
+#endif   // __JUCE_SCOPEDPOINTER_JUCEHEADER__
+/*** End of inlined file: juce_ScopedPointer.h ***/
 
 class FileInputStream;
 class FileOutputStream;
@@ -10771,248 +10285,6 @@ private:
 
 
 #endif
-#ifndef __JUCE_RANGE_JUCEHEADER__
-
-/*** Start of inlined file: juce_Range.h ***/
-#ifndef __JUCE_RANGE_JUCEHEADER__
-#define __JUCE_RANGE_JUCEHEADER__
-
-/** A general-purpose range object, that simply represents any linear range with
-	a start and end point.
-
-	The templated parameter is expected to be a primitive integer or floating point
-	type, though class types could also be used if they behave in a number-like way.
-*/
-template <typename ValueType>
-class Range
-{
-public:
-
-	/** Constructs an empty range. */
-	Range() throw()
-		: start (ValueType()), end (ValueType())
-	{
-	}
-
-	/** Constructs a range with given start and end values. */
-	Range (const ValueType start_, const ValueType end_) throw()
-		: start (start_), end (jmax (start_, end_))
-	{
-	}
-
-	/** Constructs a copy of another range. */
-	Range (const Range& other) throw()
-		: start (other.start), end (other.end)
-	{
-	}
-
-	/** Copies another range object. */
-	Range& operator= (const Range& other) throw()
-	{
-		start = other.start;
-		end = other.end;
-		return *this;
-	}
-
-	/** Destructor. */
-	~Range() throw()
-	{
-	}
-
-	/** Returns the range that lies between two positions (in either order). */
-	static const Range between (const ValueType position1, const ValueType position2) throw()
-	{
-		return (position1 < position2) ? Range (position1, position2)
-									   : Range (position2, position1);
-	}
-
-	/** Returns a range with the specified start position and a length of zero. */
-	static const Range emptyRange (const ValueType start) throw()
-	{
-		return Range (start, start);
-	}
-
-	/** Returns the start of the range. */
-	inline ValueType getStart() const throw()	   { return start; }
-
-	/** Returns the length of the range. */
-	inline ValueType getLength() const throw()	  { return end - start; }
-
-	/** Returns the end of the range. */
-	inline ValueType getEnd() const throw()		 { return end; }
-
-	/** Returns true if the range has a length of zero. */
-	inline bool isEmpty() const throw()		 { return start == end; }
-
-	/** Changes the start position of the range, leaving the end position unchanged.
-		If the new start position is higher than the current end of the range, the end point
-		will be pushed along to equal it, leaving an empty range at the new position.
-	*/
-	void setStart (const ValueType newStart) throw()
-	{
-		start = newStart;
-		if (end < newStart)
-			end = newStart;
-	}
-
-	/** Returns a range with the same end as this one, but a different start.
-		If the new start position is higher than the current end of the range, the end point
-		will be pushed along to equal it, returning an empty range at the new position.
-	*/
-	const Range withStart (const ValueType newStart) const throw()
-	{
-		return Range (newStart, jmax (newStart, end));
-	}
-
-	/** Returns a range with the same length as this one, but moved to have the given start position. */
-	const Range movedToStartAt (const ValueType newStart) const throw()
-	{
-		return Range (newStart, end + (newStart - start));
-	}
-
-	/** Changes the end position of the range, leaving the start unchanged.
-		If the new end position is below the current start of the range, the start point
-		will be pushed back to equal the new end point.
-	*/
-	void setEnd (const ValueType newEnd) throw()
-	{
-		end = newEnd;
-		if (newEnd < start)
-			start = newEnd;
-	}
-
-	/** Returns a range with the same start position as this one, but a different end.
-		If the new end position is below the current start of the range, the start point
-		will be pushed back to equal the new end point.
-	*/
-	const Range withEnd (const ValueType newEnd) const throw()
-	{
-		return Range (jmin (start, newEnd), newEnd);
-	}
-
-	/** Returns a range with the same length as this one, but moved to have the given start position. */
-	const Range movedToEndAt (const ValueType newEnd) const throw()
-	{
-		return Range (start + (newEnd - end), newEnd);
-	}
-
-	/** Changes the length of the range.
-		Lengths less than zero are treated as zero.
-	*/
-	void setLength (const ValueType newLength) throw()
-	{
-		end = start + jmax (ValueType(), newLength);
-	}
-
-	/** Returns a range with the same start as this one, but a different length.
-		Lengths less than zero are treated as zero.
-	*/
-	const Range withLength (const ValueType newLength) const throw()
-	{
-		return Range (start, start + newLength);
-	}
-
-	/** Adds an amount to the start and end of the range. */
-	inline const Range& operator+= (const ValueType amountToAdd) throw()
-	{
-		start += amountToAdd;
-		end += amountToAdd;
-		return *this;
-	}
-
-	/** Subtracts an amount from the start and end of the range. */
-	inline const Range& operator-= (const ValueType amountToSubtract) throw()
-	{
-		start -= amountToSubtract;
-		end -= amountToSubtract;
-		return *this;
-	}
-
-	/** Returns a range that is equal to this one with an amount added to its
-		start and end.
-	*/
-	const Range operator+ (const ValueType amountToAdd) const throw()
-	{
-		return Range (start + amountToAdd, end + amountToAdd);
-	}
-
-	/** Returns a range that is equal to this one with the specified amount
-		subtracted from its start and end. */
-	const Range operator- (const ValueType amountToSubtract) const throw()
-	{
-		return Range (start - amountToSubtract, end - amountToSubtract);
-	}
-
-	bool operator== (const Range& other) const throw()	  { return start == other.start && end == other.end; }
-	bool operator!= (const Range& other) const throw()	  { return start != other.start || end != other.end; }
-
-	/** Returns true if the given position lies inside this range. */
-	bool contains (const ValueType position) const throw()
-	{
-		return start <= position && position < end;
-	}
-
-	/** Returns the nearest value to the one supplied, which lies within the range. */
-	ValueType clipValue (const ValueType value) const throw()
-	{
-		return jlimit (start, end, value);
-	}
-
-	/** Returns true if the given range lies entirely inside this range. */
-	bool contains (const Range& other) const throw()
-	{
-		return start <= other.start && end >= other.end;
-	}
-
-	/** Returns true if the given range intersects this one. */
-	bool intersects (const Range& other) const throw()
-	{
-		return other.start < end && start < other.end;
-	}
-
-	/** Returns the range that is the intersection of the two ranges, or an empty range
-		with an undefined start position if they don't overlap. */
-	const Range getIntersectionWith (const Range& other) const throw()
-	{
-		return Range (jmax (start, other.start),
-					  jmin (end, other.end));
-	}
-
-	/** Returns the smallest range that contains both this one and the other one. */
-	const Range getUnionWith (const Range& other) const throw()
-	{
-		return Range (jmin (start, other.start),
-					  jmax (end, other.end));
-	}
-
-	/** Returns a given range, after moving it forwards or backwards to fit it
-		within this range.
-
-		If the supplied range has a greater length than this one, the return value
-		will be this range.
-
-		Otherwise, if the supplied range is smaller than this one, the return value
-		will be the new range, shifted forwards or backwards so that it doesn't extend
-		beyond this one, but keeping its original length.
-	*/
-	const Range constrainRange (const Range& rangeToConstrain) const throw()
-	{
-		const ValueType otherLen = rangeToConstrain.getLength();
-		return getLength() <= otherLen
-				? *this
-				: rangeToConstrain.movedToStartAt (jlimit (start, end - otherLen, rangeToConstrain.getStart()));
-	}
-
-private:
-
-	ValueType start, end;
-};
-
-#endif   // __JUCE_RANGE_JUCEHEADER__
-/*** End of inlined file: juce_Range.h ***/
-
-
-#endif
 #ifndef __JUCE_REFERENCECOUNTEDARRAY_JUCEHEADER__
 
 /*** Start of inlined file: juce_ReferenceCountedArray.h ***/
@@ -11035,6 +10307,7 @@ template <class ObjectClass, class TypeOfCriticalSectionToUse = DummyCriticalSec
 class ReferenceCountedArray
 {
 public:
+	typedef ReferenceCountedObjectPtr<ObjectClass> ObjectClassPtr;
 
 	/** Creates an empty array.
 		@see ReferenceCountedObject, Array, OwnedArray
@@ -11111,7 +10384,7 @@ public:
 
 		@see getUnchecked
 	*/
-	inline const ReferenceCountedObjectPtr<ObjectClass> operator[] (const int index) const throw()
+	inline const ObjectClassPtr operator[] (const int index) const throw()
 	{
 		const ScopedLockType lock (getLock());
 		return isPositiveAndBelow (index, numUsed) ? data.elements [index]
@@ -11123,7 +10396,7 @@ public:
 		This is a faster and less safe version of operator[] which doesn't check the index passed in, so
 		it can be used when you're sure the index if always going to be legal.
 	*/
-	inline const ReferenceCountedObjectPtr<ObjectClass> getUnchecked (const int index) const throw()
+	inline const ObjectClassPtr getUnchecked (const int index) const throw()
 	{
 		const ScopedLockType lock (getLock());
 		jassert (isPositiveAndBelow (index, numUsed));
@@ -11135,7 +10408,7 @@ public:
 		This will return a null pointer if the array's empty.
 		@see getLast
 	*/
-	inline const ReferenceCountedObjectPtr<ObjectClass> getFirst() const throw()
+	inline const ObjectClassPtr getFirst() const throw()
 	{
 		const ScopedLockType lock (getLock());
 		return numUsed > 0 ? data.elements [0]
@@ -11147,7 +10420,7 @@ public:
 		This will return a null pointer if the array's empty.
 		@see getFirst
 	*/
-	inline const ReferenceCountedObjectPtr<ObjectClass> getLast() const throw()
+	inline const ObjectClassPtr getLast() const throw()
 	{
 		const ScopedLockType lock (getLock());
 		return numUsed > 0 ? data.elements [numUsed - 1]
@@ -11419,6 +10692,43 @@ public:
 		}
 	}
 
+	/** Removes and returns an object from the array.
+
+		This will remove the object at a given index and return it, moving back all
+		the subsequent objects to close the gap. If the index passed in is out-of-range,
+		nothing will happen and a null pointer will be returned.
+
+		@param indexToRemove	the index of the element to remove
+		@see remove, removeObject, removeRange
+	*/
+	const ObjectClassPtr removeAndReturn (const int indexToRemove)
+	{
+		ObjectClassPtr removedItem;
+		const ScopedLockType lock (getLock());
+
+		if (isPositiveAndBelow (indexToRemove, numUsed))
+		{
+			ObjectClass** const e = data.elements + indexToRemove;
+
+			if (*e != 0)
+			{
+				removedItem = *e;
+				(*e)->decReferenceCount();
+			}
+
+			--numUsed;
+			const int numberToShift = numUsed - indexToRemove;
+
+			if (numberToShift > 0)
+				memmove (e, e + 1, numberToShift * sizeof (ObjectClass*));
+
+			if ((numUsed << 1) < data.numAllocated)
+				minimiseStorageOverheads();
+		}
+
+		return removedItem;
+	}
+
 	/** Removes the first occurrence of a specified object from the array.
 
 		If the item isn't found, no action is taken. If it is found, it is
@@ -11675,12 +10985,6 @@ private:
 #endif   // __JUCE_REFERENCECOUNTEDARRAY_JUCEHEADER__
 /*** End of inlined file: juce_ReferenceCountedArray.h ***/
 
-
-#endif
-#ifndef __JUCE_REFERENCECOUNTEDOBJECT_JUCEHEADER__
-
-#endif
-#ifndef __JUCE_SCOPEDPOINTER_JUCEHEADER__
 
 #endif
 #ifndef __JUCE_SORTEDSET_JUCEHEADER__
@@ -12206,6 +11510,245 @@ private:
 #ifndef __JUCE_SPARSESET_JUCEHEADER__
 #define __JUCE_SPARSESET_JUCEHEADER__
 
+
+/*** Start of inlined file: juce_Range.h ***/
+#ifndef __JUCE_RANGE_JUCEHEADER__
+#define __JUCE_RANGE_JUCEHEADER__
+
+/** A general-purpose range object, that simply represents any linear range with
+	a start and end point.
+
+	The templated parameter is expected to be a primitive integer or floating point
+	type, though class types could also be used if they behave in a number-like way.
+*/
+template <typename ValueType>
+class Range
+{
+public:
+
+	/** Constructs an empty range. */
+	Range() throw()
+		: start (ValueType()), end (ValueType())
+	{
+	}
+
+	/** Constructs a range with given start and end values. */
+	Range (const ValueType start_, const ValueType end_) throw()
+		: start (start_), end (jmax (start_, end_))
+	{
+	}
+
+	/** Constructs a copy of another range. */
+	Range (const Range& other) throw()
+		: start (other.start), end (other.end)
+	{
+	}
+
+	/** Copies another range object. */
+	Range& operator= (const Range& other) throw()
+	{
+		start = other.start;
+		end = other.end;
+		return *this;
+	}
+
+	/** Destructor. */
+	~Range() throw()
+	{
+	}
+
+	/** Returns the range that lies between two positions (in either order). */
+	static const Range between (const ValueType position1, const ValueType position2) throw()
+	{
+		return (position1 < position2) ? Range (position1, position2)
+									   : Range (position2, position1);
+	}
+
+	/** Returns a range with the specified start position and a length of zero. */
+	static const Range emptyRange (const ValueType start) throw()
+	{
+		return Range (start, start);
+	}
+
+	/** Returns the start of the range. */
+	inline ValueType getStart() const throw()	   { return start; }
+
+	/** Returns the length of the range. */
+	inline ValueType getLength() const throw()	  { return end - start; }
+
+	/** Returns the end of the range. */
+	inline ValueType getEnd() const throw()		 { return end; }
+
+	/** Returns true if the range has a length of zero. */
+	inline bool isEmpty() const throw()		 { return start == end; }
+
+	/** Changes the start position of the range, leaving the end position unchanged.
+		If the new start position is higher than the current end of the range, the end point
+		will be pushed along to equal it, leaving an empty range at the new position.
+	*/
+	void setStart (const ValueType newStart) throw()
+	{
+		start = newStart;
+		if (end < newStart)
+			end = newStart;
+	}
+
+	/** Returns a range with the same end as this one, but a different start.
+		If the new start position is higher than the current end of the range, the end point
+		will be pushed along to equal it, returning an empty range at the new position.
+	*/
+	const Range withStart (const ValueType newStart) const throw()
+	{
+		return Range (newStart, jmax (newStart, end));
+	}
+
+	/** Returns a range with the same length as this one, but moved to have the given start position. */
+	const Range movedToStartAt (const ValueType newStart) const throw()
+	{
+		return Range (newStart, end + (newStart - start));
+	}
+
+	/** Changes the end position of the range, leaving the start unchanged.
+		If the new end position is below the current start of the range, the start point
+		will be pushed back to equal the new end point.
+	*/
+	void setEnd (const ValueType newEnd) throw()
+	{
+		end = newEnd;
+		if (newEnd < start)
+			start = newEnd;
+	}
+
+	/** Returns a range with the same start position as this one, but a different end.
+		If the new end position is below the current start of the range, the start point
+		will be pushed back to equal the new end point.
+	*/
+	const Range withEnd (const ValueType newEnd) const throw()
+	{
+		return Range (jmin (start, newEnd), newEnd);
+	}
+
+	/** Returns a range with the same length as this one, but moved to have the given start position. */
+	const Range movedToEndAt (const ValueType newEnd) const throw()
+	{
+		return Range (start + (newEnd - end), newEnd);
+	}
+
+	/** Changes the length of the range.
+		Lengths less than zero are treated as zero.
+	*/
+	void setLength (const ValueType newLength) throw()
+	{
+		end = start + jmax (ValueType(), newLength);
+	}
+
+	/** Returns a range with the same start as this one, but a different length.
+		Lengths less than zero are treated as zero.
+	*/
+	const Range withLength (const ValueType newLength) const throw()
+	{
+		return Range (start, start + newLength);
+	}
+
+	/** Adds an amount to the start and end of the range. */
+	inline const Range& operator+= (const ValueType amountToAdd) throw()
+	{
+		start += amountToAdd;
+		end += amountToAdd;
+		return *this;
+	}
+
+	/** Subtracts an amount from the start and end of the range. */
+	inline const Range& operator-= (const ValueType amountToSubtract) throw()
+	{
+		start -= amountToSubtract;
+		end -= amountToSubtract;
+		return *this;
+	}
+
+	/** Returns a range that is equal to this one with an amount added to its
+		start and end.
+	*/
+	const Range operator+ (const ValueType amountToAdd) const throw()
+	{
+		return Range (start + amountToAdd, end + amountToAdd);
+	}
+
+	/** Returns a range that is equal to this one with the specified amount
+		subtracted from its start and end. */
+	const Range operator- (const ValueType amountToSubtract) const throw()
+	{
+		return Range (start - amountToSubtract, end - amountToSubtract);
+	}
+
+	bool operator== (const Range& other) const throw()	  { return start == other.start && end == other.end; }
+	bool operator!= (const Range& other) const throw()	  { return start != other.start || end != other.end; }
+
+	/** Returns true if the given position lies inside this range. */
+	bool contains (const ValueType position) const throw()
+	{
+		return start <= position && position < end;
+	}
+
+	/** Returns the nearest value to the one supplied, which lies within the range. */
+	ValueType clipValue (const ValueType value) const throw()
+	{
+		return jlimit (start, end, value);
+	}
+
+	/** Returns true if the given range lies entirely inside this range. */
+	bool contains (const Range& other) const throw()
+	{
+		return start <= other.start && end >= other.end;
+	}
+
+	/** Returns true if the given range intersects this one. */
+	bool intersects (const Range& other) const throw()
+	{
+		return other.start < end && start < other.end;
+	}
+
+	/** Returns the range that is the intersection of the two ranges, or an empty range
+		with an undefined start position if they don't overlap. */
+	const Range getIntersectionWith (const Range& other) const throw()
+	{
+		return Range (jmax (start, other.start),
+					  jmin (end, other.end));
+	}
+
+	/** Returns the smallest range that contains both this one and the other one. */
+	const Range getUnionWith (const Range& other) const throw()
+	{
+		return Range (jmin (start, other.start),
+					  jmax (end, other.end));
+	}
+
+	/** Returns a given range, after moving it forwards or backwards to fit it
+		within this range.
+
+		If the supplied range has a greater length than this one, the return value
+		will be this range.
+
+		Otherwise, if the supplied range is smaller than this one, the return value
+		will be the new range, shifted forwards or backwards so that it doesn't extend
+		beyond this one, but keeping its original length.
+	*/
+	const Range constrainRange (const Range& rangeToConstrain) const throw()
+	{
+		const ValueType otherLen = rangeToConstrain.getLength();
+		return getLength() <= otherLen
+				? *this
+				: rangeToConstrain.movedToStartAt (jlimit (start, end - otherLen, rangeToConstrain.getStart()));
+	}
+
+private:
+
+	ValueType start, end;
+};
+
+#endif   // __JUCE_RANGE_JUCEHEADER__
+/*** End of inlined file: juce_Range.h ***/
+
 /**
 	Holds a set of primitive values, storing them as a set of ranges.
 
@@ -12486,6 +12029,123 @@ private:
 #ifndef __JUCE_ASYNCUPDATER_JUCEHEADER__
 #define __JUCE_ASYNCUPDATER_JUCEHEADER__
 
+
+/*** Start of inlined file: juce_CallbackMessage.h ***/
+#ifndef __JUCE_CALLBACKMESSAGE_JUCEHEADER__
+#define __JUCE_CALLBACKMESSAGE_JUCEHEADER__
+
+
+/*** Start of inlined file: juce_Message.h ***/
+#ifndef __JUCE_MESSAGE_JUCEHEADER__
+#define __JUCE_MESSAGE_JUCEHEADER__
+
+class MessageListener;
+class MessageManager;
+
+/** The base class for objects that can be delivered to a MessageListener.
+
+	The simplest Message object contains a few integer and pointer parameters
+	that the user can set, and this is enough for a lot of purposes. For passing more
+	complex data, subclasses of Message can also be used.
+
+	@see MessageListener, MessageManager, ActionListener, ChangeListener
+*/
+class JUCE_API  Message  : public ReferenceCountedObject
+{
+public:
+
+	/** Creates an uninitialised message.
+
+		The class's variables will also be left uninitialised.
+	*/
+	Message() throw();
+
+	/** Creates a message object, filling in the member variables.
+
+		The corresponding public member variables will be set from the parameters
+		passed in.
+	*/
+	Message (int intParameter1,
+			 int intParameter2,
+			 int intParameter3,
+			 void* pointerParameter) throw();
+
+	/** Destructor. */
+	virtual ~Message();
+
+	// These values can be used for carrying simple data that the application needs to
+	// pass around. For more complex messages, just create a subclass.
+
+	int intParameter1;	  /**< user-defined integer value. */
+	int intParameter2;	  /**< user-defined integer value. */
+	int intParameter3;	  /**< user-defined integer value. */
+	void* pointerParameter;	 /**< user-defined pointer value. */
+
+	/** A typedef for pointers to messages. */
+	typedef ReferenceCountedObjectPtr <Message> Ptr;
+
+private:
+	friend class MessageListener;
+	friend class MessageManager;
+	MessageListener* messageRecipient;
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Message);
+};
+
+#endif   // __JUCE_MESSAGE_JUCEHEADER__
+/*** End of inlined file: juce_Message.h ***/
+
+/**
+	A message that calls a custom function when it gets delivered.
+
+	You can use this class to fire off actions that you want to be performed later
+	on the message thread.
+
+	Unlike other Message objects, these don't get sent to a MessageListener, you
+	just call the post() method to send them, and when they arrive, your
+	messageCallback() method will automatically be invoked.
+
+	Always create an instance of a CallbackMessage on the heap, as it will be
+	deleted automatically after the message has been delivered.
+
+	@see MessageListener, MessageManager, ActionListener, ChangeListener
+*/
+class JUCE_API  CallbackMessage   : public Message
+{
+public:
+
+	CallbackMessage() throw();
+
+	/** Destructor. */
+	~CallbackMessage();
+
+	/** Called when the message is delivered.
+
+		You should implement this method and make it do whatever action you want
+		to perform.
+
+		Note that like all other messages, this object will be deleted immediately
+		after this method has been invoked.
+	*/
+	virtual void messageCallback() = 0;
+
+	/** Instead of sending this message to a MessageListener, just call this method
+		to post it to the event queue.
+
+		After you've called this, this object will belong to the MessageManager,
+		which will delete it later. So make sure you don't delete the object yourself,
+		call post() more than once, or call post() on a stack-based obect!
+	*/
+	void post();
+
+private:
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (CallbackMessage);
+};
+
+#endif   // __JUCE_CALLBACKMESSAGE_JUCEHEADER__
+/*** End of inlined file: juce_CallbackMessage.h ***/
+
 /**
 	Has a callback method that is triggered asynchronously.
 
@@ -12500,7 +12160,7 @@ class JUCE_API  AsyncUpdater
 public:
 
 	/** Creates an AsyncUpdater object. */
-	AsyncUpdater() throw();
+	AsyncUpdater();
 
 	/** Destructor.
 
@@ -12525,6 +12185,10 @@ public:
 
 		If called after triggerAsyncUpdate() and before the handleAsyncUpdate()
 		callback happens, this will cancel the handleAsyncUpdate() callback.
+
+		Note that this method simply cancels the next callback - if a callback is already
+		in progress on a different thread, this won't block until it finishes, so there's
+		no guarantee that the callback isn't still running when you return from
 	*/
 	void cancelPendingUpdate() throw();
 
@@ -12552,10 +12216,10 @@ public:
 
 private:
 
-	class AsyncUpdaterMessage;
-	friend class AsyncUpdaterMessage;
+	ReferenceCountedObjectPtr<CallbackMessage> message;
+	Atomic<int>& getDeliveryFlag() const throw();
 
-	Atomic<AsyncUpdaterMessage*> pendingMessage;
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AsyncUpdater);
 };
 
 #endif   // __JUCE_ASYNCUPDATER_JUCEHEADER__
@@ -12608,12 +12272,14 @@ template <class ListenerClass,
 class ListenerList
 {
 	// Horrible macros required to support VC6/7..
-	#if JUCE_VC8_OR_EARLIER
-	  #define LL_TEMPLATE(a)   typename P##a, typename Q##a
-	  #define LL_PARAM(a)	  Q##a& param##a
-	#else
-	  #define LL_TEMPLATE(a)   typename P##a
-	  #define LL_PARAM(a)	  PARAMETER_TYPE(P##a) param##a
+	#ifndef DOXYGEN
+	 #if JUCE_VC8_OR_EARLIER
+	   #define LL_TEMPLATE(a)   typename P##a, typename Q##a
+	   #define LL_PARAM(a)	  Q##a& param##a
+	 #else
+	   #define LL_TEMPLATE(a)   typename P##a
+	   #define LL_PARAM(a)	  PARAMETER_TYPE(P##a) param##a
+	 #endif
 	#endif
 
 public:
@@ -13942,12 +13608,6 @@ private:
 #ifndef __JUCE_VARIANT_JUCEHEADER__
 
 #endif
-#ifndef __JUCE_ATOMIC_JUCEHEADER__
-
-#endif
-#ifndef __JUCE_BYTEORDER_JUCEHEADER__
-
-#endif
 #ifndef __JUCE_FILELOGGER_JUCEHEADER__
 
 /*** Start of inlined file: juce_FileLogger.h ***/
@@ -14180,16 +13840,7 @@ public:
 
 
 #endif
-#ifndef __JUCE_LEAKEDOBJECTDETECTOR_JUCEHEADER__
-
-#endif
 #ifndef __JUCE_LOGGER_JUCEHEADER__
-
-#endif
-#ifndef __JUCE_MATHSFUNCTIONS_JUCEHEADER__
-
-#endif
-#ifndef __JUCE_MEMORY_JUCEHEADER__
 
 #endif
 #ifndef __JUCE_PERFORMANCECOUNTER_JUCEHEADER__
@@ -14581,112 +14232,6 @@ private:
 
 #endif   // __JUCE_PLATFORMUTILITIES_JUCEHEADER__
 /*** End of inlined file: juce_PlatformUtilities.h ***/
-
-
-#endif
-#ifndef __JUCE_RANDOM_JUCEHEADER__
-
-/*** Start of inlined file: juce_Random.h ***/
-#ifndef __JUCE_RANDOM_JUCEHEADER__
-#define __JUCE_RANDOM_JUCEHEADER__
-
-/**
-	A simple pseudo-random number generator.
-*/
-class JUCE_API  Random
-{
-public:
-
-	/** Creates a Random object based on a seed value.
-
-		For a given seed value, the subsequent numbers generated by this object
-		will be predictable, so a good idea is to set this value based
-		on the time, e.g.
-
-		new Random (Time::currentTimeMillis())
-	*/
-	explicit Random (int64 seedValue) throw();
-
-	/** Destructor. */
-	~Random() throw();
-
-	/** Returns the next random 32 bit integer.
-
-		@returns a random integer from the full range 0x80000000 to 0x7fffffff
-	*/
-	int nextInt() throw();
-
-	/** Returns the next random number, limited to a given range.
-
-		@returns a random integer between 0 (inclusive) and maxValue (exclusive).
-	*/
-	int nextInt (int maxValue) throw();
-
-	/** Returns the next 64-bit random number.
-
-		@returns a random integer from the full range 0x8000000000000000 to 0x7fffffffffffffff
-	*/
-	int64 nextInt64() throw();
-
-	/** Returns the next random floating-point number.
-
-		@returns a random value in the range 0 to 1.0
-	*/
-	float nextFloat() throw();
-
-	/** Returns the next random floating-point number.
-
-		@returns a random value in the range 0 to 1.0
-	*/
-	double nextDouble() throw();
-
-	/** Returns the next random boolean value.
-	*/
-	bool nextBool() throw();
-
-	/** Returns a BigInteger containing a random number.
-
-		@returns a random value in the range 0 to (maximumValue - 1).
-	*/
-	const BigInteger nextLargeNumber (const BigInteger& maximumValue);
-
-	/** Sets a range of bits in a BigInteger to random values. */
-	void fillBitsRandomly (BigInteger& arrayToChange, int startBit, int numBits);
-
-	/** To avoid the overhead of having to create a new Random object whenever
-		you need a number, this is a shared application-wide object that
-		can be used.
-
-		It's not thread-safe though, so threads should use their own Random object.
-	*/
-	static Random& getSystemRandom() throw();
-
-	/** Resets this Random object to a given seed value. */
-	void setSeed (int64 newSeed) throw();
-
-	/** Merges this object's seed with another value.
-		This sets the seed to be a value created by combining the current seed and this
-		new value.
-	*/
-	void combineSeed (int64 seedValue) throw();
-
-	/** Reseeds this generator using a value generated from various semi-random system
-		properties like the current time, etc.
-
-		Because this function convolves the time with the last seed value, calling
-		it repeatedly will increase the randomness of the final result.
-	*/
-	void setSeedRandomly();
-
-private:
-
-	int64 seed;
-
-	JUCE_LEAK_DETECTOR (Random);
-};
-
-#endif   // __JUCE_RANDOM_JUCEHEADER__
-/*** End of inlined file: juce_Random.h ***/
 
 
 #endif
@@ -15313,6 +14858,7 @@ public:
 
 private:
 
+   #ifndef DOXYGEN
 	union
 	{
 		uint8 asBytes [16];
@@ -15320,6 +14866,7 @@ private:
 		int64 asInt64[2];
 
 	} value;
+   #endif
 
 	JUCE_LEAK_DETECTOR (Uuid);
 };
@@ -15480,6 +15027,303 @@ private:
 /*** Start of inlined file: juce_Primes.h ***/
 #ifndef __JUCE_PRIMES_JUCEHEADER__
 #define __JUCE_PRIMES_JUCEHEADER__
+
+
+/*** Start of inlined file: juce_BigInteger.h ***/
+#ifndef __JUCE_BIGINTEGER_JUCEHEADER__
+#define __JUCE_BIGINTEGER_JUCEHEADER__
+
+class MemoryBlock;
+
+/**
+	An arbitrarily large integer class.
+
+	A BigInteger can be used in a similar way to a normal integer, but has no size
+	limit (except for memory and performance constraints).
+
+	Negative values are possible, but the value isn't stored as 2s-complement, so
+	be careful if you use negative values and look at the values of individual bits.
+*/
+class JUCE_API  BigInteger
+{
+public:
+
+	/** Creates an empty BigInteger */
+	BigInteger();
+
+	/** Creates a BigInteger containing an integer value in its low bits.
+
+		The low 32 bits of the number are initialised with this value.
+	*/
+	BigInteger (uint32 value);
+
+	/** Creates a BigInteger containing an integer value in its low bits.
+
+		The low 32 bits of the number are initialised with the absolute value
+		passed in, and its sign is set to reflect the sign of the number.
+	*/
+	BigInteger (int32 value);
+
+	/** Creates a BigInteger containing an integer value in its low bits.
+
+		The low 64 bits of the number are initialised with the absolute value
+		passed in, and its sign is set to reflect the sign of the number.
+	*/
+	BigInteger (int64 value);
+
+	/** Creates a copy of another BigInteger. */
+	BigInteger (const BigInteger& other);
+
+	/** Destructor. */
+	~BigInteger();
+
+	/** Copies another BigInteger onto this one. */
+	BigInteger& operator= (const BigInteger& other);
+
+	/** Swaps the internal contents of this with another object. */
+	void swapWith (BigInteger& other) throw();
+
+	/** Returns the value of a specified bit in the number.
+		If the index is out-of-range, the result will be false.
+	*/
+	bool operator[] (int bit) const throw();
+
+	/** Returns true if no bits are set. */
+	bool isZero() const throw();
+
+	/** Returns true if the value is 1. */
+	bool isOne() const throw();
+
+	/** Attempts to get the lowest bits of the value as an integer.
+		If the value is bigger than the integer limits, this will return only the lower bits.
+	*/
+	int toInteger() const throw();
+
+	/** Resets the value to 0. */
+	void clear();
+
+	/** Clears a particular bit in the number. */
+	void clearBit (int bitNumber) throw();
+
+	/** Sets a specified bit to 1. */
+	void setBit (int bitNumber);
+
+	/** Sets or clears a specified bit. */
+	void setBit (int bitNumber, bool shouldBeSet);
+
+	/** Sets a range of bits to be either on or off.
+
+		@param startBit	 the first bit to change
+		@param numBits	  the number of bits to change
+		@param shouldBeSet  whether to turn these bits on or off
+	*/
+	void setRange (int startBit, int numBits, bool shouldBeSet);
+
+	/** Inserts a bit an a given position, shifting up any bits above it. */
+	void insertBit (int bitNumber, bool shouldBeSet);
+
+	/** Returns a range of bits as a new BigInteger.
+
+		e.g. getBitRangeAsInt (0, 64) would return the lowest 64 bits.
+		@see getBitRangeAsInt
+	*/
+	const BigInteger getBitRange (int startBit, int numBits) const;
+
+	/** Returns a range of bits as an integer value.
+
+		e.g. getBitRangeAsInt (0, 32) would return the lowest 32 bits.
+
+		Asking for more than 32 bits isn't allowed (obviously) - for that, use
+		getBitRange().
+	*/
+	int getBitRangeAsInt (int startBit, int numBits) const throw();
+
+	/** Sets a range of bits to an integer value.
+
+		Copies the given integer onto a range of bits, starting at startBit,
+		and using up to numBits of the available bits.
+	*/
+	void setBitRangeAsInt (int startBit, int numBits, uint32 valueToSet);
+
+	/** Shifts a section of bits left or right.
+
+		@param howManyBitsLeft  how far to move the bits (+ve numbers shift it left, -ve numbers shift it right).
+		@param startBit	 the first bit to affect - if this is > 0, only bits above that index will be affected.
+	*/
+	void shiftBits (int howManyBitsLeft, int startBit);
+
+	/** Returns the total number of set bits in the value. */
+	int countNumberOfSetBits() const throw();
+
+	/** Looks for the index of the next set bit after a given starting point.
+
+		This searches from startIndex (inclusive) upwards for the first set bit,
+		and returns its index. If no set bits are found, it returns -1.
+	*/
+	int findNextSetBit (int startIndex = 0) const throw();
+
+	/** Looks for the index of the next clear bit after a given starting point.
+
+		This searches from startIndex (inclusive) upwards for the first clear bit,
+		and returns its index.
+	*/
+	int findNextClearBit (int startIndex = 0) const throw();
+
+	/** Returns the index of the highest set bit in the number.
+		If the value is zero, this will return -1.
+	*/
+	int getHighestBit() const throw();
+
+	// All the standard arithmetic ops...
+
+	BigInteger& operator+= (const BigInteger& other);
+	BigInteger& operator-= (const BigInteger& other);
+	BigInteger& operator*= (const BigInteger& other);
+	BigInteger& operator/= (const BigInteger& other);
+	BigInteger& operator|= (const BigInteger& other);
+	BigInteger& operator&= (const BigInteger& other);
+	BigInteger& operator^= (const BigInteger& other);
+	BigInteger& operator%= (const BigInteger& other);
+	BigInteger& operator<<= (int numBitsToShift);
+	BigInteger& operator>>= (int numBitsToShift);
+	BigInteger& operator++();
+	BigInteger& operator--();
+	const BigInteger operator++ (int);
+	const BigInteger operator-- (int);
+
+	const BigInteger operator-() const;
+	const BigInteger operator+ (const BigInteger& other) const;
+	const BigInteger operator- (const BigInteger& other) const;
+	const BigInteger operator* (const BigInteger& other) const;
+	const BigInteger operator/ (const BigInteger& other) const;
+	const BigInteger operator| (const BigInteger& other) const;
+	const BigInteger operator& (const BigInteger& other) const;
+	const BigInteger operator^ (const BigInteger& other) const;
+	const BigInteger operator% (const BigInteger& other) const;
+	const BigInteger operator<< (int numBitsToShift) const;
+	const BigInteger operator>> (int numBitsToShift) const;
+
+	bool operator== (const BigInteger& other) const throw();
+	bool operator!= (const BigInteger& other) const throw();
+	bool operator<  (const BigInteger& other) const throw();
+	bool operator<= (const BigInteger& other) const throw();
+	bool operator>  (const BigInteger& other) const throw();
+	bool operator>= (const BigInteger& other) const throw();
+
+	/** Does a signed comparison of two BigIntegers.
+
+		Return values are:
+			- 0 if the numbers are the same
+			- < 0 if this number is smaller than the other
+			- > 0 if this number is bigger than the other
+	*/
+	int compare (const BigInteger& other) const throw();
+
+	/** Compares the magnitudes of two BigIntegers, ignoring their signs.
+
+		Return values are:
+			- 0 if the numbers are the same
+			- < 0 if this number is smaller than the other
+			- > 0 if this number is bigger than the other
+	*/
+	int compareAbsolute (const BigInteger& other) const throw();
+
+	/** Divides this value by another one and returns the remainder.
+
+		This number is divided by other, leaving the quotient in this number,
+		with the remainder being copied to the other BigInteger passed in.
+	*/
+	void divideBy (const BigInteger& divisor, BigInteger& remainder);
+
+	/** Returns the largest value that will divide both this value and the one passed-in.
+	*/
+	const BigInteger findGreatestCommonDivisor (BigInteger other) const;
+
+	/** Performs a combined exponent and modulo operation.
+
+		This BigInteger's value becomes (this ^ exponent) % modulus.
+	*/
+	void exponentModulo (const BigInteger& exponent, const BigInteger& modulus);
+
+	/** Performs an inverse modulo on the value.
+
+		i.e. the result is (this ^ -1) mod (modulus).
+	*/
+	void inverseModulo (const BigInteger& modulus);
+
+	/** Returns true if the value is less than zero.
+		@see setNegative, negate
+	*/
+	bool isNegative() const throw();
+
+	/** Changes the sign of the number to be positive or negative.
+		@see isNegative, negate
+	*/
+	void setNegative (bool shouldBeNegative) throw();
+
+	/** Inverts the sign of the number.
+		@see isNegative, setNegative
+	*/
+	void negate() throw();
+
+	/** Converts the number to a string.
+
+		Specify a base such as 2 (binary), 8 (octal), 10 (decimal), 16 (hex).
+		If minimumNumCharacters is greater than 0, the returned string will be
+		padded with leading zeros to reach at least that length.
+	*/
+	const String toString (int base, int minimumNumCharacters = 1) const;
+
+	/** Reads the numeric value from a string.
+
+		Specify a base such as 2 (binary), 8 (octal), 10 (decimal), 16 (hex).
+		Any invalid characters will be ignored.
+	*/
+	void parseString (const String& text, int base);
+
+	/** Turns the number into a block of binary data.
+
+		The data is arranged as little-endian, so the first byte of data is the low 8 bits
+		of the number, and so on.
+
+		@see loadFromMemoryBlock
+	*/
+	const MemoryBlock toMemoryBlock() const;
+
+	/** Converts a block of raw data into a number.
+
+		The data is arranged as little-endian, so the first byte of data is the low 8 bits
+		of the number, and so on.
+
+		@see toMemoryBlock
+	*/
+	void loadFromMemoryBlock (const MemoryBlock& data);
+
+private:
+
+	HeapBlock <uint32> values;
+	int numValues, highestBit;
+	bool negative;
+
+	void ensureSize (int numVals);
+	static const BigInteger simpleGCD (BigInteger* m, BigInteger* n);
+
+	static inline int bitToIndex (const int bit) throw()	{ return bit >> 5; }
+	static inline uint32 bitToMask (const int bit) throw()	  { return 1 << (bit & 31); }
+
+	JUCE_LEAK_DETECTOR (BigInteger);
+};
+
+/** Writes a BigInteger to an OutputStream as a UTF8 decimal string. */
+OutputStream& JUCE_CALLTYPE operator<< (OutputStream& stream, const BigInteger& value);
+
+#ifndef DOXYGEN
+ // For backwards compatibility, BitArray is defined as an alias for BigInteger.
+ typedef BigInteger BitArray;
+#endif
+
+#endif   // __JUCE_BIGINTEGER_JUCEHEADER__
+/*** End of inlined file: juce_BigInteger.h ***/
 
 /**
 	Prime number creation class.
@@ -16498,11 +16342,13 @@ public:
 	bool operator!= (const MACAddress& other) const throw();
 
 private:
+   #ifndef DOXYGEN
 	union
 	{
 		uint64 asInt64;
 		uint8 asBytes[6];
 	};
+   #endif
 };
 
 #endif   // __JUCE_MACADDRESS_JUCEHEADER__
@@ -17526,7 +17372,565 @@ private:
 
 
 #endif
+#ifndef __JUCE_BIGINTEGER_JUCEHEADER__
+
+#endif
+#ifndef __JUCE_EXPRESSION_JUCEHEADER__
+
+/*** Start of inlined file: juce_Expression.h ***/
+#ifndef __JUCE_EXPRESSION_JUCEHEADER__
+#define __JUCE_EXPRESSION_JUCEHEADER__
+
+/**
+	A class for dynamically evaluating simple numeric expressions.
+
+	This class can parse a simple C-style string expression involving floating point
+	numbers, named symbols and functions. The basic arithmetic operations of +, -, *, /
+	are supported, as well as parentheses, and any alphanumeric identifiers are
+	assumed to be named symbols which will be resolved when the expression is
+	evaluated.
+
+	Expressions which use identifiers and functions require a subclass of
+	Expression::EvaluationContext to be supplied when evaluating them, and this object
+	is expected to be able to resolve the symbol names and perform the functions that
+	are used.
+*/
+class JUCE_API  Expression
+{
+public:
+
+	/** Creates a simple expression with a value of 0. */
+	Expression();
+
+	/** Destructor. */
+	~Expression();
+
+	/** Creates a simple expression with a specified constant value. */
+	explicit Expression (double constant);
+
+	/** Creates a copy of an expression. */
+	Expression (const Expression& other);
+
+	/** Copies another expression. */
+	Expression& operator= (const Expression& other);
+
+	/** Creates an expression by parsing a string.
+		If there's a syntax error in the string, this will throw a ParseError exception.
+		@throws ParseError
+	*/
+	explicit Expression (const String& stringToParse);
+
+	/** Returns a string version of the expression. */
+	const String toString() const;
+
+	/** Returns an expression which is an addtion operation of two existing expressions. */
+	const Expression operator+ (const Expression& other) const;
+	/** Returns an expression which is a subtraction operation of two existing expressions. */
+	const Expression operator- (const Expression& other) const;
+	/** Returns an expression which is a multiplication operation of two existing expressions. */
+	const Expression operator* (const Expression& other) const;
+	/** Returns an expression which is a division operation of two existing expressions. */
+	const Expression operator/ (const Expression& other) const;
+	/** Returns an expression which performs a negation operation on an existing expression. */
+	const Expression operator-() const;
+
+	/** Returns an Expression which is an identifier reference. */
+	static const Expression symbol (const String& symbol);
+
+	/** Returns an Expression which is a function call. */
+	static const Expression function (const String& functionName, const Array<Expression>& parameters);
+
+	/** Returns an Expression which parses a string from a specified character index.
+
+		The index value is incremented so that on return, it indicates the character that follows
+		the end of the expression that was parsed.
+
+		If there's a syntax error in the string, this will throw a ParseError exception.
+		@throws ParseError
+	*/
+	static const Expression parse (const String& stringToParse, int& textIndexToStartFrom);
+
+	/** When evaluating an Expression object, this class is used to resolve symbols and
+		perform functions that the expression uses.
+	*/
+	class JUCE_API  EvaluationContext
+	{
+	public:
+		EvaluationContext();
+		virtual ~EvaluationContext();
+
+		/** Returns the value of a symbol.
+			If the symbol is unknown, this can throw an Expression::EvaluationError exception.
+			The member value is set to the part of the symbol that followed the dot, if there is
+			one, e.g. for "foo.bar", symbol = "foo" and member = "bar".
+			@throws Expression::EvaluationError
+		*/
+		virtual const Expression getSymbolValue (const String& symbol, const String& member) const;
+
+		/** Executes a named function.
+			If the function name is unknown, this can throw an Expression::EvaluationError exception.
+			@throws Expression::EvaluationError
+		*/
+		virtual double evaluateFunction (const String& functionName, const double* parameters, int numParams) const;
+	};
+
+	/** Evaluates this expression, without using an EvaluationContext.
+		Without an EvaluationContext, no symbols can be used, and only basic functions such as sin, cos, tan,
+		min, max are available.
+		@throws Expression::EvaluationError
+	*/
+	double evaluate() const;
+
+	/** Evaluates this expression, providing a context that should be able to evaluate any symbols
+		or functions that it uses.
+		@throws Expression::EvaluationError
+	*/
+	double evaluate (const EvaluationContext& context) const;
+
+	/** Attempts to return an expression which is a copy of this one, but with a constant adjusted
+		to make the expression resolve to a target value.
+
+		E.g. if the expression is "x + 10" and x is 5, then asking for a target value of 8 will return
+		the expression "x + 3". Obviously some expressions can't be reversed in this way, in which
+		case they might just be adjusted by adding a constant to them.
+
+		@throws Expression::EvaluationError
+	*/
+	const Expression adjustedToGiveNewResult (double targetValue, const EvaluationContext& context) const;
+
+	/** Returns a copy of this expression in which all instances of a given symbol have been renamed. */
+	const Expression withRenamedSymbol (const String& oldSymbol, const String& newSymbol) const;
+
+	/** Returns true if this expression makes use of the specified symbol.
+		If a suitable context is supplied, the search will dereference and recursively check
+		all symbols, so that it can be determined whether this expression relies on the given
+		symbol at any level in its evaluation. If the context parameter is null, this just checks
+		whether the expression contains any direct references to the symbol.
+
+		@throws Expression::EvaluationError
+	*/
+	bool referencesSymbol (const String& symbol, const EvaluationContext* context) const;
+
+	/** Returns true if this expression contains any symbols. */
+	bool usesAnySymbols() const;
+
+	/** An exception that can be thrown by Expression::parse(). */
+	class ParseError  : public std::exception
+	{
+	public:
+		ParseError (const String& message);
+
+		String description;
+	};
+
+	/** An exception that can be thrown by Expression::evaluate(). */
+	class EvaluationError  : public std::exception
+	{
+	public:
+		EvaluationError (const String& message);
+		EvaluationError (const String& symbolName, const String& memberName);
+
+		String description;
+	};
+
+	/** Expression type.
+		@see Expression::getType()
+	*/
+	enum Type
+	{
+		constantType,
+		functionType,
+		operatorType,
+		symbolType
+	};
+
+	/** Returns the type of this expression. */
+	Type getType() const throw();
+
+	/** If this expression is a symbol, this returns its name. */
+	const String getSymbol() const;
+
+	/** If this expression is a function, this returns its name. */
+	const String getFunction() const;
+
+	/** If this expression is an operator, this returns its name.
+		E.g. "+", "-", "*", "/", etc.
+	*/
+	const String getOperator() const;
+
+	/** Returns the number of inputs to this expression.
+		@see getInput
+	*/
+	int getNumInputs() const;
+
+	/** Retrieves one of the inputs to this expression.
+		@see getNumInputs
+	*/
+	const Expression getInput (int index) const;
+
+private:
+
+	class Helpers;
+	friend class Helpers;
+
+	class Term  : public ReferenceCountedObject
+	{
+	public:
+		Term() {}
+		virtual ~Term() {}
+
+		virtual Term* clone() const = 0;
+		virtual double evaluate (const EvaluationContext&, int recursionDepth) const = 0;
+		virtual int getNumInputs() const = 0;
+		virtual Term* getInput (int index) const = 0;
+		virtual int getInputIndexFor (const Term* possibleInput) const;
+		virtual const String toString() const = 0;
+		virtual int getOperatorPrecedence() const;
+		virtual bool referencesSymbol (const String& symbol, const EvaluationContext*, int recursionDepth) const;
+		virtual const ReferenceCountedObjectPtr<Term> createTermToEvaluateInput (const EvaluationContext&, const Term* inputTerm,
+																				 double overallTarget, Term* topLevelTerm) const;
+		virtual const ReferenceCountedObjectPtr<Term> negated();
+		virtual Type getType() const throw() = 0;
+		virtual const String getSymbolName() const;
+		virtual const String getFunctionName() const;
+
+	private:
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Term);
+	};
+
+	friend class ScopedPointer<Term>;
+	ReferenceCountedObjectPtr<Term> term;
+
+	explicit Expression (Term* term);
+};
+
+#endif   // __JUCE_EXPRESSION_JUCEHEADER__
+/*** End of inlined file: juce_Expression.h ***/
+
+
+#endif
+#ifndef __JUCE_MATHSFUNCTIONS_JUCEHEADER__
+
+#endif
+#ifndef __JUCE_RANDOM_JUCEHEADER__
+
+/*** Start of inlined file: juce_Random.h ***/
+#ifndef __JUCE_RANDOM_JUCEHEADER__
+#define __JUCE_RANDOM_JUCEHEADER__
+
+/**
+	A simple pseudo-random number generator.
+*/
+class JUCE_API  Random
+{
+public:
+
+	/** Creates a Random object based on a seed value.
+
+		For a given seed value, the subsequent numbers generated by this object
+		will be predictable, so a good idea is to set this value based
+		on the time, e.g.
+
+		new Random (Time::currentTimeMillis())
+	*/
+	explicit Random (int64 seedValue) throw();
+
+	/** Destructor. */
+	~Random() throw();
+
+	/** Returns the next random 32 bit integer.
+
+		@returns a random integer from the full range 0x80000000 to 0x7fffffff
+	*/
+	int nextInt() throw();
+
+	/** Returns the next random number, limited to a given range.
+
+		@returns a random integer between 0 (inclusive) and maxValue (exclusive).
+	*/
+	int nextInt (int maxValue) throw();
+
+	/** Returns the next 64-bit random number.
+
+		@returns a random integer from the full range 0x8000000000000000 to 0x7fffffffffffffff
+	*/
+	int64 nextInt64() throw();
+
+	/** Returns the next random floating-point number.
+
+		@returns a random value in the range 0 to 1.0
+	*/
+	float nextFloat() throw();
+
+	/** Returns the next random floating-point number.
+
+		@returns a random value in the range 0 to 1.0
+	*/
+	double nextDouble() throw();
+
+	/** Returns the next random boolean value.
+	*/
+	bool nextBool() throw();
+
+	/** Returns a BigInteger containing a random number.
+
+		@returns a random value in the range 0 to (maximumValue - 1).
+	*/
+	const BigInteger nextLargeNumber (const BigInteger& maximumValue);
+
+	/** Sets a range of bits in a BigInteger to random values. */
+	void fillBitsRandomly (BigInteger& arrayToChange, int startBit, int numBits);
+
+	/** To avoid the overhead of having to create a new Random object whenever
+		you need a number, this is a shared application-wide object that
+		can be used.
+
+		It's not thread-safe though, so threads should use their own Random object.
+	*/
+	static Random& getSystemRandom() throw();
+
+	/** Resets this Random object to a given seed value. */
+	void setSeed (int64 newSeed) throw();
+
+	/** Merges this object's seed with another value.
+		This sets the seed to be a value created by combining the current seed and this
+		new value.
+	*/
+	void combineSeed (int64 seedValue) throw();
+
+	/** Reseeds this generator using a value generated from various semi-random system
+		properties like the current time, etc.
+
+		Because this function convolves the time with the last seed value, calling
+		it repeatedly will increase the randomness of the final result.
+	*/
+	void setSeedRandomly();
+
+private:
+
+	int64 seed;
+
+	JUCE_LEAK_DETECTOR (Random);
+};
+
+#endif   // __JUCE_RANDOM_JUCEHEADER__
+/*** End of inlined file: juce_Random.h ***/
+
+
+#endif
+#ifndef __JUCE_RANGE_JUCEHEADER__
+
+#endif
+#ifndef __JUCE_ATOMIC_JUCEHEADER__
+
+#endif
+#ifndef __JUCE_BYTEORDER_JUCEHEADER__
+
+#endif
+#ifndef __JUCE_HEAPBLOCK_JUCEHEADER__
+
+#endif
+#ifndef __JUCE_LEAKEDOBJECTDETECTOR_JUCEHEADER__
+
+#endif
+#ifndef __JUCE_MEMORY_JUCEHEADER__
+
+#endif
+#ifndef __JUCE_MEMORYBLOCK_JUCEHEADER__
+
+#endif
+#ifndef __JUCE_REFERENCECOUNTEDOBJECT_JUCEHEADER__
+
+#endif
+#ifndef __JUCE_SCOPEDPOINTER_JUCEHEADER__
+
+#endif
+#ifndef __JUCE_WEAKREFERENCE_JUCEHEADER__
+
+/*** Start of inlined file: juce_WeakReference.h ***/
+#ifndef __JUCE_WEAKREFERENCE_JUCEHEADER__
+#define __JUCE_WEAKREFERENCE_JUCEHEADER__
+
+/**
+	This class acts as a pointer which will automatically become null if the object
+	to which it points is deleted.
+
+	To accomplish this, the source object needs to cooperate by performing a couple of simple tasks.
+	It must provide a getWeakReference() method and embed a WeakReference::Master object, which stores
+	a shared pointer object. It must also clear this master pointer when it's getting deleted.
+
+	E.g.
+	@code
+	class MyObject
+	{
+	public:
+		MyObject()
+		{
+			// If you're planning on using your WeakReferences in a multi-threaded situation, you may choose
+			// to call getWeakReference() here in the constructor, which will pre-initialise it, avoiding an
+			// (extremely unlikely) race condition that could occur if multiple threads overlap while making
+			// the first call to getWeakReference().
+		}
+
+		~MyObject()
+		{
+			// This will zero all the references - you need to call this in your destructor.
+			masterReference.clear();
+		}
+
+		// Your object must provide a method that looks pretty much identical to this (except
+		// for the templated class name, of course).
+		const WeakReference<MyObject>::SharedRef& getWeakReference()
+		{
+			return masterReference (this);
+		}
+
+	private:
+		// You need to embed one of these inside your object. It can be private.
+		WeakReference<MyObject>::Master masterReference;
+	};
+
+	// Here's an example of using a pointer..
+
+	MyObject* n = new MyObject();
+	WeakReference<MyObject> myObjectRef = n;
+
+	MyObject* pointer1 = myObjectRef;  // returns a valid pointer to 'n'
+	delete n;
+	MyObject* pointer2 = myObjectRef;  // returns a null pointer
+	@endcode
+
+	@see WeakReference::Master
+*/
+template <class ObjectType>
+class WeakReference
+{
+public:
+	/** Creates a null SafePointer. */
+	WeakReference() throw() {}
+
+	/** Creates a WeakReference that points at the given object. */
+	WeakReference (ObjectType* const object)  : holder (object != 0 ? object->getWeakReference() : 0) {}
+
+	/** Creates a copy of another WeakReference. */
+	WeakReference (const WeakReference& other) throw()	  : holder (other.holder) {}
+
+	/** Copies another pointer to this one. */
+	WeakReference& operator= (const WeakReference& other)	   { holder = other.holder; return *this; }
+
+	/** Copies another pointer to this one. */
+	WeakReference& operator= (ObjectType* const newObject)	  { holder = newObject != 0 ? newObject->getWeakReference() : 0; return *this; }
+
+	/** Returns the object that this pointer refers to, or null if the object no longer exists. */
+	ObjectType* get() const throw()				 { return holder != 0 ? holder->get() : 0; }
+
+	/** Returns the object that this pointer refers to, or null if the object no longer exists. */
+	operator ObjectType*() const throw()			{ return get(); }
+
+	/** Returns the object that this pointer refers to, or null if the object no longer exists. */
+	ObjectType* operator->() throw()				{ return get(); }
+
+	/** Returns the object that this pointer refers to, or null if the object no longer exists. */
+	const ObjectType* operator->() const throw()		{ return get(); }
+
+	/** This returns true if this reference has been pointing at an object, but that object has
+		since been deleted.
+
+		If this reference was only ever pointing at a null pointer, this will return false. Using
+		operator=() to make this refer to a different object will reset this flag to match the status
+		of the reference from which you're copying.
+	*/
+	bool wasObjectDeleted() const throw()			   { return holder != 0 && holder->get() == 0; }
+
+	bool operator== (ObjectType* const object) const throw()	{ return get() == object; }
+	bool operator!= (ObjectType* const object) const throw()	{ return get() != object; }
+
+	/** This class is used internally by the WeakReference class - don't use it directly
+		in your code!
+		@see WeakReference
+	*/
+	class SharedPointer   : public ReferenceCountedObject
+	{
+	public:
+		explicit SharedPointer (ObjectType* const owner_) throw() : owner (owner_) {}
+
+		inline ObjectType* get() const throw()	  { return owner; }
+		void clearPointer() throw()		 { owner = 0; }
+
+	private:
+		ObjectType* volatile owner;
+
+		JUCE_DECLARE_NON_COPYABLE (SharedPointer);
+	};
+
+	typedef ReferenceCountedObjectPtr<SharedPointer> SharedRef;
+
+	/**
+		This class is embedded inside an object to which you want to attach WeakReference pointers.
+		See the WeakReference class notes for an example of how to use this class.
+		@see WeakReference
+	*/
+	class Master
+	{
+	public:
+		Master() throw() {}
+
+		~Master()
+		{
+			// You must remember to call clear() in your source object's destructor! See the notes
+			// for the WeakReference class for an example of how to do this.
+			jassert (sharedPointer == 0 || sharedPointer->get() == 0);
+		}
+
+		/** The first call to this method will create an internal object that is shared by all weak
+			references to the object.
+			You need to call this from your main object's getWeakReference() method - see the WeakReference
+			class notes for an example.
+		 */
+		const SharedRef& operator() (ObjectType* const object)
+		{
+			if (sharedPointer == 0)
+			{
+				sharedPointer = new SharedPointer (object);
+			}
+			else
+			{
+				// You're trying to create a weak reference to an object that has already been deleted!!
+				jassert (sharedPointer->get() != 0);
+			}
+
+			return sharedPointer;
+		}
+
+		/** The object that owns this master pointer should call this before it gets destroyed,
+			to zero all the references to this object that may be out there. See the WeakReference
+			class notes for an example of how to do this.
+		*/
+		void clear()
+		{
+			if (sharedPointer != 0)
+				sharedPointer->clearPointer();
+		}
+
+	private:
+		SharedRef sharedPointer;
+
+		JUCE_DECLARE_NON_COPYABLE (Master);
+	};
+
+private:
+	SharedRef holder;
+};
+
+#endif   // __JUCE_WEAKREFERENCE_JUCEHEADER__
+/*** End of inlined file: juce_WeakReference.h ***/
+
+
+#endif
 #ifndef __JUCE_CHARACTERFUNCTIONS_JUCEHEADER__
+
+#endif
+#ifndef __JUCE_IDENTIFIER_JUCEHEADER__
 
 #endif
 #ifndef __JUCE_LOCALISEDSTRINGS_JUCEHEADER__
@@ -17692,6 +18096,9 @@ private:
 #endif   // __JUCE_LOCALISEDSTRINGS_JUCEHEADER__
 /*** End of inlined file: juce_LocalisedStrings.h ***/
 
+
+#endif
+#ifndef __JUCE_NEWLINE_JUCEHEADER__
 
 #endif
 #ifndef __JUCE_STRING_JUCEHEADER__
@@ -18370,8 +18777,10 @@ private:
 	uint32 affinityMask_;
 	bool volatile threadShouldExit_;
 
+   #ifndef DOXYGEN
 	friend class MessageManager;
 	friend void JUCE_API juce_threadEntryPoint (void*);
+   #endif
 
 	void launchThread();
 	void closeThreadHandle();
@@ -18961,6 +19370,7 @@ private:
 	const int threadStopTimeout;
 	int priority;
 	class ThreadPoolThread;
+	friend class OwnedArray <ThreadPoolThread>;
 	OwnedArray <ThreadPoolThread> threads;
 	Array <ThreadPoolJob*> jobs;
 
@@ -19796,6 +20206,12 @@ public:
 	*/
 	float getTranslationY() const throw()		   { return mat12; }
 
+	/** Returns the approximate scale factor by which lengths will be transformed.
+		Obviously a length may be scaled by entirely different amounts depending on its
+		direction, so this is only appropriate as a rough guide.
+	*/
+	float getScaleFactor() const throw();
+
 	/* The transform matrix is:
 
 		(mat00 mat01 mat02)
@@ -19902,10 +20318,10 @@ public:
 	const Point operator-() const throw()				   { return Point (-x, -y); }
 
 	/** Returns the straight-line distance between this point and another one. */
-	ValueType getDistanceFromOrigin() const throw()			 { return (ValueType) juce_hypot (x, y); }
+	ValueType getDistanceFromOrigin() const throw()			 { return juce_hypot (x, y); }
 
 	/** Returns the straight-line distance between this point and another one. */
-	ValueType getDistanceFrom (const Point& other) const throw()	{ return (ValueType) juce_hypot (x - other.x, y - other.y); }
+	ValueType getDistanceFrom (const Point& other) const throw()	{ return juce_hypot (x - other.x, y - other.y); }
 
 	/** Returns the angle from this point to another one.
 
@@ -20872,7 +21288,8 @@ public:
 											  ValueType perpendicularDistance) const throw()
 	{
 		const Point<ValueType> delta (end - start);
-		const double length = juce_hypot (delta.getX(), delta.getY());
+		const double length = juce_hypot ((double) delta.getX(),
+										  (double) delta.getY());
 		if (length == 0)
 			return start;
 
@@ -21985,14 +22402,14 @@ public:
 
 		The path's winding rule is taken into account by this method.
 
-		The tolerence parameter is passed to the PathFlatteningIterator that
-		is used to trace the path - for more info about it, see the notes for
-		the PathFlatteningIterator constructor.
+		The tolerance parameter is the maximum error allowed when flattening the path,
+		so this method could return a false positive when your point is up to this distance
+		outside the path's boundary.
 
 		@see closeSubPath, setUsingNonZeroWinding
 	*/
 	bool contains (float x, float y,
-				   float tolerence = 10.0f) const;
+				   float tolerance = 1.0f) const;
 
 	/** Checks whether a point lies within the path.
 
@@ -22001,14 +22418,14 @@ public:
 
 		The path's winding rule is taken into account by this method.
 
-		The tolerence parameter is passed to the PathFlatteningIterator that
-		is used to trace the path - for more info about it, see the notes for
-		the PathFlatteningIterator constructor.
+		The tolerance parameter is the maximum error allowed when flattening the path,
+		so this method could return a false positive when your point is up to this distance
+		outside the path's boundary.
 
 		@see closeSubPath, setUsingNonZeroWinding
 	*/
 	bool contains (const Point<float>& point,
-				   float tolerence = 10.0f) const;
+				   float tolerance = 1.0f) const;
 
 	/** Checks whether a line crosses the path.
 
@@ -22016,12 +22433,12 @@ public:
 		lines or curves. It doesn't take into account whether the line is inside
 		or outside the path, or whether the path is open or closed.
 
-		The tolerence parameter is passed to the PathFlatteningIterator that
-		is used to trace the path - for more info about it, see the notes for
-		the PathFlatteningIterator constructor.
+		The tolerance parameter is the maximum error allowed when flattening the path,
+		so this method could return a false positive when your point is up to this distance
+		outside the path's boundary.
 	*/
 	bool intersectsLine (const Line<float>& line,
-						 float tolerence = 10.0f);
+						 float tolerance = 1.0f);
 
 	/** Cuts off parts of a line to keep the parts that are either inside or
 		outside this path.
@@ -23214,8 +23631,9 @@ public:
 		@param transform	an optional transform to apply to the points from the source path
 								as they are being used
 		@param extraAccuracy	if this is greater than 1.0, it will subdivide the path to
-								a higher resolution, which improved the quality if you'll later want
-								to enlarge the stroked path
+								a higher resolution, which improves the quality if you'll later want
+								to enlarge the stroked path. So for example, if you're planning on drawing
+								the stroke at 3x the size that you're creating it, you should set this to 3.
 
 		@see createDashedStroke
 	*/
@@ -23243,8 +23661,9 @@ public:
 		@param transform	an optional transform to apply to the points from the source path
 								as they are being used
 		@param extraAccuracy	if this is greater than 1.0, it will subdivide the path to
-								a higher resolution, which improved the quality if you'll later want
-								to enlarge the stroked path
+								a higher resolution, which improves the quality if you'll later want
+								to enlarge the stroked path. So for example, if you're planning on drawing
+								the stroke at 3x the size that you're creating it, you should set this to 3.
 	*/
 	void createDashedStroke (Path& destPath,
 							 const Path& sourcePath,
@@ -23267,8 +23686,9 @@ public:
 		@param transform		an optional transform to apply to the points from the source path
 									as they are being used
 		@param extraAccuracy	if this is greater than 1.0, it will subdivide the path to
-									a higher resolution, which improved the quality if you'll later want
-									to enlarge the stroked path
+									a higher resolution, which improves the quality if you'll later want
+									to enlarge the stroked path. So for example, if you're planning on drawing
+									the stroke at 3x the size that you're creating it, you should set this to 3.
 		@see createDashedStroke
 	*/
 	void createStrokeWithArrowheads (Path& destPath,
@@ -23329,13 +23749,15 @@ private:
 #ifndef __JUCE_PIXELFORMATS_JUCEHEADER__
 #define __JUCE_PIXELFORMATS_JUCEHEADER__
 
-#if JUCE_MSVC
+#ifndef DOXYGEN
+ #if JUCE_MSVC
   #pragma pack (push, 1)
   #define PACKED
-#elif JUCE_GCC
+ #elif JUCE_GCC
   #define PACKED __attribute__((packed))
-#else
+ #else
   #define PACKED
+ #endif
 #endif
 
 class PixelRGB;
@@ -23556,15 +23978,18 @@ private:
 
 		struct
 		{
-#if JUCE_BIG_ENDIAN
+		  #if JUCE_BIG_ENDIAN
 			uint8 a : 8, r : 8, g : 8, b : 8;
-#else
+		  #else
 			uint8 b, g, r, a;
-#endif
+		  #endif
 		} PACKED components;
 	};
-
-} PACKED;
+}
+#ifndef DOXYGEN
+ PACKED
+#endif
+;
 
 /**
 	Represents a 24-bit RGB pixel, and can perform compositing operations on it.
@@ -23719,7 +24144,11 @@ private:
 	uint8 b, g, r;
 #endif
 
-} PACKED;
+}
+#ifndef DOXYGEN
+ PACKED
+#endif
+;
 
 forcedinline void PixelARGB::blend (const PixelRGB& src) throw()
 {
@@ -23846,7 +24275,11 @@ public:
 private:
 
 	uint8 a : 8;
-} PACKED;
+}
+#ifndef DOXYGEN
+ PACKED
+#endif
+;
 
 forcedinline void PixelRGB::blend (const PixelAlpha& src) throw()
 {
@@ -27535,24 +27968,21 @@ public:
 									float wheelIncrementY);
 
 	/** Ensures that a non-stop stream of mouse-drag events will be sent during the
-		next mouse-drag operation.
+		current mouse-drag operation.
 
-		This allows you to make sure that mouseDrag() events sent continuously, even
+		This allows you to make sure that mouseDrag() events are sent continuously, even
 		when the mouse isn't moving. This can be useful for things like auto-scrolling
 		components when the mouse is near an edge.
 
 		Call this method during a mouseDown() or mouseDrag() callback, specifying the
 		minimum interval between consecutive mouse drag callbacks. The callbacks
 		will continue until the mouse is released, and then the interval will be reset,
-		so you need to make sure it's called every time you begin a drag event. If it
-		is called when the mouse isn't actually being pressed, it will apply to the next
-		mouse-drag operation that happens.
-
+		so you need to make sure it's called every time you begin a drag event.
 		Passing an interval of 0 or less will cancel the auto-repeat.
 
-		@see mouseDrag
+		@see mouseDrag, Desktop::beginDragAutoRepeat
 	*/
-	static void beginDragAutoRepeat (int millisecondIntervalBetweenCallbacks);
+	static void beginDragAutoRepeat (int millisecondsBetweenCallbacks);
 
 	/** Causes automatic repaints when the mouse enters or exits this component.
 
@@ -27707,9 +28137,12 @@ public:
 		for which this method will return true is the one that was originally
 		clicked on.
 
+		If includeChildren is true, then this will also return true if the mouse is over
+		any of the component's children (recursively) as well as the component itself.
+
 		@see isMouseButtonDown. isMouseOverOrDragging, mouseDrag
 	*/
-	bool isMouseOver() const throw();
+	bool isMouseOver (bool includeChildren = false) const;
 
 	/** Returns true if the mouse button is currently held down in this component.
 
@@ -28032,62 +28465,47 @@ public:
 
 		The ComponentType typedef must be Component, or some subclass of Component.
 
-		Note that this class isn't thread-safe, and assumes that all the code that uses
-		it is running on the message thread.
+		You may also want to use a WeakReference<Component> object for the same purpose.
 	*/
 	template <class ComponentType>
-	class SafePointer   : private ComponentListener
+	class SafePointer
 	{
 	public:
 		/** Creates a null SafePointer. */
-		SafePointer()					   : comp (0) {}
+		SafePointer() throw() {}
 
 		/** Creates a SafePointer that points at the given component. */
-		SafePointer (ComponentType* const component)	: comp (component)   { attach(); }
+		SafePointer (ComponentType* const component)	: weakRef (component) {}
 
 		/** Creates a copy of another SafePointer. */
-		SafePointer (const SafePointer& other)		  : comp (other.comp)  { attach(); }
-
-		/** Destructor. */
-		~SafePointer()					  { detach(); }
+		SafePointer (const SafePointer& other) throw()	  : weakRef (other.weakRef) {}
 
 		/** Copies another pointer to this one. */
-		SafePointer& operator= (const SafePointer& other)   { return operator= (other.comp); }
+		SafePointer& operator= (const SafePointer& other)	   { weakRef = other.weakRef; return *this; }
 
 		/** Copies another pointer to this one. */
-		SafePointer& operator= (ComponentType* const newComponent)
-		{
-			detach();
-			comp = newComponent;
-			attach();
-			return *this;
-		}
+		SafePointer& operator= (ComponentType* const newComponent)  { weakRef = newComponent; return *this; }
 
 		/** Returns the component that this pointer refers to, or null if the component no longer exists. */
-		operator ComponentType*() const throw()		 { return comp; }
+		ComponentType* getComponent() const throw()	 { return dynamic_cast <ComponentType*> (weakRef.get()); }
 
 		/** Returns the component that this pointer refers to, or null if the component no longer exists. */
-		ComponentType* getComponent() const throw()	 { return comp; }
+		operator ComponentType*() const throw()		 { return getComponent(); }
 
 		/** Returns the component that this pointer refers to, or null if the component no longer exists. */
-		ComponentType* operator->() throw()		 { jassert (comp != 0); return comp; }
+		ComponentType* operator->() throw()		 { return getComponent(); }
 
 		/** Returns the component that this pointer refers to, or null if the component no longer exists. */
-		const ComponentType* operator->() const throw()	 { jassert (comp != 0); return comp; }
+		const ComponentType* operator->() const throw()	 { return getComponent(); }
 
 		/** If the component is valid, this deletes it and sets this pointer to null. */
-		void deleteAndZero()				{ delete comp; jassert (comp == 0); }
+		void deleteAndZero()				{ delete getComponent(); jassert (getComponent() == 0); }
 
-		bool operator== (ComponentType* component) const throw()	{ return comp == component; }
-		bool operator!= (ComponentType* component) const throw()	{ return comp != component; }
+		bool operator== (ComponentType* component) const throw()	{ return weakRef == component; }
+		bool operator!= (ComponentType* component) const throw()	{ return weakRef != component; }
 
 	private:
-
-		ComponentType* comp;
-
-		void attach()   { if (comp != 0) comp->addComponentListener (this); }
-		void detach()   { if (comp != 0) comp->removeComponentListener (this); }
-		void componentBeingDeleted (Component&)	 { comp = 0; }
+		WeakReference<Component> weakRef;
 	};
 
 	/** A class to keep an eye on one or two components and check for them being deleted.
@@ -28099,21 +28517,17 @@ public:
 	class BailOutChecker
 	{
 	public:
-		/** Creates a checker that watches either one or two components.
-			component1 must be a valid component; component2 can be null if you only need
-			to check on one component.
-		*/
-		BailOutChecker (Component* component1,
-						Component* component2 = 0);
+		/** Creates a checker that watches one component. */
+		BailOutChecker (Component* component1);
 
-		/** Returns true if either of the two components have been deleted since this
-			object was created. */
+		/** Creates a checker that watches two components. */
+		BailOutChecker (Component* component1, Component* component2);
+
+		/** Returns true if either of the two components have been deleted since this object was created. */
 		bool shouldBailOut() const throw();
 
 	private:
-		typedef SafePointer<Component> SafeComponentPtr;
-		SafeComponentPtr safePointer1, safePointer2;
-		Component* const component2;
+		const WeakReference<Component> safePointer1, safePointer2;
 
 		JUCE_DECLARE_NON_COPYABLE (BailOutChecker);
 	};
@@ -28137,6 +28551,7 @@ private:
 	friend class MouseInputSource;
 	friend class MouseInputSourceInternal;
 
+   #ifndef DOXYGEN
 	static Component* currentlyFocusedComponent;
 
 	String componentName_;
@@ -28156,6 +28571,10 @@ private:
 	ScopedPointer <Array <KeyListener*> > keyListeners_;
 	ListenerList <ComponentListener> componentListeners;
 	NamedValueSet properties;
+
+	friend class WeakReference<Component>;
+	WeakReference<Component>::Master weakReferenceMaster;
+	const WeakReference<Component>::SharedRef& getWeakReference();
 
 	struct ComponentFlags
 	{
@@ -28178,9 +28597,9 @@ private:
 		bool isDisabledFlag		 : 1;
 		bool childCompFocusedFlag	   : 1;
 		bool dontClipGraphicsFlag	   : 1;
-#if JUCE_DEBUG
+	  #if JUCE_DEBUG
 		bool isInsidePaintCall	  : 1;
-#endif
+	  #endif
 	};
 
 	union
@@ -28206,6 +28625,7 @@ private:
 	void internalModifierKeysChanged();
 	void internalChildrenChanged();
 	void internalHierarchyChanged();
+	Component* removeChildComponent (const int index, bool sendParentEvents, bool sendChildEvents);
 	void paintComponentAndChildren (Graphics& g);
 	void paintComponent (Graphics& g);
 	void paintWithinParentContext (Graphics& g);
@@ -28214,7 +28634,7 @@ private:
 	void sendFakeMouseMove() const;
 	void takeKeyboardFocus (const FocusChangeType cause);
 	void grabFocusInternal (const FocusChangeType cause, bool canTryParent = true);
-	static void giveAwayFocus();
+	static void giveAwayFocus (bool sendFocusLossEvent);
 	void sendEnablementChangeMessage();
 	void sendVisibilityChangeMessage();
 
@@ -28244,6 +28664,7 @@ protected:
 	virtual void internalRepaint (int x, int y, int w, int h);
 	/** @internal */
 	virtual ComponentPeer* createNewPeer (int styleFlags, void* nativeWindowToAttachTo);
+   #endif
 };
 
 #endif   // __JUCE_COMPONENT_JUCEHEADER__
@@ -28474,64 +28895,6 @@ struct JUCE_API  ApplicationCommandInfo
 /*** Start of inlined file: juce_MessageListener.h ***/
 #ifndef __JUCE_MESSAGELISTENER_JUCEHEADER__
 #define __JUCE_MESSAGELISTENER_JUCEHEADER__
-
-
-/*** Start of inlined file: juce_Message.h ***/
-#ifndef __JUCE_MESSAGE_JUCEHEADER__
-#define __JUCE_MESSAGE_JUCEHEADER__
-
-class MessageListener;
-class MessageManager;
-
-/** The base class for objects that can be delivered to a MessageListener.
-
-	The simplest Message object contains a few integer and pointer parameters
-	that the user can set, and this is enough for a lot of purposes. For passing more
-	complex data, subclasses of Message can also be used.
-
-	@see MessageListener, MessageManager, ActionListener, ChangeListener
-*/
-class JUCE_API  Message
-{
-public:
-
-	/** Creates an uninitialised message.
-
-		The class's variables will also be left uninitialised.
-	*/
-	Message() throw();
-
-	/** Creates a message object, filling in the member variables.
-
-		The corresponding public member variables will be set from the parameters
-		passed in.
-	*/
-	Message (int intParameter1,
-			 int intParameter2,
-			 int intParameter3,
-			 void* pointerParameter) throw();
-
-	/** Destructor. */
-	virtual ~Message();
-
-	// These values can be used for carrying simple data that the application needs to
-	// pass around. For more complex messages, just create a subclass.
-
-	int intParameter1;	  /**< user-defined integer value. */
-	int intParameter2;	  /**< user-defined integer value. */
-	int intParameter3;	  /**< user-defined integer value. */
-	void* pointerParameter;	 /**< user-defined pointer value. */
-
-private:
-	friend class MessageListener;
-	friend class MessageManager;
-	MessageListener* messageRecipient;
-
-	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Message);
-};
-
-#endif   // __JUCE_MESSAGE_JUCEHEADER__
-/*** End of inlined file: juce_Message.h ***/
 
 /**
 	MessageListener subclasses can post and receive Message objects.
@@ -29126,18 +29489,19 @@ private:
 class InternalTimerThread;
 
 /**
-	Repeatedly calls a user-defined method at a specified time interval.
+	Makes repeated callbacks to a virtual method at a specified time interval.
 
 	A Timer's timerCallback() method will be repeatedly called at a given
-	interval. Initially when a Timer object is created, they will do nothing
-	until the startTimer() method is called, then the message thread will
-	start calling it back until stopTimer() is called.
+	interval. When you create a Timer object, it will do nothing until the
+	startTimer() method is called, which will cause the message thread to
+	start making callbacks at the specified interval, until stopTimer() is called
+	or the object is deleted.
 
 	The time interval isn't guaranteed to be precise to any more than maybe
 	10-20ms, and the intervals may end up being much longer than requested if the
-	system is busy. Because it's the message thread that is doing the callbacks,
-	any messages that take a significant amount of time to process will block
-	all the timers for that period.
+	system is busy. Because the callbacks are made by the main message thread,
+	anything that blocks the message queue for a period of time will also prevent
+	any timers from running until it can carry on.
 
 	If you need to have a single callback that is shared by multiple timers with
 	different frequencies, then the MultiTimer class allows you to do that - its
@@ -29588,6 +29952,23 @@ public:
 	*/
 	MouseInputSource* getDraggingMouseSource (int index) const throw();
 
+	/** Ensures that a non-stop stream of mouse-drag events will be sent during the
+		current mouse-drag operation.
+
+		This allows you to make sure that mouseDrag() events are sent continuously, even
+		when the mouse isn't moving. This can be useful for things like auto-scrolling
+		components when the mouse is near an edge.
+
+		Call this method during a mouseDown() or mouseDrag() callback, specifying the
+		minimum interval between consecutive mouse drag callbacks. The callbacks
+		will continue until the mouse is released, and then the interval will be reset,
+		so you need to make sure it's called every time you begin a drag event.
+		Passing an interval of 0 or less will cancel the auto-repeat.
+
+		@see mouseDrag
+	*/
+	void beginDragAutoRepeat (int millisecondsBetweenCallbacks);
+
 	/** In a tablet device which can be turned around, this is used to inidicate the orientation. */
 	enum DisplayOrientation
 	{
@@ -29650,6 +30031,8 @@ private:
 
 	int mouseClickCounter;
 	void incrementMouseClickCounter() throw();
+
+	ScopedPointer<Timer> dragRepeater;
 
 	Component* kioskModeComponent;
 	Rectangle<int> kioskComponentOriginalBounds;
@@ -30868,6 +31251,8 @@ public:
 	A set of routines to convert buffers of 32-bit floating point data to and from
 	various integer formats.
 
+	Note that these functions are deprecated - the AudioData class provides a much more
+	flexible set of conversion classes now.
 */
 class JUCE_API  AudioDataConverters
 {
@@ -32422,8 +32807,6 @@ public:
 	/** Destructor. */
 	~AudioFormatManager();
 
-	juce_DeclareSingleton (AudioFormatManager, false);
-
 	/** Adds a format to the manager's list of available file types.
 
 		The object passed-in will be deleted by this object, so don't keep a pointer
@@ -32662,7 +33045,7 @@ public:
 		If you're going to generate a thumbnail yourself, call this before using addBlock()
 		to add the data.
 	*/
-	void reset (int numChannels, double sampleRate);
+	void reset (int numChannels, double sampleRate, int64 totalSamplesInSource = 0);
 
 	/** Adds a block of level data to the thumbnail.
 		Call reset() before using this, to tell the thumbnail about the data format.
@@ -32723,6 +33106,12 @@ public:
 
 	/** Returns true if the low res preview is fully generated. */
 	bool isFullyLoaded() const throw();
+
+	/** Returns the highest level in the thumbnail.
+		Note that because the thumb only stores low-resolution data, this isn't
+		an accurate representation of the highest value, it's only a rough approximation.
+	*/
+	float getApproximatePeak() const;
 
 	/** Returns the hash code that was set by setSource() or setReader(). */
 	int64 getHashCode() const;
@@ -35359,11 +35748,13 @@ private:
 	uint8* data;
 	int size;
 
+   #ifndef DOXYGEN
 	union
 	{
 		uint8 asBytes[4];
 		uint32 asInt32;
 	} preallocatedData;
+   #endif
 };
 
 #endif   // __JUCE_MIDIMESSAGE_JUCEHEADER__
@@ -36183,9 +36574,9 @@ public:
 	/**
 		Used to receive callbacks when a button is clicked.
 
-		@see Button::addButtonListener, Button::removeButtonListener
+		@see Button::addListener, Button::removeListener
 	*/
-	class Listener
+	class JUCE_API  Listener
 	{
 	public:
 		/** Destructor. */
@@ -36199,18 +36590,15 @@ public:
 	};
 
 	/** Registers a listener to receive events when this button's state changes.
-
 		If the listener is already registered, this will not register it again.
-
-		@see removeButtonListener
+		@see removeListener
 	*/
-	void addButtonListener (Listener* newListener);
+	void addListener (Listener* newListener);
 
 	/** Removes a previously-registered button listener
-
-		@see addButtonListener
+		@see addListener
 	*/
-	void removeButtonListener (Listener* listener);
+	void removeListener (Listener* listener);
 
 	/** Causes the button to act as if it's been clicked.
 
@@ -36299,9 +36687,6 @@ public:
 	*/
 	uint32 getMillisecondsSinceButtonDown() const throw();
 
-	/** (overridden from Component to do special stuff). */
-	void setVisible (bool shouldBeVisible);
-
 	/** Sets the tooltip for this button.
 
 		@see TooltipClient, TooltipWindow
@@ -36375,6 +36760,10 @@ public:
 	*/
 	void setState (const ButtonState newState);
 
+	// These are deprecated - please use addListener() and removeListener() instead!
+	JUCE_DEPRECATED (void addButtonListener (Listener*));
+	JUCE_DEPRECATED (void removeButtonListener (Listener*));
+
 protected:
 
 	/** This method is called when the button has been clicked.
@@ -36446,6 +36835,8 @@ protected:
 	/** @internal */
 	void parentHierarchyChanged();
 	/** @internal */
+	void visibilityChanged();
+	/** @internal */
 	void focusGained (FocusChangeType cause);
 	/** @internal */
 	void focusLost (FocusChangeType cause);
@@ -36461,7 +36852,7 @@ protected:
 private:
 
 	Array <KeyPress> shortcuts;
-	Component::SafePointer<Component> keySource;
+	WeakReference<Component> keySource;
 	String text;
 	ListenerList <Listener> buttonListeners;
 
@@ -36469,7 +36860,7 @@ private:
 	friend class RepeatTimer;
 	friend class ScopedPointer <RepeatTimer>;
 	ScopedPointer <RepeatTimer> repeatTimer;
-	uint32 buttonPressTime, lastTimeCallbackTime;
+	uint32 buttonPressTime, lastRepeatTime;
 	ApplicationCommandManager* commandManagerToUse;
 	int autoRepeatDelay, autoRepeatSpeed, autoRepeatMinimumDelay;
 	int radioGroupId, commandID, connectedEdgeFlags;
@@ -36499,8 +36890,10 @@ private:
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Button);
 };
 
-/** This typedef is just for compatibility with old code - newer code should use Button::Listener instead. */
-typedef Button::Listener ButtonListener;
+#ifndef DOXYGEN
+ /** This typedef is just for compatibility with old code and VC6 - newer code should use Button::Listener instead. */
+ typedef Button::Listener ButtonListener;
+#endif
 
 #if JUCE_VC6
  #undef Listener
@@ -37021,7 +37414,7 @@ public:
 
 private:
 
-	Component::SafePointer<Component> contentComp;
+	WeakReference<Component> contentComp;
 	Rectangle<int> lastVisibleArea;
 	int scrollBarThickness;
 	int singleStepX, singleStepY;
@@ -37305,7 +37698,7 @@ public:
 		by some means other than a user action, and you'd like to make sure that menus
 		aren't left hanging around.
 	*/
-	static void JUCE_CALLTYPE dismissAllActiveMenus();
+	static bool JUCE_CALLTYPE dismissAllActiveMenus();
 
 	/** Specifies a look-and-feel for the menu and any sub-menus that it has.
 
@@ -38377,9 +38770,9 @@ private:
 	String lastTextValue;
 	Font font;
 	Justification justification;
-	ScopedPointer <TextEditor> editor;
-	ListenerList <Listener> listeners;
-	Component::SafePointer<Component> ownerComponent;
+	ScopedPointer<TextEditor> editor;
+	ListenerList<Listener> listeners;
+	WeakReference<Component> ownerComponent;
 	int horizontalBorderSize, verticalBorderSize;
 	float minimumHorizontalScale;
 	bool editSingleClick : 1;
@@ -43753,62 +44146,6 @@ private:
 #endif
 #ifndef __JUCE_CALLBACKMESSAGE_JUCEHEADER__
 
-/*** Start of inlined file: juce_CallbackMessage.h ***/
-#ifndef __JUCE_CALLBACKMESSAGE_JUCEHEADER__
-#define __JUCE_CALLBACKMESSAGE_JUCEHEADER__
-
-/**
-	A message that calls a custom function when it gets delivered.
-
-	You can use this class to fire off actions that you want to be performed later
-	on the message thread.
-
-	Unlike other Message objects, these don't get sent to a MessageListener, you
-	just call the post() method to send them, and when they arrive, your
-	messageCallback() method will automatically be invoked.
-
-	Always create an instance of a CallbackMessage on the heap, as it will be
-	deleted automatically after the message has been delivered.
-
-	@see MessageListener, MessageManager, ActionListener, ChangeListener
-*/
-class JUCE_API  CallbackMessage   : public Message
-{
-public:
-
-	CallbackMessage() throw();
-
-	/** Destructor. */
-	~CallbackMessage();
-
-	/** Called when the message is delivered.
-
-		You should implement this method and make it do whatever action you want
-		to perform.
-
-		Note that like all other messages, this object will be deleted immediately
-		after this method has been invoked.
-	*/
-	virtual void messageCallback() = 0;
-
-	/** Instead of sending this message to a MessageListener, just call this method
-		to post it to the event queue.
-
-		After you've called this, this object will belong to the MessageManager,
-		which will delete it later. So make sure you don't delete the object yourself,
-		call post() more than once, or call post() on a stack-based obect!
-	*/
-	void post();
-
-private:
-
-	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (CallbackMessage);
-};
-
-#endif   // __JUCE_CALLBACKMESSAGE_JUCEHEADER__
-/*** End of inlined file: juce_CallbackMessage.h ***/
-
-
 #endif
 #ifndef __JUCE_CHANGEBROADCASTER_JUCEHEADER__
 
@@ -44336,11 +44673,9 @@ public:
 	bool lockWasGained() const throw()			  { return locked; }
 
 private:
-	class SharedEvents;
 	class BlockingMessage;
-	friend class SharedEvents;
-	friend class BlockingMessage;
-	SharedEvents* sharedEvents;
+	friend class ReferenceCountedObjectPtr<BlockingMessage>;
+	ReferenceCountedObjectPtr<BlockingMessage> blockingMessage;
 	bool locked;
 
 	void init (Thread* thread, ThreadPoolJob* job);
@@ -50673,8 +51008,6 @@ public:
 	/** @internal */
 	void componentBroughtToFront (Component& component);
 	/** @internal */
-	void componentChildrenChanged (Component& component);
-	/** @internal */
 	void componentParentHierarchyChanged (Component& component);
 	/** @internal */
 	void componentVisibilityChanged (Component& component);
@@ -50682,17 +51015,15 @@ public:
 private:
 
 	Component* owner;
-	int numShadows;
-	Component* shadowWindows[4];
+	OwnedArray<Component> shadowWindows;
 	Image shadowImageSections[12];
-	const int shadowEdge, xOffset, yOffset;
+	const int xOffset, yOffset;
 	const float alpha, blurRadius;
-	bool inDestructor, reentrant;
+	bool reentrant;
 
 	void updateShadows();
 	void setShadowImage (const Image& src, int num, int w, int h, int sx, int sy);
 	void bringShadowWindowsToFront();
-	void deleteShadowWindows();
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (DropShadower);
 };
@@ -51220,7 +51551,7 @@ protected:
 	bool hitTest (int x, int y);
 
 private:
-	Component::SafePointer<Component> component;
+	WeakReference<Component> component;
 	ComponentBoundsConstrainer* constrainer;
 	BorderSize borderSize;
 	Rectangle<int> originalBounds;
@@ -51291,7 +51622,7 @@ protected:
 
 private:
 
-	Component::SafePointer<Component> component;
+	WeakReference<Component> component;
 	ComponentBoundsConstrainer* constrainer;
 	Rectangle<int> originalBounds;
 
@@ -51615,8 +51946,8 @@ private:
 
    #if JUCE_CATCH_DEPRECATED_CODE_MISUSE
 	// The parameters for these methods have changed - please update your code!
-	void getBorderThickness (int& left, int& top, int& right, int& bottom);
-	void getContentComponentBorder (int& left, int& top, int& right, int& bottom);
+	JUCE_DEPRECATED (void getBorderThickness (int& left, int& top, int& right, int& bottom));
+	JUCE_DEPRECATED (void getContentComponentBorder (int& left, int& top, int& right, int& bottom));
    #endif
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ResizableWindow);
@@ -52974,7 +53305,7 @@ public:
 
 private:
 
-	Component::SafePointer<Component> component;
+	WeakReference<Component> component;
 	ComponentPeer* lastPeer;
 	Array <Component*> registeredParentComps;
 	bool reentrant;
@@ -53540,8 +53871,8 @@ protected:
 
 private:
 
-	OwnedArray <Component::SafePointer<Component> > contentComponents;
-	Component::SafePointer<Component> panelComponent;
+	OwnedArray <WeakReference<Component> > contentComponents;
+	WeakReference<Component> panelComponent;
 	int tabDepth;
 	int outlineThickness, edgeIndent;
 	static const Identifier deleteComponentId;
@@ -56678,7 +57009,7 @@ public:
 	/** Returns the component that was last known to be under this pointer. */
 	Component* getComponentUnderMouse() const;
 
-	/** Tells the device to dispatch a mouse-move event.
+	/** Tells the device to dispatch a mouse-move or mouse-drag event.
 		This is asynchronous - the event will occur on the message thread.
 	*/
 	void triggerFakeMove() const;
@@ -58728,12 +59059,14 @@ private:
 
 // (NB: This stuff mustn't go inside the "#if QUICKTIME" block, or it'll break the
 // amalgamated build)
-#if JUCE_WINDOWS
+#ifndef DOXYGEN
+ #if JUCE_WINDOWS
 
   typedef ActiveXControlComponent QTCompBaseClass;
-#elif JUCE_MAC
+ #elif JUCE_MAC
 
   typedef NSViewComponent QTCompBaseClass;
+ #endif
 #endif
 
 // this is used to disable QuickTime, and is defined in juce_Config.h
@@ -59518,7 +59851,7 @@ protected:
 
 private:
 
-	Component::SafePointer<Component> lastFocusedComponent, dragAndDropTargetComponent;
+	WeakReference<Component> lastFocusedComponent, dragAndDropTargetComponent;
 	Component* lastDragAndDropCompUnderMouse;
 	bool fakeMouseMessageSent : 1, isWindowMinimised : 1;
 
@@ -60275,6 +60608,7 @@ public:
 	*/
 	virtual void setOrigin (int x, int y) = 0;
 	virtual void addTransform (const AffineTransform& transform) = 0;
+	virtual float getScaleFactor() = 0;
 
 	virtual bool clipToRectangle (const Rectangle<int>& r) = 0;
 	virtual bool clipToRectangleList (const RectangleList& clipRegion) = 0;
@@ -60340,6 +60674,7 @@ public:
 	bool isVectorDevice() const;
 	void setOrigin (int x, int y);
 	void addTransform (const AffineTransform& transform);
+	float getScaleFactor();
 
 	bool clipToRectangle (const Rectangle<int>& r);
 	bool clipToRectangleList (const RectangleList& clipRegion);
@@ -60438,6 +60773,7 @@ public:
 
 	void setOrigin (int x, int y);
 	void addTransform (const AffineTransform& transform);
+	float getScaleFactor();
 
 	bool clipToRectangle (const Rectangle<int>& r);
 	bool clipToRectangleList (const RectangleList& clipRegion);
@@ -61415,13 +61751,13 @@ public:
 
 		@param path	 the path to iterate along
 		@param transform	a transform to apply to each point in the path being iterated
-		@param tolerence	the amount by which the curves are allowed to deviate from the
-							lines into which they are being broken down - a higher tolerence
-							is a bit faster, but less smooth.
+		@param tolerance	the amount by which the curves are allowed to deviate from the lines
+							into which they are being broken down - a higher tolerance contains
+							less lines, so can be generated faster, but will be less smooth.
 	*/
 	PathFlatteningIterator (const Path& path,
 							const AffineTransform& transform = AffineTransform::identity,
-							float tolerence = 6.0f);
+							float tolerance = defaultTolerance);
 
 	/** Destructor. */
 	~PathFlatteningIterator();
@@ -61458,12 +61794,16 @@ public:
 	bool isLastInSubpath() const throw()	{ return stackPos == stackBase.getData()
 														   && (index >= path.numElements || points [index] == Path::moveMarker); }
 
+	/** This is the default value that should be used for the tolerance value (see the constructor parameters). */
+	static const float defaultTolerance;
+
 private:
 
 	const Path& path;
 	const AffineTransform transform;
 	float* points;
-	float tolerence, subPathCloseX, subPathCloseY;
+	const float toleranceSquared;
+	float subPathCloseX, subPathCloseY;
 	const bool isIdentityTransform;
 
 	HeapBlock <float> stackBase;

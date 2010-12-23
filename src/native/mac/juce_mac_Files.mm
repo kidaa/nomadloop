@@ -182,12 +182,12 @@ const File File::getSpecialLocation (const SpecialLocationType type)
         case userHomeDirectory:                 resultPath = nsStringToJuce (NSHomeDirectory()); break;
 
       #if JUCE_IOS
-        case userDocumentsDirectory:            resultPath = getIOSSystemLocation (NSDocumentDirectory); break;
-        case userDesktopDirectory:              resultPath = getIOSSystemLocation (NSDesktopDirectory); break;
+        case userDocumentsDirectory:            resultPath = FileHelpers::getIOSSystemLocation (NSDocumentDirectory); break;
+        case userDesktopDirectory:              resultPath = FileHelpers::getIOSSystemLocation (NSDesktopDirectory); break;
 
         case tempDirectory:
         {
-            File tmp (getIOSSystemLocation (NSCachesDirectory));
+            File tmp (FileHelpers::getIOSSystemLocation (NSCachesDirectory));
             tmp = tmp.getChildFile (juce_getExecutableFile().getFileNameWithoutExtension());
             tmp.createDirectory();
             return tmp.getFullPathName();
@@ -356,23 +356,10 @@ public:
                 continue;
 
             const String path (parentDir + filenameFound);
-
-            if (isDir != 0 || fileSize != 0 || modTime != 0 || creationTime != 0)
-            {
-                juce_statStruct info;
-                const bool statOk = juce_stat (path, info);
-
-                if (isDir != 0)         *isDir = statOk && ((info.st_mode & S_IFDIR) != 0);
-                if (fileSize != 0)      *fileSize = statOk ? info.st_size : 0;
-                if (modTime != 0)       *modTime = statOk ? (int64) info.st_mtime * 1000 : 0;
-                if (creationTime != 0)  *creationTime = statOk ? (int64) info.st_ctime * 1000 : 0;
-            }
+            updateStatInfoForFile (path, isDir, fileSize, modTime, creationTime, isReadOnly);
 
             if (isHidden != 0)
                 *isHidden = FileHelpers::isHiddenFile (path);
-
-            if (isReadOnly != 0)
-                *isReadOnly = access (path.toUTF8(), W_OK) != 0;
 
             return true;
         }

@@ -29,12 +29,11 @@ BEGIN_JUCE_NAMESPACE
 
 #include "juce_AsyncUpdater.h"
 #include "juce_CallbackMessage.h"
-#include "../containers/juce_ScopedPointer.h"
 #include "juce_MessageManager.h"
 
 
 //==============================================================================
-class AsyncUpdater::AsyncUpdaterMessage  : public CallbackMessage
+class AsyncUpdaterMessage  : public CallbackMessage
 {
 public:
     AsyncUpdaterMessage (AsyncUpdater& owner_)
@@ -44,16 +43,25 @@ public:
 
     void messageCallback()
     {
-        if (owner.pendingMessage.compareAndSetBool (0, this))
+        if (shouldDeliver.compareAndSetBool (0, 1))
             owner.handleAsyncUpdate();
     }
 
+    Atomic<int> shouldDeliver;
+
+private:
     AsyncUpdater& owner;
 };
 
 //==============================================================================
-AsyncUpdater::AsyncUpdater() throw()
+AsyncUpdater::AsyncUpdater()
 {
+    message = new AsyncUpdaterMessage (*this);
+}
+
+inline Atomic<int>& AsyncUpdater::getDeliveryFlag() const throw()
+{
+    return static_cast <AsyncUpdaterMessage*> (message.getObject())->shouldDeliver;
 }
 
 AsyncUpdater::~AsyncUpdater()
@@ -64,23 +72,18 @@ AsyncUpdater::~AsyncUpdater()
     // deleting this object, or find some other way to avoid such a race condition.
     jassert ((! isUpdatePending()) || MessageManager::getInstance()->currentThreadHasLockedMessageManager());
 
-    pendingMessage = 0;
+    getDeliveryFlag().set (0);
 }
 
 void AsyncUpdater::triggerAsyncUpdate()
 {
-    if (pendingMessage.value == 0)
-    {
-        ScopedPointer<AsyncUpdaterMessage> pending (new AsyncUpdaterMessage (*this));
-
-        if (pendingMessage.compareAndSetBool (pending, 0))
-            pending.release()->post();
-    }
+    if (getDeliveryFlag().compareAndSetBool (1, 0))
+        message->post();
 }
 
 void AsyncUpdater::cancelPendingUpdate() throw()
 {
-    pendingMessage = 0;
+    getDeliveryFlag().set (0);
 }
 
 void AsyncUpdater::handleUpdateNowIfNeeded()
@@ -88,13 +91,13 @@ void AsyncUpdater::handleUpdateNowIfNeeded()
     // This can only be called by the event thread.
     jassert (MessageManager::getInstance()->currentThreadHasLockedMessageManager());
 
-    if (pendingMessage.exchange (0) != 0)
+    if (getDeliveryFlag().exchange (0) != 0)
         handleAsyncUpdate();
 }
 
 bool AsyncUpdater::isUpdatePending() const throw()
 {
-    return pendingMessage.value != 0;
+    return getDeliveryFlag().value != 0;
 }
 
 

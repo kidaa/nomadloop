@@ -212,7 +212,7 @@ public:
         desc.uid = ((int) componentDesc.componentType)
                     ^ ((int) componentDesc.componentSubType)
                     ^ ((int) componentDesc.componentManufacturer);
-        desc.lastFileModTime = 0;
+        desc.lastFileModTime = Time();
         desc.pluginFormatName = "AudioUnit";
         desc.category = getCategory();
         desc.manufacturerName = manufacturer;
@@ -410,8 +410,8 @@ private:
 AudioUnitPluginInstance::AudioUnitPluginInstance (const String& fileOrIdentifier)
     : fileOrIdentifier (fileOrIdentifier),
       wantsMidiMessages (false), wasPlaying (false), prepared (false),
-      audioUnit (0),
-      currentBuffer (0)
+      currentBuffer (0),
+      audioUnit (0)
 {
     using namespace AudioUnitFormatHelpers;
 

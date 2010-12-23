@@ -28,7 +28,7 @@
 
 #include "../utilities/juce_DeletedAtShutdown.h"
 #include "../containers/juce_SortedSet.h"
-#include "../containers/juce_ScopedPointer.h"
+#include "../memory/juce_ScopedPointer.h"
 #include "../threads/juce_Thread.h"
 #include "../threads/juce_ThreadPool.h"
 #include "juce_ActionBroadcaster.h"
@@ -299,11 +299,9 @@ public:
 
 
 private:
-    class SharedEvents;
     class BlockingMessage;
-    friend class SharedEvents;
-    friend class BlockingMessage;
-    SharedEvents* sharedEvents;
+    friend class ReferenceCountedObjectPtr<BlockingMessage>;
+    ReferenceCountedObjectPtr<BlockingMessage> blockingMessage;
     bool locked;
 
     void init (Thread* thread, ThreadPoolJob* job);

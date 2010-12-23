@@ -31,7 +31,7 @@ class ComponentPeer;
 class MouseInputSourceInternal;
 #include "../keyboard/juce_ModifierKeys.h"
 #include "../../../core/juce_Time.h"
-#include "../../../containers/juce_ScopedPointer.h"
+#include "../../../memory/juce_ScopedPointer.h"
 #include "../../graphics/geometry/juce_Point.h"
 #include "../juce_Desktop.h"
 
@@ -109,7 +109,7 @@ public:
     /** Returns the component that was last known to be under this pointer. */
     Component* getComponentUnderMouse() const;
 
-    /** Tells the device to dispatch a mouse-move event.
+    /** Tells the device to dispatch a mouse-move or mouse-drag event.
         This is asynchronous - the event will occur on the message thread.
     */
     void triggerFakeMove() const;

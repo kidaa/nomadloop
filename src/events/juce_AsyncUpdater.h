@@ -26,7 +26,8 @@
 #ifndef __JUCE_ASYNCUPDATER_JUCEHEADER__
 #define __JUCE_ASYNCUPDATER_JUCEHEADER__
 
-#include "../core/juce_Atomic.h"
+#include "../memory/juce_Atomic.h"
+#include "../events/juce_CallbackMessage.h"
 
 
 //==============================================================================
@@ -44,7 +45,7 @@ class JUCE_API  AsyncUpdater
 public:
     //==============================================================================
     /** Creates an AsyncUpdater object. */
-    AsyncUpdater() throw();
+    AsyncUpdater();
 
     /** Destructor.
 
@@ -70,6 +71,10 @@ public:
 
         If called after triggerAsyncUpdate() and before the handleAsyncUpdate()
         callback happens, this will cancel the handleAsyncUpdate() callback.
+
+        Note that this method simply cancels the next callback - if a callback is already
+        in progress on a different thread, this won't block until it finishes, so there's
+        no guarantee that the callback isn't still running when you return from
     */
     void cancelPendingUpdate() throw();
 
@@ -96,13 +101,12 @@ public:
     */
     virtual void handleAsyncUpdate() = 0;
 
-
 private:
     //==============================================================================
-    class AsyncUpdaterMessage;
-    friend class AsyncUpdaterMessage;
+    ReferenceCountedObjectPtr<CallbackMessage> message;
+    Atomic<int>& getDeliveryFlag() const throw();
 
-    Atomic<AsyncUpdaterMessage*> pendingMessage;
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AsyncUpdater);
 };
 
 
