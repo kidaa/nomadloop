@@ -120,7 +120,7 @@ void FilterGraph::addFilter (const PluginDescription* desc, double x, double y)
         {
             node->properties.set ("x", x);
             node->properties.set ("y", y);				
-			node->processor->setPlayHead(graph.getPlayHead());			
+			node->getProcessor()->setPlayHead(graph.getPlayHead());			
             changed();
         }
         else
@@ -298,7 +298,7 @@ void FilterGraph::setLastDocumentOpened (const File& file)
 //==============================================================================
 static XmlElement* createNodeXml (AudioProcessorGraph::Node* const node) throw()
 {
-    AudioPluginInstance* plugin = dynamic_cast <AudioPluginInstance*> (node->processor);
+    AudioPluginInstance* plugin = dynamic_cast <AudioPluginInstance*> (node->getProcessor());
 
     if (plugin == 0)
     {
@@ -322,7 +322,7 @@ static XmlElement* createNodeXml (AudioProcessorGraph::Node* const node) throw()
     XmlElement* state = new XmlElement ("STATE");
 
     MemoryBlock m;
-    node->processor->getStateInformation (m);
+    node->getProcessor()->getStateInformation (m);
     state->addTextElement (m.toBase64Encoding());
     e->addChildElement (state);
 
@@ -361,10 +361,10 @@ void FilterGraph::createNodeFromXml (const XmlElement& xml)
         MemoryBlock m;
         m.fromBase64Encoding (state->getAllSubText());
 
-        node->processor->setStateInformation (m.getData(), m.getSize());
+        node->getProcessor()->setStateInformation (m.getData(), m.getSize());
     }
 
-	node->processor->setPlayHead(graph.getPlayHead());
+	node->getProcessor()->setPlayHead(graph.getPlayHead());
 
     node->properties.set ("x", xml.getDoubleAttribute (T("x")));
     node->properties.set ("y", xml.getDoubleAttribute (T("y")));

@@ -23,6 +23,7 @@ public:
 	bool isOutputChannelStereoPair(int) const;
 	bool acceptsMidi() const;
 	bool producesMidi() const;
+	bool hasEditor() const;
 	AudioProcessorEditor* createEditor();
 	int getNumParameters();
 	const String getParameterName(int);
@@ -57,7 +58,7 @@ public:
     /** Our demo filter is a ChangeBroadcaster, and will call us back when one of
         its parameters changes.
     */
-    void changeListenerCallback (void* source);
+    void changeListenerCallback (ChangeBroadcaster* source);
 
     void sliderValueChanged (Slider*);
 

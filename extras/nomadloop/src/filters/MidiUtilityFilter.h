@@ -33,6 +33,7 @@ class MidiUtilityFilter : public AudioPluginInstance
 		bool isOutputChannelStereoPair(int) const;
 		bool acceptsMidi() const;
 		bool producesMidi() const;
+		bool hasEditor() const;
 		AudioProcessorEditor* createEditor();
 		int getNumParameters();
 		const String getParameterName(int);

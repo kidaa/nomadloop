@@ -110,12 +110,12 @@ void MidiControlAction::setValue(float value)
 PluginParameterControlAction::PluginParameterControlAction(AudioProcessorGraph::Node::Ptr node, int parameterIndex)
 : boundNode(node), boundParameterIndex(parameterIndex)
 {
-	boundNode->processor->addListener(this);
+	boundNode->getProcessor()->addListener(this);
 }
 
 PluginParameterControlAction::~PluginParameterControlAction()
 {
-	boundNode->processor->removeListener(this);
+	boundNode->getProcessor()->removeListener(this);
 }
 
 void PluginParameterControlAction::setValue(float value)
@@ -123,13 +123,13 @@ void PluginParameterControlAction::setValue(float value)
 	//this->value = value;
 	if (boundNode != 0)
 	{			
-		boundNode->processor->setParameter(boundParameterIndex, value);
+		boundNode->getProcessor()->setParameter(boundParameterIndex, value);
 	}
 }
 
 const String PluginParameterControlAction::getText() const
 {
-	return boundNode->processor->getParameterText(boundParameterIndex);
+	return boundNode->getProcessor()->getParameterText(boundParameterIndex);
 }
 
 void PluginParameterControlAction::audioProcessorParameterChanged(AudioProcessor *processor, int parameterIndex, float value)

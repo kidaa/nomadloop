@@ -22,7 +22,7 @@ void SettingsSnapshotter::paint(Graphics& g)
 	if (drawable != 0)
 	{
 		//g.drawImage(drawable, 0, 0, getWidth(), getHeight(), 0, 0, drawable->get
-		drawable->drawWithin(g, 0, 0, getWidth(), getHeight(), RectanglePlacement::fillDestination, 1.0f);
+		drawable->drawWithin(g, Rectangle<float>(getWidth(), getHeight()), RectanglePlacement::fillDestination, 1.0f);
 	}
 }
 

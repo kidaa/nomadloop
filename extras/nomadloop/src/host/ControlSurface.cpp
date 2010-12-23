@@ -43,24 +43,24 @@ public:
 		int itemsPerFilter = 0;
 		for (int i=graphDoc->graph.getNumFilters(); --i >= 0;)
 		{
-			itemsPerFilter = jmax(itemsPerFilter, graphDoc->graph.getNode(i)->processor->getNumParameters());
+			itemsPerFilter = jmax(itemsPerFilter, graphDoc->graph.getNode(i)->getProcessor()->getNumParameters());
 		}
 
 		for (int i=0; i<graphDoc->graph.getNumFilters(); ++i)
 		{
-			/*if (graphDoc->graph.getNode(i)->processor->getNumParameters() > 0)
+			/*if (graphDoc->graph.getNode(i)->getProcessor()->getNumParameters() > 0)
 			{
 				PopupMenu paramMenu;
-				for (int j=0; j<graphDoc->graph.getNode(i)->processor->getNumParameters(); ++j)
+				for (int j=0; j<graphDoc->graph.getNode(i)->getProcessor()->getNumParameters(); ++j)
 				{
-					juce::String paramName(graphDoc->graph.getNode(i)->processor->getParameterName(j));
+					juce::String paramName(graphDoc->graph.getNode(i)->getProcessor()->getParameterName(j));
 					if (paramName.isEmpty())
 						paramName = T("Unknown");
 					paramMenu.addItem(i*itemsPerFilter + j, paramName);
 				}
-				filterMenu.addSubMenu(graphDoc->graph.getNode(i)->processor->getName(), paramMenu);
+				filterMenu.addSubMenu(graphDoc->graph.getNode(i)->getProcessor()->getName(), paramMenu);
 			}*/
-			filterSelectionComboBox->addItem(graphDoc->graph.getNode(i)->processor->getName(), i+1);
+			filterSelectionComboBox->addItem(graphDoc->graph.getNode(i)->getProcessor()->getName(), i+1);
 		}
 		filterSelectionComboBox->addListener (this);
 
@@ -148,16 +148,16 @@ public:
 			// repopulate the controls in the param combo box
 			paramSelectionComboBox->clear();
 			int nodeIdx = filterSelectionComboBox->getSelectedId() - 1;
-			if (graphDoc->graph.getNode(nodeIdx)->processor->getNumParameters() > 0)
+			if (graphDoc->graph.getNode(nodeIdx)->getProcessor()->getNumParameters() > 0)
 			{				
-				for (int j=0; j<graphDoc->graph.getNode(nodeIdx)->processor->getNumParameters(); ++j)
+				for (int j=0; j<graphDoc->graph.getNode(nodeIdx)->getProcessor()->getNumParameters(); ++j)
 				{
-					String paramName(graphDoc->graph.getNode(nodeIdx)->processor->getParameterName(j));
+					String paramName(graphDoc->graph.getNode(nodeIdx)->getProcessor()->getParameterName(j));
 					if (paramName.isEmpty())
 						paramName = T("(Unknown)");
 					paramSelectionComboBox->addItem(paramName, j+1);
 				}
-				//filterMenu.addSubMenu(graphDoc->graph.getNode(i)->processor->getName(), paramMenu);
+				//filterMenu.addSubMenu(graphDoc->graph.getNode(i)->getProcessor()->getName(), paramMenu);
 			}
 		}
 	}
@@ -216,23 +216,23 @@ void ControlSurfaceMappableComponent::showContextMenu()
 	int itemsPerFilter = 0;
 	for (int i=graphDoc->graph.getNumFilters(); --i >= 0;)
 	{
-		itemsPerFilter = jmax(itemsPerFilter, graphDoc->graph.getNode(i)->processor->getNumParameters());
+		itemsPerFilter = jmax(itemsPerFilter, graphDoc->graph.getNode(i)->getProcessor()->getNumParameters());
 	}
 
 	/*PopupMenu filterMenu;
 	for (int i=0; i<graphDoc->graph.getNumFilters(); ++i)
 	{
-		if (graphDoc->graph.getNode(i)->processor->getNumParameters() > 0)
+		if (graphDoc->graph.getNode(i)->getProcessor()->getNumParameters() > 0)
 		{
 			PopupMenu paramMenu;
-			for (int j=0; j<graphDoc->graph.getNode(i)->processor->getNumParameters(); ++j)
+			for (int j=0; j<graphDoc->graph.getNode(i)->getProcessor()->getNumParameters(); ++j)
 			{
-				juce::String paramName(graphDoc->graph.getNode(i)->processor->getParameterName(j));
+				juce::String paramName(graphDoc->graph.getNode(i)->getProcessor()->getParameterName(j));
 				if (paramName.isEmpty())
 					paramName = T("Unknown");
 				paramMenu.addItem(i*itemsPerFilter + j, paramName);
 			}
-			filterMenu.addSubMenu(graphDoc->graph.getNode(i)->processor->getName(), paramMenu);
+			filterMenu.addSubMenu(graphDoc->graph.getNode(i)->getProcessor()->getName(), paramMenu);
 		}
 	}
 	m.addSubMenu(T("Assignment"), filterMenu);*/
@@ -256,7 +256,7 @@ void ControlSurfaceMappableComponent::showContextMenu()
 		
 		/*boundNode = graphDoc->graph.getNode(filterIndex);
 		boundParameterIndex = paramIndex;
-		boundNode->processor->addListener(this);*/
+		boundNode->getProcessor()->addListener(this);*/
 
 		refresh();
 	}
@@ -293,7 +293,7 @@ void ControlSurfaceMappableComponent::showContextMenu()
 		
 		/*boundNode = graphDoc->graph.getNode(filterIndex);
 		boundParameterIndex = paramIndex;
-		boundNode->processor->addListener(this);*/
+		boundNode->getProcessor()->addListener(this);*/
 
 		refresh();
 	}
@@ -346,7 +346,7 @@ void setBoundParameter(GraphDocumentComponent* graphDoc, const uint32 nodeId, in
 		if (boundNode != 0)
 		{
 			boundParameterIndex = parameterIdx;
-			boundNode->processor->addListener(this);
+			boundNode->getProcessor()->addListener(this);
 			getUpdatedValue();
 		}
 	}
@@ -357,7 +357,7 @@ void ControlSurfaceMappableComponent::setValue(float value)
 	/*this->value = value;
 	if (boundNode != 0)
 	{			
-		boundNode->processor->setParameter(boundParameterIndex, value);
+		boundNode->getProcessor()->setParameter(boundParameterIndex, value);
 	}*/
 
 	this->value = value;
@@ -430,7 +430,7 @@ float ControlSurfaceMappableComponent::getUpdatedValue()
 	/*if (boundNode != 0)
 	{
 		
-		return value = boundNode->processor->getParameter(boundParameterIndex);
+		return value = boundNode->getProcessor()->getParameter(boundParameterIndex);
 	}
 	return 0;*/
 	return value;
@@ -624,13 +624,13 @@ public:
 		else
 		{			
 			// TODO: add constraints so we can't drag it outside the parent area
-			dragger.startDraggingComponent(this, 0);
+			dragger.startDraggingComponent(this, e);
 		}
 	}
 
 	void mouseDrag(const MouseEvent& e)
 	{
-		dragger.dragComponent(this, e);
+		dragger.dragComponent(this, e, 0);
 		setValue(this->getX() / static_cast<float>(this->getParentComponent()->getWidth() - this->getWidth()));
 		// TODO: update
 	}
@@ -885,15 +885,15 @@ void SubviewComponent::mouseDown(const MouseEvent &e)
 			PopupMenu filterMenu;
 			for (int i=0; i<graphDoc->graph.getNumFilters(); ++i)
 			{
-				filterMenu.addItem(i+1, graphDoc->graph.getNode(i)->processor->getName());				
+				filterMenu.addItem(i+1, graphDoc->graph.getNode(i)->getProcessor()->getName());				
 			}
 			int filterIndex = filterMenu.show();
 			if (filterIndex > 0)
 			{
-				AudioProcessorEditor* ui = graphDoc->graph.getNode(filterIndex-1)->processor->createEditorIfNeeded();
+				AudioProcessorEditor* ui = graphDoc->graph.getNode(filterIndex-1)->getProcessor()->createEditorIfNeeded();
 				if (ui == 0)
 				{
-					ui = new GenericAudioProcessorEditor (graphDoc->graph.getNode(filterIndex-1)->processor);
+					ui = new GenericAudioProcessorEditor (graphDoc->graph.getNode(filterIndex-1)->getProcessor());
 				}
 				ui->setTopLeftPosition(e.x, e.y);
 				addAndMakeVisible(ui);

@@ -15,7 +15,7 @@ void GainCut::fillInPluginDescription(PluginDescription &desc) const
 	desc.manufacturerName = "Monkey Fairness Productions";
 	desc.version = "0.1";
 	desc.fileOrIdentifier = "";
-	desc.lastFileModTime = 0;
+	desc.lastFileModTime = Time();
 	desc.uid = 4;
 	desc.isInstrument = false;
 	desc.numInputChannels = 1;
@@ -70,6 +70,8 @@ bool GainCut::producesMidi() const
 {
 	return false;
 }
+
+bool GainCut::hasEditor() const { return false; }
 
 AudioProcessorEditor* GainCut::createEditor()
 {
@@ -143,7 +145,7 @@ void SelectableMidiInputFilter::fillInPluginDescription(PluginDescription &desc)
 	desc.manufacturerName = "Monkey Fairness Productions";
 	desc.version = "0.1";
 	desc.fileOrIdentifier = "";
-	desc.lastFileModTime = 0;
+	desc.lastFileModTime = Time();
 	desc.uid = 4;
 	desc.isInstrument = false;
 	desc.numInputChannels = 0;
@@ -208,6 +210,11 @@ bool SelectableMidiInputFilter::acceptsMidi() const
 bool SelectableMidiInputFilter::producesMidi() const
 {
 	return true;
+}
+
+bool SelectableMidiInputFilter::hasEditor() const
+{
+	return false;
 }
 
 AudioProcessorEditor* SelectableMidiInputFilter::createEditor()
@@ -293,7 +300,7 @@ void DefaultMidiOutputFilter::fillInPluginDescription(PluginDescription &desc) c
 	desc.manufacturerName = "Monkey Fairness Productions";
 	desc.version = "0.1";
 	desc.fileOrIdentifier = "";
-	desc.lastFileModTime = 0;
+	desc.lastFileModTime = Time();
 	desc.uid = 4;
 	desc.isInstrument = false;
 	desc.numInputChannels = 0;
@@ -362,6 +369,11 @@ bool DefaultMidiOutputFilter::acceptsMidi() const
 }
 
 bool DefaultMidiOutputFilter::producesMidi() const
+{
+	return false;
+}
+
+bool DefaultMidiOutputFilter::hasEditor() const
 {
 	return false;
 }

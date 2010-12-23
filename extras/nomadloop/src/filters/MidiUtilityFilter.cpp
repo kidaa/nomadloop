@@ -15,7 +15,7 @@ void MidiUtilityFilter::fillInPluginDescription(PluginDescription &desc) const
 	desc.manufacturerName = "Zark";
 	desc.version = "0.1";
 	desc.fileOrIdentifier = "";
-	desc.lastFileModTime = 0;
+	desc.lastFileModTime = Time();
 	desc.uid = 4;
 	desc.isInstrument = false;
 	desc.numInputChannels = 0;
@@ -109,6 +109,8 @@ bool MidiUtilityFilter::producesMidi() const
 {
 	return true;
 }
+
+bool MidiUtilityFilter::hasEditor() const { return false; }
 
 AudioProcessorEditor* MidiUtilityFilter::createEditor()
 {

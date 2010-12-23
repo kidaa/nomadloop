@@ -91,7 +91,7 @@ public:
 			if (boundNode != 0)
 			{
 				boundParameterIndex = parameterIdx;
-				boundNode->processor->addListener(this);
+				boundNode->getProcessor()->addListener(this);
 				getUpdatedValue();
 			}
 		}

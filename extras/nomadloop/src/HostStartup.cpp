@@ -94,9 +94,9 @@ public:
 
     void systemRequestedQuit()
     {
-        if (mainWindow->isValidComponent())
+        /*if (mainWindow->getContentComponent()->isValidComponent())
             mainWindow->tryToQuitApplication();
-        else
+        else*/
             JUCEApplication::quit();
     }
 

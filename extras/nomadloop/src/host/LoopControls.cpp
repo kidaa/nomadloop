@@ -67,7 +67,7 @@ void LoopComponent::mouseDown(const MouseEvent& e)
 
 		for (int i=0; i<graphDoc->graph.getNumFilters(); ++i)
 		{
-			LoopProcessor* l = dynamic_cast<LoopProcessor*>(graphDoc->graph.getNode(i)->processor);
+			LoopProcessor* l = dynamic_cast<LoopProcessor*>(graphDoc->graph.getNode(i)->getProcessor());
 			if (l != 0)
 			{
 				m.addItem(i+1, l->getName());
@@ -76,7 +76,7 @@ void LoopComponent::mouseDown(const MouseEvent& e)
 
 		int choice = m.show();
 		if (choice > 0)
-			this->loop = dynamic_cast<LoopProcessor*>(graphDoc->graph.getNode(choice-1)->processor);
+			this->loop = dynamic_cast<LoopProcessor*>(graphDoc->graph.getNode(choice-1)->getProcessor());
 		else if (choice == -1)
 		{
 			static_cast<SubviewComponent*>(this->getParentComponent())->setMovingComponent(this);

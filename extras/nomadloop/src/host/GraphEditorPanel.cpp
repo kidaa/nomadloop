@@ -78,7 +78,7 @@ PluginWindow* PluginWindow::getWindowFor (AudioProcessorGraph::Node* node,
 
     if (! useGenericView)
     {
-        ui = node->processor->createEditorIfNeeded();
+        ui = node->getProcessor()->createEditorIfNeeded();
 
         if (ui == 0)
             useGenericView = true;
@@ -86,12 +86,12 @@ PluginWindow* PluginWindow::getWindowFor (AudioProcessorGraph::Node* node,
 
     if (useGenericView)
     {
-        ui = new GenericAudioProcessorEditor (node->processor);
+        ui = new GenericAudioProcessorEditor (node->getProcessor());
     }
 
     if (ui != 0)
     {
-        AudioPluginInstance* const plugin = dynamic_cast <AudioPluginInstance*> (node->processor);
+        AudioPluginInstance* const plugin = dynamic_cast <AudioPluginInstance*> (node->getProcessor());
 
         if (plugin != 0)
             ui->setName (plugin->getName());
@@ -138,9 +138,9 @@ public:
             String tip;
 
             if (isInput)
-                tip = node->processor->getInputChannelName (index_);
+                tip = node->getProcessor()->getInputChannelName (index_);
             else
-                tip = node->processor->getOutputChannelName (index_);
+                tip = node->getProcessor()->getOutputChannelName (index_);
 
             if (tip.isEmpty())
             {
@@ -388,12 +388,12 @@ public:
             return;
         }
 
-        numIns = f->processor->getNumInputChannels();
-        if (f->processor->acceptsMidi())
+        numIns = f->getProcessor()->getNumInputChannels();
+        if (f->getProcessor()->acceptsMidi())
             ++numIns;
 
-        numOuts = f->processor->getNumOutputChannels();
-        if (f->processor->producesMidi())
+        numOuts = f->getProcessor()->getNumOutputChannels();
+        if (f->getProcessor()->producesMidi())
             ++numOuts;
 
         int w = 100;
@@ -401,14 +401,14 @@ public:
 
         w = jmax (w, (jmax (numIns, numOuts) + 1) * 20);
 
-        const int textWidth = font.getStringWidth (f->processor->getName());
+        const int textWidth = font.getStringWidth (f->getProcessor()->getName());
         w = jmax (w, 16 + jmin (textWidth, 300));
         if (textWidth > 300)
             h = 100;
 
         setSize (w, h);
 
-        setName (f->processor->getName());
+        setName (f->getProcessor()->getName());
 
         {
             double x, y;
@@ -424,16 +424,16 @@ public:
             deleteAllChildren();
 
             int i;
-            for (i = 0; i < f->processor->getNumInputChannels(); ++i)
+            for (i = 0; i < f->getProcessor()->getNumInputChannels(); ++i)
                 addAndMakeVisible (new PinComponent (graph, filterID, i, true));
 
-            if (f->processor->acceptsMidi())
+            if (f->getProcessor()->acceptsMidi())
                 addAndMakeVisible (new PinComponent (graph, filterID, FilterGraph::midiChannelNumber, true));
 
-            for (i = 0; i < f->processor->getNumOutputChannels(); ++i)
+            for (i = 0; i < f->getProcessor()->getNumOutputChannels(); ++i)
                 addAndMakeVisible (new PinComponent (graph, filterID, i, false));
 
-            if (f->processor->producesMidi())
+            if (f->getProcessor()->producesMidi())
                 addAndMakeVisible (new PinComponent (graph, filterID, FilterGraph::midiChannelNumber, false));
 
             resized();
@@ -816,7 +816,7 @@ void GraphEditorPanel::resized()
     updateComponents();
 }
 
-void GraphEditorPanel::changeListenerCallback (void*)
+void GraphEditorPanel::changeListenerCallback (ChangeBroadcaster*)
 {
     updateComponents();
 }

@@ -228,7 +228,7 @@ bool MainHostWindow::tryToQuitApplication()
     return false;
 }
 
-void MainHostWindow::changeListenerCallback (void*)
+void MainHostWindow::changeListenerCallback (ChangeBroadcaster*)
 {
     menuItemsChanged();
 

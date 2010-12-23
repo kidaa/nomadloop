@@ -14,7 +14,7 @@ void Arpeggiator::fillInPluginDescription(PluginDescription &desc) const
 	desc.manufacturerName = "Monkey Fairness Productions";
 	desc.version = "0.1";
 	desc.fileOrIdentifier = "";
-	desc.lastFileModTime = 0;
+	desc.lastFileModTime = Time();
 	desc.uid = 4;
 	desc.isInstrument = false;
 	desc.numInputChannels = 0;
@@ -130,6 +130,8 @@ bool Arpeggiator::producesMidi() const
 {
 	return true;
 }
+
+bool Arpeggiator::hasEditor() const { return false; }
 
 AudioProcessorEditor* Arpeggiator::createEditor()
 {

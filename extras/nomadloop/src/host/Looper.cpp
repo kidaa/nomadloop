@@ -24,7 +24,7 @@ void MidiLoopProcessor::fillInPluginDescription(PluginDescription &looperDesc) c
 	looperDesc.manufacturerName = "Nomad Productions";
 	looperDesc.version = "0.1";
 	looperDesc.fileOrIdentifier = "";
-	looperDesc.lastFileModTime = 0;
+	looperDesc.lastFileModTime = Time();
 	looperDesc.uid = 4;
 	looperDesc.isInstrument = false;
 	looperDesc.numInputChannels = 0;
@@ -174,6 +174,8 @@ bool MidiLoopProcessor::producesMidi() const
 {
 	return true;
 }
+
+bool MidiLoopProcessor::hasEditor() const { return false; }
 
 AudioProcessorEditor* MidiLoopProcessor::createEditor()
 {
@@ -407,7 +409,7 @@ void AudioLoopProcessor::fillInPluginDescription(PluginDescription &looperDesc) 
 	looperDesc.manufacturerName = "Nomad Productions";
 	looperDesc.version = "0.1";
 	looperDesc.fileOrIdentifier = "";
-	looperDesc.lastFileModTime = 0;
+	looperDesc.lastFileModTime = Time();
 	looperDesc.uid = 4;
 	looperDesc.isInstrument = false;
 	looperDesc.numInputChannels = 1;
@@ -541,6 +543,8 @@ bool AudioLoopProcessor::producesMidi() const
 {
 	return false;
 }
+
+bool AudioLoopProcessor::hasEditor() const { return false; }
 
 AudioProcessorEditor* AudioLoopProcessor::createEditor()
 {

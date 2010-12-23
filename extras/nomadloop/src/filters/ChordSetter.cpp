@@ -14,7 +14,7 @@ void ChordSetter::fillInPluginDescription(PluginDescription &desc) const
 	desc.manufacturerName = "Monkey Fairness Productions";
 	desc.version = "0.1";
 	desc.fileOrIdentifier = "";
-	desc.lastFileModTime = 0;
+	desc.lastFileModTime = Time();
 	desc.uid = 4;
 	desc.isInstrument = false;
 	desc.numInputChannels = 0;
@@ -84,6 +84,8 @@ bool ChordSetter::producesMidi() const
 {
 	return false;
 }
+
+bool ChordSetter::hasEditor() const { return false; }
 
 AudioProcessorEditor* ChordSetter::createEditor()
 {
@@ -160,7 +162,7 @@ ChordSetterEditor::~ChordSetterEditor()
 }
 
  
-void ChordSetterEditor::changeListenerCallback (void* source)
+void ChordSetterEditor::changeListenerCallback (ChangeBroadcaster* source)
 {
 }
 
