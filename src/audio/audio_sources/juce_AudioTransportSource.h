@@ -75,10 +75,12 @@ public:
                                                 rate of the source, and playback will be sample-rate
                                                 adjusted to maintain playback at the correct pitch. If
                                                 this is 0, no sample-rate adjustment will be performed
+        @param maxNumChannels                   the maximum number of channels that may need to be played
     */
     void setSource (PositionableAudioSource* newSource,
                     int readAheadBufferSize = 0,
-                    double sourceSampleRateToCorrectFor = 0.0);
+                    double sourceSampleRateToCorrectFor = 0.0,
+                    int maxNumChannels = 2);
 
     //==============================================================================
     /** Changes the current playback position in the source stream.
@@ -148,13 +150,13 @@ public:
 
     //==============================================================================
     /** Implements the PositionableAudioSource method. */
-    void setNextReadPosition (int newPosition);
+    void setNextReadPosition (int64 newPosition);
 
     /** Implements the PositionableAudioSource method. */
-    int getNextReadPosition() const;
+    int64 getNextReadPosition() const;
 
     /** Implements the PositionableAudioSource method. */
-    int getTotalLength() const;
+    int64 getTotalLength() const;
 
     /** Implements the PositionableAudioSource method. */
     bool isLooping() const;

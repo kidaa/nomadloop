@@ -80,7 +80,7 @@ public:
         {
             if (! selected)
             {
-                owner.selectRowsBasedOnModifierKeys (row, e.mods);
+                owner.selectRowsBasedOnModifierKeys (row, e.mods, false);
 
                 if (owner.getModel() != 0)
                     owner.getModel()->listBoxItemClicked (row, e);
@@ -96,7 +96,7 @@ public:
     {
         if (isEnabled() && selectRowOnMouseUp && ! isDragging)
         {
-            owner.selectRowsBasedOnModifierKeys (row, e.mods);
+            owner.selectRowsBasedOnModifierKeys (row, e.mods, true);
 
             if (owner.getModel() != 0)
                 owner.getModel()->listBoxItemClicked (row, e);
@@ -169,10 +169,6 @@ public:
         content->setWantsKeyboardFocus (false);
     }
 
-    ~ListViewport()
-    {
-    }
-
     ListBoxRowComponent* getComponentForRow (const int row) const throw()
     {
         return rows [row % jmax (1, rows.size())];
@@ -196,7 +192,7 @@ public:
         return -1;
     }
 
-    void visibleAreaChanged (int, int, int, int)
+    void visibleAreaChanged (const Rectangle<int>&)
     {
         updateVisibleArea (true);
 
@@ -412,10 +408,8 @@ void ListBox::paintOverChildren (Graphics& g)
 
 void ListBox::resized()
 {
-    viewport->setBoundsInset (BorderSize (outlineThickness + ((headerComponent != 0) ? headerComponent->getHeight() : 0),
-                                          outlineThickness,
-                                          outlineThickness,
-                                          outlineThickness));
+    viewport->setBoundsInset (BorderSize<int> (outlineThickness + ((headerComponent != 0) ? headerComponent->getHeight() : 0),
+                                               outlineThickness, outlineThickness, outlineThickness));
 
     viewport->setSingleStepSizes (20, getRowHeight());
 
@@ -440,7 +434,7 @@ void ListBox::updateContent()
 
     bool selectionChanged = false;
 
-    if (selected [selected.size() - 1] >= totalItems)
+    if (selected.size() > 0 && selected [selected.size() - 1] >= totalItems)
     {
         selected.removeRange (Range <int> (totalItems, std::numeric_limits<int>::max()));
         lastRowSelected = getSelectedRow (0);
@@ -571,7 +565,8 @@ void ListBox::deselectAllRows()
 }
 
 void ListBox::selectRowsBasedOnModifierKeys (const int row,
-                                             const ModifierKeys& mods)
+                                             const ModifierKeys& mods,
+                                             const bool isMouseUpEvent)
 {
     if (multipleSelection && mods.isCommandDown())
     {
@@ -583,7 +578,7 @@ void ListBox::selectRowsBasedOnModifierKeys (const int row,
     }
     else if ((! mods.isPopupMenu()) || ! isRowSelected (row))
     {
-        selectRowInternal (row, false, ! (multipleSelection && isRowSelected (row)), true);
+        selectRowInternal (row, false, ! (multipleSelection && (! isMouseUpEvent) && isRowSelected (row)), true);
     }
 }
 
@@ -893,8 +888,13 @@ const Image ListBox::createSnapshotOfSelectedRows (int& imageX, int& imageY)
 
             Graphics g (snapshot);
             g.setOrigin (pos.getX() - imageX, pos.getY() - imageY);
+
             if (g.reduceClipRegion (rowComp->getLocalBounds()))
+            {
+                g.beginTransparencyLayer (0.6f);
                 rowComp->paintEntireComponent (g, false);
+                g.endTransparencyLayer();
+            }
         }
     }
 
@@ -910,7 +910,6 @@ void ListBox::startDragAndDrop (const MouseEvent& e, const String& dragDescripti
     {
         int x, y;
         Image dragImage (createSnapshotOfSelectedRows (x, y));
-        dragImage.multiplyAllAlphas (0.6f);
 
         MouseEvent e2 (e.getEventRelativeTo (this));
         const Point<int> p (x - e2.x, y - e2.y);

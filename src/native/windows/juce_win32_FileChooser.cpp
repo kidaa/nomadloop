@@ -56,7 +56,7 @@ namespace FileChooserHelpers
         FileChooserCallbackInfo* info = (FileChooserCallbackInfo*) lpData;
 
         if (msg == BFFM_INITIALIZED)
-            SendMessage (hWnd, BFFM_SETSELECTIONW, TRUE, (LPARAM) static_cast <const WCHAR*> (info->initialPath));
+            SendMessage (hWnd, BFFM_SETSELECTIONW, TRUE, (LPARAM) info->initialPath.toUTF16().getAddress());
         else if (msg == BFFM_VALIDATEFAILEDW)
             info->returnedString = (LPCWSTR) lParam;
         else if (msg == BFFM_VALIDATEFAILEDA)
@@ -96,7 +96,7 @@ namespace FileChooserHelpers
             if (ofn->hdr.code == CDN_SELCHANGE)
             {
                 FileChooserCallbackInfo* info = (FileChooserCallbackInfo*) ofn->lpOFN->lCustData;
-                FilePreviewComponent* comp = static_cast<FilePreviewComponent*> (info->customComponent->getChildComponent(0));
+                FilePreviewComponent* comp = dynamic_cast<FilePreviewComponent*> (info->customComponent->getChildComponent(0));
 
                 if (comp != 0)
                 {
@@ -130,8 +130,9 @@ namespace FileChooserHelpers
 
         void resized()
         {
-            if (getNumChildComponents() > 0)
-                getChildComponent(0)->setBounds (getLocalBounds());
+            Component* const c = getChildComponent(0);
+            if (c != 0)
+                c->setBounds (getLocalBounds());
         }
 
     private:
@@ -140,13 +141,14 @@ namespace FileChooserHelpers
 }
 
 //==============================================================================
-void FileChooser::showPlatformDialog (Array<File>& results, const String& title, const File& currentFileOrDirectory,
+void FileChooser::showPlatformDialog (Array<File>& results, const String& title_, const File& currentFileOrDirectory,
                                       const String& filter, bool selectsDirectory, bool /*selectsFiles*/,
                                       bool isSaveDialogue, bool warnAboutOverwritingExistingFiles,
                                       bool selectMultipleFiles, FilePreviewComponent* extraInfoComponent)
 {
     using namespace FileChooserHelpers;
 
+    const String title (title_);
     HeapBlock<WCHAR> files;
     const int charsAvailableForResult = 32768;
     files.calloc (charsAvailableForResult + 1);
@@ -174,7 +176,7 @@ void FileChooser::showPlatformDialog (Array<File>& results, const String& title,
     }
     else
     {
-        currentFileOrDirectory.getFileName().copyToUnicode (files, charsAvailableForResult);
+        currentFileOrDirectory.getFileName().copyToUTF16 (files, charsAvailableForResult * sizeof (WCHAR));
         info.initialPath = currentFileOrDirectory.getParentDirectory().getFullPathName();
     }
 
@@ -185,7 +187,7 @@ void FileChooser::showPlatformDialog (Array<File>& results, const String& title,
 
         bi.hwndOwner = (HWND) parentWindow.getWindowHandle();
         bi.pszDisplayName = files;
-        bi.lpszTitle = title;
+        bi.lpszTitle = title.toUTF16();
         bi.lParam = (LPARAM) &info;
         bi.lpfn = browseCallbackProc;
       #ifdef BIF_USENEWUI
@@ -230,13 +232,17 @@ void FileChooser::showPlatformDialog (Array<File>& results, const String& title,
             info.customComponent->enterModalState();
         }
 
-        WCHAR filters [1024];
-        zerostruct (filters);
-        filter.copyToUnicode (filters, 1024);
-        filter.copyToUnicode (filters + filter.length() + 1, 1022 - filter.length());
+        const int filterSpaceNumChars = 2048;
+        HeapBlock<WCHAR> filters;
+        filters.calloc (filterSpaceNumChars);
+        const int bytesWritten = filter.copyToUTF16 (filters.getData(), filterSpaceNumChars * sizeof (WCHAR));
+        filter.copyToUTF16 (filters + (bytesWritten / sizeof (WCHAR)) + 1,
+                            (filterSpaceNumChars - 1) * sizeof (WCHAR) - bytesWritten);
 
         OPENFILENAMEW of;
         zerostruct (of);
+
+        String localPath (info.initialPath);
 
       #ifdef OPENFILENAME_SIZE_VERSION_400W
         of.lStructSize = OPENFILENAME_SIZE_VERSION_400W;
@@ -244,12 +250,12 @@ void FileChooser::showPlatformDialog (Array<File>& results, const String& title,
         of.lStructSize = sizeof (of);
       #endif
         of.hwndOwner = (HWND) parentWindow.getWindowHandle();
-        of.lpstrFilter = filters;
+        of.lpstrFilter = filters.getData();
         of.nFilterIndex = 1;
         of.lpstrFile = files;
         of.nMaxFile = charsAvailableForResult;
-        of.lpstrInitialDir = info.initialPath;
-        of.lpstrTitle = title;
+        of.lpstrInitialDir = localPath.toUTF16();
+        of.lpstrTitle = title.toUTF16();
         of.Flags = flags;
         of.lCustData = (LPARAM) &info;
 
@@ -270,7 +276,7 @@ void FileChooser::showPlatformDialog (Array<File>& results, const String& title,
         while (*filename != 0)
         {
             results.add (File (String (files) + "\\" + String (filename)));
-            filename += CharacterFunctions::length (filename) + 1;
+            filename += wcslen (filename) + 1;
         }
     }
     else if (files[0] != 0)

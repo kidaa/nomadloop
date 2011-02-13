@@ -364,9 +364,6 @@ private:
             << "#define JucePlugin_RTASManufacturerCode JucePlugin_ManufacturerCode" << newLine
             << "#define JucePlugin_RTASProductId        JucePlugin_PluginCode" << newLine;
 
-        if (project.getObjectiveCClassSuffix().toString().isNotEmpty())
-            out << "#define JUCE_ObjCExtraSuffix            " << project.getObjectiveCClassSuffix().toString() << newLine;
-
         out << "#define JUCE_USE_VSTSDK_2_4             1" << newLine
             << newLine
             << "#endif   // " << headerGuard << newLine;
@@ -518,10 +515,14 @@ private:
                 if (project.isAudioPlugin())
                     exporter->juceWrapperFiles.add (RelativePath (pluginCharacteristicsFile, targetFolder, RelativePath::buildTargetFolder));
 
-                String error = exporter->create();
-
-                if (error.isNotEmpty())
-                    errors.add (error);
+                try
+                {
+                    exporter->create();
+                }
+                catch (ProjectExporter::SaveError& error)
+                {
+                    errors.add (error.message);
+                }
             }
             else
             {

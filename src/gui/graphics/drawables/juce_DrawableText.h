@@ -28,6 +28,7 @@
 
 #include "juce_Drawable.h"
 #include "../fonts/juce_GlyphArrangement.h"
+#include "../../components/positioning/juce_RelativeParallelogram.h"
 
 
 //==============================================================================
@@ -91,13 +92,11 @@ public:
     /** @internal */
     Drawable* createCopy() const;
     /** @internal */
-    void refreshFromValueTree (const ValueTree& tree, ImageProvider* imageProvider);
+    void refreshFromValueTree (const ValueTree& tree, ComponentBuilder& builder);
     /** @internal */
-    const ValueTree createValueTree (ImageProvider* imageProvider) const;
+    const ValueTree createValueTree (ComponentBuilder::ImageProvider* imageProvider) const;
     /** @internal */
     static const Identifier valueTreeType;
-    /** @internal */
-    const Identifier getValueTreeType() const    { return valueTreeType; }
     /** @internal */
     const Rectangle<float> getDrawableBounds() const;
 
@@ -135,12 +134,17 @@ private:
     //==============================================================================
     RelativeParallelogram bounds;
     RelativePoint fontSizeControlPoint;
-    Font font;
+    Point<float> resolvedPoints[3];
+    Font font, scaledFont;
     String text;
     Colour colour;
     Justification justification;
 
+    friend class Drawable::Positioner<DrawableText>;
+    bool registerCoordinates (RelativeCoordinatePositionerBase&);
+    void recalculateCoordinates (Expression::Scope*);
     void refreshBounds();
+    const AffineTransform getArrangementAndTransform (GlyphArrangement& glyphs) const;
 
     DrawableText& operator= (const DrawableText&);
     JUCE_LEAK_DETECTOR (DrawableText);

@@ -231,7 +231,7 @@ public:
 
     void mouseDown (const MouseEvent& e)
     {
-        originalPos = relativePositionToGlobal (Point<int>());
+        originalPos = localPointToGlobal (Point<int>());
 
         toFront (true);
 
@@ -277,7 +277,7 @@ public:
             Point<int> pos (originalPos + Point<int> (e.getDistanceFromDragStartX(), e.getDistanceFromDragStartY()));
 
             if (getParentComponent() != 0)
-                pos = getParentComponent()->globalPositionToRelative (pos);
+                pos = getParentComponent()->getLocalPoint (0, pos);
 
             graph.setNodePosition (filterID,
                                    (pos.getX() + getWidth() / 2) / (double) getParentWidth(),
@@ -1026,6 +1026,7 @@ GraphDocumentComponent::GraphDocumentComponent (AudioDeviceManager* deviceManage
     addAndMakeVisible (statusBar = new TooltipBar());
 
     deviceManager->addAudioCallback (&graphPlayer);
+    deviceManager->addMidiInputCallback (String::empty, &graphPlayer.getMidiMessageCollector());
 
     graphPanel->updateComponents();
 }
@@ -1033,6 +1034,8 @@ GraphDocumentComponent::GraphDocumentComponent (AudioDeviceManager* deviceManage
 GraphDocumentComponent::~GraphDocumentComponent()
 {
     deviceManager->removeAudioCallback (&graphPlayer);
+    deviceManager->removeMidiInputCallback (String::empty, &graphPlayer.getMidiMessageCollector());
+
     deleteAllChildren();
 
     graphPlayer.setProcessor (0);

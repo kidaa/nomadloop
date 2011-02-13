@@ -54,8 +54,6 @@ extern bool juce_IsRunningInWine();
   #define AC_SRC_ALPHA  0x01
 #endif
 
-static HPALETTE palette = 0;
-static bool createPaletteIfNeeded = true;
 static bool shouldDeactivateTitleBar = true;
 
 #define WM_TRAYNOTIFY WM_USER + 100
@@ -148,12 +146,6 @@ class WindowsBitmapImage  : public Image::SharedImage
 {
 public:
     //==============================================================================
-    HBITMAP hBitmap;
-    BITMAPV4HEADER bitmapInfo;
-    HDC hdc;
-    unsigned char* bitmapData;
-
-    //==============================================================================
     WindowsBitmapImage (const Image::PixelFormat format_,
                         const int w, const int h, const bool clearImage)
         : Image::SharedImage (format_, w, h)
@@ -161,6 +153,7 @@ public:
         jassert (format_ == Image::RGB || format_ == Image::ARGB);
 
         pixelStride = (format_ == Image::RGB) ? 3 : 4;
+        lineStride = -((w * pixelStride + 3) & ~3);
 
         zerostruct (bitmapInfo);
         bitmapInfo.bV4Size = sizeof (BITMAPV4HEADER);
@@ -183,21 +176,16 @@ public:
             bitmapInfo.bV4V4Compression    = BI_RGB;
         }
 
-        lineStride = -((w * pixelStride + 3) & ~3);
-
         HDC dc = GetDC (0);
         hdc = CreateCompatibleDC (dc);
         ReleaseDC (0, dc);
 
         SetMapMode (hdc, MM_TEXT);
 
-        hBitmap = CreateDIBSection (hdc,
-                                    (BITMAPINFO*) &(bitmapInfo),
-                                    DIB_RGB_COLORS,
-                                    (void**) &bitmapData,
-                                    0, 0);
+        hBitmap = CreateDIBSection (hdc, (BITMAPINFO*) &(bitmapInfo), DIB_RGB_COLORS,
+                                    (void**) &bitmapData, 0, 0);
 
-        SelectObject (hdc, hBitmap);
+        previousBitmap = SelectObject (hdc, hBitmap);
 
         if (format_ == Image::ARGB && clearImage)
             zeromem (bitmapData, abs (h * lineStride));
@@ -207,6 +195,7 @@ public:
 
     ~WindowsBitmapImage()
     {
+        SelectObject (hdc, previousBitmap); // Selecting the previous bitmap before deleting the DC avoids a warning in BoundsChecker
         DeleteDC (hdc);
         DeleteObject (hBitmap);
     }
@@ -216,6 +205,14 @@ public:
     LowLevelGraphicsContext* createLowLevelContext()
     {
         return new LowLevelGraphicsSoftwareRenderer (Image (this));
+    }
+
+    void initialiseBitmapData (Image::BitmapData& bitmap, int x, int y, Image::BitmapData::ReadWriteMode /*mode*/)
+    {
+        bitmap.data = imageData + x * pixelStride + y * lineStride;
+        bitmap.pixelFormat = format;
+        bitmap.lineStride = lineStride;
+        bitmap.pixelStride = pixelStride;
     }
 
     Image::SharedImage* clone()
@@ -247,25 +244,6 @@ public:
             // only open if we're not palettised
             if (n > 8)
                 hdd = DrawDibOpen();
-        }
-
-        if (createPaletteIfNeeded)
-        {
-            HDC dc = GetDC (0);
-            const int n = GetDeviceCaps (dc, BITSPIXEL);
-            ReleaseDC (0, dc);
-
-            if (n <= 8)
-                palette = CreateHalftonePalette (dc);
-
-            createPaletteIfNeeded = false;
-        }
-
-        if (palette != 0)
-        {
-            SelectPalette (dc, palette, FALSE);
-            RealizePalette (dc);
-            SetStretchBltMode (dc, HALFTONE);
         }
 
         SetMapMode (dc, MM_TEXT);
@@ -337,6 +315,15 @@ public:
         }
     }
 
+    //==============================================================================
+    HBITMAP hBitmap;
+    HGDIOBJ previousBitmap;
+    BITMAPV4HEADER bitmapInfo;
+    HDC hdc;
+    uint8* bitmapData;
+    int pixelStride, lineStride;
+    uint8* imageData;
+
 private:
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (WindowsBitmapImage);
 };
@@ -361,7 +348,7 @@ namespace IconConverters
                 SelectObject (dc, bitmap);
 
                 im = Image (Image::ARGB, bm.bmWidth, bm.bmHeight, true);
-                Image::BitmapData imageData (im, true);
+                Image::BitmapData imageData (im, Image::BitmapData::writeOnly);
 
                 for (int y = bm.bmHeight; --y >= 0;)
                 {
@@ -492,10 +479,11 @@ public:
           isDragging (false),
           isMouseOver (false),
           hasCreatedCaret (false),
+          constrainerIsResizing (false),
           currentWindowIcon (0),
           dropTarget (0),
-          updateLayeredWindowAlpha (255),
-          parentToAddTo (parentToAddTo_)
+          parentToAddTo (parentToAddTo_),
+          updateLayeredWindowAlpha (255)
     {
         callFunctionIfNotLocked (&createWindowCallback, this);
 
@@ -554,7 +542,7 @@ public:
 
     void setTitle (const String& title)
     {
-        SetWindowText (hwnd, title);
+        SetWindowText (hwnd, title.toUTF16());
     }
 
     void setPosition (int x, int y)
@@ -580,10 +568,10 @@ public:
 
         if (GetWindowInfo (hwnd, &info))
         {
-            windowBorder = BorderSize (info.rcClient.top - info.rcWindow.top,
-                                       info.rcClient.left - info.rcWindow.left,
-                                       info.rcWindow.bottom - info.rcClient.bottom,
-                                       info.rcWindow.right - info.rcClient.right);
+            windowBorder = BorderSize<int> (info.rcClient.top - info.rcWindow.top,
+                                            info.rcClient.left - info.rcWindow.left,
+                                            info.rcWindow.bottom - info.rcClient.bottom,
+                                            info.rcWindow.right - info.rcClient.right);
         }
 
       #if JUCE_DIRECT2D
@@ -762,7 +750,7 @@ public:
         return w == hwnd || (trueIfInAChildWindow && (IsChild (hwnd, w) != 0));
     }
 
-    const BorderSize getFrameSize() const
+    const BorderSize<int> getFrameSize() const
     {
         return windowBorder;
     }
@@ -918,7 +906,7 @@ public:
         if (taskBarIcon != 0)
         {
             taskBarIcon->uFlags = NIF_TIP;
-            toolTip.copyToUnicode (taskBarIcon->szTip, sizeof (taskBarIcon->szTip) - 1);
+            toolTip.copyToUTF16 (taskBarIcon->szTip, sizeof (taskBarIcon->szTip) - 1);
             Shell_NotifyIcon (NIM_MODIFY, taskBarIcon);
         }
     }
@@ -1029,8 +1017,8 @@ private:
   #if JUCE_DIRECT2D
     ScopedPointer<Direct2DLowLevelGraphicsContext> direct2DContext;
   #endif
-    bool fullScreen, isDragging, isMouseOver, hasCreatedCaret;
-    BorderSize windowBorder;
+    bool fullScreen, isDragging, isMouseOver, hasCreatedCaret, constrainerIsResizing;
+    BorderSize<int> windowBorder;
     HICON currentWindowIcon;
     ScopedPointer<NOTIFYICONDATA> taskBarIcon;
     IDropTarget* dropTarget;
@@ -1094,7 +1082,7 @@ private:
             wcex.cbSize         = sizeof (wcex);
             wcex.style          = CS_OWNDC;
             wcex.lpfnWndProc    = (WNDPROC) windowProc;
-            wcex.lpszClassName  = windowClassName;
+            wcex.lpszClassName  = windowClassName.toUTF16();
             wcex.cbClsExtra     = 0;
             wcex.cbWndExtra     = 32;
             wcex.hInstance      = moduleHandle;
@@ -1111,7 +1099,7 @@ private:
         ~WindowClassHolder()
         {
             if (ComponentPeer::getNumPeers() == 0)
-                UnregisterClass (windowClassName, (HINSTANCE) PlatformUtilities::getCurrentModuleInstanceHandle());
+                UnregisterClass (windowClassName.toUTF16(), (HINSTANCE) PlatformUtilities::getCurrentModuleInstanceHandle());
 
             clearSingletonInstance();
         }
@@ -1177,7 +1165,7 @@ private:
               && Desktop::canUseSemiTransparentWindows())
             exstyle |= WS_EX_LAYERED;
 
-        hwnd = CreateWindowEx (exstyle, WindowClassHolder::getInstance()->windowClassName, L"", type, 0, 0, 0, 0,
+        hwnd = CreateWindowEx (exstyle, WindowClassHolder::getInstance()->windowClassName.toUTF16(), L"", type, 0, 0, 0, 0,
                                parentToAddTo, 0, (HINSTANCE) PlatformUtilities::getCurrentModuleInstanceHandle(), 0);
 
       #if JUCE_DIRECT2D
@@ -1317,7 +1305,7 @@ private:
                 return;
             }
 
-            reentrant = true;
+            const ScopedValueSetter<bool> setter (reentrant, true, false);
 
             // this is the rectangle to update..
             int x = paintStruct.rcPaint.left;
@@ -1421,7 +1409,6 @@ private:
 
             DeleteObject (rgn);
             EndPaint (hwnd, &paintStruct);
-            reentrant = false;
         }
 
 #ifndef JUCE_GCC  //xxx should add this fn for gcc..
@@ -1542,6 +1529,14 @@ private:
 
     void doCaptureChanged()
     {
+        if (constrainerIsResizing)
+        {
+            if (constrainer != 0)
+                constrainer->resizeEnd();
+
+            constrainerIsResizing = false;
+        }
+
         if (isDragging)
             doMouseUp (getCurrentMousePos(), (WPARAM) 0);
     }
@@ -1764,9 +1759,15 @@ private:
         return false;
     }
 
+    bool isConstrainedNativeWindow() const
+    {
+        return constrainer != 0
+                && (styleFlags & (windowHasTitleBar | windowIsResizable)) == (windowHasTitleBar | windowIsResizable);
+    }
+
     LRESULT handleSizeConstraining (RECT* const r, const WPARAM wParam)
     {
-        if (constrainer != 0 && (styleFlags & (windowHasTitleBar | windowIsResizable)) == (windowHasTitleBar | windowIsResizable))
+        if (isConstrainedNativeWindow())
         {
             Rectangle<int> pos (r->left, r->top, r->right - r->left, r->bottom - r->top);
 
@@ -1787,7 +1788,7 @@ private:
 
     LRESULT handlePositionChanging (WINDOWPOS* const wp)
     {
-        if (constrainer != 0 && (styleFlags & (windowHasTitleBar | windowIsResizable)) == (windowHasTitleBar | windowIsResizable))
+        if (isConstrainedNativeWindow())
         {
             if ((wp->flags & (SWP_NOMOVE | SWP_NOSIZE)) != (SWP_NOMOVE | SWP_NOSIZE)
                  && ! Component::isMouseButtonDownAnywhere())
@@ -1898,7 +1899,7 @@ private:
 
                 if (pDropFiles->fWide)
                 {
-                    const WCHAR* const fname = (WCHAR*) (((const char*) pDropFiles) + sizeof (DROPFILES));
+                    const WCHAR* const fname = (WCHAR*) addBytesToPointer (pDropFiles, sizeof (DROPFILES));
 
                     for (;;)
                     {
@@ -1915,7 +1916,7 @@ private:
                 }
                 else
                 {
-                    const char* const fname = ((const char*) pDropFiles) + sizeof (DROPFILES);
+                    const char* const fname = (const char*) addBytesToPointer (pDropFiles, sizeof (DROPFILES));
 
                     for (;;)
                     {
@@ -2009,11 +2010,10 @@ private:
                 return 0;
 
             case WM_NCPAINT:
-                if (wParam != 1)
-                    handlePaintMessage();
-
                 if (hasTitleBar())
                     break;
+                else if (wParam != 1)
+                    handlePaintMessage();
 
                 return 0;
 
@@ -2186,13 +2186,8 @@ private:
             case WM_SYNCPAINT:
                 return 0;
 
-            case WM_PALETTECHANGED:
-                InvalidateRect (h, 0, 0);
-                break;
-
             case WM_DISPLAYCHANGE:
                 InvalidateRect (h, 0, 0);
-                createPaletteIfNeeded = true;
                 // intentional fall-through...
             case WM_SETTINGCHANGE:  // note the fall-through in the previous case!
                 doSettingChange();
@@ -2279,6 +2274,32 @@ private:
                 break;
 
             case WM_NCLBUTTONDOWN:
+                if (! sendInputAttemptWhenModalMessage())
+                {
+                    switch (wParam)
+                    {
+                    case HTBOTTOM:
+                    case HTBOTTOMLEFT:
+                    case HTBOTTOMRIGHT:
+                    case HTGROWBOX:
+                    case HTLEFT:
+                    case HTRIGHT:
+                    case HTTOP:
+                    case HTTOPLEFT:
+                    case HTTOPRIGHT:
+                        if (isConstrainedNativeWindow())
+                        {
+                            constrainerIsResizing = true;
+                            constrainer->resizeStart();
+                        }
+                        break;
+
+                    default:
+                        break;
+                    };
+                }
+                break;
+
             case WM_NCRBUTTONDOWN:
             case WM_NCMBUTTONDOWN:
                 sendInputAttemptWhenModalMessage();
@@ -2421,7 +2442,7 @@ bool AlertWindow::showNativeDialogBox (const String& title,
                                        const String& bodyText,
                                        bool isOkCancel)
 {
-    return MessageBox (0, bodyText, title,
+    return MessageBox (0, bodyText.toUTF16(), title.toUTF16(),
                        MB_SETFOREGROUND | (isOkCancel ? MB_OKCANCEL
                                                       : MB_OK)) == IDOK;
 }
@@ -2572,13 +2593,10 @@ void juce_updateMultiMonitorInfo (Array <Rectangle<int> >& monitorCoords, const 
 const Image juce_createIconForFile (const File& file)
 {
     Image image;
-
-    WCHAR filename [1024];
-    file.getFullPathName().copyToUnicode (filename, 1023);
     WORD iconNum = 0;
 
     HICON icon = ExtractAssociatedIcon ((HINSTANCE) PlatformUtilities::getCurrentModuleInstanceHandle(),
-                                        filename, &iconNum);
+                                        const_cast <WCHAR*> (file.getFullPathName().toUTF16().getAddress()), &iconNum);
 
     if (icon != 0)
     {
@@ -2893,12 +2911,11 @@ private:
 
 static HDROP createHDrop (const StringArray& fileNames)
 {
-    int totalChars = 0;
+    int totalBytes = 0;
     for (int i = fileNames.size(); --i >= 0;)
-        totalChars += fileNames[i].length() + 1;
+        totalBytes += CharPointer_UTF16::getBytesRequiredFor (fileNames[i].getCharPointer()) + sizeof (WCHAR);
 
-    HDROP hDrop = (HDROP) GlobalAlloc (GMEM_MOVEABLE | GMEM_ZEROINIT,
-                                       sizeof (DROPFILES) + sizeof (WCHAR) * (totalChars + 2));
+    HDROP hDrop = (HDROP) GlobalAlloc (GMEM_MOVEABLE | GMEM_ZEROINIT, sizeof (DROPFILES) + totalBytes + 4);
 
     if (hDrop != 0)
     {
@@ -2910,8 +2927,8 @@ static HDROP createHDrop (const StringArray& fileNames)
 
         for (int i = 0; i < fileNames.size(); ++i)
         {
-            fileNames[i].copyToUnicode (fname, 2048);
-            fname += fileNames[i].length() + 1;
+            const int bytesWritten = fileNames[i].copyToUTF16 (fname, 2048);
+            fname = reinterpret_cast<WCHAR*> (addBytesToPointer (fname, bytesWritten));
         }
 
         *fname = 0;
@@ -2952,12 +2969,12 @@ bool DragAndDropContainer::performExternalDragDropOfText (const String& text)
     FORMATETC format = { CF_TEXT, 0, DVASPECT_CONTENT, -1, TYMED_HGLOBAL };
     STGMEDIUM medium = { TYMED_HGLOBAL, { 0 }, 0 };
 
-    const int numChars = text.length();
+    const int numBytes = CharPointer_UTF16::getBytesRequiredFor (text.getCharPointer());
 
-    medium.hGlobal = GlobalAlloc (GMEM_MOVEABLE | GMEM_ZEROINIT, (numChars + 2) * sizeof (WCHAR));
+    medium.hGlobal = GlobalAlloc (GMEM_MOVEABLE | GMEM_ZEROINIT, numBytes + 2);
     WCHAR* const data = static_cast <WCHAR*> (GlobalLock (medium.hGlobal));
 
-    text.copyToUnicode (data, numChars + 1);
+    text.copyToUTF16 (data, numBytes);
     format.cfFormat = CF_UNICODETEXT;
 
     GlobalUnlock (medium.hGlobal);

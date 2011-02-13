@@ -353,12 +353,14 @@
           <File RelativePath="..\..\src\containers\juce_DynamicObject.cpp"/>
           <File RelativePath="..\..\src\containers\juce_DynamicObject.h"/>
           <File RelativePath="..\..\src\containers\juce_ElementComparator.h"/>
+          <File RelativePath="..\..\src\containers\juce_LinkedListPointer.h"/>
           <File RelativePath="..\..\src\containers\juce_NamedValueSet.cpp"/>
           <File RelativePath="..\..\src\containers\juce_NamedValueSet.h"/>
           <File RelativePath="..\..\src\containers\juce_OwnedArray.h"/>
           <File RelativePath="..\..\src\containers\juce_PropertySet.cpp"/>
           <File RelativePath="..\..\src\containers\juce_PropertySet.h"/>
           <File RelativePath="..\..\src\containers\juce_ReferenceCountedArray.h"/>
+          <File RelativePath="..\..\src\containers\juce_ScopedValueSetter.h"/>
           <File RelativePath="..\..\src\containers\juce_SortedSet.h"/>
           <File RelativePath="..\..\src\containers\juce_SparseSet.h"/>
           <File RelativePath="..\..\src\containers\juce_Value.cpp"/>
@@ -541,6 +543,8 @@
               <File RelativePath="..\..\src\gui\components\layout\juce_ComponentAnimator.h"/>
               <File RelativePath="..\..\src\gui\components\layout\juce_ComponentBoundsConstrainer.cpp"/>
               <File RelativePath="..\..\src\gui\components\layout\juce_ComponentBoundsConstrainer.h"/>
+              <File RelativePath="..\..\src\gui\components\layout\juce_ComponentBuilder.cpp"/>
+              <File RelativePath="..\..\src\gui\components\layout\juce_ComponentBuilder.h"/>
               <File RelativePath="..\..\src\gui\components\layout\juce_ComponentMovementWatcher.cpp"/>
               <File RelativePath="..\..\src\gui\components\layout\juce_ComponentMovementWatcher.h"/>
               <File RelativePath="..\..\src\gui\components\layout\juce_GroupComponent.cpp"/>
@@ -579,7 +583,6 @@
               <File RelativePath="..\..\src\gui\components\menus\juce_MenuBarModel.h"/>
               <File RelativePath="..\..\src\gui\components\menus\juce_PopupMenu.cpp"/>
               <File RelativePath="..\..\src\gui\components\menus\juce_PopupMenu.h"/>
-              <File RelativePath="..\..\src\gui\components\menus\juce_PopupMenuCustomComponent.h"/>
             </Filter>
             <Filter Name="mouse">
               <File RelativePath="..\..\src\gui\components\mouse\juce_ComponentDragger.cpp"/>
@@ -593,13 +596,27 @@
               <File RelativePath="..\..\src\gui\components\mouse\juce_MouseCursor.h"/>
               <File RelativePath="..\..\src\gui\components\mouse\juce_MouseEvent.cpp"/>
               <File RelativePath="..\..\src\gui\components\mouse\juce_MouseEvent.h"/>
-              <File RelativePath="..\..\src\gui\components\mouse\juce_MouseHoverDetector.cpp"/>
-              <File RelativePath="..\..\src\gui\components\mouse\juce_MouseHoverDetector.h"/>
               <File RelativePath="..\..\src\gui\components\mouse\juce_MouseInputSource.cpp"/>
               <File RelativePath="..\..\src\gui\components\mouse\juce_MouseInputSource.h"/>
               <File RelativePath="..\..\src\gui\components\mouse\juce_MouseListener.cpp"/>
               <File RelativePath="..\..\src\gui\components\mouse\juce_MouseListener.h"/>
               <File RelativePath="..\..\src\gui\components\mouse\juce_TooltipClient.h"/>
+            </Filter>
+            <Filter Name="positioning">
+              <File RelativePath="..\..\src\gui\components\positioning\juce_MarkerList.cpp"/>
+              <File RelativePath="..\..\src\gui\components\positioning\juce_MarkerList.h"/>
+              <File RelativePath="..\..\src\gui\components\positioning\juce_RelativeCoordinate.cpp"/>
+              <File RelativePath="..\..\src\gui\components\positioning\juce_RelativeCoordinate.h"/>
+              <File RelativePath="..\..\src\gui\components\positioning\juce_RelativeCoordinatePositioner.cpp"/>
+              <File RelativePath="..\..\src\gui\components\positioning\juce_RelativeCoordinatePositioner.h"/>
+              <File RelativePath="..\..\src\gui\components\positioning\juce_RelativeParallelogram.cpp"/>
+              <File RelativePath="..\..\src\gui\components\positioning\juce_RelativeParallelogram.h"/>
+              <File RelativePath="..\..\src\gui\components\positioning\juce_RelativePoint.cpp"/>
+              <File RelativePath="..\..\src\gui\components\positioning\juce_RelativePoint.h"/>
+              <File RelativePath="..\..\src\gui\components\positioning\juce_RelativePointPath.cpp"/>
+              <File RelativePath="..\..\src\gui\components\positioning\juce_RelativePointPath.h"/>
+              <File RelativePath="..\..\src\gui\components\positioning\juce_RelativeRectangle.cpp"/>
+              <File RelativePath="..\..\src\gui\components\positioning\juce_RelativeRectangle.h"/>
             </Filter>
             <Filter Name="properties">
               <File RelativePath="..\..\src\gui\components\properties\juce_BooleanPropertyComponent.cpp"/>
@@ -629,8 +646,6 @@
               <File RelativePath="..\..\src\gui\components\special\juce_ColourSelector.h"/>
               <File RelativePath="..\..\src\gui\components\special\juce_DropShadower.cpp"/>
               <File RelativePath="..\..\src\gui\components\special\juce_DropShadower.h"/>
-              <File RelativePath="..\..\src\gui\components\special\juce_MagnifierComponent.cpp"/>
-              <File RelativePath="..\..\src\gui\components\special\juce_MagnifierComponent.h"/>
               <File RelativePath="..\..\src\gui\components\special\juce_MidiKeyboardComponent.cpp"/>
               <File RelativePath="..\..\src\gui\components\special\juce_MidiKeyboardComponent.h"/>
               <File RelativePath="..\..\src\gui\components\special\juce_NSViewComponent.h"/>
@@ -730,7 +745,6 @@
             <Filter Name="geometry">
               <File RelativePath="..\..\src\gui\graphics\geometry\juce_AffineTransform.cpp"/>
               <File RelativePath="..\..\src\gui\graphics\geometry\juce_AffineTransform.h"/>
-              <File RelativePath="..\..\src\gui\graphics\geometry\juce_BorderSize.cpp"/>
               <File RelativePath="..\..\src\gui\graphics\geometry\juce_BorderSize.h"/>
               <File RelativePath="..\..\src\gui\graphics\geometry\juce_Line.h"/>
               <File RelativePath="..\..\src\gui\graphics\geometry\juce_Path.cpp"/>
@@ -740,13 +754,9 @@
               <File RelativePath="..\..\src\gui\graphics\geometry\juce_PathStrokeType.cpp"/>
               <File RelativePath="..\..\src\gui\graphics\geometry\juce_PathStrokeType.h"/>
               <File RelativePath="..\..\src\gui\graphics\geometry\juce_Point.h"/>
-              <File RelativePath="..\..\src\gui\graphics\geometry\juce_PositionedRectangle.cpp"/>
-              <File RelativePath="..\..\src\gui\graphics\geometry\juce_PositionedRectangle.h"/>
               <File RelativePath="..\..\src\gui\graphics\geometry\juce_Rectangle.h"/>
               <File RelativePath="..\..\src\gui\graphics\geometry\juce_RectangleList.cpp"/>
               <File RelativePath="..\..\src\gui\graphics\geometry\juce_RectangleList.h"/>
-              <File RelativePath="..\..\src\gui\graphics\geometry\juce_RelativeCoordinate.cpp"/>
-              <File RelativePath="..\..\src\gui\graphics\geometry\juce_RelativeCoordinate.h"/>
             </Filter>
             <Filter Name="imaging">
               <Filter Name="image_file_formats">
@@ -838,9 +848,6 @@
           <File RelativePath="..\..\src\memory\juce_WeakReference.h"/>
         </Filter>
         <Filter Name="native">
-          <File RelativePath="..\..\src\native\juce_linux_NativeCode.cpp"/>
-          <File RelativePath="..\..\src\native\juce_mac_NativeCode.mm"/>
-          <File RelativePath="..\..\src\native\juce_win32_NativeCode.cpp"/>
           <Filter Name="common">
             <File RelativePath="..\..\src\native\common\juce_MidiDataConcatenator.h"/>
             <File RelativePath="..\..\src\native\common\juce_posix_NamedPipe.cpp"/>
@@ -856,6 +863,7 @@
             <File RelativePath="..\..\src\native\linux\juce_linux_JackAudio.cpp"/>
             <File RelativePath="..\..\src\native\linux\juce_linux_Messaging.cpp"/>
             <File RelativePath="..\..\src\native\linux\juce_linux_Midi.cpp"/>
+            <File RelativePath="..\..\src\native\linux\juce_linux_NativeCode.cpp"/>
             <File RelativePath="..\..\src\native\linux\juce_linux_NativeIncludes.h"/>
             <File RelativePath="..\..\src\native\linux\juce_linux_Network.cpp"/>
             <File RelativePath="..\..\src\native\linux\juce_linux_SystemStats.cpp"/>
@@ -864,10 +872,10 @@
             <File RelativePath="..\..\src\native\linux\juce_linux_Windowing.cpp"/>
           </Filter>
           <Filter Name="mac">
-            <File RelativePath="..\..\src\native\mac\juce_iphone_Audio.cpp"/>
-            <File RelativePath="..\..\src\native\mac\juce_iphone_MessageManager.mm"/>
-            <File RelativePath="..\..\src\native\mac\juce_iphone_MiscUtilities.mm"/>
-            <File RelativePath="..\..\src\native\mac\juce_iphone_UIViewComponentPeer.mm"/>
+            <File RelativePath="..\..\src\native\mac\juce_ios_Audio.cpp"/>
+            <File RelativePath="..\..\src\native\mac\juce_ios_MessageManager.mm"/>
+            <File RelativePath="..\..\src\native\mac\juce_ios_MiscUtilities.mm"/>
+            <File RelativePath="..\..\src\native\mac\juce_ios_UIViewComponentPeer.mm"/>
             <File RelativePath="..\..\src\native\mac\juce_mac_AppleRemote.mm"/>
             <File RelativePath="..\..\src\native\mac\juce_mac_AudioCDBurner.mm"/>
             <File RelativePath="..\..\src\native\mac\juce_mac_AudioCDReader.mm"/>
@@ -884,6 +892,7 @@
             <File RelativePath="..\..\src\native\mac\juce_mac_MessageManager.mm"/>
             <File RelativePath="..\..\src\native\mac\juce_mac_MiscUtilities.mm"/>
             <File RelativePath="..\..\src\native\mac\juce_mac_MouseCursor.mm"/>
+            <File RelativePath="..\..\src\native\mac\juce_mac_NativeCode.mm"/>
             <File RelativePath="..\..\src\native\mac\juce_mac_NativeIncludes.h"/>
             <File RelativePath="..\..\src\native\mac\juce_mac_Network.mm"/>
             <File RelativePath="..\..\src\native\mac\juce_mac_NSViewComponent.mm"/>
@@ -912,6 +921,7 @@
             <File RelativePath="..\..\src\native\windows\juce_win32_Messaging.cpp"/>
             <File RelativePath="..\..\src\native\windows\juce_win32_Midi.cpp"/>
             <File RelativePath="..\..\src\native\windows\juce_win32_Misc.cpp"/>
+            <File RelativePath="..\..\src\native\windows\juce_win32_NativeCode.cpp"/>
             <File RelativePath="..\..\src\native\windows\juce_win32_NativeIncludes.h"/>
             <File RelativePath="..\..\src\native\windows\juce_win32_Network.cpp"/>
             <File RelativePath="..\..\src\native\windows\juce_win32_OpenGLComponent.cpp"/>
@@ -923,10 +933,33 @@
             <File RelativePath="..\..\src\native\windows\juce_win32_WebBrowserComponent.cpp"/>
             <File RelativePath="..\..\src\native\windows\juce_win32_Windowing.cpp"/>
           </Filter>
+          <Filter Name="android">
+            <File RelativePath="..\..\src\native\android\juce_android_Audio.cpp"/>
+            <File RelativePath="..\..\src\native\android\juce_android_CameraDevice.cpp"/>
+            <File RelativePath="..\..\src\native\android\juce_android_FileChooser.cpp"/>
+            <File RelativePath="..\..\src\native\android\juce_android_Files.cpp"/>
+            <File RelativePath="..\..\src\native\android\juce_android_Fonts.cpp"/>
+            <File RelativePath="..\..\src\native\android\juce_android_GraphicsContext.cpp"/>
+            <File RelativePath="..\..\src\native\android\juce_android_Messaging.cpp"/>
+            <File RelativePath="..\..\src\native\android\juce_android_Midi.cpp"/>
+            <File RelativePath="..\..\src\native\android\juce_android_Misc.cpp"/>
+            <File RelativePath="..\..\src\native\android\juce_android_NativeCode.cpp"/>
+            <File RelativePath="..\..\src\native\android\juce_android_NativeIncludes.h"/>
+            <File RelativePath="..\..\src\native\android\juce_android_Network.cpp"/>
+            <File RelativePath="..\..\src\native\android\juce_android_OpenGLComponent.cpp"/>
+            <File RelativePath="..\..\src\native\android\juce_android_SystemStats.cpp"/>
+            <File RelativePath="..\..\src\native\android\juce_android_Threads.cpp"/>
+            <File RelativePath="..\..\src\native\android\juce_android_WebBrowserComponent.cpp"/>
+            <File RelativePath="..\..\src\native\android\juce_android_Windowing.cpp"/>
+          </Filter>
         </Filter>
         <Filter Name="text">
           <File RelativePath="..\..\src\text\juce_CharacterFunctions.cpp"/>
           <File RelativePath="..\..\src\text\juce_CharacterFunctions.h"/>
+          <File RelativePath="..\..\src\text\juce_CharPointer_UTF8.h"/>
+          <File RelativePath="..\..\src\text\juce_CharPointer_UTF16.h"/>
+          <File RelativePath="..\..\src\text\juce_CharPointer_UTF32.h"/>
+          <File RelativePath="..\..\src\text\juce_CharPointer_ASCII.h"/>
           <File RelativePath="..\..\src\text\juce_Identifier.cpp"/>
           <File RelativePath="..\..\src\text\juce_Identifier.h"/>
           <File RelativePath="..\..\src\text\juce_LocalisedStrings.cpp"/>

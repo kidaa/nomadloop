@@ -47,10 +47,6 @@ public:
     {
     }
 
-    ~TreeViewContentComponent()
-    {
-    }
-
     void mouseDown (const MouseEvent& e)
     {
         updateButtonUnderMouse (e);
@@ -432,7 +428,6 @@ class TreeView::TreeViewport  : public Viewport
 {
 public:
     TreeViewport() throw()  : lastX (-1)    {}
-    ~TreeViewport() throw()                 {}
 
     void updateComponents (const bool triggerResize = false)
     {
@@ -448,10 +443,10 @@ public:
         repaint();
     }
 
-    void visibleAreaChanged (int x, int, int, int)
+    void visibleAreaChanged (const Rectangle<int>& newVisibleArea)
     {
-        const bool hasScrolledSideways = (x != lastX);
-        lastX = x;
+        const bool hasScrolledSideways = (newVisibleArea.getX() != lastX);
+        lastX = newVisibleArea.getX();
         updateComponents (hasScrolledSideways);
     }
 
@@ -1804,5 +1799,19 @@ XmlElement* TreeViewItem::getOpennessState() const throw()
 
     return 0;
 }
+
+//==============================================================================
+TreeViewItem::OpennessRestorer::OpennessRestorer (TreeViewItem& treeViewItem_)
+    : treeViewItem (treeViewItem_),
+      oldOpenness (treeViewItem_.getOpennessState())
+{
+}
+
+TreeViewItem::OpennessRestorer::~OpennessRestorer()
+{
+    if (oldOpenness != 0)
+        treeViewItem.restoreOpennessState (*oldOpenness);
+}
+
 
 END_JUCE_NAMESPACE

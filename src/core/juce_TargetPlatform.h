@@ -43,9 +43,12 @@
 #if (defined (_WIN32) || defined (_WIN64))
   #define       JUCE_WIN32 1
   #define       JUCE_WINDOWS 1
+#elif defined (JUCE_ANDROID)
+  #undef        JUCE_ANDROID
+  #define       JUCE_ANDROID 1
 #elif defined (LINUX) || defined (__linux__)
   #define     JUCE_LINUX 1
-#elif defined(__APPLE_CPP__) || defined(__APPLE_CC__)
+#elif defined (__APPLE_CPP__) || defined(__APPLE_CC__)
   #include <CoreFoundation/CoreFoundation.h> // (needed to find out what platform we're using)
 
   #if TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR
@@ -124,17 +127,20 @@
 
 #endif
 
-
 //==============================================================================
-#if JUCE_LINUX
+#if JUCE_LINUX || JUCE_ANDROID
 
   #ifdef _DEBUG
     #define JUCE_DEBUG 1
   #endif
 
   // Allow override for big-endian Linux platforms
-  #ifndef JUCE_BIG_ENDIAN
+  #if defined (__LITTLE_ENDIAN__) || ! defined (JUCE_BIG_ENDIAN)
     #define JUCE_LITTLE_ENDIAN 1
+    #undef JUCE_BIG_ENDIAN
+  #else
+    #undef JUCE_LITTLE_ENDIAN
+    #define JUCE_BIG_ENDIAN 1
   #endif
 
   #if defined (__LP64__) || defined (_LP64)
@@ -143,7 +149,9 @@
     #define JUCE_32BIT 1
   #endif
 
-  #define JUCE_INTEL 1
+  #if __MMX__ || __SSE__ || __amd64__
+    #define JUCE_INTEL 1
+  #endif
 #endif
 
 //==============================================================================
@@ -166,7 +174,7 @@
     #endif
   #endif
 
-  #if ! JUCE_VC7_OR_EARLIER
+  #if ! JUCE_VC7_OR_EARLIER && ! defined (__INTEL_COMPILER)
     #define JUCE_USE_INTRINSICS 1
   #endif
 #else

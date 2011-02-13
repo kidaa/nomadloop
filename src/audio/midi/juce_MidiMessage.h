@@ -90,6 +90,12 @@ public:
                  int& numBytesUsed, uint8 lastStatusByte,
                  double timeStamp = 0);
 
+    /** Creates an active-sense message.
+        Since the MidiMessage has to contain a valid message, this default constructor
+        just initialises it with an empty sysex message.
+    */
+    MidiMessage() throw();
+
     /** Creates a copy of another midi message. */
     MidiMessage (const MidiMessage& other);
 
@@ -239,7 +245,7 @@ public:
         @param noteNumber   the key number, 0 to 127
         @see isNoteOff
     */
-    static const MidiMessage noteOff (int channel, int noteNumber) throw();
+    static const MidiMessage noteOff (int channel, int noteNumber, uint8 velocity = 0) throw();
 
     /** Returns true if this message is a 'key-down' or 'key-up' event.
 

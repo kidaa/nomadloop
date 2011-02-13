@@ -37,8 +37,6 @@
 #endif
 
 //==============================================================================
-static HINTERNET sessionHandle = 0;
-
 #ifndef WORKAROUND_TIMEOUT_BUG
  //#define WORKAROUND_TIMEOUT_BUG 1
 #endif
@@ -48,8 +46,8 @@ static HINTERNET sessionHandle = 0;
 class InternetConnectThread  : public Thread
 {
 public:
-    InternetConnectThread (URL_COMPONENTS& uc_, HINTERNET& connection_, const bool isFtp_)
-        : Thread ("Internet"), uc (uc_), connection (connection_), isFtp (isFtp_)
+    InternetConnectThread (URL_COMPONENTS& uc_, HINTERNET sessionHandle_, HINTERNET& connection_, const bool isFtp_)
+        : Thread ("Internet"), uc (uc_), sessionHandle (sessionHandle_), connection (connection_), isFtp (isFtp_)
     {
         startThread();
     }
@@ -71,6 +69,7 @@ public:
 
 private:
     URL_COMPONENTS& uc;
+    HINTERNET sessionHandle;
     HINTERNET& connection;
     const bool isFtp;
 
@@ -236,7 +235,7 @@ private:
             uc.lpszUrlPath = file;
             uc.lpszHostName = server;
 
-            if (InternetCrackUrl (address, 0, 0, &uc))
+            if (InternetCrackUrl (address.toUTF16(), 0, 0, &uc))
             {
                 int disable = 1;
                 InternetSetOption (sessionHandle, INTERNET_OPTION_DISABLE_AUTODIAL, &disable, sizeof (disable));
@@ -254,7 +253,7 @@ private:
                 connection = 0;
 
                 {
-                    InternetConnectThread connectThread (uc, connection, isFtp);
+                    InternetConnectThread connectThread (uc, sessionHandle, connection, isFtp);
                     connectThread.wait (timeOutMs);
 
                     if (connection == 0)
@@ -296,7 +295,7 @@ private:
                             INTERNET_BUFFERS buffers;
                             zerostruct (buffers);
                             buffers.dwStructSize = sizeof (INTERNET_BUFFERS);
-                            buffers.lpcszHeader = static_cast <LPCTSTR> (headers);
+                            buffers.lpcszHeader = headers.toUTF16();
                             buffers.dwHeadersLength = headers.length();
                             buffers.dwBufferTotal = (DWORD) postData.getSize();
 

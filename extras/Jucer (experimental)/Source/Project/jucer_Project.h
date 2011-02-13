@@ -109,8 +109,7 @@ public:
     Value getSmallIconImageItemID() const               { return getProjectValue ("smallIcon"); }
     const Image getBigIcon();
     const Image getSmallIcon();
-
-    Value getObjectiveCClassSuffix() const              { return getProjectValue ("objCSuffix"); }
+    const Image getBestIconForSize (int size, bool returnNullIfNothingBigEnough);
 
     Value shouldBuildVST() const                        { return getProjectValue ("buildVST"); }
     Value shouldBuildRTAS() const                       { return getProjectValue ("buildRTAS"); }
@@ -300,7 +299,9 @@ public:
 
     //==============================================================================
     void valueTreePropertyChanged (ValueTree& tree, const Identifier& property);
-    void valueTreeChildrenChanged (ValueTree& tree);
+    void valueTreeChildAdded (ValueTree& parentTree, ValueTree& childWhichHasBeenAdded);
+    void valueTreeChildRemoved (ValueTree& parentTree, ValueTree& childWhichHasBeenRemoved);
+    void valueTreeChildOrderChanged (ValueTree& parentTree);
     void valueTreeParentChanged (ValueTree& tree);
 
     //==============================================================================

@@ -187,15 +187,19 @@ void TopLevelWindow::activeWindowStatusChanged()
 {
 }
 
+void TopLevelWindow::visibilityChanged()
+{
+    if (isShowing()
+         && (getPeer()->getStyleFlags() & (ComponentPeer::windowIsTemporary
+                                            | ComponentPeer::windowIgnoresKeyPresses)) == 0)
+    {
+        toFront (true);
+    }
+}
+
 void TopLevelWindow::parentHierarchyChanged()
 {
     setDropShadowEnabled (useDropShadow);
-}
-
-void TopLevelWindow::visibilityChanged()
-{
-    if (isShowing())
-        toFront (true);
 }
 
 int TopLevelWindow::getDesktopWindowStyleFlags() const

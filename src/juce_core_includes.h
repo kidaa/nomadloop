@@ -41,6 +41,9 @@
 #ifndef __JUCE_ELEMENTCOMPARATOR_JUCEHEADER__
  #include "containers/juce_ElementComparator.h"
 #endif
+#ifndef __JUCE_LINKEDLISTPOINTER_JUCEHEADER__
+ #include "containers/juce_LinkedListPointer.h"
+#endif
 #ifndef __JUCE_NAMEDVALUESET_JUCEHEADER__
  #include "containers/juce_NamedValueSet.h"
 #endif
@@ -52,6 +55,9 @@
 #endif
 #ifndef __JUCE_REFERENCECOUNTEDARRAY_JUCEHEADER__
  #include "containers/juce_ReferenceCountedArray.h"
+#endif
+#ifndef __JUCE_SCOPEDVALUESETTER_JUCEHEADER__
+ #include "containers/juce_ScopedValueSetter.h"
 #endif
 #ifndef __JUCE_SORTEDSET_JUCEHEADER__
  #include "containers/juce_SortedSet.h"
@@ -226,6 +232,18 @@
 #endif
 #ifndef __JUCE_CHARACTERFUNCTIONS_JUCEHEADER__
  #include "text/juce_CharacterFunctions.h"
+#endif
+#ifndef __JUCE_CHARPOINTER_ASCII_JUCEHEADER__
+ #include "text/juce_CharPointer_ASCII.h"
+#endif
+#ifndef __JUCE_CHARPOINTER_UTF16_JUCEHEADER__
+ #include "text/juce_CharPointer_UTF16.h"
+#endif
+#ifndef __JUCE_CHARPOINTER_UTF32_JUCEHEADER__
+ #include "text/juce_CharPointer_UTF32.h"
+#endif
+#ifndef __JUCE_CHARPOINTER_UTF8_JUCEHEADER__
+ #include "text/juce_CharPointer_UTF8.h"
 #endif
 #ifndef __JUCE_IDENTIFIER_JUCEHEADER__
  #include "text/juce_Identifier.h"

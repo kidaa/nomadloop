@@ -52,8 +52,6 @@ public:
         projectGUID = createGUID (project.getProjectUID());
     }
 
-    ~MSVCProjectExporterBase()  {}
-
     //==============================================================================
     bool isPossibleForCurrentProject()          { return true; }
     bool usesMMFiles() const                    { return false; }
@@ -314,7 +312,7 @@ protected:
             dataBlock.writeInt (0); // clr used
             dataBlock.writeInt (0); // clr important
 
-            const Image::BitmapData bitmap (image, false);
+            const Image::BitmapData bitmap (image, Image::BitmapData::readOnly);
             const int alphaThreshold = 5;
 
             int y;
@@ -379,59 +377,23 @@ protected:
         out << dataBlock;
     }
 
-    static const Image getBestIconImage (const Image& im1, const Image& im2, int size)
-    {
-        Image im;
-
-        if (im1.isValid() && im2.isValid())
-        {
-            if (im1.getWidth() >= size && im2.getWidth() >= size)
-                im = im1.getWidth() < im2.getWidth() ? im1 : im2;
-            else if (im1.getWidth() >= size)
-                im = im1;
-            else if (im2.getWidth() >= size)
-                im = im2;
-            else
-                return Image();
-        }
-        else
-        {
-            im = im1.isValid() ? im1 : im2;
-        }
-
-        if (size == im.getWidth() && size == im.getHeight())
-            return im;
-
-        if (im.getWidth() < size && im.getHeight() < size)
-            return Image();
-
-        Image newIm (Image::ARGB, size, size, true);
-        Graphics g (newIm);
-        g.drawImageWithin (im, 0, 0, size, size,
-                           RectanglePlacement::centred | RectanglePlacement::onlyReduceInSize, false);
-        return newIm;
-    }
-
     bool createIconFile()
     {
         Array<Image> images;
 
-        const Image smallIcon (project.getSmallIcon());
-        const Image bigIcon (project.getBigIcon());
-
-        Image im (getBestIconImage (smallIcon, bigIcon, 16));
+        Image im (project.getBestIconForSize (16, true));
         if (im.isValid())
             images.add (im);
 
-        im = getBestIconImage (smallIcon, bigIcon, 32);
+        im = project.getBestIconForSize (32, true);
         if (im.isValid())
             images.add (im);
 
-        im = getBestIconImage (smallIcon, bigIcon, 48);
+        im = project.getBestIconForSize (48, true);
         if (im.isValid())
             images.add (im);
 
-        im = getBestIconImage (smallIcon, bigIcon, 128);
+        im = project.getBestIconForSize (128, true);
         if (im.isValid())
             images.add (im);
 
@@ -464,8 +426,6 @@ public:
         name = getName();
     }
 
-    ~MSVCProjectExporterVC2008()  {}
-
     static const char* getName()                    { return "Visual Studio 2008"; }
     static const char* getValueTreeTypeName()       { return "VS2008"; }
 
@@ -489,7 +449,7 @@ public:
     }
 
     //==============================================================================
-    const String create()
+    void create()
     {
         createIconFile();
 
@@ -502,23 +462,15 @@ public:
         {
             XmlElement projectXml ("VisualStudioProject");
             fillInProjectXml (projectXml);
-
-            MemoryOutputStream mo;
-            projectXml.writeToStream (mo, String::empty, false, true, "UTF-8", 10);
-
-            if (! FileHelpers::overwriteFileWithNewDataIfDifferent (getVCProjFile(), mo))
-                return "Can't write to the VC project file: " + getVCProjFile().getFullPathName();
+            writeXmlOrThrow (projectXml, getVCProjFile(), "UTF-8", 10);
         }
 
         {
             MemoryOutputStream mo;
             writeSolutionFile (mo, getSolutionVersionString(), getVCProjFile());
 
-            if (! FileHelpers::overwriteFileWithNewDataIfDifferent (getSLNFile(), mo))
-                return "Can't write to the VC solution file: " + getSLNFile().getFullPathName();
+            overwriteFileIfDifferentOrThrow (getSLNFile(), mo);
         }
-
-        return String::empty;
     }
 
 protected:
@@ -830,8 +782,6 @@ public:
         name = getName();
     }
 
-    ~MSVCProjectExporterVC2005()  {}
-
     static const char* getName()                    { return "Visual Studio 2005"; }
     static const char* getValueTreeTypeName()       { return "VS2005"; }
 
@@ -864,8 +814,6 @@ public:
         name = getName();
     }
 
-    ~MSVCProjectExporterVC6()  {}
-
     static const char* getName()                   { return "Visual C++ 6.0"; }
     static const char* getValueTreeTypeName()      { return "MSVC6"; }
 
@@ -881,25 +829,19 @@ public:
     }
 
     //==============================================================================
-    const String create()
+    void create()
     {
         {
             MemoryOutputStream mo;
             writeProject (mo);
-
-            if (! FileHelpers::overwriteFileWithNewDataIfDifferent (getDSPFile(), mo))
-                return "Can't write to the VC project file: " + getDSPFile().getFullPathName();
+            overwriteFileIfDifferentOrThrow (getDSPFile(), mo);
         }
 
         {
             MemoryOutputStream mo;
             writeDSWFile (mo);
-
-            if (! FileHelpers::overwriteFileWithNewDataIfDifferent (getDSWFile(), mo))
-                return "Can't write to the VC solution file: " + getDSWFile().getFullPathName();
+            overwriteFileIfDifferentOrThrow (getDSWFile(), mo);
         }
-
-        return String::empty;
     }
 
 private:
@@ -1133,8 +1075,6 @@ public:
         name = getName();
     }
 
-    ~MSVCProjectExporterVC2010()  {}
-
     static const char* getName()                    { return "Visual Studio 2010"; }
     static const char* getValueTreeTypeName()       { return "VS2010"; }
 
@@ -1150,41 +1090,28 @@ public:
     }
 
     //==============================================================================
-    const String create()
+    void create()
     {
         createIconFile();
 
         {
             XmlElement projectXml ("Project");
             fillInProjectXml (projectXml);
-
-            MemoryOutputStream mo;
-            projectXml.writeToStream (mo, String::empty, false, true, "utf-8", 100);
-
-            if (! FileHelpers::overwriteFileWithNewDataIfDifferent (getVCProjFile(), mo))
-                return "Can't write to the VC project file: " + getVCProjFile().getFullPathName();
+            writeXmlOrThrow (projectXml, getVCProjFile(), "utf-8", 100);
         }
 
         {
             XmlElement filtersXml ("Project");
             fillInFiltersXml (filtersXml);
-
-            MemoryOutputStream mo;
-            filtersXml.writeToStream (mo, String::empty, false, true, "utf-8", 100);
-
-            if (! FileHelpers::overwriteFileWithNewDataIfDifferent (getVCProjFiltersFile(), mo))
-                return "Can't write to the VC project file: " + getVCProjFiltersFile().getFullPathName();
+            writeXmlOrThrow (filtersXml, getVCProjFiltersFile(), "utf-8", 100);
         }
 
         {
             MemoryOutputStream mo;
             writeSolutionFile (mo, "11.00", getVCProjFile());
 
-            if (! FileHelpers::overwriteFileWithNewDataIfDifferent (getSLNFile(), mo))
-                return "Can't write to the VC solution file: " + getSLNFile().getFullPathName();
+            overwriteFileIfDifferentOrThrow (getSLNFile(), mo);
         }
-
-        return String::empty;
     }
 
 protected:

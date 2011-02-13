@@ -38,7 +38,9 @@ const String createAlphaNumericUID()
     static const char chars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
     Random r (Random::getSystemRandom().nextInt64());
 
-    for (int i = 7; --i >= 0;)
+    uid << chars [r.nextInt (52)]; // make sure the first character is always a letter
+
+    for (int i = 5; --i >= 0;)
     {
         r.setSeedRandomly();
         uid << chars [r.nextInt (numElementsInArray (chars))];
@@ -75,46 +77,45 @@ const String createGUID (const String& seed)
     return guid;
 }
 
-//==============================================================================
-static void skipWhitespace (const String& s, int& i)
+const String escapeSpaces (const String& s)
 {
-    while (CharacterFunctions::isWhitespace (s[i]))
-        ++i;
+    return s.replace (" ", "\\ ");
 }
 
-const StringPairArray parsePreprocessorDefs (const String& s)
+//==============================================================================
+const StringPairArray parsePreprocessorDefs (const String& text)
 {
     StringPairArray result;
-    int i = 0;
+    String::CharPointerType s (text.getCharPointer());
 
-    while (s[i] != 0)
+    while (! s.isEmpty())
     {
         String token, value;
-        skipWhitespace (s, i);
+        s = s.findEndOfWhitespace();
 
-        while (s[i] != 0 && s[i] != '=' && ! CharacterFunctions::isWhitespace (s[i]))
-            token << s[i++];
+        while ((! s.isEmpty()) && *s != '=' && ! s.isWhitespace())
+            token << s.getAndAdvance();
 
-        skipWhitespace (s, i);
+        s = s.findEndOfWhitespace();
 
-        if (s[i] == '=')
+        if (*s == '=')
         {
-            ++i;
+            ++s;
 
-            skipWhitespace (s, i);
+            s = s.findEndOfWhitespace();
 
-            while (s[i] != 0 && ! CharacterFunctions::isWhitespace (s[i]))
+            while ((! s.isEmpty()) && ! s.isWhitespace())
             {
-                if (s[i] == ',')
+                if (*s == ',')
                 {
-                    ++i;
+                    ++s;
                     break;
                 }
 
-                if (s[i] == '\\' && (s[i + 1] == ' ' || s[i + 1] == ','))
-                    ++i;
+                if (*s == '\\' && (s[1] == ' ' || s[1] == ','))
+                    ++s;
 
-                value << s[i++];
+                value << s.getAndAdvance();
             }
         }
 
@@ -131,6 +132,23 @@ const StringPairArray mergePreprocessorDefs (StringPairArray inheritedDefs, cons
         inheritedDefs.set (overridingDefs.getAllKeys()[i], overridingDefs.getAllValues()[i]);
 
     return inheritedDefs;
+}
+
+const String createGCCPreprocessorFlags (const StringPairArray& defs)
+{
+    String s;
+
+    for (int i = 0; i < defs.size(); ++i)
+    {
+        String def (defs.getAllKeys()[i]);
+        const String value (defs.getAllValues()[i]);
+        if (value.isNotEmpty())
+            def << "=" << value;
+
+        s += " -D " + def.quoted();
+    }
+
+    return s;
 }
 
 const String replacePreprocessorDefs (const StringPairArray& definitions, String sourceString)
@@ -335,144 +353,4 @@ void FloatingLabelComponent::paint (Graphics& g)
 
     g.setColour (colour);
     glyphs.draw (g, AffineTransform::translation (1.0f, 1.0f));
-}
-
-//==============================================================================
-RelativeRectangleLayoutManager::RelativeRectangleLayoutManager (Component* parentComponent)
-    : parent (parentComponent)
-{
-    parent->addComponentListener (this);
-}
-
-RelativeRectangleLayoutManager::~RelativeRectangleLayoutManager()
-{
-    parent->removeComponentListener (this);
-
-    for (int i = components.size(); --i >= 0;)
-        components.getUnchecked(i)->component->removeComponentListener (this);
-}
-
-void RelativeRectangleLayoutManager::setMarker (const String& name, const RelativeCoordinate& coord)
-{
-    for (int i = markers.size(); --i >= 0;)
-    {
-        MarkerPosition* m = markers.getUnchecked(i);
-        if (m->markerName == name)
-        {
-            m->position = coord;
-            applyLayout();
-            return;
-        }
-    }
-
-    markers.add (new MarkerPosition (name, coord));
-    applyLayout();
-}
-
-void RelativeRectangleLayoutManager::setComponentBounds (Component* comp, const String& name, const RelativeRectangle& coords)
-{
-    jassert (comp != 0);
-
-    // All the components that this layout manages must be inside the parent component..
-    jassert (parent->isParentOf (comp));
-
-    for (int i = components.size(); --i >= 0;)
-    {
-        ComponentPosition* c = components.getUnchecked(i);
-        if (c->component == comp)
-        {
-            c->name = name;
-            c->coords = coords;
-            triggerAsyncUpdate();
-            return;
-        }
-    }
-
-    components.add (new ComponentPosition (comp, name, coords));
-    comp->addComponentListener (this);
-    triggerAsyncUpdate();
-}
-
-void RelativeRectangleLayoutManager::applyLayout()
-{
-    for (int i = components.size(); --i >= 0;)
-    {
-        ComponentPosition* c = components.getUnchecked(i);
-
-        // All the components that this layout manages must be inside the parent component..
-        jassert (parent->isParentOf (c->component));
-
-        c->component->setBounds (c->coords.resolve (this).getSmallestIntegerContainer());
-    }
-}
-
-const Expression RelativeRectangleLayoutManager::getSymbolValue (const String& objectName, const String& edge) const
-{
-    if (objectName == RelativeCoordinate::Strings::parent)
-    {
-        if (edge == RelativeCoordinate::Strings::right)     return Expression ((double) parent->getWidth());
-        if (edge == RelativeCoordinate::Strings::bottom)    return Expression ((double) parent->getHeight());
-    }
-
-    if (objectName.isNotEmpty() && edge.isNotEmpty())
-    {
-        for (int i = components.size(); --i >= 0;)
-        {
-            ComponentPosition* c = components.getUnchecked(i);
-
-            if (c->name == objectName)
-            {
-                if (edge == RelativeCoordinate::Strings::left)   return c->coords.left.getExpression();
-                if (edge == RelativeCoordinate::Strings::right)  return c->coords.right.getExpression();
-                if (edge == RelativeCoordinate::Strings::top)    return c->coords.top.getExpression();
-                if (edge == RelativeCoordinate::Strings::bottom) return c->coords.bottom.getExpression();
-            }
-        }
-    }
-
-    for (int i = markers.size(); --i >= 0;)
-    {
-        MarkerPosition* m = markers.getUnchecked(i);
-
-        if (m->markerName == objectName)
-            return m->position.getExpression();
-    }
-
-    return Expression();
-}
-
-void RelativeRectangleLayoutManager::componentMovedOrResized (Component& component, bool wasMoved, bool wasResized)
-{
-    triggerAsyncUpdate();
-
-    if (parent == &component)
-        handleUpdateNowIfNeeded();
-}
-
-void RelativeRectangleLayoutManager::componentBeingDeleted (Component& component)
-{
-    for (int i = components.size(); --i >= 0;)
-    {
-        ComponentPosition* c = components.getUnchecked(i);
-        if (c->component == &component)
-        {
-            components.remove (i);
-            break;
-        }
-    }
-}
-
-void RelativeRectangleLayoutManager::handleAsyncUpdate()
-{
-    applyLayout();
-}
-
-RelativeRectangleLayoutManager::MarkerPosition::MarkerPosition (const String& name, const RelativeCoordinate& coord)
-    : markerName (name), position (coord)
-{
-}
-
-RelativeRectangleLayoutManager::ComponentPosition::ComponentPosition (Component* component_, const String& name_, const RelativeRectangle& coords_)
-    : component (component_), name (name_), coords (coords_)
-{
 }

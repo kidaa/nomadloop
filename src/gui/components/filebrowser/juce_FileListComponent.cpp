@@ -110,7 +110,7 @@ public:
 
     void mouseDown (const MouseEvent& e)
     {
-        owner.selectRowsBasedOnModifierKeys (index, e.mods);
+        owner.selectRowsBasedOnModifierKeys (index, e.mods, false);
         owner.sendMouseClickMessage (file, e);
     }
 
@@ -165,10 +165,10 @@ public:
         }
     }
 
-    bool useTimeSlice()
+    int useTimeSlice()
     {
         updateIcon (false);
-        return false;
+        return -1;
     }
 
     void handleAsyncUpdate()

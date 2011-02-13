@@ -69,6 +69,7 @@
 #include <Exdisp.h>
 #include <exdispid.h>
 #include <shlobj.h>
+#include <shlwapi.h>
 
 #if ! JUCE_MINGW
  #include <crtdbg.h>

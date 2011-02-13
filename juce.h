@@ -33,6 +33,15 @@
 */
 //==============================================================================
 
+/* This line is here just to help catch syntax errors caused by mistakes in other header
+   files that are included before juce.h. If you hit an error at this line, it must be some
+   kind of syntax problem in whatever code immediately precedes this header.
+
+   This also acts as a sanity-check in case you're trying to build with a C or obj-C compiler
+   rather than a proper C++ one.
+*/
+namespace JuceDummyNamespace {}
+
 #define JUCE_PUBLIC_INCLUDES 1
 
 // (this includes things that need defining outside of the JUCE namespace)
@@ -45,6 +54,9 @@ BEGIN_JUCE_NAMESPACE
   #pragma pack (push, 8)
   #pragma warning (push)
   #pragma warning (disable: 4786) // (old vc6 warning about long class names)
+  #ifdef __INTEL_COMPILER
+   #pragma warning (disable: 1125)
+  #endif
 #endif
 
 // this is where all the class header files get brought in..
@@ -59,11 +71,6 @@ BEGIN_JUCE_NAMESPACE
 #if JUCE_MSVC
   #pragma warning (pop)
   #pragma pack (pop)
-#endif
-
-#ifdef JUCE_DLL
-  #undef JUCE_LEAK_DETECTOR(OwnerClass)
-  #define JUCE_LEAK_DETECTOR(OwnerClass)
 #endif
 
 END_JUCE_NAMESPACE

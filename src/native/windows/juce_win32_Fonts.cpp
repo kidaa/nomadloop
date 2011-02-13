@@ -62,7 +62,7 @@ static int CALLBACK wfontEnum1 (ENUMLOGFONTEXW* lpelfe,
         lf.lfPitchAndFamily = FF_DONTCARE;
 
         const String fontName (lpelfe->elfLogFont.lfFaceName);
-        fontName.copyToUnicode (lf.lfFaceName, LF_FACESIZE - 1);
+        fontName.copyToUTF16 (lf.lfFaceName, LF_FACESIZE - 1);
 
         HDC dc = CreateCompatibleDC (0);
         EnumFontFamiliesEx (dc, &lf,
@@ -129,19 +129,14 @@ class FontDCHolder  : private DeletedAtShutdown
 public:
     //==============================================================================
     FontDCHolder()
-        : dc (0), numKPs (0), size (0),
+        : fontH (0), previousFontH (0), dc (0), numKPs (0), size (0),
           bold (false), italic (false)
     {
     }
 
     ~FontDCHolder()
     {
-        if (dc != 0)
-        {
-            DeleteDC (dc);
-            DeleteObject (fontH);
-        }
-
+        deleteDCAndFont();
         clearSingletonInstance();
     }
 
@@ -157,14 +152,7 @@ public:
             italic = italic_;
             size = size_;
 
-            if (dc != 0)
-            {
-                DeleteDC (dc);
-                DeleteObject (fontH);
-                kps.free();
-            }
-
-            fontH = 0;
+            deleteDCAndFont();
 
             dc = CreateCompatibleDC (0);
             SetMapperFlags (dc, 0);
@@ -180,14 +168,14 @@ public:
             lfw.lfQuality = PROOF_QUALITY;
             lfw.lfItalic = (BYTE) (italic ? TRUE : FALSE);
             lfw.lfWeight = bold ? FW_BOLD : FW_NORMAL;
-            fontName.copyToUnicode (lfw.lfFaceName, LF_FACESIZE - 1);
+            fontName.copyToUTF16 (lfw.lfFaceName, LF_FACESIZE - 1);
 
             lfw.lfHeight = size > 0 ? size : -256;
             HFONT standardSizedFont = CreateFontIndirect (&lfw);
 
             if (standardSizedFont != 0)
             {
-                if (SelectObject (dc, standardSizedFont) != 0)
+                if ((previousFontH = SelectObject (dc, standardSizedFont)) != 0)
                 {
                     fontH = standardSizedFont;
 
@@ -204,14 +192,6 @@ public:
                         }
                     }
                 }
-                else
-                {
-                    jassertfalse;
-                }
-            }
-            else
-            {
-                jassertfalse;
             }
         }
 
@@ -236,11 +216,30 @@ public:
 private:
     //==============================================================================
     HFONT fontH;
+    HGDIOBJ previousFontH;
     HDC dc;
     String fontName;
     HeapBlock <KERNINGPAIR> kps;
     int numKPs, size;
     bool bold, italic;
+
+    void deleteDCAndFont()
+    {
+        if (dc != 0)
+        {
+            SelectObject (dc, previousFontH); // Replacing the previous font before deleting the DC avoids a warning in BoundsChecker
+            DeleteDC (dc);
+            dc = 0;
+        }
+
+        if (fontH != 0)
+        {
+            DeleteObject (fontH);
+            fontH = 0;
+        }
+
+        kps.free();
+    }
 
     JUCE_DECLARE_NON_COPYABLE (FontDCHolder);
 };

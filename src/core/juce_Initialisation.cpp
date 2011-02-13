@@ -78,6 +78,16 @@ JUCE_API void JUCE_CALLTYPE initialiseJuce_NonGUI()
     static_jassert (sizeof (uint32) == 4);
     static_jassert (sizeof (int64) == 8);
     static_jassert (sizeof (uint64) == 8);
+
+    #if JUCE_NATIVE_WCHAR_IS_UTF8
+      static_jassert (sizeof (wchar_t) == 1);
+    #elif JUCE_NATIVE_WCHAR_IS_UTF16
+      static_jassert (sizeof (wchar_t) == 2);
+    #elif JUCE_NATIVE_WCHAR_IS_UTF32
+      static_jassert (sizeof (wchar_t) == 4);
+    #else
+      #error "native wchar_t size is unknown"
+    #endif
 }
 
 JUCE_API void JUCE_CALLTYPE shutdownJuce_NonGUI()
@@ -178,18 +188,28 @@ public:
         expect (ByteOrder::swap ((uint32) 0x11223344) == 0x44332211);
         expect (ByteOrder::swap ((uint64) literal64bit (0x1122334455667788)) == literal64bit (0x8877665544332211));
 
-        beginTest ("Atomic types");
+        beginTest ("Atomic int");
         AtomicTester <int>::testInteger (*this);
+        beginTest ("Atomic unsigned int");
         AtomicTester <unsigned int>::testInteger (*this);
+        beginTest ("Atomic int32");
         AtomicTester <int32>::testInteger (*this);
+        beginTest ("Atomic uint32");
         AtomicTester <uint32>::testInteger (*this);
+        beginTest ("Atomic long");
         AtomicTester <long>::testInteger (*this);
+        beginTest ("Atomic void*");
         AtomicTester <void*>::testInteger (*this);
+        beginTest ("Atomic int*");
         AtomicTester <int*>::testInteger (*this);
+        beginTest ("Atomic float");
         AtomicTester <float>::testFloat (*this);
       #if ! JUCE_64BIT_ATOMICS_UNAVAILABLE  // 64-bit intrinsics aren't available on some old platforms
+        beginTest ("Atomic int64");
         AtomicTester <int64>::testInteger (*this);
+        beginTest ("Atomic uint64");
         AtomicTester <uint64>::testInteger (*this);
+        beginTest ("Atomic double");
         AtomicTester <double>::testFloat (*this);
       #endif
     }
@@ -204,10 +224,17 @@ public:
         {
             Atomic<Type> a, b;
             a.set ((Type) 10);
+            test.expect (a.value == (Type) 10);
+            test.expect (a.get() == (Type) 10);
             a += (Type) 15;
+            test.expect (a.get() == (Type) 25);
             a.memoryBarrier();
             a -= (Type) 5;
-            ++a; ++a; --a;
+            test.expect (a.get() == (Type) 20);
+            test.expect (++a == (Type) 21);
+            ++a;
+            test.expect (--a == (Type) 21);
+            test.expect (a.get() == (Type) 21);
             a.memoryBarrier();
 
             testFloat (test);

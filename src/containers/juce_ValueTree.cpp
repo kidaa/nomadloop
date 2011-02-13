@@ -43,8 +43,6 @@ public:
     {
     }
 
-    ~SetPropertyAction() {}
-
     bool perform()
     {
         jassert (! (isAddingNewProperty && target->hasProperty (name)));
@@ -112,8 +110,6 @@ public:
         jassert (child != 0);
     }
 
-    ~AddOrRemoveChildAction() {}
-
     bool perform()
     {
         if (isDeleting)
@@ -165,8 +161,6 @@ public:
           endIndex (endIndex_)
     {
     }
-
-    ~MoveChildAction() {}
 
     bool perform()
     {
@@ -256,24 +250,68 @@ void ValueTree::SharedObject::sendPropertyChangeMessage (const Identifier& prope
     }
 }
 
-void ValueTree::SharedObject::sendChildChangeMessage (ValueTree& tree)
+void ValueTree::SharedObject::sendChildAddedMessage (ValueTree& tree, ValueTree& child)
 {
     for (int i = valueTreesWithListeners.size(); --i >= 0;)
     {
         ValueTree* const v = valueTreesWithListeners[i];
         if (v != 0)
-            v->listeners.call (&ValueTree::Listener::valueTreeChildrenChanged, tree);
+            v->listeners.call (&ValueTree::Listener::valueTreeChildAdded, tree, child);
     }
 }
 
-void ValueTree::SharedObject::sendChildChangeMessage()
+void ValueTree::SharedObject::sendChildAddedMessage (ValueTree child)
 {
     ValueTree tree (this);
     ValueTree::SharedObject* t = this;
 
     while (t != 0)
     {
-        t->sendChildChangeMessage (tree);
+        t->sendChildAddedMessage (tree, child);
+        t = t->parent;
+    }
+}
+
+void ValueTree::SharedObject::sendChildRemovedMessage (ValueTree& tree, ValueTree& child)
+{
+    for (int i = valueTreesWithListeners.size(); --i >= 0;)
+    {
+        ValueTree* const v = valueTreesWithListeners[i];
+        if (v != 0)
+            v->listeners.call (&ValueTree::Listener::valueTreeChildRemoved, tree, child);
+    }
+}
+
+void ValueTree::SharedObject::sendChildRemovedMessage (ValueTree child)
+{
+    ValueTree tree (this);
+    ValueTree::SharedObject* t = this;
+
+    while (t != 0)
+    {
+        t->sendChildRemovedMessage (tree, child);
+        t = t->parent;
+    }
+}
+
+void ValueTree::SharedObject::sendChildOrderChangedMessage (ValueTree& tree)
+{
+    for (int i = valueTreesWithListeners.size(); --i >= 0;)
+    {
+        ValueTree* const v = valueTreesWithListeners[i];
+        if (v != 0)
+            v->listeners.call (&ValueTree::Listener::valueTreeChildOrderChanged, tree);
+    }
+}
+
+void ValueTree::SharedObject::sendChildOrderChangedMessage()
+{
+    ValueTree tree (this);
+    ValueTree::SharedObject* t = this;
+
+    while (t != 0)
+    {
+        t->sendChildOrderChangedMessage (tree);
         t = t->parent;
     }
 }
@@ -373,7 +411,7 @@ ValueTree ValueTree::SharedObject::getChildWithName (const Identifier& typeToMat
 {
     for (int i = 0; i < children.size(); ++i)
         if (children.getUnchecked(i)->type == typeToMatch)
-            return ValueTree (static_cast <SharedObject*> (children.getUnchecked(i)));
+            return ValueTree (children.getUnchecked(i).getObject());
 
     return ValueTree::invalid;
 }
@@ -382,7 +420,7 @@ ValueTree ValueTree::SharedObject::getOrCreateChildWithName (const Identifier& t
 {
     for (int i = 0; i < children.size(); ++i)
         if (children.getUnchecked(i)->type == typeToMatch)
-            return ValueTree (static_cast <SharedObject*> (children.getUnchecked(i)));
+            return ValueTree (children.getUnchecked(i).getObject());
 
     SharedObject* const newObject = new SharedObject (typeToMatch);
     addChild (newObject, -1, undoManager);
@@ -394,7 +432,7 @@ ValueTree ValueTree::SharedObject::getChildWithProperty (const Identifier& prope
 {
     for (int i = 0; i < children.size(); ++i)
         if (children.getUnchecked(i)->getProperty (propertyName) == propertyValue)
-            return ValueTree (static_cast <SharedObject*> (children.getUnchecked(i)));
+            return ValueTree (children.getUnchecked(i).getObject());
 
     return ValueTree::invalid;
 }
@@ -440,7 +478,7 @@ void ValueTree::SharedObject::addChild (SharedObject* child, int index, UndoMana
             {
                 children.insert (index, child);
                 child->parent = this;
-                sendChildChangeMessage();
+                sendChildAddedMessage (ValueTree (child));
                 child->sendParentChangeMessage();
             }
             else
@@ -470,7 +508,7 @@ void ValueTree::SharedObject::removeChild (const int childIndex, UndoManager* co
         {
             children.remove (childIndex);
             child->parent = 0;
-            sendChildChangeMessage();
+            sendChildRemovedMessage (ValueTree (child));
             child->sendParentChangeMessage();
         }
         else
@@ -497,7 +535,7 @@ void ValueTree::SharedObject::moveChild (int currentIndex, int newIndex, UndoMan
         if (undoManager == 0)
         {
             children.move (currentIndex, newIndex);
-            sendChildChangeMessage();
+            sendChildOrderChangedMessage();
         }
         else
         {
@@ -516,16 +554,19 @@ void ValueTree::SharedObject::reorderChildren (const ReferenceCountedArray <Shar
     if (undoManager == 0)
     {
         children = newOrder;
-        sendChildChangeMessage();
+        sendChildOrderChangedMessage();
     }
     else
     {
         for (int i = 0; i < children.size(); ++i)
         {
-            if (children.getUnchecked(i) != newOrder.getUnchecked(i))
+            const SharedObjectPtr child (newOrder.getUnchecked(i));
+
+            if (children.getUnchecked(i) != child)
             {
-                jassert (children.contains (newOrder.getUnchecked(i)));
-                moveChild (children.indexOf (newOrder.getUnchecked(i)), i, undoManager);
+                const int oldIndex = children.indexOf (child);
+                jassert (oldIndex >= 0);
+                moveChild (oldIndex, i, undoManager);
             }
         }
     }
@@ -635,7 +676,7 @@ ValueTree ValueTree::getSibling (const int delta) const
         return invalid;
 
     const int index = object->parent->indexOf (*this) + delta;
-    return ValueTree (static_cast <SharedObject*> (object->parent->children [index]));
+    return ValueTree (object->parent->children [index].getObject());
 }
 
 const var& ValueTree::operator[] (const Identifier& name) const
@@ -725,8 +766,10 @@ public:
             sendChangeMessage (false);
     }
 
-    void valueTreeChildrenChanged (ValueTree&) {}
-    void valueTreeParentChanged (ValueTree&)   {}
+    void valueTreeChildAdded (ValueTree&, ValueTree&) {}
+    void valueTreeChildRemoved (ValueTree&, ValueTree&) {}
+    void valueTreeChildOrderChanged (ValueTree&) {}
+    void valueTreeParentChanged (ValueTree&) {}
 
 private:
     ValueTree tree;
@@ -830,20 +873,10 @@ void ValueTree::removeListener (Listener* listener)
 //==============================================================================
 XmlElement* ValueTree::SharedObject::createXml() const
 {
-    XmlElement* xml = new XmlElement (type.toString());
+    XmlElement* const xml = new XmlElement (type.toString());
+    properties.copyToXmlAttributes (*xml);
 
-    int i;
-    for (i = 0; i < properties.size(); ++i)
-    {
-        Identifier name (properties.getName(i));
-        const var& v = properties [name];
-
-        jassert (! v.isObject()); // DynamicObjects can't be stored as XML!
-
-        xml->setAttribute (name.toString(), v.toString());
-    }
-
-    for (i = 0; i < children.size(); ++i)
+    for (int i = 0; i < children.size(); ++i)
         xml->addChildElement (children.getUnchecked(i)->createXml());
 
     return xml;
@@ -857,16 +890,10 @@ XmlElement* ValueTree::createXml() const
 ValueTree ValueTree::fromXml (const XmlElement& xml)
 {
     ValueTree v (xml.getTagName());
-
-    const int numAtts = xml.getNumAttributes(); // xxx inefficient - should write an att iterator..
-
-    for (int i = 0; i < numAtts; ++i)
-        v.setProperty (xml.getAttributeName (i), var (xml.getAttributeValue (i)), 0);
+    v.object->properties.setFromXmlAttributes (xml);
 
     forEachXmlChildElement (xml, e)
-    {
         v.addChild (fromXml (*e), -1, 0);
-    }
 
     return v;
 }
@@ -917,13 +944,18 @@ ValueTree ValueTree::readFromStream (InputStream& input)
         const String name (input.readString());
         jassert (name.isNotEmpty());
         const var value (var::readFromStream (input));
-        v.setProperty (name, value, 0);
+        v.object->properties.set (name, value);
     }
 
     const int numChildren = input.readCompressedInt();
 
     for (i = 0; i < numChildren; ++i)
-        v.addChild (readFromStream (input), -1, 0);
+    {
+        ValueTree child (readFromStream (input));
+
+        v.object->children.add (child.object);
+        child.object->parent = v.object;
+    }
 
     return v;
 }

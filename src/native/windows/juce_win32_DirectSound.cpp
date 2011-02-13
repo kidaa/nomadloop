@@ -801,16 +801,16 @@ public:
                          const int inputDeviceIndex_)
         : AudioIODevice (deviceName, "DirectSound"),
           Thread ("Juce DSound"),
-          isOpen_ (false),
-          isStarted (false),
           outputDeviceIndex (outputDeviceIndex_),
           inputDeviceIndex (inputDeviceIndex_),
+          isOpen_ (false),
+          isStarted (false),
+          bufferSizeSamples (0),
           totalSamplesOut (0),
           sampleRate (0.0),
           inputBuffers (1, 1),
           outputBuffers (1, 1),
-          callback (0),
-          bufferSizeSamples (0)
+          callback (0)
     {
         if (outputDeviceIndex_ >= 0)
         {
@@ -1386,7 +1386,7 @@ const String DSoundAudioIODevice::openDevice (const BigInteger& inputChannels,
 }
 
 //==============================================================================
-AudioIODeviceType* juce_createAudioIODeviceType_DirectSound()
+AudioIODeviceType* AudioIODeviceType::createAudioIODeviceType_DirectSound()
 {
     return new DSoundAudioIODeviceType();
 }

@@ -27,6 +27,22 @@
 #define __JUCE_STRING_JUCEHEADER__
 
 #include "juce_CharacterFunctions.h"
+
+#if JUCE_MSVC
+  #pragma warning (push)
+  #pragma warning (disable: 4514 4996)
+#endif
+
+#include "../memory/juce_Atomic.h"
+#include "juce_CharPointer_UTF8.h"
+#include "juce_CharPointer_UTF16.h"
+#include "juce_CharPointer_UTF32.h"
+#include "juce_CharPointer_ASCII.h"
+
+#if JUCE_MSVC
+  #pragma warning (pop)
+#endif
+
 class OutputStream;
 
 
@@ -45,7 +61,6 @@ class JUCE_API  String
 public:
     //==============================================================================
     /** Creates an empty string.
-
         @see empty
     */
     String() throw();
@@ -53,15 +68,36 @@ public:
     /** Creates a copy of another string. */
     String (const String& other) throw();
 
-    /** Creates a string from a zero-terminated text string.
-        The string is assumed to be stored in the default system encoding.
+    /** Creates a string from a zero-terminated ascii text string.
+
+        The string passed-in must not contain any characters with a value above 127, because
+        these can't be converted to unicode without knowing the original encoding that was
+        used to create the string. If you attempt to pass-in values above 127, you'll get an
+        assertion.
+
+        To create strings with extended characters from UTF-8, you should explicitly call
+        String (CharPointer_UTF8 ("my utf8 string..")). It's *highly* recommended that you
+        use UTF-8 with escape characters in your source code to represent extended characters,
+        because there's no other way to represent unicode strings in a way that isn't dependent
+        on the compiler, source code editor and platform.
     */
     String (const char* text);
 
-    /** Creates a string from an string of characters.
+    /** Creates a string from a string of 8-bit ascii characters.
 
-        This will use up the the first maxChars characters of the string (or
-        less if the string is actually shorter)
+        The string passed-in must not contain any characters with a value above 127, because
+        these can't be converted to unicode without knowing the original encoding that was
+        used to create the string. If you attempt to pass-in values above 127, you'll get an
+        assertion.
+
+        To create strings with extended characters from UTF-8, you should explicitly call
+        String (CharPointer_UTF8 ("my utf8 string..")). It's *highly* recommended that you
+        use UTF-8 with escape characters in your source code to represent extended characters,
+        because there's no other way to represent unicode strings in a way that isn't dependent
+        on the compiler, source code editor and platform.
+
+        This will use up the the first maxChars characters of the string (or less if the string
+        is actually shorter).
     */
     String (const char* text, size_t maxChars);
 
@@ -74,6 +110,29 @@ public:
         less if the string is actually shorter)
     */
     String (const juce_wchar* unicodeText, size_t maxChars);
+
+    /** Creates a string from a UTF-8 character string */
+    String (const CharPointer_UTF8& text);
+
+    /** Creates a string from a UTF-16 character string */
+    String (const CharPointer_UTF16& text);
+
+    /** Creates a string from a UTF-32 character string */
+    String (const CharPointer_UTF32& text);
+
+    /** Creates a string from a UTF-32 character string */
+    String (const CharPointer_UTF32& text, size_t maxChars);
+
+    /** Creates a string from an ASCII character string */
+    String (const CharPointer_ASCII& text);
+
+   #if ! JUCE_NATIVE_WCHAR_IS_UTF32
+    /** Creates a string from a UTF-16 character string */
+    String (const wchar_t* text);
+
+    /** Creates a string from a UTF-16 character string */
+    String (const wchar_t* text, size_t maxChars);
+   #endif
 
     /** Creates a string from a single character. */
     static const String charToString (juce_wchar character);
@@ -88,6 +147,9 @@ public:
         and is more efficient.
     */
     static const String empty;
+
+    /** This is the character encoding type used internally to store the string. */
+    typedef CharPointer_UTF32 CharPointerType;
 
     //==============================================================================
     /** Generates a probably-unique 32-bit hashcode from this string. */
@@ -113,17 +175,63 @@ public:
     String& operator+= (char characterToAppend);
     /** Appends a character at the end of this string. */
     String& operator+= (juce_wchar characterToAppend);
+   #if ! JUCE_NATIVE_WCHAR_IS_UTF32
+    /** Appends a character at the end of this string. */
+    String& operator+= (wchar_t characterToAppend);
+    /** Appends another string at the end of this one. */
+    String& operator+= (const wchar_t* textToAppend);
+   #endif
     /** Appends a decimal number at the end of this string. */
     String& operator+= (int numberToAppend);
-    /** Appends a decimal number at the end of this string. */
-    String& operator+= (unsigned int numberToAppend);
 
-    /** Appends a string at the end of this one.
+    /** Appends a string to the end of this one.
 
         @param textToAppend     the string to add
         @param maxCharsToTake   the maximum number of characters to take from the string passed in
     */
-    void append (const juce_wchar* textToAppend, int maxCharsToTake);
+    void append (const String& textToAppend, size_t maxCharsToTake);
+
+    /** Appends a string to the end of this one.
+
+        @param textToAppend     the string to add
+        @param maxCharsToTake   the maximum number of characters to take from the string passed in
+    */
+    template <class CharPointer>
+    void appendCharPointer (const CharPointer& textToAppend, size_t maxCharsToTake)
+    {
+        if (textToAppend.getAddress() != 0)
+        {
+            const size_t numExtraChars = textToAppend.lengthUpTo (maxCharsToTake);
+
+            if (numExtraChars > 0)
+            {
+                const int oldLen = length();
+                preallocateStorage (oldLen + numExtraChars);
+                CharPointerType (text + oldLen).writeWithCharLimit (textToAppend, (int) (numExtraChars + 1));
+            }
+        }
+    }
+
+    /** Appends a string to the end of this one.
+
+        @param textToAppend     the string to add
+        @param maxCharsToTake   the maximum number of characters to take from the string passed in
+    */
+    template <class CharPointer>
+    void appendCharPointer (const CharPointer& textToAppend)
+    {
+        if (textToAppend.getAddress() != 0)
+        {
+            const size_t numExtraChars = textToAppend.length();
+
+            if (numExtraChars > 0)
+            {
+                const int oldLen = length();
+                preallocateStorage (oldLen + numExtraChars);
+                CharPointerType (text + oldLen).writeAll (textToAppend);
+            }
+        }
+    }
 
     //==============================================================================
     // Comparison methods..
@@ -442,16 +550,7 @@ public:
 
         No checks are made to see if the index is within a valid range, so be careful!
     */
-    inline const juce_wchar& operator[] (int index) const throw()  { jassert (isPositiveAndNotGreaterThan (index, length())); return text [index]; }
-
-    /** Returns a character from the string such that it can also be altered.
-
-        This can be used as a way of easily changing characters in the string.
-
-        Note that the index passed-in is not checked to see whether it's in-range, so
-        be careful when using this.
-    */
-    juce_wchar& operator[] (int index);
+    const juce_wchar operator[] (int index) const throw();
 
     /** Returns the final character of the string.
 
@@ -903,30 +1002,55 @@ public:
         that is returned must not be stored anywhere, as it can become invalid whenever
         any string methods (even some const ones!) are called.
     */
-    inline operator const juce_wchar*() const throw()   { return text; }
+    inline operator const juce_wchar*() const throw()       { return toUTF32().getAddress(); }
 
     //==============================================================================
-    /** Returns a unicode version of this string.
+    /** Returns the character pointer currently being used to store this string.
 
         Because it returns a reference to the string's internal data, the pointer
-        that is returned must not be stored anywhere, as it can become invalid whenever
-        any string methods (even some const ones!) are called.
+        that is returned must not be stored anywhere, as it can be deleted whenever the
+        string changes.
     */
-    inline operator juce_wchar*() throw()               { return text; }
+    inline const CharPointerType& getCharPointer() const throw()     { return text; }
 
-    //==============================================================================
     /** Returns a pointer to a UTF-8 version of this string.
 
         Because it returns a reference to the string's internal data, the pointer
         that is returned must not be stored anywhere, as it can be deleted whenever the
         string changes.
 
-        @see getNumBytesAsUTF8, fromUTF8, copyToUTF8, toCString
+        To find out how many bytes you need to store this string as UTF-8, you can call
+        CharPointer_UTF8::getBytesRequiredFor (myString.getCharPointer())
+
+        @see getCharPointer, toUTF16, toUTF32
     */
-    const char* toUTF8() const;
+    const CharPointer_UTF8 toUTF8() const;
 
+    /** Returns a pointer to a UTF-32 version of this string.
+
+        Because it returns a reference to the string's internal data, the pointer
+        that is returned must not be stored anywhere, as it can be deleted whenever the
+        string changes.
+
+        To find out how many bytes you need to store this string as UTF-16, you can call
+        CharPointer_UTF16::getBytesRequiredFor (myString.getCharPointer())
+
+        @see getCharPointer, toUTF8, toUTF32
+    */
+    CharPointer_UTF16 toUTF16() const;
+
+    /** Returns a pointer to a UTF-32 version of this string.
+
+        Because it returns a reference to the string's internal data, the pointer
+        that is returned must not be stored anywhere, as it can be deleted whenever the
+        string changes.
+
+        @see getCharPointer, toUTF8, toUTF16
+    */
+    inline CharPointer_UTF32 toUTF32() const throw()    { return text; }
+
+    //==============================================================================
     /** Creates a String from a UTF-8 encoded buffer.
-
         If the size is < 0, it'll keep reading until it hits a zero.
     */
     static const String fromUTF8 (const char* utf8buffer, int bufferSizeBytes = -1);
@@ -937,20 +1061,40 @@ public:
     */
     int getNumBytesAsUTF8() const throw();
 
+    //==============================================================================
     /** Copies the string to a buffer as UTF-8 characters.
 
         Returns the number of bytes copied to the buffer, including the terminating null
         character.
 
-        @param destBuffer       the place to copy it to; if this is a null pointer,
-                                the method just returns the number of bytes required
-                                (including the terminating null character).
-        @param maxBufferSizeBytes  the size of the destination buffer, in bytes. If the
-                                string won't fit, it'll put in as many as it can while
-                                still allowing for a terminating null char at the end, and
-                                will return the number of bytes that were actually used.
+        To find out how many bytes you need to store this string as UTF-8, you can call
+        CharPointer_UTF8::getBytesRequiredFor (myString.getCharPointer())
+
+        @param destBuffer       the place to copy it to; if this is a null pointer, the method just
+                                returns the number of bytes required (including the terminating null character).
+        @param maxBufferSizeBytes  the size of the destination buffer, in bytes. If the string won't fit, it'll
+                                put in as many as it can while still allowing for a terminating null char at the
+                                end, and will return the number of bytes that were actually used.
+        @see CharPointer_UTF8::writeWithDestByteLimit
     */
-    int copyToUTF8 (char* destBuffer, int maxBufferSizeBytes) const throw();
+    int copyToUTF8 (CharPointer_UTF8::CharType* destBuffer, int maxBufferSizeBytes) const throw();
+
+    /** Copies the string to a buffer as UTF-16 characters.
+
+        Returns the number of bytes copied to the buffer, including the terminating null
+        character.
+
+        To find out how many bytes you need to store this string as UTF-16, you can call
+        CharPointer_UTF16::getBytesRequiredFor (myString.getCharPointer())
+
+        @param destBuffer       the place to copy it to; if this is a null pointer, the method just
+                                returns the number of bytes required (including the terminating null character).
+        @param maxBufferSizeBytes  the size of the destination buffer, in bytes. If the string won't fit, it'll
+                                put in as many as it can while still allowing for a terminating null char at the
+                                end, and will return the number of bytes that were actually used.
+        @see CharPointer_UTF16::writeWithDestByteLimit
+    */
+    int copyToUTF16 (CharPointer_UTF16::CharType* destBuffer, int maxBufferSizeBytes) const throw();
 
     //==============================================================================
     /** Returns a version of this string using the default 8-bit multi-byte system encoding.
@@ -963,7 +1107,9 @@ public:
     */
     const char* toCString() const;
 
-    /** Returns the number of bytes
+    /** Returns the number of bytes required to represent this string as C-string.
+        The number returned does NOT include the trailing zero.
+        Note that you can also get this value by using CharPointer_UTF8::getBytesRequiredFor (myString.getCharPointer())
     */
     int getNumBytesAsCString() const throw();
 
@@ -978,16 +1124,6 @@ public:
                                 will return the number of bytes that were actually used.
     */
     int copyToCString (char* destBuffer, int maxBufferSizeBytes) const throw();
-
-    //==============================================================================
-    /** Copies the string to a unicode buffer.
-
-        @param destBuffer       the place to copy it to
-        @param maxCharsToCopy   the maximum number of characters to copy to the buffer,
-                                NOT including the trailing zero, so this shouldn't be
-                                larger than the size of your destination buffer - 1
-    */
-    void copyToUnicode (juce_wchar* destBuffer, int maxCharsToCopy) const throw();
 
 
     //==============================================================================
@@ -1039,7 +1175,7 @@ public:
 
 private:
     //==============================================================================
-    juce_wchar* text;
+    CharPointerType text;
 
     //==============================================================================
     struct Preallocation
@@ -1052,8 +1188,10 @@ private:
     explicit String (const Preallocation&);
     String (const String& stringToCopy, size_t charsToAllocate);
 
-    void createInternal (const juce_wchar* text, size_t numChars);
-    void appendInternal (const juce_wchar* text, int numExtraChars);
+    void appendFixedLength (const juce_wchar* text, int numExtraChars);
+
+    void enlarge (size_t newTotalNumChars);
+    void* createSpaceAtEndOfBuffer (size_t numExtraBytes) const;
 
     // This private cast operator should prevent strings being accidentally cast
     // to bools (this is possible because the compiler can add an implicit cast
@@ -1081,6 +1219,14 @@ JUCE_API const String JUCE_CALLTYPE operator+  (String string1, const juce_wchar
 JUCE_API const String JUCE_CALLTYPE operator+  (String string1, char characterToAppend);
 /** Concatenates two strings. */
 JUCE_API const String JUCE_CALLTYPE operator+  (String string1, juce_wchar characterToAppend);
+#if ! JUCE_NATIVE_WCHAR_IS_UTF32
+/** Concatenates two strings. */
+JUCE_API const String JUCE_CALLTYPE operator+  (String string1, wchar_t characterToAppend);
+/** Concatenates two strings. */
+JUCE_API const String JUCE_CALLTYPE operator+  (String string1, const wchar_t* string2);
+/** Concatenates two strings. */
+JUCE_API const String JUCE_CALLTYPE operator+  (const wchar_t* string1, const String& string2);
+#endif
 
 //==============================================================================
 /** Appends a character at the end of a string. */
@@ -1099,11 +1245,7 @@ JUCE_API String& JUCE_CALLTYPE operator<< (String& string1, short number);
 /** Appends a decimal number at the end of a string. */
 JUCE_API String& JUCE_CALLTYPE operator<< (String& string1, int number);
 /** Appends a decimal number at the end of a string. */
-JUCE_API String& JUCE_CALLTYPE operator<< (String& string1, unsigned int number);
-/** Appends a decimal number at the end of a string. */
 JUCE_API String& JUCE_CALLTYPE operator<< (String& string1, long number);
-/** Appends a decimal number at the end of a string. */
-JUCE_API String& JUCE_CALLTYPE operator<< (String& string1, unsigned long number);
 /** Appends a decimal number at the end of a string. */
 JUCE_API String& JUCE_CALLTYPE operator<< (String& string1, float number);
 /** Appends a decimal number at the end of a string. */
@@ -1117,11 +1259,23 @@ JUCE_API bool JUCE_CALLTYPE operator== (const String& string1, const char* strin
 /** Case-sensitive comparison of two strings. */
 JUCE_API bool JUCE_CALLTYPE operator== (const String& string1, const juce_wchar* string2) throw();
 /** Case-sensitive comparison of two strings. */
+JUCE_API bool JUCE_CALLTYPE operator== (const String& string1, const CharPointer_UTF8& string2) throw();
+/** Case-sensitive comparison of two strings. */
+JUCE_API bool JUCE_CALLTYPE operator== (const String& string1, const CharPointer_UTF16& string2) throw();
+/** Case-sensitive comparison of two strings. */
+JUCE_API bool JUCE_CALLTYPE operator== (const String& string1, const CharPointer_UTF32& string2) throw();
+/** Case-sensitive comparison of two strings. */
 JUCE_API bool JUCE_CALLTYPE operator!= (const String& string1, const String& string2) throw();
 /** Case-sensitive comparison of two strings. */
 JUCE_API bool JUCE_CALLTYPE operator!= (const String& string1, const char* string2) throw();
 /** Case-sensitive comparison of two strings. */
 JUCE_API bool JUCE_CALLTYPE operator!= (const String& string1, const juce_wchar* string2) throw();
+/** Case-sensitive comparison of two strings. */
+JUCE_API bool JUCE_CALLTYPE operator!= (const String& string1, const CharPointer_UTF8& string2) throw();
+/** Case-sensitive comparison of two strings. */
+JUCE_API bool JUCE_CALLTYPE operator!= (const String& string1, const CharPointer_UTF16& string2) throw();
+/** Case-sensitive comparison of two strings. */
+JUCE_API bool JUCE_CALLTYPE operator!= (const String& string1, const CharPointer_UTF32& string2) throw();
 /** Case-sensitive comparison of two strings. */
 JUCE_API bool JUCE_CALLTYPE operator>  (const String& string1, const String& string2) throw();
 /** Case-sensitive comparison of two strings. */
@@ -1136,9 +1290,9 @@ JUCE_API bool JUCE_CALLTYPE operator<= (const String& string1, const String& str
     This is very handy for writing strings to std::cout, std::cerr, etc.
 */
 template <class charT, class traits>
-JUCE_API std::basic_ostream <charT, traits>& JUCE_CALLTYPE operator<< (std::basic_ostream <charT, traits>& stream, const String& stringToWrite)
+std::basic_ostream <charT, traits>& JUCE_CALLTYPE operator<< (std::basic_ostream <charT, traits>& stream, const String& stringToWrite)
 {
-    return stream << stringToWrite.toUTF8();
+    return stream << stringToWrite.toUTF8().getAddress();
 }
 
 /** Writes a string to an OutputStream as UTF8. */

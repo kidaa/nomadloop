@@ -32,8 +32,8 @@
     See also SystemStats::getJUCEVersion() for a string version.
 */
 #define JUCE_MAJOR_VERSION      1
-#define JUCE_MINOR_VERSION      52
-#define JUCE_BUILDNUMBER        110
+#define JUCE_MINOR_VERSION      53
+#define JUCE_BUILDNUMBER        30
 
 /** Current Juce version number.
 
@@ -130,6 +130,11 @@
   #endif
 #endif
 
+#if JUCE_ANDROID
+  #include <sys/atomics.h>
+  #include <byteswap.h>
+#endif
+
 //==============================================================================
 // DLL building settings on Win32
 #if JUCE_MSVC
@@ -139,6 +144,9 @@
   #elif defined (JUCE_DLL)
     #define JUCE_API __declspec (dllimport)
     #pragma warning (disable: 4251)
+  #endif
+  #ifdef __INTEL_COMPILER
+   #pragma warning (disable: 1125) // (virtual override warning)
   #endif
 #elif defined (__GNUC__) && ((__GNUC__ >= 4) || (__GNUC__ == 3 && __GNUC_MINOR__ >= 4))
   #ifdef JUCE_DLL_BUILD

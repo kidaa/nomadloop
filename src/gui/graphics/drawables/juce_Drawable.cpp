@@ -95,10 +95,6 @@ void Drawable::transformContextToCorrectOrigin (Graphics& g)
                  originRelativeToComponent.getY());
 }
 
-void Drawable::markerHasMoved()
-{
-}
-
 void Drawable::parentHierarchyChanged()
 {
     setBoundsToEnclose (getDrawableBounds());
@@ -176,57 +172,75 @@ Drawable* Drawable::createFromImageFile (const File& file)
 }
 
 //==============================================================================
-Drawable* Drawable::createFromValueTree (const ValueTree& tree, ImageProvider* imageProvider)
+template <class DrawableClass>
+class DrawableTypeHandler  : public ComponentBuilder::TypeHandler
 {
-    return createChildFromValueTree (0, tree, imageProvider);
+public:
+    DrawableTypeHandler()
+        : ComponentBuilder::TypeHandler (DrawableClass::valueTreeType)
+    {
+    }
+
+    Component* addNewComponentFromState (const ValueTree& state, Component* parent)
+    {
+        DrawableClass* const d = new DrawableClass();
+
+        if (parent != 0)
+            parent->addAndMakeVisible (d);
+
+        updateComponentFromState (d, state);
+        return d;
+    }
+
+    void updateComponentFromState (Component* component, const ValueTree& state)
+    {
+        DrawableClass* const d = dynamic_cast <DrawableClass*> (component);
+        jassert (d != 0);
+        d->refreshFromValueTree (state, *this->getBuilder());
+    }
+};
+
+void Drawable::registerDrawableTypeHandlers (ComponentBuilder& builder)
+{
+    builder.registerTypeHandler (new DrawableTypeHandler <DrawablePath>());
+    builder.registerTypeHandler (new DrawableTypeHandler <DrawableComposite>());
+    builder.registerTypeHandler (new DrawableTypeHandler <DrawableRectangle>());
+    builder.registerTypeHandler (new DrawableTypeHandler <DrawableImage>());
+    builder.registerTypeHandler (new DrawableTypeHandler <DrawableText>());
 }
 
-Drawable* Drawable::createChildFromValueTree (DrawableComposite* parent, const ValueTree& tree, ImageProvider* imageProvider)
+Drawable* Drawable::createFromValueTree (const ValueTree& tree, ComponentBuilder::ImageProvider* imageProvider)
 {
-    const Identifier type (tree.getType());
+    ComponentBuilder builder (tree);
+    builder.setImageProvider (imageProvider);
+    registerDrawableTypeHandlers (builder);
 
-    Drawable* d = 0;
-    if (type == DrawablePath::valueTreeType)            d = new DrawablePath();
-    else if (type == DrawableComposite::valueTreeType)  d = new DrawableComposite();
-    else if (type == DrawableRectangle::valueTreeType)  d = new DrawableRectangle();
-    else if (type == DrawableImage::valueTreeType)      d = new DrawableImage();
-    else if (type == DrawableText::valueTreeType)       d = new DrawableText();
+    ScopedPointer<Component> comp (builder.createComponent());
+    Drawable* const d = dynamic_cast<Drawable*> (static_cast <Component*> (comp));
 
     if (d != 0)
-    {
-        if (parent != 0)
-            parent->insertDrawable (d);
-
-        d->refreshFromValueTree (tree, imageProvider);
-    }
+        comp.release();
 
     return d;
 }
 
-
 //==============================================================================
-const Identifier Drawable::ValueTreeWrapperBase::idProperty ("id");
-
 Drawable::ValueTreeWrapperBase::ValueTreeWrapperBase (const ValueTree& state_)
     : state (state_)
 {
 }
 
-Drawable::ValueTreeWrapperBase::~ValueTreeWrapperBase()
-{
-}
-
 const String Drawable::ValueTreeWrapperBase::getID() const
 {
-    return state [idProperty];
+    return state [ComponentBuilder::idProperty];
 }
 
-void Drawable::ValueTreeWrapperBase::setID (const String& newID, UndoManager* const undoManager)
+void Drawable::ValueTreeWrapperBase::setID (const String& newID)
 {
     if (newID.isEmpty())
-        state.removeProperty (idProperty, undoManager);
+        state.removeProperty (ComponentBuilder::idProperty, 0);
     else
-        state.setProperty (idProperty, newID, undoManager);
+        state.setProperty (ComponentBuilder::idProperty, newID, 0);
 }
 
 

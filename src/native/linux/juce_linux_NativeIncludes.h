@@ -33,8 +33,6 @@
     way of the rest of the codebase.
 */
 
-#include "../../../src/core/juce_StandardHeader.h"
-
 #include <sched.h>
 #include <pthread.h>
 #include <sys/time.h>
@@ -58,6 +56,7 @@
 #include <net/if.h>
 #include <sys/sysinfo.h>
 #include <sys/file.h>
+#include <sys/prctl.h>
 #include <signal.h>
 
 /* Got a build error here? You'll need to install the freetype library...

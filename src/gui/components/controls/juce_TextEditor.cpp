@@ -273,55 +273,56 @@ private:
     void initialiseAtoms (const String& textToParse,
                           const juce_wchar passwordCharacter)
     {
-        int i = 0;
-        const int len = textToParse.length();
-        const juce_wchar* const text = textToParse;
+        String::CharPointerType text (textToParse.getCharPointer());
 
-        while (i < len)
+        while (! text.isEmpty())
         {
-            int start = i;
+            int numChars = 0;
+            String::CharPointerType start (text);
 
             // create a whitespace atom unless it starts with non-ws
-            if (CharacterFunctions::isWhitespace (text[i])
-                 && text[i] != '\r'
-                 && text[i] != '\n')
+            if (text.isWhitespace() && *text != '\r' && *text != '\n')
             {
-                while (i < len
-                        && CharacterFunctions::isWhitespace (text[i])
-                        && text[i] != '\r'
-                        && text[i] != '\n')
+                do
                 {
-                    ++i;
+                    ++text;
+                    ++numChars;
                 }
+                while (text.isWhitespace() && *text != '\r' && *text != '\n');
             }
             else
             {
-                if (text[i] == '\r')
+                if (*text == '\r')
                 {
-                    ++i;
+                    ++text;
+                    ++numChars;
 
-                    if ((i < len) && (text[i] == '\n'))
+                    if (*text == '\n')
                     {
                         ++start;
-                        ++i;
+                        ++text;
                     }
                 }
-                else if (text[i] == '\n')
+                else if (*text == '\n')
                 {
-                    ++i;
+                    ++text;
+                    ++numChars;
                 }
                 else
                 {
-                    while ((i < len) && ! CharacterFunctions::isWhitespace (text[i]))
-                        ++i;
+                    while (! (text.isEmpty() || text.isWhitespace()))
+                    {
+                        ++text;
+                        ++numChars;
+                    }
                 }
             }
 
             TextAtom* const atom = new TextAtom();
-            atom->atomText = String (text + start, i - start);
+            atom->atomText = String (start, numChars);
 
             atom->width = font.getStringWidthFloat (atom->getText (passwordCharacter));
-            atom->numChars = (uint16) (i - start);
+            atom->numChars = (uint16) numChars;
 
             atoms.add (atom);
         }
@@ -379,10 +380,6 @@ public:
         wordWrapWidth (other.wordWrapWidth),
         passwordCharacter (other.passwordCharacter),
         tempAtom (other.tempAtom)
-    {
-    }
-
-    ~Iterator()
     {
     }
 
@@ -912,35 +909,31 @@ private:
 class TextEditorViewport  : public Viewport
 {
 public:
-    TextEditorViewport (TextEditor* const owner_)
+    TextEditorViewport (TextEditor& owner_)
         : owner (owner_), lastWordWrapWidth (0), rentrant (false)
     {
     }
 
-    ~TextEditorViewport()
-    {
-    }
-
-    void visibleAreaChanged (int, int, int, int)
+    void visibleAreaChanged (const Rectangle<int>&)
     {
         if (! rentrant) // it's rare, but possible to get into a feedback loop as the viewport's scrollbars
                         // appear and disappear, causing the wrap width to change.
         {
-            const float wordWrapWidth = owner->getWordWrapWidth();
+            const float wordWrapWidth = owner.getWordWrapWidth();
 
             if (wordWrapWidth != lastWordWrapWidth)
             {
                 lastWordWrapWidth = wordWrapWidth;
 
                 rentrant = true;
-                owner->updateTextHolderSize();
+                owner.updateTextHolderSize();
                 rentrant = false;
             }
         }
     }
 
 private:
-    TextEditor* const owner;
+    TextEditor& owner;
     float lastWordWrapWidth;
     bool rentrant;
 
@@ -1000,7 +993,7 @@ TextEditor::TextEditor (const String& name,
 {
     setOpaque (true);
 
-    addAndMakeVisible (viewport = new TextEditorViewport (this));
+    addAndMakeVisible (viewport = new TextEditorViewport (*this));
     viewport->setViewedComponent (textHolder = new TextHolderComponent (*this));
     viewport->setWantsKeyboardFocus (false);
     viewport->setScrollBarsShown (false, false);
@@ -1476,13 +1469,13 @@ void TextEditor::setIndents (const int newLeftIndent,
     topIndent = newTopIndent;
 }
 
-void TextEditor::setBorder (const BorderSize& border)
+void TextEditor::setBorder (const BorderSize<int>& border)
 {
     borderSize = border;
     resized();
 }
 
-const BorderSize TextEditor::getBorder() const
+const BorderSize<int> TextEditor::getBorder() const
 {
     return borderSize;
 }
@@ -1766,26 +1759,11 @@ void TextEditor::paintOverChildren (Graphics& g)
 }
 
 //==============================================================================
-class TextEditorMenuPerformer  : public ModalComponentManager::Callback
+static void textEditorMenuCallback (int menuResult, TextEditor* editor)
 {
-public:
-    TextEditorMenuPerformer (TextEditor* const editor_)
-        : editor (editor_)
-    {
-    }
-
-    void modalStateFinished (int returnValue)
-    {
-        if (editor != 0 && returnValue != 0)
-            editor->performPopupMenuAction (returnValue);
-    }
-
-private:
-    Component::SafePointer<TextEditor> editor;
-
-    JUCE_DECLARE_NON_COPYABLE (TextEditorMenuPerformer);
-};
-
+    if (editor != 0 && menuResult != 0)
+        editor->performPopupMenuAction (menuResult);
+}
 
 void TextEditor::mouseDown (const MouseEvent& e)
 {
@@ -1805,7 +1783,8 @@ void TextEditor::mouseDown (const MouseEvent& e)
             m.setLookAndFeel (&getLookAndFeel());
             addPopupMenuItems (m, &e);
 
-            m.show (0, 0, 0, 0, new TextEditorMenuPerformer (this));
+            m.showMenuAsync (PopupMenu::Options(),
+                             ModalCallbackFunction::forComponent (textEditorMenuCallback, this));
         }
     }
 }
@@ -2629,5 +2608,9 @@ void TextEditor::coalesceSimilarSections()
     }
 }
 
+void TextEditor::Listener::textEditorTextChanged (TextEditor&) {}
+void TextEditor::Listener::textEditorReturnKeyPressed (TextEditor&) {}
+void TextEditor::Listener::textEditorEscapeKeyPressed (TextEditor&) {}
+void TextEditor::Listener::textEditorFocusLost (TextEditor&) {}
 
 END_JUCE_NAMESPACE

@@ -585,6 +585,14 @@ public:
         return new LowLevelGraphicsSoftwareRenderer (Image (this));
     }
 
+    void initialiseBitmapData (Image::BitmapData& bitmap, int x, int y, Image::BitmapData::ReadWriteMode /*mode*/)
+    {
+        bitmap.data = imageData + x * pixelStride + y * lineStride;
+        bitmap.pixelFormat = format;
+        bitmap.lineStride = lineStride;
+        bitmap.pixelStride = pixelStride;
+    }
+
     SharedImage* clone()
     {
         jassertfalse;
@@ -622,7 +630,7 @@ public:
             const uint32 bShiftL = jmax (0, getShiftNeeded (bMask));
             const uint32 bShiftR = jmax (0, -getShiftNeeded (bMask));
 
-            const Image::BitmapData srcData (Image (this), false);
+            const Image::BitmapData srcData (Image (this), Image::BitmapData::readOnly);
 
             for (int y = sy; y < sy + dh; ++y)
             {
@@ -656,6 +664,8 @@ private:
     const int imageDepth;
     HeapBlock <uint8> imageDataAllocated;
     HeapBlock <char> imageData16Bit;
+    int pixelStride, lineStride;
+    uint8* imageData;
 
     GC gc;
 
@@ -807,7 +817,7 @@ public:
     void setTitle (const String& title)
     {
         XTextProperty nameProperty;
-        char* strings[] = { const_cast <char*> (title.toUTF8()) };
+        char* strings[] = { const_cast <char*> (title.toUTF8().getAddress()) };
         ScopedXLock xlock;
 
         if (XStringListToTextProperty (strings, 1, &nameProperty))
@@ -1040,9 +1050,9 @@ public:
         return child == None;
     }
 
-    const BorderSize getFrameSize() const
+    const BorderSize<int> getFrameSize() const
     {
-        return BorderSize();
+        return BorderSize<int>();
     }
 
     bool setAlwaysOnTop (bool alwaysOnTop)
@@ -1876,7 +1886,7 @@ private:
     bool fullScreen, mapped;
     Visual* visual;
     int depth;
-    BorderSize windowBorder;
+    BorderSize<int> windowBorder;
 
     struct MotifWmHints
     {
@@ -2291,7 +2301,7 @@ private:
     {
         if ((styleFlags & windowHasTitleBar) == 0)
         {
-            windowBorder = BorderSize (0);
+            windowBorder = BorderSize<int> (0);
         }
         else if (windowBorder.getTopAndBottom() == 0 && windowBorder.getLeftAndRight() == 0)
         {
@@ -2312,8 +2322,8 @@ private:
                     const unsigned long* const sizes = (const unsigned long*) data;
 
                     if (actualFormat == 32)
-                        windowBorder = BorderSize ((int) sizes[2], (int) sizes[0],
-                                                   (int) sizes[3], (int) sizes[1]);
+                        windowBorder = BorderSize<int> ((int) sizes[2], (int) sizes[0],
+                                                        (int) sizes[3], (int) sizes[1]);
 
                     XFree (data);
                 }

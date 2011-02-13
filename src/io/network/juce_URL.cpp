@@ -121,7 +121,7 @@ namespace URLHelpers
         int i = 0;
 
         while (CharacterFunctions::isLetterOrDigit (url[i])
-               || CharacterFunctions::indexOfChar (L"+-.", url[i], false) >= 0)
+                || url[i] == '+' || url[i] == '-' || url[i] == '.')
             ++i;
 
         return url[i] == ':' ? i + 1 : 0;
@@ -179,7 +179,7 @@ namespace URLHelpers
 
             // just a short text attachment, so use simple url encoding..
             headers << "Content-Type: application/x-www-form-urlencoded\r\nContent-length: "
-                    << (unsigned int) postData.getSize() << "\r\n";
+                    << (int) postData.getSize() << "\r\n";
         }
     }
 }
@@ -291,17 +291,17 @@ InputStream* URL::createInputStream (const bool usePostCommand,
                                      StringPairArray* const responseHeaders) const
 {
     String headers;
-    MemoryBlock postData;
+    MemoryBlock headersAndPostData;
 
     if (usePostCommand)
-        URLHelpers::createHeadersAndPostData (*this, headers, postData);
+        URLHelpers::createHeadersAndPostData (*this, headers, headersAndPostData);
 
     headers += extraHeaders;
 
     if (! headers.endsWithChar ('\n'))
         headers << "\r\n";
 
-    return createNativeStream (toString (! usePostCommand), usePostCommand, postData,
+    return createNativeStream (toString (! usePostCommand), usePostCommand, headersAndPostData,
                                progressCallback, progressCallbackContext,
                                headers, timeOutMs, responseHeaders);
 }
@@ -389,7 +389,7 @@ const String URL::removeEscapeChars (const String& s)
 
     // We need to operate on the string as raw UTF8 chars, and then recombine them into unicode
     // after all the replacements have been made, so that multi-byte chars are handled.
-    Array<char> utf8 (result.toUTF8(), result.getNumBytesAsUTF8());
+    Array<char> utf8 (result.toUTF8().getAddress(), result.getNumBytesAsUTF8());
 
     for (int i = 0; i < utf8.size(); ++i)
     {
@@ -411,17 +411,17 @@ const String URL::removeEscapeChars (const String& s)
 
 const String URL::addEscapeChars (const String& s, const bool isParameter)
 {
-    const char* const legalChars = isParameter ? "_-.*!'()"
-                                               : ",$_-.*!'()";
+    const CharPointer_UTF8 legalChars (isParameter ? "_-.*!'()"
+                                                   : ",$_-.*!'()");
 
-    Array<char> utf8 (s.toUTF8(), s.getNumBytesAsUTF8());
+    Array<char> utf8 (s.toUTF8().getAddress(), s.getNumBytesAsUTF8());
 
     for (int i = 0; i < utf8.size(); ++i)
     {
         const char c = utf8.getUnchecked(i);
 
         if (! (CharacterFunctions::isLetterOrDigit (c)
-                 || CharacterFunctions::indexOfChar (legalChars, c, false) >= 0))
+                 || legalChars.indexOf ((juce_wchar) c) >= 0))
         {
             if (c == ' ')
             {

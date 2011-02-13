@@ -59,10 +59,6 @@ public:
             getVSTFolder() = "~/SDKs/vstsdk2.4";
     }
 
-    ~MakefileProjectExporter()
-    {
-    }
-
     //==============================================================================
     bool isDefaultFormatForCurrentOS()
     {
@@ -87,7 +83,7 @@ public:
     }
 
     //==============================================================================
-    const String create()
+    void create()
     {
         Array<RelativePath> files;
         findAllFilesToCompile (project.getMainGroup(), files);
@@ -103,11 +99,7 @@ public:
         MemoryOutputStream mo;
         writeMakefile (mo, files);
 
-        const File makefile (getTargetFolder().getChildFile ("Makefile"));
-        if (! FileHelpers::overwriteFileWithNewDataIfDifferent (makefile, mo))
-            return "Can't write to the Makefile: " + makefile.getFullPathName();
-
-        return String::empty;
+        overwriteFileIfDifferentOrThrow (getTargetFolder().getChildFile ("Makefile"), mo);
     }
 
 private:
@@ -141,17 +133,7 @@ private:
             defines.set ("NDEBUG", "1");
         }
 
-        defines = mergePreprocessorDefs (defines, getAllPreprocessorDefs (config));
-
-        for (int i = 0; i < defines.size(); ++i)
-        {
-            String def (defines.getAllKeys()[i]);
-            const String value (defines.getAllValues()[i]);
-            if (value.isNotEmpty())
-                def << "=" << value;
-
-            out << " -D " << def.quoted();
-        }
+        out << createGCCPreprocessorFlags (mergePreprocessorDefs (defines, getAllPreprocessorDefs (config)));
     }
 
     void writeHeaderPathFlags (OutputStream& out, const Project::BuildConfiguration& config)
@@ -336,11 +318,6 @@ private:
         }
 
         out << "-include $(OBJECTS:%.o=%.d)" << newLine;
-    }
-
-    static const String escapeSpaces (const String& s)
-    {
-        return s.replace (" ", "\\ ");
     }
 
     const String getObjectFileFor (const RelativePath& file) const

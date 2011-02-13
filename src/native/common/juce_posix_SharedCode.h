@@ -36,7 +36,9 @@ CriticalSection::CriticalSection() throw()
     pthread_mutexattr_t atts;
     pthread_mutexattr_init (&atts);
     pthread_mutexattr_settype (&atts, PTHREAD_MUTEX_RECURSIVE);
+   #if ! JUCE_ANDROID
     pthread_mutexattr_setprotocol (&atts, PTHREAD_PRIO_INHERIT);
+   #endif
     pthread_mutex_init (&internal, &atts);
 }
 
@@ -73,7 +75,9 @@ public:
 
         pthread_mutexattr_t atts;
         pthread_mutexattr_init (&atts);
+       #if ! JUCE_ANDROID
         pthread_mutexattr_setprotocol (&atts, PTHREAD_PRIO_INHERIT);
+       #endif
         pthread_mutex_init (&mutex, &atts);
     }
 
@@ -347,21 +351,29 @@ void File::getFileTimesInternal (int64& modificationTime, int64& accessTime, int
 
 bool File::setFileTimesInternal (int64 modificationTime, int64 accessTime, int64 /*creationTime*/) const
 {
-    struct utimbuf times;
-    times.actime = (time_t) (accessTime / 1000);
-    times.modtime = (time_t) (modificationTime / 1000);
+    juce_statStruct info;
 
-    return utime (fullPath.toUTF8(), &times) == 0;
+    if ((modificationTime != 0 || accessTime != 0) && juce_stat (fullPath, info))
+    {
+        struct utimbuf times;
+        times.actime  = accessTime != 0       ? (time_t) (accessTime / 1000)       : info.st_atime;
+        times.modtime = modificationTime != 0 ? (time_t) (modificationTime / 1000) : info.st_mtime;
+
+        return utime (fullPath.toUTF8(), &times) == 0;
+    }
+
+    return false;
 }
 
 bool File::deleteFile() const
 {
     if (! exists())
         return true;
-    else if (isDirectory())
+
+    if (isDirectory())
         return rmdir (fullPath.toUTF8()) == 0;
-    else
-        return remove (fullPath.toUTF8()) == 0;
+
+    return remove (fullPath.toUTF8()) == 0;
 }
 
 bool File::moveInternal (const File& dest) const
@@ -473,9 +485,13 @@ void FileOutputStream::flushInternal()
 //==============================================================================
 const File juce_getExecutableFile()
 {
+  #if JUCE_ANDROID
+    return File (android.appFile);
+  #else
     Dl_info exeInfo;
-    dladdr ((const void*) juce_getExecutableFile, &exeInfo);
+    dladdr ((void*) juce_getExecutableFile, &exeInfo);  // (can't be a const void* on android)
     return File::getCurrentWorkingDirectory().getChildFile (String::fromUTF8 (exeInfo.dli_fname));
+  #endif
 }
 
 //==============================================================================
@@ -534,7 +550,23 @@ const String File::getVolumeLabel() const
 
 int File::getVolumeSerialNumber() const
 {
-    return 0; // xxx
+    int result = 0;
+/*    int fd = open (getFullPathName().toUTF8(), O_RDONLY | O_NONBLOCK);
+
+    char info [512];
+
+    #ifndef HDIO_GET_IDENTITY
+     #define HDIO_GET_IDENTITY 0x030d
+    #endif
+
+    if (ioctl (fd, HDIO_GET_IDENTITY, info) == 0)
+    {
+        DBG (String (info + 20, 20));
+        result = String (info + 20, 20).trim().getIntValue();
+    }
+
+    close (fd);*/
+    return result;
 }
 
 //==============================================================================
@@ -674,6 +706,11 @@ void JUCE_API juce_threadEntryPoint (void*);
 void* threadEntryProc (void* userData)
 {
     JUCE_AUTORELEASEPOOL
+
+   #if JUCE_ANDROID
+    const AndroidThreadScope androidEnv;
+   #endif
+
     juce_threadEntryPoint (userData);
     return 0;
 }
@@ -700,11 +737,22 @@ void Thread::closeThreadHandle()
 void Thread::killThread()
 {
     if (threadHandle_ != 0)
+    {
+       #if JUCE_ANDROID
+        jassertfalse; // pthread_cancel not available!
+       #else
         pthread_cancel ((pthread_t) threadHandle_);
+       #endif
+    }
 }
 
-void Thread::setCurrentThreadName (const String& /*name*/)
+void Thread::setCurrentThreadName (const String& name)
 {
+   #if JUCE_MAC && defined (MAC_OS_X_VERSION_10_6) && MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_6
+    pthread_setname_np (name.toUTF8());
+   #elif JUCE_LINUX
+    prctl (PR_SET_NAME, name.toUTF8().getAddress(), 0, 0, 0);
+   #endif
 }
 
 bool Thread::setThreadPriority (void* handle, int priority)
@@ -772,5 +820,6 @@ void Thread::setCurrentThreadAffinityMask (const uint32 affinityMask)
        or the SUPPORT_AFFINITIES macro was turned off
     */
     jassertfalse;
+    (void) affinityMask;
 #endif
 }

@@ -44,6 +44,8 @@ END_JUCE_NAMESPACE
 - (bool) makeActive;
 - (void) makeInactive;
 - (void) reshape;
+- (void) rightMouseDown: (NSEvent*) ev;
+- (void) rightMouseUp: (NSEvent*) ev;
 @end
 
 @implementation ThreadSafeNSOpenGLView
@@ -95,6 +97,7 @@ END_JUCE_NAMESPACE
 
 - (void) _surfaceNeedsUpdate: (NSNotification*) notification
 {
+    (void) notification;
     const ScopedLock sl (*contextLock);
     needsUpdate = true;
 }
@@ -111,6 +114,16 @@ END_JUCE_NAMESPACE
     needsUpdate = true;
 }
 
+- (void) rightMouseDown: (NSEvent*) ev
+{
+    [[self superview] rightMouseDown: ev];
+}
+
+- (void) rightMouseUp: (NSEvent*) ev
+{
+    [[self superview] rightMouseUp: ev];
+}
+
 @end
 BEGIN_JUCE_NAMESPACE
 
@@ -118,14 +131,12 @@ BEGIN_JUCE_NAMESPACE
 class WindowedGLContext     : public OpenGLContext
 {
 public:
-    WindowedGLContext (Component* const component,
+    WindowedGLContext (Component& component,
                        const OpenGLPixelFormat& pixelFormat_,
                        NSOpenGLContext* sharedContext)
         : renderContext (0),
           pixelFormat (pixelFormat_)
     {
-        jassert (component != 0);
-
         NSOpenGLPixelFormatAttribute attribs [64];
         int n = 0;
         attribs[n++] = NSOpenGLPFADoubleBuffer;
@@ -212,7 +223,7 @@ public:
     const OpenGLPixelFormat getPixelFormat() const  { return pixelFormat; }
     void* getRawContext() const throw()             { return renderContext; }
 
-    void updateWindowPosition (int x, int y, int w, int h, int outerWindowHeight)
+    void updateWindowPosition (int /*x*/, int /*y*/, int /*w*/, int /*h*/, int /*outerWindowHeight*/)
     {
     }
 
@@ -267,7 +278,7 @@ private:
 //==============================================================================
 OpenGLContext* OpenGLComponent::createContext()
 {
-    ScopedPointer<WindowedGLContext> c (new WindowedGLContext (this, preferredPixelFormat,
+    ScopedPointer<WindowedGLContext> c (new WindowedGLContext (*this, preferredPixelFormat,
                                                                contextToShareListsWith != 0 ? (NSOpenGLContext*) contextToShareListsWith->getRawContext() : 0));
 
     return (c->renderContext != 0) ? c.release() : 0;
@@ -285,7 +296,7 @@ void juce_glViewport (const int w, const int h)
 }
 
 void OpenGLPixelFormat::getAvailablePixelFormats (Component* /*component*/,
-                                                  OwnedArray <OpenGLPixelFormat>& results)
+                                                  OwnedArray <OpenGLPixelFormat>& /*results*/)
 {
 /*    GLint attribs [64];
     int n = 0;
