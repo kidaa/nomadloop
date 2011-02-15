@@ -28,7 +28,6 @@
 BEGIN_JUCE_NAMESPACE
 
 #include "juce_PopupMenu.h"
-#include "juce_PopupMenuCustomComponent.h"
 #include "../windows/juce_ComponentPeer.h"
 #include "../lookandfeel/juce_LookAndFeel.h"
 #include "../juce_Desktop.h"
@@ -57,7 +56,7 @@ public:
           const Image& im,
           const Colour& textColour_,
           const bool usesColour_,
-          PopupMenuCustomComponent* const customComp_,
+          CustomComponent* const customComp_,
           const PopupMenu* const subMenu_,
           ApplicationCommandManager* const commandManager_)
       : itemId (itemId_), text (text_), textColour (textColour_),
@@ -120,7 +119,7 @@ public:
     const Colour textColour;
     const bool active, isSeparator, isTicked, usesColour;
     Image image;
-    ReferenceCountedObjectPtr <PopupMenuCustomComponent> customComp;
+    ReferenceCountedObjectPtr <CustomComponent> customComp;
     ScopedPointer <PopupMenu> subMenu;
     ApplicationCommandManager* const commandManager;
 
@@ -136,17 +135,21 @@ class PopupMenu::ItemComponent  : public Component
 {
 public:
     //==============================================================================
-    ItemComponent (const PopupMenu::Item& itemInfo_, int standardItemHeight)
+    ItemComponent (const PopupMenu::Item& itemInfo_, int standardItemHeight, Component* const parent)
       : itemInfo (itemInfo_),
         isHighlighted (false)
     {
         if (itemInfo.customComp != 0)
             addAndMakeVisible (itemInfo.customComp);
 
+        parent->addAndMakeVisible (this);
+
         int itemW = 80;
         int itemH = 16;
         getIdealSize (itemW, itemH, standardItemHeight);
         setSize (itemW, jlimit (2, 600, itemH));
+
+        addMouseListener (parent, false);
     }
 
     ~ItemComponent()
@@ -155,22 +158,15 @@ public:
             removeChildComponent (itemInfo.customComp);
     }
 
-    void getIdealSize (int& idealWidth,
-                       int& idealHeight,
-                       const int standardItemHeight)
+    void getIdealSize (int& idealWidth, int& idealHeight, const int standardItemHeight)
     {
         if (itemInfo.customComp != 0)
-        {
             itemInfo.customComp->getIdealSize (idealWidth, idealHeight);
-        }
         else
-        {
             getLookAndFeel().getIdealPopupMenuItemSize (itemInfo.text,
                                                         itemInfo.isSeparator,
                                                         standardItemHeight,
-                                                        idealWidth,
-                                                        idealHeight);
-        }
+                                                        idealWidth, idealHeight);
     }
 
     void paint (Graphics& g)
@@ -215,10 +211,7 @@ public:
             isHighlighted = shouldBeHighlighted;
 
             if (itemInfo.customComp != 0)
-            {
-                itemInfo.customComp->isHighlighted = shouldBeHighlighted;
-                itemInfo.customComp->repaint();
-            }
+                itemInfo.customComp->setHighlighted (shouldBeHighlighted);
 
             repaint();
         }
@@ -240,6 +233,8 @@ namespace PopupMenuSettings
     const int borderSize = 2;
     const int timerInterval = 50;
     const int dismissCommandId = 0x6287345f;
+
+    static bool menuWasHiddenBecauseOfAppChange = false;
 }
 
 //==============================================================================
@@ -288,12 +283,7 @@ public:
         setOpaque (getLookAndFeel().findColour (PopupMenu::backgroundColourId).isOpaque() || ! Desktop::canUseSemiTransparentWindows());
 
         for (int i = 0; i < menu.items.size(); ++i)
-        {
-            PopupMenu::ItemComponent* const itemComp = new PopupMenu::ItemComponent (*menu.items.getUnchecked(i), standardItemHeight);
-            items.add (itemComp);
-            addAndMakeVisible (itemComp);
-            itemComp->addMouseListener (this, false);
-        }
+            items.add (new PopupMenu::ItemComponent (*menu.items.getUnchecked(i), standardItemHeight, this));
 
         calculateWindowPos (target, alignToRectangle);
         setTopLeftPosition (windowPos.getX(), windowPos.getY());
@@ -636,7 +626,7 @@ public:
             {
                 if (now > lastFocused + 10)
                 {
-                    wasHiddenBecauseOfAppChange() = true;
+                    PopupMenuSettings::menuWasHiddenBecauseOfAppChange = true;
                     dismissMenu (0);
 
                     return;  // may have been deleted by the previous call..
@@ -669,12 +659,6 @@ public:
     {
         static Array<Window*> activeMenuWindows;
         return activeMenuWindows;
-    }
-
-    static bool& wasHiddenBecauseOfAppChange() throw()
-    {
-        static bool b = false;
-        return b;
     }
 
     //==============================================================================
@@ -1126,9 +1110,7 @@ private:
                  && (isOver || (activeSubMenu == 0) || ! activeSubMenu->isVisible()))
             {
                 if (isOver && (c != 0) && (activeSubMenu != 0))
-                {
                     activeSubMenu->hide (0, true);
-                }
 
                 if (! isOver)
                     mic = 0;
@@ -1143,7 +1125,7 @@ private:
         if (currentChild != 0
              && currentChild->itemInfo.canBeTriggered()
              && (currentChild->itemInfo.customComp == 0
-                  || currentChild->itemInfo.customComp->isTriggeredAutomatically))
+                  || currentChild->itemInfo.customComp->isTriggeredAutomatically()))
         {
             dismissMenu (&currentChild->itemInfo);
         }
@@ -1294,8 +1276,7 @@ void PopupMenu::addColouredItem (const int itemResultId,
 }
 
 //==============================================================================
-void PopupMenu::addCustomItem (const int itemResultId,
-                               PopupMenuCustomComponent* const customComponent)
+void PopupMenu::addCustomItem (const int itemResultId, CustomComponent* const customComponent)
 {
     jassert (itemResultId != 0);    // 0 is used as a return value to indicate that the user
                                     // didn't pick anything, so you shouldn't use it as the id
@@ -1307,18 +1288,16 @@ void PopupMenu::addCustomItem (const int itemResultId,
                          Colours::black, false, customComponent, 0, 0));
 }
 
-class NormalComponentWrapper : public PopupMenuCustomComponent
+class NormalComponentWrapper : public PopupMenu::CustomComponent
 {
 public:
     NormalComponentWrapper (Component* const comp, const int w, const int h,
                             const bool triggerMenuItemAutomaticallyWhenClicked)
-        : PopupMenuCustomComponent (triggerMenuItemAutomaticallyWhenClicked),
+        : PopupMenu::CustomComponent (triggerMenuItemAutomaticallyWhenClicked),
           width (w), height (h)
     {
         addAndMakeVisible (comp);
     }
-
-    ~NormalComponentWrapper() {}
 
     void getIdealSize (int& idealWidth, int& idealHeight)
     {
@@ -1368,11 +1347,11 @@ void PopupMenu::addSeparator()
 
 
 //==============================================================================
-class HeaderItemComponent  : public PopupMenuCustomComponent
+class HeaderItemComponent  : public PopupMenu::CustomComponent
 {
 public:
     HeaderItemComponent (const String& name)
-        : PopupMenuCustomComponent (false)
+        : PopupMenu::CustomComponent (false)
     {
         setName (name);
     }
@@ -1389,8 +1368,7 @@ public:
                           Justification::bottomLeft, 1);
     }
 
-    void getIdealSize (int& idealWidth,
-                       int& idealHeight)
+    void getIdealSize (int& idealWidth, int& idealHeight)
     {
         getLookAndFeel().getIdealPopupMenuItemSize (getName(), false, -1, idealWidth, idealHeight);
         idealHeight += idealHeight / 2;
@@ -1407,13 +1385,82 @@ void PopupMenu::addSectionHeader (const String& title)
 }
 
 //==============================================================================
+PopupMenu::Options::Options()
+    : targetComponent (0),
+      visibleItemID (0),
+      minWidth (0),
+      maxColumns (0),
+      standardHeight (0)
+{
+    targetArea.setPosition (Desktop::getMousePosition());
+}
+
+const PopupMenu::Options PopupMenu::Options::withTargetComponent (Component* comp) const
+{
+    Options o (*this);
+    o.targetComponent = comp;
+
+    if (comp != 0)
+        o.targetArea = comp->getScreenBounds();
+
+    return o;
+}
+
+const PopupMenu::Options PopupMenu::Options::withTargetScreenArea (const Rectangle<int>& area) const
+{
+    Options o (*this);
+    o.targetArea = area;
+    return o;
+}
+
+const PopupMenu::Options PopupMenu::Options::withMinimumWidth (int w) const
+{
+    Options o (*this);
+    o.minWidth = w;
+    return o;
+}
+
+const PopupMenu::Options PopupMenu::Options::withMaximumNumColumns (int cols) const
+{
+    Options o (*this);
+    o.maxColumns = cols;
+    return o;
+}
+
+const PopupMenu::Options PopupMenu::Options::withStandardItemHeight (int height) const
+{
+    Options o (*this);
+    o.standardHeight = height;
+    return o;
+}
+
+const PopupMenu::Options PopupMenu::Options::withItemThatMustBeVisible (int idOfItemToBeVisible) const
+{
+    Options o (*this);
+    o.visibleItemID = idOfItemToBeVisible;
+    return o;
+}
+
+Component* PopupMenu::createWindow (const Options& options,
+                                    ApplicationCommandManager** managerOfChosenCommand) const
+{
+    return Window::create (*this, ModifierKeys::getCurrentModifiers().isAnyMouseButtonDown(),
+                           0, options.targetArea, options.minWidth, options.maxColumns > 0 ? options.maxColumns : 7,
+                           options.standardHeight, ! options.targetArea.isEmpty(), options.visibleItemID,
+                           managerOfChosenCommand, options.targetComponent);
+}
+
+//==============================================================================
 // This invokes any command manager commands and deletes the menu window when it is dismissed
 class PopupMenuCompletionCallback  : public ModalComponentManager::Callback
 {
 public:
     PopupMenuCompletionCallback()
-        : managerOfChosenCommand (0)
+        : managerOfChosenCommand (0),
+          prevFocused (Component::getCurrentlyFocusedComponent()),
+          prevTopLevel (prevFocused != 0 ? prevFocused->getTopLevelComponent() : 0)
     {
+        PopupMenuSettings::menuWasHiddenBecauseOfAppChange = false;
     }
 
     void modalStateFinished (int result)
@@ -1428,74 +1475,74 @@ public:
 
         // (this would be the place to fade out the component, if that's what's required)
         component = 0;
+
+        if (! PopupMenuSettings::menuWasHiddenBecauseOfAppChange)
+        {
+            if (prevTopLevel != 0)
+                prevTopLevel->toFront (true);
+
+            if (prevFocused != 0)
+                prevFocused->grabKeyboardFocus();
+        }
     }
 
     ApplicationCommandManager* managerOfChosenCommand;
     ScopedPointer<Component> component;
+    WeakReference<Component> prevFocused, prevTopLevel;
 
 private:
     JUCE_DECLARE_NON_COPYABLE (PopupMenuCompletionCallback);
 };
 
-
-int PopupMenu::showMenu (const Rectangle<int>& target,
-                         const int itemIdThatMustBeVisible,
-                         const int minimumWidth,
-                         const int maximumNumColumns,
-                         const int standardItemHeight,
-                         Component* const componentAttachedTo,
-                         ModalComponentManager::Callback* userCallback)
+int PopupMenu::showWithOptionalCallback (const Options& options, ModalComponentManager::Callback* const userCallback,
+                                         const bool canBeModal)
 {
     ScopedPointer<ModalComponentManager::Callback> userCallbackDeleter (userCallback);
+    ScopedPointer<PopupMenuCompletionCallback> callback (new PopupMenuCompletionCallback());
 
-    WeakReference<Component> prevFocused (Component::getCurrentlyFocusedComponent());
-    WeakReference<Component> prevTopLevel ((prevFocused != 0) ? prevFocused->getTopLevelComponent() : 0);
-    Window::wasHiddenBecauseOfAppChange() = false;
-
-    PopupMenuCompletionCallback* callback = new PopupMenuCompletionCallback();
-    ScopedPointer<PopupMenuCompletionCallback> callbackDeleter (callback);
-
-    callback->component = Window::create (*this, ModifierKeys::getCurrentModifiers().isAnyMouseButtonDown(),
-                                          0, target, minimumWidth, maximumNumColumns > 0 ? maximumNumColumns : 7,
-                                          standardItemHeight, ! target.isEmpty(), itemIdThatMustBeVisible,
-                                          &callback->managerOfChosenCommand, componentAttachedTo);
-
-    if (callback->component == 0)
+    Component* window = createWindow (options, &(callback->managerOfChosenCommand));
+    if (window == 0)
         return 0;
 
-    callback->component->enterModalState (false, userCallbackDeleter.release());
-    callback->component->toFront (false);  // need to do this after making it modal, or it could
-                                           // be stuck behind other comps that are already modal..
+    callback->component = window;
 
-    ModalComponentManager::getInstance()->attachCallback (callback->component, callback);
+    window->enterModalState (false, userCallbackDeleter.release());
+    ModalComponentManager::getInstance()->attachCallback (window, callback.release());
 
-    callbackDeleter.release();
+    window->toFront (false);  // need to do this after making it modal, or it could
+                              // be stuck behind other comps that are already modal..
 
-    if (userCallback != 0)
-        return 0;
-
-    const int result = callback->component->runModalLoop();
-
-    if (! Window::wasHiddenBecauseOfAppChange())
-    {
-        if (prevTopLevel != 0)
-            prevTopLevel->toFront (true);
-
-        if (prevFocused != 0)
-            prevFocused->grabKeyboardFocus();
-    }
-
-    return result;
+    return (userCallback == 0 && canBeModal) ? window->runModalLoop() : 0;
 }
 
+//==============================================================================
+#if JUCE_MODAL_LOOPS_PERMITTED
+int PopupMenu::showMenu (const Options& options)
+{
+    return showWithOptionalCallback (options, 0, true);
+}
+#endif
+
+void PopupMenu::showMenuAsync (const Options& options, ModalComponentManager::Callback* userCallback)
+{
+   #if ! JUCE_MODAL_LOOPS_PERMITTED
+    jassert (userCallback != 0);
+   #endif
+
+    showWithOptionalCallback (options, userCallback, false);
+}
+
+//==============================================================================
 int PopupMenu::show (const int itemIdThatMustBeVisible,
                      const int minimumWidth, const int maximumNumColumns,
                      const int standardItemHeight,
                      ModalComponentManager::Callback* callback)
 {
-    return showMenu (Rectangle<int>().withPosition (Desktop::getMousePosition()),
-                     itemIdThatMustBeVisible, minimumWidth, maximumNumColumns,
-                     standardItemHeight, 0, callback);
+    return showWithOptionalCallback (Options().withItemThatMustBeVisible (itemIdThatMustBeVisible)
+                                              .withMinimumWidth (minimumWidth)
+                                              .withMaximumNumColumns (maximumNumColumns)
+                                              .withStandardItemHeight (standardItemHeight),
+                                     callback, true);
 }
 
 int PopupMenu::showAt (const Rectangle<int>& screenAreaToAttachTo,
@@ -1504,9 +1551,12 @@ int PopupMenu::showAt (const Rectangle<int>& screenAreaToAttachTo,
                        const int standardItemHeight,
                        ModalComponentManager::Callback* callback)
 {
-    return showMenu (screenAreaToAttachTo,
-                     itemIdThatMustBeVisible, minimumWidth, maximumNumColumns,
-                     standardItemHeight, 0, callback);
+    return showWithOptionalCallback (Options().withTargetScreenArea (screenAreaToAttachTo)
+                                              .withItemThatMustBeVisible (itemIdThatMustBeVisible)
+                                              .withMinimumWidth (minimumWidth)
+                                              .withMaximumNumColumns (maximumNumColumns)
+                                              .withStandardItemHeight (standardItemHeight),
+                                     callback, true);
 }
 
 int PopupMenu::showAt (Component* componentToAttachTo,
@@ -1515,17 +1565,15 @@ int PopupMenu::showAt (Component* componentToAttachTo,
                        const int standardItemHeight,
                        ModalComponentManager::Callback* callback)
 {
+    Options options (Options().withItemThatMustBeVisible (itemIdThatMustBeVisible)
+                              .withMinimumWidth (minimumWidth)
+                              .withMaximumNumColumns (maximumNumColumns)
+                              .withStandardItemHeight (standardItemHeight));
+
     if (componentToAttachTo != 0)
-    {
-        return showMenu (componentToAttachTo->getScreenBounds(),
-                         itemIdThatMustBeVisible, minimumWidth, maximumNumColumns,
-                         standardItemHeight, componentToAttachTo, callback);
-    }
-    else
-    {
-        return show (itemIdThatMustBeVisible, minimumWidth, maximumNumColumns,
-                     standardItemHeight, callback);
-    }
+        options = options.withTargetComponent (componentToAttachTo);
+
+    return showWithOptionalCallback (options, callback, true);
 }
 
 bool JUCE_CALLTYPE PopupMenu::dismissAllActiveMenus()
@@ -1596,17 +1644,23 @@ void PopupMenu::setLookAndFeel (LookAndFeel* const newLookAndFeel)
 }
 
 //==============================================================================
-PopupMenuCustomComponent::PopupMenuCustomComponent (const bool isTriggeredAutomatically_)
+PopupMenu::CustomComponent::CustomComponent (const bool isTriggeredAutomatically_)
     : isHighlighted (false),
-      isTriggeredAutomatically (isTriggeredAutomatically_)
+      triggeredAutomatically (isTriggeredAutomatically_)
 {
 }
 
-PopupMenuCustomComponent::~PopupMenuCustomComponent()
+PopupMenu::CustomComponent::~CustomComponent()
 {
 }
 
-void PopupMenuCustomComponent::triggerMenuItem()
+void PopupMenu::CustomComponent::setHighlighted (bool shouldBeHighlighted)
+{
+    isHighlighted = shouldBeHighlighted;
+    repaint();
+}
+
+void PopupMenu::CustomComponent::triggerMenuItem()
 {
     PopupMenu::ItemComponent* const mic = dynamic_cast <PopupMenu::ItemComponent*> (getParentComponent());
 
@@ -1667,7 +1721,7 @@ bool PopupMenu::MenuItemIterator::next()
     isSeparator = item->isSeparator;
     isTicked = item->isTicked;
     isEnabled = item->active;
-    isSectionHeader = dynamic_cast <HeaderItemComponent*> (static_cast <PopupMenuCustomComponent*> (item->customComp)) != 0;
+    isSectionHeader = dynamic_cast <HeaderItemComponent*> (static_cast <CustomComponent*> (item->customComp)) != 0;
     isCustomComponent = (! isSectionHeader) && item->customComp != 0;
     customColour = item->usesColour ? &(item->textColour) : 0;
     customImage = item->image;

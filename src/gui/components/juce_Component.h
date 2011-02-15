@@ -47,7 +47,8 @@ class LookAndFeel;
 class MouseInputSource;
 class MouseInputSourceInternal;
 class ComponentPeer;
-
+class MarkerList;
+class RelativeRectangle;
 
 //==============================================================================
 /**
@@ -97,7 +98,7 @@ public:
 
         @see setName
     */
-    const String& getName() const throw()                   { return componentName_; }
+    const String& getName() const throw()                   { return componentName; }
 
     /** Sets the name of this component.
 
@@ -107,6 +108,17 @@ public:
         @see getName
     */
     virtual void setName (const String& newName);
+
+    /** Returns the ID string that was set by setComponentID().
+        @see setComponentID
+    */
+    const String& getComponentID() const throw()            { return componentID; }
+
+    /** Sets the component's ID string.
+        You can retrieve the ID using getComponentID().
+        @see getComponentID
+    */
+    void setComponentID (const String& newID);
 
     //==============================================================================
     /** Makes the component visible or invisible.
@@ -266,7 +278,7 @@ public:
         bounds will no longer be a direct reflection of the position at which it appears within
         its parent, as the transform will be applied to its bounding box.
     */
-    inline int getX() const throw()                         { return bounds_.getX(); }
+    inline int getX() const throw()                         { return bounds.getX(); }
 
     /** Returns the y coordinate of the top of this component.
         This is a distance in pixels from the top edge of the component's parent.
@@ -275,13 +287,13 @@ public:
         bounds will no longer be a direct reflection of the position at which it appears within
         its parent, as the transform will be applied to its bounding box.
     */
-    inline int getY() const throw()                         { return bounds_.getY(); }
+    inline int getY() const throw()                         { return bounds.getY(); }
 
     /** Returns the component's width in pixels. */
-    inline int getWidth() const throw()                     { return bounds_.getWidth(); }
+    inline int getWidth() const throw()                     { return bounds.getWidth(); }
 
     /** Returns the component's height in pixels. */
-    inline int getHeight() const throw()                    { return bounds_.getHeight(); }
+    inline int getHeight() const throw()                    { return bounds.getHeight(); }
 
     /** Returns the x coordinate of the component's right-hand edge.
         This is a distance in pixels from the left edge of the component's parent.
@@ -290,10 +302,10 @@ public:
         bounds will no longer be a direct reflection of the position at which it appears within
         its parent, as the transform will be applied to its bounding box.
     */
-    int getRight() const throw()                            { return bounds_.getRight(); }
+    int getRight() const throw()                            { return bounds.getRight(); }
 
     /** Returns the component's top-left position as a Point. */
-    const Point<int> getPosition() const throw()            { return bounds_.getPosition(); }
+    const Point<int> getPosition() const throw()            { return bounds.getPosition(); }
 
     /** Returns the y coordinate of the bottom edge of this component.
         This is a distance in pixels from the top edge of the component's parent.
@@ -302,7 +314,7 @@ public:
         bounds will no longer be a direct reflection of the position at which it appears within
         its parent, as the transform will be applied to its bounding box.
     */
-    int getBottom() const throw()                           { return bounds_.getBottom(); }
+    int getBottom() const throw()                           { return bounds.getBottom(); }
 
     /** Returns this component's bounding box.
         The rectangle returned is relative to the top-left of the component's parent.
@@ -311,7 +323,7 @@ public:
         bounds will no longer be a direct reflection of the position at which it appears within
         its parent, as the transform will be applied to its bounding box.
     */
-    const Rectangle<int>& getBounds() const throw()         { return bounds_; }
+    const Rectangle<int>& getBounds() const throw()         { return bounds; }
 
     /** Returns the component's bounds, relative to its own origin.
         This is like getBounds(), but returns the rectangle in local coordinates, In practice, it'll
@@ -467,6 +479,53 @@ public:
     */
     void setBounds (const Rectangle<int>& newBounds);
 
+    /** Changes the component's position and size.
+
+        This is similar to the other setBounds() methods, but uses RelativeRectangle::applyToComponent()
+        to set the position, This uses a Component::Positioner to make sure that any dynamic
+        expressions are used in the RelativeRectangle will be automatically re-applied to the
+        component's bounds when the source values change. See RelativeRectangle::applyToComponent()
+        for more details.
+
+        When using relative expressions, the following symbols are available:
+         - "left", "right", "top", "bottom" refer to the position of those edges in this component, so
+           e.g. for a component whose width is always 100, you might set the right edge to the "left + 100".
+         - "[id].left", "[id].right", "[id].top", "[id].bottom", "[id].width", "[id].height", where [id] is
+           the identifier of one of this component's siblings. A component's identifier is set with
+           Component::setComponentID(). So for example if you want your component to always be 50 pixels to the
+           right of the one called "xyz", you could set your left edge to be "xyz.right + 50".
+         - Instead of an [id], you can use the name "parent" to refer to this component's parent. Like
+           any other component, these values are relative to their component's parent, so "parent.right" won't be
+           very useful for positioning a component because it refers to a position with the parent's parent.. but
+           "parent.width" can be used for setting positions relative to the parent's size. E.g. to make a 10x10
+           component which remains 1 pixel away from its parent's bottom-right, you could use
+           "right - 10, bottom - 10, parent.width - 1, parent.height - 1".
+         - The name of one of the parent component's markers can also be used as a symbol. For markers to be
+           used, the parent component must implement its Component::getMarkers() method, and return at least one
+           valid MarkerList. So if you want your component's top edge to be 10 pixels below the
+           marker called "foobar", you'd set it to "foobar + 10".
+
+        See the Expression class for details about the operators that are supported, but for example
+        if you wanted to make your component remain centred within its parent with a size of 100, 100,
+        you could express it as:
+        @code myComp.setBounds (RelativeBounds ("parent.width / 2 - 50, parent.height / 2 - 50, left + 100, top + 100"));
+        @endcode
+        ..or an alternative way to achieve the same thing:
+        @code myComp.setBounds (RelativeBounds ("right - 100, bottom - 100, parent.width / 2 + 50, parent.height / 2 + 50"));
+        @endcode
+
+        Or if you wanted a 100x100 component whose top edge is lined up to a marker called "topMarker" and
+        which is positioned 50 pixels to the right of another component called "otherComp", you could write:
+        @code myComp.setBounds (RelativeBounds ("otherComp.right + 50, topMarker, left + 100, top + 100"));
+        @endcode
+
+        Be careful not to make your coordinate expressions recursive, though, or exceptions and assertions will
+        be thrown!
+
+        @see setBounds, RelativeRectangle::applyToComponent(), Expression
+    */
+    void setBounds (const RelativeRectangle& newBounds);
+
     /** Changes the component's position and size in terms of fractions of its parent's size.
 
         The values are factors of the parent's size, so for example
@@ -486,7 +545,7 @@ public:
 
         @see setBounds
     */
-    void setBoundsInset (const BorderSize& borders);
+    void setBoundsInset (const BorderSize<int>& borders);
 
     /** Positions the component within a given rectangle, keeping its proportions
         unchanged.
@@ -695,7 +754,7 @@ public:
         If this is the highest-level component or hasn't yet been added to
         a parent, this will return null.
     */
-    Component* getParentComponent() const throw()                   { return parentComponent_; }
+    Component* getParentComponent() const throw()                   { return parentComponent; }
 
     /** Searches the parent components for a component of a specified class.
 
@@ -709,14 +768,14 @@ public:
     TargetClass* findParentComponentOfClass (TargetClass* const dummyParameter = 0) const
     {
         (void) dummyParameter;
-        Component* p = parentComponent_;
+        Component* p = parentComponent;
         while (p != 0)
         {
             TargetClass* target = dynamic_cast <TargetClass*> (p);
             if (target != 0)
                 return target;
 
-            p = p->parentComponent_;
+            p = p->parentComponent;
         }
 
         return 0;
@@ -987,7 +1046,8 @@ public:
         the graphics context that gets passed to the component's paint() callback.
         If you enable this mode, you'll need to make sure your paint method doesn't call anything like
         Graphics::fillAll(), and doesn't draw beyond the component's bounds, because that'll produce
-        artifacts.
+        artifacts. Your component also can't have any child components that may be placed beyond its
+        bounds.
     */
     void setPaintingIsUnclipped (bool shouldPaintWithoutClipping) throw();
 
@@ -1011,7 +1071,7 @@ public:
 
         @see setComponentEffect
     */
-    ImageEffectFilter* getComponentEffect() const throw()               { return effect_; }
+    ImageEffectFilter* getComponentEffect() const throw()               { return effect; }
 
     //==============================================================================
     /** Finds the appropriate look-and-feel to use for this component.
@@ -1846,7 +1906,9 @@ public:
         @see enterModalState, exitModalState, isCurrentlyModal, getCurrentlyModalComponent,
              isCurrentlyBlockedByAnotherModalComponent, ModalComponentManager
     */
+   #if JUCE_MODAL_LOOPS_PERMITTED
     int runModalLoop();
+   #endif
 
     /** Puts the component into a modal state.
 
@@ -1863,10 +1925,15 @@ public:
         is called. If you pass an object in here, the system will take care of deleting it
         later, after making the callback
 
+        If deleteWhenDismissed is true, then when it is dismissed, the component will be
+        deleted and then the callback will be called. (This will safely handle the situation
+        where the component is deleted before its exitModalState() method is called).
+
         @see exitModalState, runModalLoop, ModalComponentManager::attachCallback
     */
     void enterModalState (bool takeKeyboardFocus = true,
-                          ModalComponentManager::Callback* callback = 0);
+                          ModalComponentManager::Callback* callback = 0,
+                          bool deleteWhenDismissed = false);
 
     /** Ends a component's modal state.
 
@@ -2006,6 +2073,14 @@ public:
     virtual void colourChanged();
 
     //==============================================================================
+    /** Components can implement this method to provide a MarkerList.
+        The default implementation of this method returns 0, but you can override it to
+        return a pointer to the component's marker list. If xAxis is true, it should
+        return the X marker list; if false, it should return the Y markers.
+    */
+    virtual MarkerList* getMarkers (bool xAxis);
+
+    //==============================================================================
     /** Returns the underlying native window handle for this component.
 
         This is platform-dependent and strictly for power-users only!
@@ -2067,47 +2142,77 @@ public:
     };
 
     //==============================================================================
-    /** A class to keep an eye on one or two components and check for them being deleted.
+    /** A class to keep an eye on a component and check for it being deleted.
 
         This is designed for use with the ListenerList::callChecked() methods, to allow
         the list iterator to stop cleanly if the component is deleted by a listener callback
         while the list is still being iterated.
     */
-    class BailOutChecker
+    class JUCE_API  BailOutChecker
     {
     public:
         /** Creates a checker that watches one component. */
-        BailOutChecker (Component* component1);
-
-        /** Creates a checker that watches two components. */
-        BailOutChecker (Component* component1, Component* component2);
+        BailOutChecker (Component* component);
 
         /** Returns true if either of the two components have been deleted since this object was created. */
         bool shouldBailOut() const throw();
 
     private:
-        const WeakReference<Component> safePointer1, safePointer2;
+        const WeakReference<Component> safePointer;
 
         JUCE_DECLARE_NON_COPYABLE (BailOutChecker);
     };
 
     //==============================================================================
+    /**
+        Base class for objects that can be used to automatically position a component according to
+        some kind of algorithm.
+
+        The component class simply holds onto a reference to a Positioner, but doesn't actually do
+        anything with it - all the functionality must be implemented by the positioner itself (e.g.
+        it might choose to watch some kind of value and move the component when the value changes).
+    */
+    class JUCE_API  Positioner
+    {
+    public:
+        /** Creates a Positioner which can control the specified component. */
+        explicit Positioner (Component& component) throw();
+        /** Destructor. */
+        virtual ~Positioner() {}
+
+        /** Returns the component that this positioner controls. */
+        Component& getComponent() const throw()     { return component; }
+
+    private:
+        Component& component;
+
+        JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Positioner);
+    };
+
+    /** Returns the Positioner object that has been set for this component.
+        @see setPositioner()
+    */
+    Positioner* getPositioner() const throw();
+
+    /** Sets a new Positioner object for this component.
+        If there's currently another positioner set, it will be deleted. The object that is passed in
+        will be deleted automatically by this component when it's no longer required. Pass a null pointer
+        to clear the current positioner.
+        @see getPositioner()
+    */
+    void setPositioner (Positioner* newPositioner);
+
+    //==============================================================================
    #ifndef DOXYGEN
-    /** This method is deprecated - use localPointToGlobal instead. */
-    const Point<int> relativePositionToGlobal (const Point<int>& relativePosition) const;
-
-    /** This method is deprecated - use getLocalPoint instead. */
-    const Point<int> globalPositionToRelative (const Point<int>& screenPosition) const;
-
-    /** This method is deprecated - use getLocalPoint instead. */
-    const Point<int> relativePositionToOtherComponent (const Component* targetComponent,
-                                                       const Point<int>& positionRelativeToThis) const;
+    // These methods are deprecated - use localPointToGlobal, getLocalPoint, getLocalPoint, etc instead.
+    JUCE_DEPRECATED (const Point<int> relativePositionToGlobal (const Point<int>&) const);
+    JUCE_DEPRECATED (const Point<int> globalPositionToRelative (const Point<int>&) const);
+    JUCE_DEPRECATED (const Point<int> relativePositionToOtherComponent (const Component*, const Point<int>&) const);
    #endif
 
 private:
     //==============================================================================
     friend class ComponentPeer;
-    friend class InternalDragRepeater;
     friend class MouseInputSource;
     friend class MouseInputSourceInternal;
 
@@ -2115,21 +2220,22 @@ private:
     static Component* currentlyFocusedComponent;
 
     //==============================================================================
-    String componentName_;
-    Component* parentComponent_;
-    Rectangle<int> bounds_;
-    ScopedPointer <AffineTransform> affineTransform_;
-    Array <Component*> childComponentList_;
-    LookAndFeel* lookAndFeel_;
-    MouseCursor cursor_;
-    ImageEffectFilter* effect_;
-    Image bufferedImage_;
+    String componentName, componentID;
+    Component* parentComponent;
+    Rectangle<int> bounds;
+    ScopedPointer <Positioner> positioner;
+    ScopedPointer <AffineTransform> affineTransform;
+    Array <Component*> childComponentList;
+    LookAndFeel* lookAndFeel;
+    MouseCursor cursor;
+    ImageEffectFilter* effect;
+    Image bufferedImage;
 
     class MouseListenerList;
     friend class MouseListenerList;
     friend class ScopedPointer <MouseListenerList>;
-    ScopedPointer <MouseListenerList> mouseListeners_;
-    ScopedPointer <Array <KeyListener*> > keyListeners_;
+    ScopedPointer <MouseListenerList> mouseListeners;
+    ScopedPointer <Array <KeyListener*> > keyListeners;
     ListenerList <ComponentListener> componentListeners;
     NamedValueSet properties;
 
@@ -2165,7 +2271,7 @@ private:
 
     union
     {
-        uint32 componentFlags_;
+        uint32 componentFlags;
         ComponentFlags flags;
     };
 
@@ -2180,14 +2286,16 @@ private:
     void internalMouseMove  (MouseInputSource& source, const Point<int>& relativePos, const Time& time);
     void internalMouseWheel (MouseInputSource& source, const Point<int>& relativePos, const Time& time, float amountX, float amountY);
     void internalBroughtToFront();
+    void internalFocusGain (const FocusChangeType cause, const WeakReference<Component>&);
     void internalFocusGain (const FocusChangeType cause);
     void internalFocusLoss (const FocusChangeType cause);
-    void internalChildFocusChange (FocusChangeType cause);
+    void internalChildFocusChange (FocusChangeType cause, const WeakReference<Component>&);
     void internalModalInputAttempt();
     void internalModifierKeysChanged();
     void internalChildrenChanged();
     void internalHierarchyChanged();
-    Component* removeChildComponent (const int index, bool sendParentEvents, bool sendChildEvents);
+    Component* removeChildComponent (int index, bool sendParentEvents, bool sendChildEvents);
+    void moveChildInternal (int sourceIndex, int destIndex);
     void paintComponentAndChildren (Graphics& g);
     void paintComponent (Graphics& g);
     void paintWithinParentContext (Graphics& g);

@@ -27,7 +27,7 @@
 #define __JUCE_POPUPMENU_JUCEHEADER__
 
 #include "../../../application/juce_ApplicationCommandManager.h"
-class PopupMenuCustomComponent;
+#include "../../../memory/juce_ReferenceCountedObject.h"
 
 
 //==============================================================================
@@ -147,19 +147,10 @@ public:
                           bool isTicked = false,
                           const Image& iconToUse = Image::null);
 
-    /** Appends a custom menu item.
-
-        This will add a user-defined component to use as a menu item. The component
-        passed in will be deleted by this menu when it's no longer needed.
-
-        @see PopupMenuCustomComponent
-    */
-    void addCustomItem (int itemResultId, PopupMenuCustomComponent* customComponent);
-
     /** Appends a custom menu item that can't be used to trigger a result.
 
         This will add a user-defined component to use as a menu item. Unlike the
-        addCustomItem() method that takes a PopupMenuCustomComponent, this version
+        addCustomItem() method that takes a PopupMenu::CustomComponent, this version
         can't trigger a result from it, so doesn't take a menu ID. It also doesn't
         delete the component when it's finished, so it's the caller's responsibility
         to manage the component that is passed-in.
@@ -169,7 +160,7 @@ public:
         menu ID specified in itemResultId. If this is false, the menu item can't
         be triggered, so itemResultId is not used.
 
-        @see PopupMenuCustomComponent
+        @see CustomComponent
     */
     void addCustomItem (int itemResultId,
                         Component* customComponent,
@@ -215,6 +206,38 @@ public:
     bool containsAnyActiveItems() const throw();
 
     //==============================================================================
+    /** Class used to create a set of options to pass to the show() method.
+        You can chain together a series of calls to this class's methods to create
+        a set of whatever options you want to specify.
+        E.g. @code
+        PopupMenu menu;
+        ...
+        menu.showMenu (PopupMenu::Options().withMaximumWidth (100),
+                                           .withMaximumNumColumns (3)
+                                           .withTargetComponent (myComp));
+        @endcode
+    */
+    class JUCE_API  Options
+    {
+    public:
+        Options();
+
+        const Options withTargetComponent (Component* targetComponent) const;
+        const Options withTargetScreenArea (const Rectangle<int>& targetArea) const;
+        const Options withMinimumWidth (int minWidth) const;
+        const Options withMaximumNumColumns (int maxNumColumns) const;
+        const Options withStandardItemHeight (int standardHeight) const;
+        const Options withItemThatMustBeVisible (int idOfItemToBeVisible) const;
+
+    private:
+        friend class PopupMenu;
+        Rectangle<int> targetArea;
+        Component* targetComponent;
+        int visibleItemID, minWidth, maxColumns, standardHeight;
+    };
+
+    //==============================================================================
+   #if JUCE_MODAL_LOOPS_PERMITTED
     /** Displays the menu and waits for the user to pick something.
 
         This will display the menu modally, and return the ID of the item that the
@@ -287,6 +310,15 @@ public:
                 int maximumNumColumns = 0,
                 int standardItemHeight = 0,
                 ModalComponentManager::Callback* callback = 0);
+
+    /** Displays and runs the menu modally, with a set of options.
+    */
+    int showMenu (const Options& options);
+   #endif
+
+    /** Runs the menu asynchronously, with a user-provided callback that will receive the result. */
+    void showMenuAsync (const Options& options,
+                        ModalComponentManager::Callback* callback);
 
     //==============================================================================
     /** Closes any menus that are currently open.
@@ -378,6 +410,64 @@ public:
         JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MenuItemIterator);
     };
 
+    //==============================================================================
+    /** A user-defined copmonent that can be used as an item in a popup menu.
+        @see PopupMenu::addCustomItem
+    */
+    class JUCE_API  CustomComponent  : public Component,
+                                       public ReferenceCountedObject
+    {
+    public:
+        /** Creates a custom item.
+            If isTriggeredAutomatically is true, then the menu will automatically detect
+            a mouse-click on this component and use that to invoke the menu item. If it's
+            false, then it's up to your class to manually trigger the item when it wants to.
+        */
+        CustomComponent (bool isTriggeredAutomatically = true);
+
+        /** Destructor. */
+        ~CustomComponent();
+
+        /** Returns a rectangle with the size that this component would like to have.
+
+            Note that the size which this method returns isn't necessarily the one that
+            the menu will give it, as the items will be stretched to have a uniform width.
+        */
+        virtual void getIdealSize (int& idealWidth, int& idealHeight) = 0;
+
+        /** Dismisses the menu, indicating that this item has been chosen.
+
+            This will cause the menu to exit from its modal state, returning
+            this item's id as the result.
+        */
+        void triggerMenuItem();
+
+        /** Returns true if this item should be highlighted because the mouse is over it.
+            You can call this method in your paint() method to find out whether
+            to draw a highlight.
+        */
+        bool isItemHighlighted() const throw()                  { return isHighlighted; }
+
+        /** @internal. */
+        bool isTriggeredAutomatically() const throw()           { return triggeredAutomatically; }
+        /** @internal. */
+        void setHighlighted (bool shouldBeHighlighted);
+
+    private:
+        //==============================================================================
+        bool isHighlighted, triggeredAutomatically;
+
+        JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (CustomComponent);
+    };
+
+    /** Appends a custom menu item.
+
+        This will add a user-defined component to use as a menu item. The component
+        passed in will be deleted by this menu when it's no longer needed.
+
+        @see CustomComponent
+    */
+    void addCustomItem (int itemResultId, CustomComponent* customComponent);
 
 private:
     //==============================================================================
@@ -388,7 +478,7 @@ private:
     friend class MenuItemIterator;
     friend class ItemComponent;
     friend class Window;
-    friend class PopupMenuCustomComponent;
+    friend class CustomComponent;
     friend class MenuBarComponent;
     friend class OwnedArray <Item>;
     friend class OwnedArray <ItemComponent>;
@@ -399,10 +489,8 @@ private:
     bool separatorPending;
 
     void addSeparatorIfPending();
-
-    int showMenu (const Rectangle<int>& target, int itemIdThatMustBeVisible,
-                  int minimumWidth, int maximumNumColumns, int standardItemHeight,
-                  Component* componentAttachedTo, ModalComponentManager::Callback* callback);
+    Component* createWindow (const Options&, ApplicationCommandManager**) const;
+    int showWithOptionalCallback (const Options&, ModalComponentManager::Callback*, bool);
 
     JUCE_LEAK_DETECTOR (PopupMenu);
 };

@@ -166,7 +166,7 @@ public:
 
     /** Creates a relative path that refers to a file relatively to a given directory.
 
-        e.g. File ("/moose/foo.txt").getRelativePathFrom ("/moose/fish/haddock")
+        e.g. File ("/moose/foo.txt").getRelativePathFrom (File ("/moose/fish/haddock"))
              would return "../../foo.txt".
 
         If it's not possible to navigate from one file to the other, an absolute
@@ -624,7 +624,7 @@ public:
         the file first and then re-writing it, it creates a new temporary file,
         writes the data to that, and then moves the new file to replace the existing
         file. This means that if the power gets pulled out or something crashes,
-        you're a lot less likely to end up with an empty file..
+        you're a lot less likely to end up with a corrupted or unfinished file..
 
         Returns true if the operation succeeds, or false if it fails.
 

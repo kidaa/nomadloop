@@ -36,6 +36,9 @@
  #include <windows.h>
  #include <float.h>
  #pragma warning (disable : 4312 4355)
+ #ifdef __INTEL_COMPILER
+  #pragma warning (disable : 1899)
+ #endif
 #elif JUCE_LINUX
  #include <float.h>
  #include <sys/time.h>
@@ -536,7 +539,7 @@ public:
         {
             FSRef fn;
 
-            if (FSPathMakeRef ((UInt8*) filename.toUTF8(), &fn, 0) == noErr)
+            if (FSPathMakeRef ((UInt8*) filename.toUTF8().getAddress(), &fn, 0) == noErr)
             {
                 resFileId = FSOpenResFile (&fn, fsRdPerm);
 
@@ -1151,7 +1154,6 @@ public:
 #endif
           plugin (plugin_),
           isOpen (false),
-          wasShowing (false),
           recursiveResize (false),
           pluginWantsKeys (false),
           pluginRefusesToResize (false),
@@ -1216,19 +1218,12 @@ public:
         }
     }
 
-    void componentVisibilityChanged (Component&)
+    void componentVisibilityChanged()
     {
-        const bool isShowingNow = isShowing();
-
-        if (wasShowing != isShowingNow)
-        {
-            wasShowing = isShowingNow;
-
-            if (isShowingNow)
-                openPluginWindow();
-            else
-                closePluginWindow();
-        }
+        if (isShowing())
+            openPluginWindow();
+        else
+            closePluginWindow();
 
         componentMovedOrResized (true, true);
     }
@@ -1368,7 +1363,7 @@ public:
     //==============================================================================
 private:
     VSTPluginInstance& plugin;
-    bool isOpen, wasShowing, recursiveResize;
+    bool isOpen, recursiveResize;
     bool pluginWantsKeys, pluginRefusesToResize, alreadyInside;
 
 #if JUCE_WINDOWS
@@ -2329,7 +2324,7 @@ VstIntPtr VSTPluginInstance::handleCallback (VstInt32 opcode, VstInt32 index, Vs
       #if JUCE_MAC
         return (VstIntPtr) (void*) &module->parentDirFSSpec;
       #else
-        return (VstIntPtr) (pointer_sized_uint) module->fullParentDirectoryPathName.toUTF8();
+        return (VstIntPtr) (pointer_sized_uint) module->fullParentDirectoryPathName.toUTF8().getAddress();
       #endif
 
     case audioMasterGetAutomationState:

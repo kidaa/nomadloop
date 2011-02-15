@@ -37,10 +37,6 @@ BEGIN_JUCE_NAMESPACE
 #include "../../../core/juce_Singleton.h"
 #include "../../../utilities/juce_DeletedAtShutdown.h"
 
-#if (JUCE_WINDOWS || JUCE_LINUX) && ! JUCE_64BIT
- #define JUCE_USE_SSE_INSTRUCTIONS 1
-#endif
-
 #if JUCE_MSVC
  #pragma warning (push)
  #pragma warning (disable: 4127) // "expression is constant" warning
@@ -543,7 +539,7 @@ private:
     SrcPixelType* sourceLineStart;
 
     template <class PixelType1, class PixelType2>
-    forcedinline static void copyRow (PixelType1* dest, PixelType2* src, int width) throw()
+    static forcedinline void copyRow (PixelType1* dest, PixelType2* src, int width) throw()
     {
         do
         {
@@ -551,7 +547,7 @@ private:
         } while (--width > 0);
     }
 
-    forcedinline static void copyRow (PixelRGB* dest, PixelRGB* src, int width) throw()
+    static forcedinline void copyRow (PixelRGB* dest, PixelRGB* src, int width) throw()
     {
         memcpy (dest, src, width * sizeof (PixelRGB));
     }
@@ -650,7 +646,7 @@ public:
         }
 
         y = y_;
-        generate (static_cast <SrcPixelType*> (scratchBuffer), x, width);
+        generate (scratchBuffer.getData(), x, width);
 
         et.clipLineToMask (x, y_,
                            reinterpret_cast<uint8*> (scratchBuffer.getData()) + SrcPixelType::indexA,
@@ -696,9 +692,9 @@ private:
                         if (! repeatPattern)
                         {
                             if (loResY < 0)
-                                render2PixelAverageX (dest, this->srcData.getPixelPointer (loResX, 0), hiResX & 255, hiResY & 255);
+                                render2PixelAverageX (dest, this->srcData.getPixelPointer (loResX, 0), hiResX & 255);
                             else
-                                render2PixelAverageX (dest, this->srcData.getPixelPointer (loResX, maxY), hiResX & 255, 255 - (hiResY & 255));
+                                render2PixelAverageX (dest, this->srcData.getPixelPointer (loResX, maxY), hiResX & 255);
 
                             ++dest;
                             continue;
@@ -713,9 +709,9 @@ private:
                         if (! repeatPattern)
                         {
                             if (loResX < 0)
-                                render2PixelAverageY (dest, this->srcData.getPixelPointer (0, loResY), hiResY & 255, hiResX & 255);
+                                render2PixelAverageY (dest, this->srcData.getPixelPointer (0, loResY), hiResY & 255);
                             else
-                                render2PixelAverageY (dest, this->srcData.getPixelPointer (maxX, loResY), hiResY & 255, 255 - (hiResX & 255));
+                                render2PixelAverageY (dest, this->srcData.getPixelPointer (maxX, loResY), hiResY & 255);
 
                             ++dest;
                             continue;
@@ -775,33 +771,33 @@ private:
                        (uint8) (c[PixelARGB::indexB] >> 16));
     }
 
-    void render2PixelAverageX (PixelARGB* const dest, const uint8* src, const int subPixelX, const int alpha) throw()
+    void render2PixelAverageX (PixelARGB* const dest, const uint8* src, const int subPixelX) throw()
     {
-        uint32 c[4] = { 256 * 128, 256 * 128, 256 * 128, 256 * 128 };
+        uint32 c[4] = { 128, 128, 128, 128 };
 
-        uint32 weight = (256 - subPixelX) * alpha;
+        uint32 weight = 256 - subPixelX;
         c[0] += weight * src[0];
         c[1] += weight * src[1];
         c[2] += weight * src[2];
         c[3] += weight * src[3];
 
-        weight = subPixelX * alpha;
+        weight = subPixelX;
         c[0] += weight * src[4];
         c[1] += weight * src[5];
         c[2] += weight * src[6];
         c[3] += weight * src[7];
 
-        dest->setARGB ((uint8) (c[PixelARGB::indexA] >> 16),
-                       (uint8) (c[PixelARGB::indexR] >> 16),
-                       (uint8) (c[PixelARGB::indexG] >> 16),
-                       (uint8) (c[PixelARGB::indexB] >> 16));
+        dest->setARGB ((uint8) (c[PixelARGB::indexA] >> 8),
+                       (uint8) (c[PixelARGB::indexR] >> 8),
+                       (uint8) (c[PixelARGB::indexG] >> 8),
+                       (uint8) (c[PixelARGB::indexB] >> 8));
     }
 
-    void render2PixelAverageY (PixelARGB* const dest, const uint8* src, const int subPixelY, const int alpha) throw()
+    void render2PixelAverageY (PixelARGB* const dest, const uint8* src, const int subPixelY) throw()
     {
-        uint32 c[4] = { 256 * 128, 256 * 128, 256 * 128, 256 * 128 };
+        uint32 c[4] = { 128, 128, 128, 128 };
 
-        uint32 weight = (256 - subPixelY) * alpha;
+        uint32 weight = 256 - subPixelY;
         c[0] += weight * src[0];
         c[1] += weight * src[1];
         c[2] += weight * src[2];
@@ -809,16 +805,16 @@ private:
 
         src += this->srcData.lineStride;
 
-        weight = subPixelY * alpha;
+        weight = subPixelY;
         c[0] += weight * src[0];
         c[1] += weight * src[1];
         c[2] += weight * src[2];
         c[3] += weight * src[3];
 
-        dest->setARGB ((uint8) (c[PixelARGB::indexA] >> 16),
-                       (uint8) (c[PixelARGB::indexR] >> 16),
-                       (uint8) (c[PixelARGB::indexG] >> 16),
-                       (uint8) (c[PixelARGB::indexB] >> 16));
+        dest->setARGB ((uint8) (c[PixelARGB::indexA] >> 8),
+                       (uint8) (c[PixelARGB::indexR] >> 8),
+                       (uint8) (c[PixelARGB::indexG] >> 8),
+                       (uint8) (c[PixelARGB::indexB] >> 8));
     }
 
     //==============================================================================
@@ -854,11 +850,11 @@ private:
                        (uint8) (c[PixelRGB::indexB] >> 16));
     }
 
-    void render2PixelAverageX (PixelRGB* const dest, const uint8* src, const int subPixelX, const int /*alpha*/) throw()
+    void render2PixelAverageX (PixelRGB* const dest, const uint8* src, const int subPixelX) throw()
     {
         uint32 c[3] = { 128, 128, 128 };
 
-        uint32 weight = (256 - subPixelX);
+        const uint32 weight = 256 - subPixelX;
         c[0] += weight * src[0];
         c[1] += weight * src[1];
         c[2] += weight * src[2];
@@ -873,11 +869,11 @@ private:
                        (uint8) (c[PixelRGB::indexB] >> 8));
     }
 
-    void render2PixelAverageY (PixelRGB* const dest, const uint8* src, const int subPixelY, const int /*alpha*/) throw()
+    void render2PixelAverageY (PixelRGB* const dest, const uint8* src, const int subPixelY) throw()
     {
         uint32 c[3] = { 128, 128, 128 };
 
-        uint32 weight = (256 - subPixelY);
+        const uint32 weight = 256 - subPixelY;
         c[0] += weight * src[0];
         c[1] += weight * src[1];
         c[2] += weight * src[2];
@@ -907,21 +903,21 @@ private:
         *((uint8*) dest) = (uint8) (c >> 16);
     }
 
-    void render2PixelAverageX (PixelAlpha* const dest, const uint8* src, const int subPixelX, const int alpha) throw()
+    void render2PixelAverageX (PixelAlpha* const dest, const uint8* src, const int subPixelX) throw()
     {
-        uint32 c = 256 * 128;
-        c += src[0] * (256 - subPixelX) * alpha;
-        c += src[1] * subPixelX * alpha;
-        *((uint8*) dest) = (uint8) (c >> 16);
+        uint32 c = 128;
+        c += src[0] * (256 - subPixelX);
+        c += src[1] * subPixelX;
+        *((uint8*) dest) = (uint8) (c >> 8);
     }
 
-    void render2PixelAverageY (PixelAlpha* const dest, const uint8* src, const int subPixelY, const int alpha) throw()
+    void render2PixelAverageY (PixelAlpha* const dest, const uint8* src, const int subPixelY) throw()
     {
-        uint32 c = 256 * 128;
-        c += src[0] * (256 - subPixelY) * alpha;
+        uint32 c = 128;
+        c += src[0] * (256 - subPixelY);
         src += this->srcData.lineStride;
-        c += src[0] * subPixelY * alpha;
-        *((uint8*) dest) = (uint8) (c >> 16);
+        c += src[0] * subPixelY;
+        *((uint8*) dest) = (uint8) (c >> 8);
     }
 
     //==============================================================================
@@ -1277,7 +1273,7 @@ public:
 
     const Ptr clipToImageAlpha (const Image& image, const AffineTransform& transform, const bool betterQuality)
     {
-        const Image::BitmapData srcData (image, false);
+        const Image::BitmapData srcData (image, Image::BitmapData::readOnly);
 
         if (transform.isOnlyTranslation())
         {
@@ -1921,20 +1917,20 @@ public:
         }
     }
 
-    void clipToImageAlpha (const Image& image, const AffineTransform& t)
+    void clipToImageAlpha (const Image& sourceImage, const AffineTransform& t)
     {
         if (clip != 0)
         {
-            if (image.hasAlphaChannel())
+            if (sourceImage.hasAlphaChannel())
             {
                 cloneClipIfMultiplyReferenced();
-                clip = clip->clipToImageAlpha (image, getTransformWith (t),
+                clip = clip->clipToImageAlpha (sourceImage, getTransformWith (t),
                                                interpolationQuality != Graphics::lowResamplingQuality);
             }
             else
             {
                 Path p;
-                p.addRectangle (image.getBounds());
+                p.addRectangle (sourceImage.getBounds());
                 clipToPath (p, t);
             }
         }
@@ -1973,36 +1969,36 @@ public:
 
     SavedState* beginTransparencyLayer (float opacity)
     {
-        const Rectangle<int> clip (getUntransformedClipBounds());
+        const Rectangle<int> layerBounds (getUntransformedClipBounds());
 
         SavedState* s = new SavedState (*this);
-        s->image = Image (Image::ARGB, clip.getWidth(), clip.getHeight(), true);
+        s->image = Image (Image::ARGB, layerBounds.getWidth(), layerBounds.getHeight(), true);
         s->compositionAlpha = opacity;
 
         if (s->isOnlyTranslated)
         {
-            s->xOffset -= clip.getX();
-            s->yOffset -= clip.getY();
+            s->xOffset -= layerBounds.getX();
+            s->yOffset -= layerBounds.getY();
         }
         else
         {
-            s->complexTransform = s->complexTransform.followedBy (AffineTransform::translation ((float) -clip.getX(),
-                                                                                                (float) -clip.getY()));
+            s->complexTransform = s->complexTransform.followedBy (AffineTransform::translation ((float) -layerBounds.getX(),
+                                                                                                (float) -layerBounds.getY()));
         }
 
         s->cloneClipIfMultiplyReferenced();
-        s->clip = s->clip->translated (-clip.getPosition());
+        s->clip = s->clip->translated (-layerBounds.getPosition());
         return s;
     }
 
     void endTransparencyLayer (SavedState& layerState)
     {
-        const Rectangle<int> clip (getUntransformedClipBounds());
+        const Rectangle<int> layerBounds (getUntransformedClipBounds());
 
         const ScopedPointer<LowLevelGraphicsContext> g (image.createLowLevelContext());
         g->setOpacity (layerState.compositionAlpha);
-        g->drawImage (layerState.image, AffineTransform::translation ((float) clip.getX(),
-                                                                      (float) clip.getY()), false);
+        g->drawImage (layerState.image, AffineTransform::translation ((float) layerBounds.getX(),
+                                                                      (float) layerBounds.getY()), false);
     }
 
     //==============================================================================
@@ -2014,7 +2010,7 @@ public:
             {
                 if (fillType.isColour())
                 {
-                    Image::BitmapData destData (image, true);
+                    Image::BitmapData destData (image, Image::BitmapData::readWrite);
                     clip->fillRectWithColour (destData, r.translated (xOffset, yOffset), fillType.colour.getPixelARGB(), replaceContents);
                 }
                 else
@@ -2043,7 +2039,7 @@ public:
             {
                 if (fillType.isColour())
                 {
-                    Image::BitmapData destData (image, true);
+                    Image::BitmapData destData (image, Image::BitmapData::readWrite);
                     clip->fillRectWithColour (destData, r.translated ((float) xOffset, (float) yOffset), fillType.colour.getPixelARGB());
                 }
                 else
@@ -2091,7 +2087,7 @@ public:
 
         if (shapeToFill != 0)
         {
-            Image::BitmapData destData (image, true);
+            Image::BitmapData destData (image, Image::BitmapData::readWrite);
 
             if (fillType.isGradient())
             {
@@ -2129,8 +2125,8 @@ public:
     {
         const AffineTransform transform (getTransformWith (t));
 
-        const Image::BitmapData destData (image, true);
-        const Image::BitmapData srcData (sourceImage, false);
+        const Image::BitmapData destData (image, Image::BitmapData::readWrite);
+        const Image::BitmapData srcData (sourceImage, Image::BitmapData::readOnly);
         const int alpha = fillType.colour.getAlpha();
         const bool betterQuality = (interpolationQuality != Graphics::lowResamplingQuality);
 
@@ -2394,10 +2390,12 @@ class LowLevelGraphicsSoftwareRenderer::CachedGlyph
 {
 public:
     CachedGlyph() : glyph (0), lastAccessCount (0) {}
-    ~CachedGlyph()  {}
 
-    void draw (SavedState& state, const float x, const float y) const
+    void draw (SavedState& state, float x, const float y) const
     {
+        if (snapToIntegerCoordinate)
+            x = std::floor (x + 0.5f);
+
         if (edgeTable != 0)
             state.fillEdgeTable (*edgeTable, x, roundToInt (y));
     }
@@ -2405,6 +2403,7 @@ public:
     void generate (const Font& newFont, const int glyphNumber)
     {
         font = newFont;
+        snapToIntegerCoordinate = newFont.getTypeface()->isHinted();
         glyph = glyphNumber;
         edgeTable = 0;
 
@@ -2425,8 +2424,9 @@ public:
         }
     }
 
-    int glyph, lastAccessCount;
     Font font;
+    int glyph, lastAccessCount;
+    bool snapToIntegerCoordinate;
 
 private:
     ScopedPointer <EdgeTable> edgeTable;
@@ -2441,8 +2441,7 @@ public:
     GlyphCache()
         : accessCounter (0), hits (0), misses (0)
     {
-        for (int i = 120; --i >= 0;)
-            glyphs.add (new CachedGlyph());
+        addNewGlyphSlots (120);
     }
 
     ~GlyphCache()
@@ -2481,10 +2480,7 @@ public:
         if (hits + ++misses > (glyphs.size() << 4))
         {
             if (misses * 2 > hits)
-            {
-                for (int i = 32; --i >= 0;)
-                    glyphs.add (new CachedGlyph());
-            }
+                addNewGlyphSlots (32);
 
             hits = misses = 0;
             oldest = glyphs.getLast();
@@ -2500,6 +2496,12 @@ private:
     friend class OwnedArray <CachedGlyph>;
     OwnedArray <CachedGlyph> glyphs;
     int accessCounter, hits, misses;
+
+    void addNewGlyphSlots (int num)
+    {
+        while (--num >= 0)
+            glyphs.add (new CachedGlyph());
+    }
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (GlyphCache);
 };

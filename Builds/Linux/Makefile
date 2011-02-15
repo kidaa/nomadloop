@@ -12,7 +12,7 @@ ifeq ($(CONFIG),Debug)
   BINDIR := build
   LIBDIR := build
   OBJDIR := build/intermediate/Debug
-  OUTDIR := build
+  OUTDIR := ../../bin
   CPPFLAGS := $(DEPFLAGS) -D "LINUX=1" -D "DEBUG=1" -D "_DEBUG=1" -D "JUCER_LINUX_MAKE_7346DA2A=1" -I "/usr/include" -I "/usr/include/freetype2"
   CFLAGS += $(CPPFLAGS) $(TARGET_ARCH) -g -ggdb -O0
   CXXFLAGS += $(CFLAGS) 
@@ -27,7 +27,7 @@ ifeq ($(CONFIG),Release)
   BINDIR := build
   LIBDIR := build
   OBJDIR := build/intermediate/Release
-  OUTDIR := build
+  OUTDIR := ../../bin
   CPPFLAGS := $(DEPFLAGS) -D "LINUX=1" -D "NDEBUG=1" -D "JUCER_LINUX_MAKE_7346DA2A=1" -I "/usr/include" -I "/usr/include/freetype2"
   CFLAGS += $(CPPFLAGS) $(TARGET_ARCH) -Os
   CXXFLAGS += $(CFLAGS) 
@@ -171,6 +171,7 @@ OBJECTS := \
   $(OBJDIR)/juce_ModifierKeys_eea16d64.o \
   $(OBJDIR)/juce_ComponentAnimator_ad5663d2.o \
   $(OBJDIR)/juce_ComponentBoundsConstrainer_a33c10ae.o \
+  $(OBJDIR)/juce_ComponentBuilder_2aa6c5a.o \
   $(OBJDIR)/juce_ComponentMovementWatcher_cbb3e7cc.o \
   $(OBJDIR)/juce_GroupComponent_456e237a.o \
   $(OBJDIR)/juce_MultiDocumentPanel_50e05aac.o \
@@ -192,9 +193,15 @@ OBJECTS := \
   $(OBJDIR)/juce_DragAndDropContainer_553e412.o \
   $(OBJDIR)/juce_MouseCursor_afb68802.o \
   $(OBJDIR)/juce_MouseEvent_f6ca6078.o \
-  $(OBJDIR)/juce_MouseHoverDetector_d4af7a00.o \
   $(OBJDIR)/juce_MouseInputSource_8904aa23.o \
   $(OBJDIR)/juce_MouseListener_eb73f8a0.o \
+  $(OBJDIR)/juce_MarkerList_2fbb4ef.o \
+  $(OBJDIR)/juce_RelativeCoordinate_ab2eee5b.o \
+  $(OBJDIR)/juce_RelativeCoordinatePositioner_c1352791.o \
+  $(OBJDIR)/juce_RelativeParallelogram_5d17dbe6.o \
+  $(OBJDIR)/juce_RelativePoint_9d2cc957.o \
+  $(OBJDIR)/juce_RelativePointPath_a4fed61c.o \
+  $(OBJDIR)/juce_RelativeRectangle_cc5440b6.o \
   $(OBJDIR)/juce_BooleanPropertyComponent_92b54aa5.o \
   $(OBJDIR)/juce_ButtonPropertyComponent_3675d6bb.o \
   $(OBJDIR)/juce_ChoicePropertyComponent_b9b44bac.o \
@@ -207,7 +214,6 @@ OBJECTS := \
   $(OBJDIR)/juce_BubbleMessageComponent_22f737f9.o \
   $(OBJDIR)/juce_ColourSelector_ac8bb1e2.o \
   $(OBJDIR)/juce_DropShadower_5903f9f3.o \
-  $(OBJDIR)/juce_MagnifierComponent_58d7efb6.o \
   $(OBJDIR)/juce_MidiKeyboardComponent_896e2ac8.o \
   $(OBJDIR)/juce_OpenGLComponent_73944221.o \
   $(OBJDIR)/juce_PreferencesPanel_dbc7d503.o \
@@ -247,13 +253,10 @@ OBJECTS := \
   $(OBJDIR)/juce_TextLayout_d18f700e.o \
   $(OBJDIR)/juce_Typeface_34b3026e.o \
   $(OBJDIR)/juce_AffineTransform_4a320188.o \
-  $(OBJDIR)/juce_BorderSize_bf140c3c.o \
   $(OBJDIR)/juce_Path_dcdd4594.o \
   $(OBJDIR)/juce_PathIterator_4e116c22.o \
   $(OBJDIR)/juce_PathStrokeType_506dcb86.o \
-  $(OBJDIR)/juce_PositionedRectangle_1b6e8982.o \
   $(OBJDIR)/juce_RectangleList_b6ae7ee8.o \
-  $(OBJDIR)/juce_RelativeCoordinate_23fb9d3.o \
   $(OBJDIR)/juce_GIFLoader_61887b90.o \
   $(OBJDIR)/juce_JPEGLoader_412d2ccc.o \
   $(OBJDIR)/juce_PNGLoader_7f80a3b5.o \
@@ -285,8 +288,6 @@ OBJECTS := \
   $(OBJDIR)/juce_Expression_6f910d50.o \
   $(OBJDIR)/juce_Random_a529cb7b.o \
   $(OBJDIR)/juce_MemoryBlock_52f17c52.o \
-  $(OBJDIR)/juce_linux_NativeCode_b464a4a9.o \
-  $(OBJDIR)/juce_win32_NativeCode_2eaaf382.o \
   $(OBJDIR)/juce_posix_NamedPipe_aa308c65.o \
   $(OBJDIR)/juce_linux_Audio_18d7e8b6.o \
   $(OBJDIR)/juce_linux_AudioCDReader_1263363a.o \
@@ -297,12 +298,13 @@ OBJECTS := \
   $(OBJDIR)/juce_linux_JackAudio_15353e17.o \
   $(OBJDIR)/juce_linux_Messaging_daefaf64.o \
   $(OBJDIR)/juce_linux_Midi_4bad86cb.o \
+  $(OBJDIR)/juce_linux_NativeCode_8a61cd0e.o \
   $(OBJDIR)/juce_linux_Network_f47a1c4e.o \
   $(OBJDIR)/juce_linux_SystemStats_9f6d6b50.o \
   $(OBJDIR)/juce_linux_Threads_dc4a4049.o \
   $(OBJDIR)/juce_linux_WebBrowserComponent_358c0a49.o \
   $(OBJDIR)/juce_linux_Windowing_abe04752.o \
-  $(OBJDIR)/juce_iphone_Audio_b1189916.o \
+  $(OBJDIR)/juce_ios_Audio_40e86914.o \
   $(OBJDIR)/juce_mac_CoreAudio_faf8c177.o \
   $(OBJDIR)/juce_mac_CoreMidi_e79e11ea.o \
   $(OBJDIR)/juce_win32_ActiveXComponent_7590131d.o \
@@ -318,6 +320,7 @@ OBJECTS := \
   $(OBJDIR)/juce_win32_Messaging_926ab77c.o \
   $(OBJDIR)/juce_win32_Midi_fac3cfb3.o \
   $(OBJDIR)/juce_win32_Misc_1407f3fe.o \
+  $(OBJDIR)/juce_win32_NativeCode_c247c7f6.o \
   $(OBJDIR)/juce_win32_Network_6c84a66.o \
   $(OBJDIR)/juce_win32_OpenGLComponent_d0d99a46.o \
   $(OBJDIR)/juce_win32_PlatformUtils_73e7e1f6.o \
@@ -327,6 +330,22 @@ OBJECTS := \
   $(OBJDIR)/juce_win32_WASAPI_c7c6c3c3.o \
   $(OBJDIR)/juce_win32_WebBrowserComponent_2a4dd461.o \
   $(OBJDIR)/juce_win32_Windowing_635b4f6a.o \
+  $(OBJDIR)/juce_android_Audio_93f83bd6.o \
+  $(OBJDIR)/juce_android_CameraDevice_d2743865.o \
+  $(OBJDIR)/juce_android_FileChooser_205cbb5f.o \
+  $(OBJDIR)/juce_android_Files_3b5721f7.o \
+  $(OBJDIR)/juce_android_Fonts_2e035704.o \
+  $(OBJDIR)/juce_android_GraphicsContext_d0fb27e4.o \
+  $(OBJDIR)/juce_android_Messaging_59717284.o \
+  $(OBJDIR)/juce_android_Midi_4fa64fab.o \
+  $(OBJDIR)/juce_android_Misc_68ea73f6.o \
+  $(OBJDIR)/juce_android_NativeCode_dc186dee.o \
+  $(OBJDIR)/juce_android_Network_28d2276e.o \
+  $(OBJDIR)/juce_android_OpenGLComponent_8fd9ef4e.o \
+  $(OBJDIR)/juce_android_SystemStats_848ae670.o \
+  $(OBJDIR)/juce_android_Threads_10a24b69.o \
+  $(OBJDIR)/juce_android_WebBrowserComponent_178c6569.o \
+  $(OBJDIR)/juce_android_Windowing_2a620a72.o \
   $(OBJDIR)/juce_CharacterFunctions_b1a5ac62.o \
   $(OBJDIR)/juce_Identifier_e99ee619.o \
   $(OBJDIR)/juce_LocalisedStrings_3ddfa55e.o \
@@ -1022,6 +1041,11 @@ $(OBJDIR)/juce_ComponentBoundsConstrainer_a33c10ae.o: ../../src/gui/components/l
 	@echo "Compiling juce_ComponentBoundsConstrainer.cpp"
 	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 
+$(OBJDIR)/juce_ComponentBuilder_2aa6c5a.o: ../../src/gui/components/layout/juce_ComponentBuilder.cpp
+	-@mkdir -p $(OBJDIR)
+	@echo "Compiling juce_ComponentBuilder.cpp"
+	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
+
 $(OBJDIR)/juce_ComponentMovementWatcher_cbb3e7cc.o: ../../src/gui/components/layout/juce_ComponentMovementWatcher.cpp
 	-@mkdir -p $(OBJDIR)
 	@echo "Compiling juce_ComponentMovementWatcher.cpp"
@@ -1127,11 +1151,6 @@ $(OBJDIR)/juce_MouseEvent_f6ca6078.o: ../../src/gui/components/mouse/juce_MouseE
 	@echo "Compiling juce_MouseEvent.cpp"
 	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 
-$(OBJDIR)/juce_MouseHoverDetector_d4af7a00.o: ../../src/gui/components/mouse/juce_MouseHoverDetector.cpp
-	-@mkdir -p $(OBJDIR)
-	@echo "Compiling juce_MouseHoverDetector.cpp"
-	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
-
 $(OBJDIR)/juce_MouseInputSource_8904aa23.o: ../../src/gui/components/mouse/juce_MouseInputSource.cpp
 	-@mkdir -p $(OBJDIR)
 	@echo "Compiling juce_MouseInputSource.cpp"
@@ -1140,6 +1159,41 @@ $(OBJDIR)/juce_MouseInputSource_8904aa23.o: ../../src/gui/components/mouse/juce_
 $(OBJDIR)/juce_MouseListener_eb73f8a0.o: ../../src/gui/components/mouse/juce_MouseListener.cpp
 	-@mkdir -p $(OBJDIR)
 	@echo "Compiling juce_MouseListener.cpp"
+	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
+
+$(OBJDIR)/juce_MarkerList_2fbb4ef.o: ../../src/gui/components/positioning/juce_MarkerList.cpp
+	-@mkdir -p $(OBJDIR)
+	@echo "Compiling juce_MarkerList.cpp"
+	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
+
+$(OBJDIR)/juce_RelativeCoordinate_ab2eee5b.o: ../../src/gui/components/positioning/juce_RelativeCoordinate.cpp
+	-@mkdir -p $(OBJDIR)
+	@echo "Compiling juce_RelativeCoordinate.cpp"
+	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
+
+$(OBJDIR)/juce_RelativeCoordinatePositioner_c1352791.o: ../../src/gui/components/positioning/juce_RelativeCoordinatePositioner.cpp
+	-@mkdir -p $(OBJDIR)
+	@echo "Compiling juce_RelativeCoordinatePositioner.cpp"
+	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
+
+$(OBJDIR)/juce_RelativeParallelogram_5d17dbe6.o: ../../src/gui/components/positioning/juce_RelativeParallelogram.cpp
+	-@mkdir -p $(OBJDIR)
+	@echo "Compiling juce_RelativeParallelogram.cpp"
+	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
+
+$(OBJDIR)/juce_RelativePoint_9d2cc957.o: ../../src/gui/components/positioning/juce_RelativePoint.cpp
+	-@mkdir -p $(OBJDIR)
+	@echo "Compiling juce_RelativePoint.cpp"
+	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
+
+$(OBJDIR)/juce_RelativePointPath_a4fed61c.o: ../../src/gui/components/positioning/juce_RelativePointPath.cpp
+	-@mkdir -p $(OBJDIR)
+	@echo "Compiling juce_RelativePointPath.cpp"
+	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
+
+$(OBJDIR)/juce_RelativeRectangle_cc5440b6.o: ../../src/gui/components/positioning/juce_RelativeRectangle.cpp
+	-@mkdir -p $(OBJDIR)
+	@echo "Compiling juce_RelativeRectangle.cpp"
 	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 
 $(OBJDIR)/juce_BooleanPropertyComponent_92b54aa5.o: ../../src/gui/components/properties/juce_BooleanPropertyComponent.cpp
@@ -1200,11 +1254,6 @@ $(OBJDIR)/juce_ColourSelector_ac8bb1e2.o: ../../src/gui/components/special/juce_
 $(OBJDIR)/juce_DropShadower_5903f9f3.o: ../../src/gui/components/special/juce_DropShadower.cpp
 	-@mkdir -p $(OBJDIR)
 	@echo "Compiling juce_DropShadower.cpp"
-	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
-
-$(OBJDIR)/juce_MagnifierComponent_58d7efb6.o: ../../src/gui/components/special/juce_MagnifierComponent.cpp
-	-@mkdir -p $(OBJDIR)
-	@echo "Compiling juce_MagnifierComponent.cpp"
 	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 
 $(OBJDIR)/juce_MidiKeyboardComponent_896e2ac8.o: ../../src/gui/components/special/juce_MidiKeyboardComponent.cpp
@@ -1402,11 +1451,6 @@ $(OBJDIR)/juce_AffineTransform_4a320188.o: ../../src/gui/graphics/geometry/juce_
 	@echo "Compiling juce_AffineTransform.cpp"
 	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 
-$(OBJDIR)/juce_BorderSize_bf140c3c.o: ../../src/gui/graphics/geometry/juce_BorderSize.cpp
-	-@mkdir -p $(OBJDIR)
-	@echo "Compiling juce_BorderSize.cpp"
-	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
-
 $(OBJDIR)/juce_Path_dcdd4594.o: ../../src/gui/graphics/geometry/juce_Path.cpp
 	-@mkdir -p $(OBJDIR)
 	@echo "Compiling juce_Path.cpp"
@@ -1422,19 +1466,9 @@ $(OBJDIR)/juce_PathStrokeType_506dcb86.o: ../../src/gui/graphics/geometry/juce_P
 	@echo "Compiling juce_PathStrokeType.cpp"
 	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 
-$(OBJDIR)/juce_PositionedRectangle_1b6e8982.o: ../../src/gui/graphics/geometry/juce_PositionedRectangle.cpp
-	-@mkdir -p $(OBJDIR)
-	@echo "Compiling juce_PositionedRectangle.cpp"
-	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
-
 $(OBJDIR)/juce_RectangleList_b6ae7ee8.o: ../../src/gui/graphics/geometry/juce_RectangleList.cpp
 	-@mkdir -p $(OBJDIR)
 	@echo "Compiling juce_RectangleList.cpp"
-	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
-
-$(OBJDIR)/juce_RelativeCoordinate_23fb9d3.o: ../../src/gui/graphics/geometry/juce_RelativeCoordinate.cpp
-	-@mkdir -p $(OBJDIR)
-	@echo "Compiling juce_RelativeCoordinate.cpp"
 	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 
 $(OBJDIR)/juce_GIFLoader_61887b90.o: ../../src/gui/graphics/imaging/image_file_formats/juce_GIFLoader.cpp
@@ -1592,16 +1626,6 @@ $(OBJDIR)/juce_MemoryBlock_52f17c52.o: ../../src/memory/juce_MemoryBlock.cpp
 	@echo "Compiling juce_MemoryBlock.cpp"
 	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 
-$(OBJDIR)/juce_linux_NativeCode_b464a4a9.o: ../../src/native/juce_linux_NativeCode.cpp
-	-@mkdir -p $(OBJDIR)
-	@echo "Compiling juce_linux_NativeCode.cpp"
-	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
-
-$(OBJDIR)/juce_win32_NativeCode_2eaaf382.o: ../../src/native/juce_win32_NativeCode.cpp
-	-@mkdir -p $(OBJDIR)
-	@echo "Compiling juce_win32_NativeCode.cpp"
-	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
-
 $(OBJDIR)/juce_posix_NamedPipe_aa308c65.o: ../../src/native/common/juce_posix_NamedPipe.cpp
 	-@mkdir -p $(OBJDIR)
 	@echo "Compiling juce_posix_NamedPipe.cpp"
@@ -1652,6 +1676,11 @@ $(OBJDIR)/juce_linux_Midi_4bad86cb.o: ../../src/native/linux/juce_linux_Midi.cpp
 	@echo "Compiling juce_linux_Midi.cpp"
 	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 
+$(OBJDIR)/juce_linux_NativeCode_8a61cd0e.o: ../../src/native/linux/juce_linux_NativeCode.cpp
+	-@mkdir -p $(OBJDIR)
+	@echo "Compiling juce_linux_NativeCode.cpp"
+	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
+
 $(OBJDIR)/juce_linux_Network_f47a1c4e.o: ../../src/native/linux/juce_linux_Network.cpp
 	-@mkdir -p $(OBJDIR)
 	@echo "Compiling juce_linux_Network.cpp"
@@ -1677,9 +1706,9 @@ $(OBJDIR)/juce_linux_Windowing_abe04752.o: ../../src/native/linux/juce_linux_Win
 	@echo "Compiling juce_linux_Windowing.cpp"
 	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 
-$(OBJDIR)/juce_iphone_Audio_b1189916.o: ../../src/native/mac/juce_iphone_Audio.cpp
+$(OBJDIR)/juce_ios_Audio_40e86914.o: ../../src/native/mac/juce_ios_Audio.cpp
 	-@mkdir -p $(OBJDIR)
-	@echo "Compiling juce_iphone_Audio.cpp"
+	@echo "Compiling juce_ios_Audio.cpp"
 	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 
 $(OBJDIR)/juce_mac_CoreAudio_faf8c177.o: ../../src/native/mac/juce_mac_CoreAudio.cpp
@@ -1757,6 +1786,11 @@ $(OBJDIR)/juce_win32_Misc_1407f3fe.o: ../../src/native/windows/juce_win32_Misc.c
 	@echo "Compiling juce_win32_Misc.cpp"
 	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 
+$(OBJDIR)/juce_win32_NativeCode_c247c7f6.o: ../../src/native/windows/juce_win32_NativeCode.cpp
+	-@mkdir -p $(OBJDIR)
+	@echo "Compiling juce_win32_NativeCode.cpp"
+	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
+
 $(OBJDIR)/juce_win32_Network_6c84a66.o: ../../src/native/windows/juce_win32_Network.cpp
 	-@mkdir -p $(OBJDIR)
 	@echo "Compiling juce_win32_Network.cpp"
@@ -1800,6 +1834,86 @@ $(OBJDIR)/juce_win32_WebBrowserComponent_2a4dd461.o: ../../src/native/windows/ju
 $(OBJDIR)/juce_win32_Windowing_635b4f6a.o: ../../src/native/windows/juce_win32_Windowing.cpp
 	-@mkdir -p $(OBJDIR)
 	@echo "Compiling juce_win32_Windowing.cpp"
+	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
+
+$(OBJDIR)/juce_android_Audio_93f83bd6.o: ../../src/native/android/juce_android_Audio.cpp
+	-@mkdir -p $(OBJDIR)
+	@echo "Compiling juce_android_Audio.cpp"
+	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
+
+$(OBJDIR)/juce_android_CameraDevice_d2743865.o: ../../src/native/android/juce_android_CameraDevice.cpp
+	-@mkdir -p $(OBJDIR)
+	@echo "Compiling juce_android_CameraDevice.cpp"
+	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
+
+$(OBJDIR)/juce_android_FileChooser_205cbb5f.o: ../../src/native/android/juce_android_FileChooser.cpp
+	-@mkdir -p $(OBJDIR)
+	@echo "Compiling juce_android_FileChooser.cpp"
+	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
+
+$(OBJDIR)/juce_android_Files_3b5721f7.o: ../../src/native/android/juce_android_Files.cpp
+	-@mkdir -p $(OBJDIR)
+	@echo "Compiling juce_android_Files.cpp"
+	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
+
+$(OBJDIR)/juce_android_Fonts_2e035704.o: ../../src/native/android/juce_android_Fonts.cpp
+	-@mkdir -p $(OBJDIR)
+	@echo "Compiling juce_android_Fonts.cpp"
+	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
+
+$(OBJDIR)/juce_android_GraphicsContext_d0fb27e4.o: ../../src/native/android/juce_android_GraphicsContext.cpp
+	-@mkdir -p $(OBJDIR)
+	@echo "Compiling juce_android_GraphicsContext.cpp"
+	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
+
+$(OBJDIR)/juce_android_Messaging_59717284.o: ../../src/native/android/juce_android_Messaging.cpp
+	-@mkdir -p $(OBJDIR)
+	@echo "Compiling juce_android_Messaging.cpp"
+	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
+
+$(OBJDIR)/juce_android_Midi_4fa64fab.o: ../../src/native/android/juce_android_Midi.cpp
+	-@mkdir -p $(OBJDIR)
+	@echo "Compiling juce_android_Midi.cpp"
+	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
+
+$(OBJDIR)/juce_android_Misc_68ea73f6.o: ../../src/native/android/juce_android_Misc.cpp
+	-@mkdir -p $(OBJDIR)
+	@echo "Compiling juce_android_Misc.cpp"
+	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
+
+$(OBJDIR)/juce_android_NativeCode_dc186dee.o: ../../src/native/android/juce_android_NativeCode.cpp
+	-@mkdir -p $(OBJDIR)
+	@echo "Compiling juce_android_NativeCode.cpp"
+	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
+
+$(OBJDIR)/juce_android_Network_28d2276e.o: ../../src/native/android/juce_android_Network.cpp
+	-@mkdir -p $(OBJDIR)
+	@echo "Compiling juce_android_Network.cpp"
+	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
+
+$(OBJDIR)/juce_android_OpenGLComponent_8fd9ef4e.o: ../../src/native/android/juce_android_OpenGLComponent.cpp
+	-@mkdir -p $(OBJDIR)
+	@echo "Compiling juce_android_OpenGLComponent.cpp"
+	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
+
+$(OBJDIR)/juce_android_SystemStats_848ae670.o: ../../src/native/android/juce_android_SystemStats.cpp
+	-@mkdir -p $(OBJDIR)
+	@echo "Compiling juce_android_SystemStats.cpp"
+	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
+
+$(OBJDIR)/juce_android_Threads_10a24b69.o: ../../src/native/android/juce_android_Threads.cpp
+	-@mkdir -p $(OBJDIR)
+	@echo "Compiling juce_android_Threads.cpp"
+	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
+
+$(OBJDIR)/juce_android_WebBrowserComponent_178c6569.o: ../../src/native/android/juce_android_WebBrowserComponent.cpp
+	-@mkdir -p $(OBJDIR)
+	@echo "Compiling juce_android_WebBrowserComponent.cpp"
+	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
+
+$(OBJDIR)/juce_android_Windowing_2a620a72.o: ../../src/native/android/juce_android_Windowing.cpp
+	-@mkdir -p $(OBJDIR)
+	@echo "Compiling juce_android_Windowing.cpp"
 	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 
 $(OBJDIR)/juce_CharacterFunctions_b1a5ac62.o: ../../src/text/juce_CharacterFunctions.cpp

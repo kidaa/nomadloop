@@ -65,8 +65,10 @@
   #include "../src/native/windows/juce_win32_NativeIncludes.h"
  #elif JUCE_LINUX
   #include "../src/native/linux/juce_linux_NativeIncludes.h"
- #elif JUCE_MAC || JUCE_IPHONE
+ #elif JUCE_MAC || JUCE_IOS
   #include "../src/native/mac/juce_mac_NativeIncludes.h"
+ #elif JUCE_ANDROID
+  #include "../src/native/android/juce_android_NativeIncludes.h"
  #else
   #error "Unknown platform!"
  #endif
@@ -77,6 +79,8 @@
 #undef max
 #undef min
 #define NO_DUMMY_DECL
+
+#define JUCE_AMALGAMATED_TEMPLATE 1
 
 #if JUCE_BUILD_NATIVE
  #include "../juce_amalgamated.h"  // FORCE_AMALGAMATOR_INCLUDE
@@ -91,8 +95,6 @@
  #include "../src/native/mac/juce_mac_CarbonViewWrapperComponent.h"
  END_JUCE_NAMESPACE
 #endif
-
-#define JUCE_AMALGAMATED_TEMPLATE 1
 
 //==============================================================================
 #if JUCE_BUILD_CORE
@@ -148,8 +150,6 @@
  #include "../src/threads/juce_Thread.cpp"
  #include "../src/threads/juce_ThreadPool.cpp"
  #include "../src/threads/juce_TimeSliceThread.cpp"
- #include "../src/utilities/juce_DeletedAtShutdown.cpp"
- #include "../src/utilities/juce_UnitTest.cpp"
 #endif
 
 #if JUCE_BUILD_MISC
@@ -164,6 +164,8 @@
  #include "../src/utilities/juce_FileBasedDocument.cpp"
  #include "../src/utilities/juce_RecentlyOpenedFilesList.cpp"
  #include "../src/utilities/juce_UndoManager.cpp"
+ #include "../src/utilities/juce_UnitTest.cpp"
+ #include "../src/utilities/juce_DeletedAtShutdown.cpp"
  #include "../src/audio/audio_file_formats/juce_AiffAudioFormat.cpp"
  #include "../src/audio/audio_file_formats/juce_AudioFormat.cpp"
  #include "../src/audio/audio_file_formats/juce_AudioFormatReader.cpp"
@@ -273,6 +275,7 @@
  #include "../src/gui/components/keyboard/juce_KeyPressMappingSet.cpp"
  #include "../src/gui/components/keyboard/juce_ModifierKeys.cpp"
  #include "../src/gui/components/layout/juce_ComponentAnimator.cpp"
+ #include "../src/gui/components/layout/juce_ComponentBuilder.cpp"
  #include "../src/gui/components/layout/juce_ComponentBoundsConstrainer.cpp"
  #include "../src/gui/components/layout/juce_ComponentMovementWatcher.cpp"
  #include "../src/gui/components/layout/juce_GroupComponent.cpp"
@@ -296,7 +299,6 @@
  #include "../src/gui/components/mouse/juce_MouseCursor.cpp"
  #include "../src/gui/components/mouse/juce_MouseEvent.cpp"
  #include "../src/gui/components/mouse/juce_MouseInputSource.cpp"
- #include "../src/gui/components/mouse/juce_MouseHoverDetector.cpp"
  #include "../src/gui/components/mouse/juce_MouseListener.cpp"
  #include "../src/gui/components/properties/juce_BooleanPropertyComponent.cpp"
  #include "../src/gui/components/properties/juce_ButtonPropertyComponent.cpp"
@@ -310,7 +312,6 @@
  #include "../src/gui/components/special/juce_BubbleMessageComponent.cpp"
  #include "../src/gui/components/special/juce_ColourSelector.cpp"
  #include "../src/gui/components/special/juce_DropShadower.cpp"
- #include "../src/gui/components/special/juce_MagnifierComponent.cpp"
  #include "../src/gui/components/special/juce_MidiKeyboardComponent.cpp"
  #include "../src/gui/components/special/juce_OpenGLComponent.cpp"
  #include "../src/gui/components/special/juce_PreferencesPanel.cpp"
@@ -325,7 +326,13 @@
  #include "../src/gui/components/windows/juce_ThreadWithProgressWindow.cpp"
  #include "../src/gui/components/windows/juce_TooltipWindow.cpp"
  #include "../src/gui/components/windows/juce_TopLevelWindow.cpp"
- #include "../src/gui/graphics/geometry/juce_RelativeCoordinate.cpp"
+ #include "../src/gui/components/positioning/juce_MarkerList.cpp"
+ #include "../src/gui/components/positioning/juce_RelativeCoordinate.cpp"
+ #include "../src/gui/components/positioning/juce_RelativePoint.cpp"
+ #include "../src/gui/components/positioning/juce_RelativeRectangle.cpp"
+ #include "../src/gui/components/positioning/juce_RelativePointPath.cpp"
+ #include "../src/gui/components/positioning/juce_RelativeParallelogram.cpp"
+ #include "../src/gui/components/positioning/juce_RelativeCoordinatePositioner.cpp"
 #endif
 
 #if JUCE_BUILD_MISC  // (put these in misc to balance the file sizes and avoid problems in iphone build)
@@ -354,11 +361,9 @@
  #include "../src/gui/graphics/fonts/juce_TextLayout.cpp"
  #include "../src/gui/graphics/fonts/juce_Typeface.cpp"
  #include "../src/gui/graphics/geometry/juce_AffineTransform.cpp"
- #include "../src/gui/graphics/geometry/juce_BorderSize.cpp"
  #include "../src/gui/graphics/geometry/juce_Path.cpp"
  #include "../src/gui/graphics/geometry/juce_PathIterator.cpp"
  #include "../src/gui/graphics/geometry/juce_PathStrokeType.cpp"
- #include "../src/gui/graphics/geometry/juce_PositionedRectangle.cpp"
  #include "../src/gui/graphics/geometry/juce_RectangleList.cpp"
  #include "../src/gui/graphics/imaging/juce_Image.cpp"
  #include "../src/gui/graphics/imaging/juce_ImageCache.cpp"
@@ -395,14 +400,12 @@
  END_JUCE_NAMESPACE
 
  #if JUCE_WINDOWS
-  #include "../src/native/juce_win32_NativeCode.cpp"
- #endif
-
- #if JUCE_LINUX
-  #include "../src/native/juce_linux_NativeCode.cpp"
- #endif
-
- #if JUCE_MAC || JUCE_IPHONE
-  #include "../src/native/juce_mac_NativeCode.mm"
+  #include "../src/native/windows/juce_win32_NativeCode.cpp"
+ #elif JUCE_LINUX
+  #include "../src/native/linux/juce_linux_NativeCode.cpp"
+ #elif JUCE_MAC || JUCE_IOS
+  #include "../src/native/mac/juce_mac_NativeCode.mm"
+ #elif JUCE_ANDROID
+  #include "../src/native/android/juce_android_NativeCode.cpp"
  #endif
 #endif

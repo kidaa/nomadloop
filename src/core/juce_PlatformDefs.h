@@ -98,9 +98,7 @@
     #endif
   #elif JUCE_MAC
     #define juce_breakDebugger              Debugger();
-  #elif JUCE_IOS
-    #define juce_breakDebugger              kill (0, SIGTRAP);
-  #elif JUCE_LINUX
+  #elif JUCE_IOS || JUCE_LINUX || JUCE_ANDROID
     #define juce_breakDebugger              kill (0, SIGTRAP);
   #endif
 
@@ -145,15 +143,17 @@
 
 //==============================================================================
 #ifndef DOXYGEN
+  BEGIN_JUCE_NAMESPACE
   template <bool b> struct JuceStaticAssert;
   template <> struct JuceStaticAssert <true> { static void dummy() {} };
+  END_JUCE_NAMESPACE
 #endif
 
 /** A compile-time assertion macro.
 
     If the expression parameter is false, the macro will cause a compile error.
 */
-#define static_jassert(expression)      JuceStaticAssert<expression>::dummy();
+#define static_jassert(expression)      JUCE_NAMESPACE::JuceStaticAssert<expression>::dummy();
 
 /** This is a shorthand macro for declaring stubs for a class's copy constructor and
     operator=.
@@ -182,13 +182,13 @@
 */
 #define JUCE_DECLARE_NON_COPYABLE(className) \
     className (const className&);\
-    className& operator= (const className&);
+    className& operator= (const className&)
 
 /** This is a shorthand way of writing both a JUCE_DECLARE_NON_COPYABLE and
     JUCE_LEAK_DETECTOR macro for a class.
 */
 #define JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(className) \
-    JUCE_DECLARE_NON_COPYABLE(className)\
+    JUCE_DECLARE_NON_COPYABLE(className);\
     JUCE_LEAK_DETECTOR(className)
 
 
@@ -281,6 +281,17 @@
 #else
  #define JUCE_DEPRECATED(functionDef)     functionDef
 #endif
+
+//==============================================================================
+#if JUCE_ANDROID && ! DOXYGEN
+ #define JUCE_MODAL_LOOPS_PERMITTED 0
+#else
+ /** Some operating environments don't provide a modal loop mechanism, so this flag can be
+     used to disable any functions that try to run a modal loop.
+ */
+ #define JUCE_MODAL_LOOPS_PERMITTED 1
+#endif
+
 
 
 #endif   // __JUCE_PLATFORMDEFS_JUCEHEADER__

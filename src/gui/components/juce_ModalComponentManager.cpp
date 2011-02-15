@@ -32,43 +32,39 @@ BEGIN_JUCE_NAMESPACE
 #include "windows/juce_ComponentPeer.h"
 #include "../../events/juce_MessageManager.h"
 #include "../../application/juce_Application.h"
+#include "layout/juce_ComponentMovementWatcher.h"
 
 
 //==============================================================================
-class ModalComponentManager::ModalItem  : public ComponentListener
+class ModalComponentManager::ModalItem  : public ComponentMovementWatcher
 {
 public:
-    ModalItem (Component* const comp, Callback* const callback)
-        : component (comp), returnValue (0), isActive (true), isDeleted (false)
+    ModalItem (Component* const comp)
+        : ComponentMovementWatcher (comp),
+          component (comp), returnValue (0), isActive (true)
     {
-        if (callback != 0)
-            callbacks.add (callback);
-
         jassert (comp != 0);
-        component->addComponentListener (this);
     }
 
-    ~ModalItem()
-    {
-        if (! isDeleted)
-            component->removeComponentListener (this);
-    }
+    void componentMovedOrResized (bool, bool) {}
 
-    void componentBeingDeleted (Component&)
-    {
-        isDeleted = true;
-        cancel();
-    }
-
-    void componentVisibilityChanged (Component&)
+    void componentPeerChanged()
     {
         if (! component->isShowing())
             cancel();
     }
 
-    void componentParentHierarchyChanged (Component&)
+    void componentVisibilityChanged()
     {
         if (! component->isShowing())
+            cancel();
+    }
+
+    void componentBeingDeleted (Component& comp)
+    {
+        ComponentMovementWatcher::componentBeingDeleted (comp);
+
+        if (component == &comp || comp.isParentOf (component))
             cancel();
     }
 
@@ -84,7 +80,7 @@ public:
     Component* component;
     OwnedArray<Callback> callbacks;
     int returnValue;
-    bool isActive, isDeleted;
+    bool isActive;
 
 private:
     JUCE_DECLARE_NON_COPYABLE (ModalItem);
@@ -104,10 +100,10 @@ juce_ImplementSingleton_SingleThreaded (ModalComponentManager);
 
 
 //==============================================================================
-void ModalComponentManager::startModal (Component* component, Callback* callback)
+void ModalComponentManager::startModal (Component* component)
 {
     if (component != 0)
-        stack.add (new ModalItem (component, callback));
+        stack.add (new ModalItem (component));
 }
 
 void ModalComponentManager::attachCallback (Component* component, Callback* callback)
@@ -201,12 +197,13 @@ void ModalComponentManager::handleAsyncUpdate()
     for (int i = stack.size(); --i >= 0;)
     {
         const ModalItem* const item = stack.getUnchecked(i);
+
         if (! item->isActive)
         {
+            ScopedPointer<ModalItem> item (stack.removeAndReturn (i));
+
             for (int j = item->callbacks.size(); --j >= 0;)
                 item->callbacks.getUnchecked(j)->modalStateFinished (item->returnValue);
-
-            stack.remove (i);
         }
     }
 }
@@ -239,11 +236,11 @@ void ModalComponentManager::bringModalComponentsToFront()
     }
 }
 
+#if JUCE_MODAL_LOOPS_PERMITTED
 class ModalComponentManager::ReturnValueRetriever     : public ModalComponentManager::Callback
 {
 public:
     ReturnValueRetriever (int& value_, bool& finished_) : value (value_), finished (finished_) {}
-    ~ReturnValueRetriever() {}
 
     void modalStateFinished (int returnValue)
     {
@@ -289,6 +286,6 @@ int ModalComponentManager::runEventLoopForCurrentComponent()
 
     return returnValue;
 }
-
+#endif
 
 END_JUCE_NAMESPACE

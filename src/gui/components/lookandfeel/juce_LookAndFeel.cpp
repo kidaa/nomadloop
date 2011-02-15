@@ -685,6 +685,11 @@ int LookAndFeel::getAlertWindowButtonHeight()
     return 28;
 }
 
+const Font LookAndFeel::getAlertWindowMessageFont()
+{
+    return Font (15.0f);
+}
+
 const Font LookAndFeel::getAlertWindowFont()
 {
     return Font (12.0f);
@@ -1815,7 +1820,7 @@ void LookAndFeel::drawCornerResizer (Graphics& g,
     }
 }
 
-void LookAndFeel::drawResizableFrame (Graphics& g, int w, int h, const BorderSize& border)
+void LookAndFeel::drawResizableFrame (Graphics& g, int w, int h, const BorderSize<int>& border)
 {
     if (! border.isEmpty())
     {
@@ -1838,13 +1843,13 @@ void LookAndFeel::drawResizableFrame (Graphics& g, int w, int h, const BorderSiz
 
 //==============================================================================
 void LookAndFeel::fillResizableWindowBackground (Graphics& g, int /*w*/, int /*h*/,
-                                                 const BorderSize& /*border*/, ResizableWindow& window)
+                                                 const BorderSize<int>& /*border*/, ResizableWindow& window)
 {
    g.fillAll (window.getBackgroundColour());
 }
 
 void LookAndFeel::drawResizableWindowBorder (Graphics&, int /*w*/, int /*h*/,
-                                             const BorderSize& /*border*/, ResizableWindow&)
+                                             const BorderSize<int>& /*border*/, ResizableWindow&)
 {
 }
 
@@ -2446,14 +2451,14 @@ Button* LookAndFeel::createTabBarExtrasButton()
     dp.setFill (Colour (0x59000000));
 
     DrawableComposite normalImage;
-    normalImage.insertDrawable (ellipse);
-    normalImage.insertDrawable (dp);
+    normalImage.addAndMakeVisible (ellipse.createCopy());
+    normalImage.addAndMakeVisible (dp.createCopy());
 
     dp.setFill (Colour (0xcc000000));
 
     DrawableComposite overImage;
-    overImage.insertDrawable (ellipse);
-    overImage.insertDrawable (dp);
+    overImage.addAndMakeVisible (ellipse.createCopy());
+    overImage.addAndMakeVisible (dp.createCopy());
 
     DrawableButton* db = new DrawableButton ("tabs", DrawableButton::ImageFitted);
     db->setImages (&normalImage, &overImage, 0);

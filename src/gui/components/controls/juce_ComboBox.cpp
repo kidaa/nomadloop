@@ -159,6 +159,12 @@ void ComboBox::setItemEnabled (const int itemId, const bool shouldBeEnabled)
         item->isEnabled = shouldBeEnabled;
 }
 
+bool ComboBox::isItemEnabled (int itemId) const throw()
+{
+    const ItemInfo* const item = getItemForId (itemId);
+    return item != 0 && item->isEnabled;
+}
+
 void ComboBox::changeItemText (const int itemId, const String& newText)
 {
     ItemInfo* const item = getItemForId (itemId);
@@ -287,6 +293,19 @@ void ComboBox::setSelectedId (const int newItemId, const bool dontSendChangeMess
 
         repaint();  // for the benefit of the 'none selected' text
     }
+}
+
+bool ComboBox::selectIfEnabled (const int index)
+{
+    const ItemInfo* const item = getItemForIndex (index);
+
+    if (item != 0 && item->isEnabled)
+    {
+        setSelectedItemIndex (index);
+        return true;
+    }
+
+    return false;
 }
 
 void ComboBox::valueChanged (Value&)
@@ -438,12 +457,20 @@ bool ComboBox::keyPressed (const KeyPress& key)
 {
     if (key.isKeyCode (KeyPress::upKey) || key.isKeyCode (KeyPress::leftKey))
     {
-        setSelectedItemIndex (jmax (0, getSelectedItemIndex() - 1));
+        int index = getSelectedItemIndex() - 1;
+
+        while (index >= 0 && ! selectIfEnabled (index))
+            --index;
+
         return true;
     }
     else if (key.isKeyCode (KeyPress::downKey) || key.isKeyCode (KeyPress::rightKey))
     {
-        setSelectedItemIndex (jmin (getSelectedItemIndex() + 1, getNumItems() - 1));
+        int index = getSelectedItemIndex() + 1;
+
+        while (index < getNumItems() && ! selectIfEnabled (index))
+            ++index;
+
         return true;
     }
     else if (key.isKeyCode (KeyPress::returnKey))
@@ -476,31 +503,16 @@ void ComboBox::labelTextChanged (Label*)
 
 
 //==============================================================================
-class ComboBox::Callback  : public ModalComponentManager::Callback
+void ComboBox::popupMenuFinishedCallback (int result, ComboBox* box)
 {
-public:
-    Callback (ComboBox* const box_)
-        : box (box_)
+    if (box != 0)
     {
+        box->menuActive = false;
+
+        if (result != 0)
+            box->setSelectedId (result);
     }
-
-    void modalStateFinished (int returnValue)
-    {
-        if (box != 0)
-        {
-            box->menuActive = false;
-
-            if (returnValue != 0)
-                box->setSelectedId (returnValue);
-        }
-    }
-
-private:
-    Component::SafePointer<ComboBox> box;
-
-    JUCE_DECLARE_NON_COPYABLE (Callback);
-};
-
+}
 
 void ComboBox::showPopup()
 {
@@ -528,8 +540,13 @@ void ComboBox::showPopup()
             menu.addItem (1, noChoicesMessage, false);
 
         menuActive = true;
-        menu.showAt (this, selectedId, getWidth(), 1, jlimit (12, 24, getHeight()),
-                     new Callback (this));
+
+        menu.showMenuAsync (PopupMenu::Options().withTargetComponent (this)
+                                                .withItemThatMustBeVisible (selectedId)
+                                                .withMinimumWidth (getWidth())
+                                                .withMaximumNumColumns (1)
+                                                .withStandardItemHeight (jlimit (12, 24, getHeight())),
+                            ModalCallbackFunction::forComponent (popupMenuFinishedCallback, this));
     }
 }
 

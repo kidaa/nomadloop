@@ -217,7 +217,17 @@ void Project::valueTreePropertyChanged (ValueTree& tree, const Identifier& prope
     changed();
 }
 
-void Project::valueTreeChildrenChanged (ValueTree& tree)
+void Project::valueTreeChildAdded (ValueTree& parentTree, ValueTree& childWhichHasBeenAdded)
+{
+    changed();
+}
+
+void Project::valueTreeChildRemoved (ValueTree& parentTree, ValueTree& childWhichHasBeenRemoved)
+{
+    changed();
+}
+
+void Project::valueTreeChildOrderChanged (ValueTree& parentTree)
 {
     changed();
 }
@@ -350,9 +360,6 @@ void Project::createPropertyEditors (Array <PropertyComponent*>& props)
         props.getLast()->setTooltip ("Sets an icon to use for the executable.");
     }
 
-    props.add (new TextPropertyComponent (getObjectiveCClassSuffix(), "Objective-C Name Suffix", 256, false));
-    props.getLast()->setTooltip ("An optional string which will be appended to objective-C class names. If you're building a plugin, it's important to define this, to avoid name clashes between multiple plugin modules that are dynamically loaded into the same address space.");
-
     if (isAudioPlugin())
     {
         props.add (new BooleanPropertyComponent (shouldBuildVST(), "Build VST", "Enabled"));
@@ -440,6 +447,43 @@ const Image Project::getSmallIcon()
 
     return Image();
 }
+
+const Image Project::getBestIconForSize (int size, bool returnNullIfNothingBigEnough)
+{
+    Image im;
+
+    const Image im1 (getSmallIcon());
+    const Image im2 (getBigIcon());
+
+    if (im1.isValid() && im2.isValid())
+    {
+        if (im1.getWidth() >= size && im2.getWidth() >= size)
+            im = im1.getWidth() < im2.getWidth() ? im1 : im2;
+        else if (im1.getWidth() >= size)
+            im = im1;
+        else if (im2.getWidth() >= size)
+            im = im2;
+        else
+            return Image();
+    }
+    else
+    {
+        im = im1.isValid() ? im1 : im2;
+    }
+
+    if (size == im.getWidth() && size == im.getHeight())
+        return im;
+
+    if (returnNullIfNothingBigEnough && im.getWidth() < size && im.getHeight() < size)
+        return Image::null;
+
+    Image newIm (Image::ARGB, size, size, true);
+    Graphics g (newIm);
+    g.drawImageWithin (im, 0, 0, size, size,
+                       RectanglePlacement::centred | RectanglePlacement::onlyReduceInSize, false);
+    return newIm;
+}
+
 
 const StringPairArray Project::getPreprocessorDefs() const
 {

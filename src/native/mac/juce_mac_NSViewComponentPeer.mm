@@ -166,7 +166,7 @@ public:
     void setFullScreen (bool shouldBeFullScreen);
     bool isFullScreen() const;
     bool contains (const Point<int>& position, bool trueIfInAChildWindow) const;
-    const BorderSize getFrameSize() const;
+    const BorderSize<int> getFrameSize() const;
     bool setAlwaysOnTop (bool alwaysOnTop);
     void toFront (bool makeActiveWindow);
     void toBehind (ComponentPeer* other);
@@ -665,7 +665,7 @@ END_JUCE_NAMESPACE
 //==============================================================================
 - (NSArray*) getSupportedDragTypes
 {
-    return [NSArray arrayWithObjects: NSFilenamesPboardType, /*NSFilesPromisePboardType, NSStringPboardType,*/ nil];
+    return [NSArray arrayWithObjects: NSFilenamesPboardType, NSFilesPromisePboardType, /* NSStringPboardType,*/ nil];
 }
 
 - (BOOL) sendDragCallback: (int) type sender: (id <NSDraggingInfo>) sender
@@ -1106,9 +1106,26 @@ NSRect NSViewComponentPeer::constrainRect (NSRect r)
 void NSViewComponentPeer::setAlpha (float newAlpha)
 {
     if (! isSharedWindow)
+    {
         [window setAlphaValue: (CGFloat) newAlpha];
+    }
     else
+    {
+      #if defined (MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MIN_ALLOWED >= MAC_OS_X_VERSION_10_5
         [view setAlphaValue: (CGFloat) newAlpha];
+      #else
+        if ([view respondsToSelector: @selector (setAlphaValue:)])
+        {
+            // PITA dynamic invocation for 10.4 builds..
+            NSInvocation* inv = [NSInvocation invocationWithMethodSignature: [view methodSignatureForSelector: @selector (setAlphaValue:)]];
+            [inv setSelector: @selector (setAlphaValue:)];
+            [inv setTarget: view];
+            CGFloat cgNewAlpha = (CGFloat) newAlpha;
+            [inv setArgument: &cgNewAlpha atIndex: 2];
+            [inv invoke];
+        }
+       #endif
+    }
 }
 
 void NSViewComponentPeer::setMinimised (bool shouldBeMinimised)
@@ -1178,9 +1195,9 @@ bool NSViewComponentPeer::contains (const Point<int>& position, bool trueIfInACh
     return v == view;
 }
 
-const BorderSize NSViewComponentPeer::getFrameSize() const
+const BorderSize<int> NSViewComponentPeer::getFrameSize() const
 {
-    BorderSize b;
+    BorderSize<int> b;
 
     if (! isSharedWindow)
     {
@@ -1493,7 +1510,7 @@ void NSViewComponentPeer::showArrowCursorIfNeeded()
 }
 
 //==============================================================================
-BOOL NSViewComponentPeer::sendDragCallback (int type, id <NSDraggingInfo> sender)
+BOOL NSViewComponentPeer::sendDragCallback (const int type, id <NSDraggingInfo> sender)
 {
     NSString* bestType
         = [[sender draggingPasteboard] availableTypeFromArray: [view getSupportedDragTypes]];
@@ -1504,31 +1521,59 @@ BOOL NSViewComponentPeer::sendDragCallback (int type, id <NSDraggingInfo> sender
     NSPoint p = [view convertPoint: [sender draggingLocation] fromView: nil];
     const Point<int> pos ((int) p.x, (int) ([view frame].size.height - p.y));
 
-    id list = [[sender draggingPasteboard] propertyListForType: bestType];
-    if (list == nil)
-        return false;
-
+    NSPasteboard* pasteBoard = [sender draggingPasteboard];
     StringArray files;
 
-    if ([list isKindOfClass: [NSArray class]])
-    {
-        NSArray* items = (NSArray*) list;
+    NSString* iTunesPasteboardType = @"CorePasteboardFlavorType 0x6974756E"; // 'itun'
 
-        for (unsigned int i = 0; i < [items count]; ++i)
-            files.add (nsStringToJuce ((NSString*) [items objectAtIndex: i]));
+    if (bestType == NSFilesPromisePboardType
+         && [[pasteBoard types] containsObject: iTunesPasteboardType])
+    {
+        id list = [pasteBoard propertyListForType: iTunesPasteboardType];
+
+        if ([list isKindOfClass: [NSDictionary class]])
+        {
+            NSDictionary* iTunesDictionary = (NSDictionary*) list;
+            NSArray* tracks = [iTunesDictionary valueForKey: @"Tracks"];
+            NSEnumerator* enumerator = [tracks objectEnumerator];
+            NSDictionary* track;
+
+            while ((track = [enumerator nextObject]) != nil)
+            {
+                NSURL* url = [NSURL URLWithString: [track valueForKey: @"Location"]];
+
+                if ([url isFileURL])
+                    files.add (nsStringToJuce ([url path]));
+            }
+        }
+    }
+    else
+    {
+        id list = [pasteBoard propertyListForType: NSFilenamesPboardType];
+
+        if ([list isKindOfClass: [NSArray class]])
+        {
+            NSArray* items = (NSArray*) [pasteBoard propertyListForType: NSFilenamesPboardType];
+
+            for (unsigned int i = 0; i < [items count]; ++i)
+                files.add (nsStringToJuce ((NSString*) [items objectAtIndex: i]));
+        }
     }
 
-    if (files.size() == 0)
-        return false;
+    if (files.size() > 0)
+    {
+        switch (type)
+        {
+            case 0:   handleFileDragMove (files, pos); break;
+            case 1:   handleFileDragExit (files); break;
+            case 2:   handleFileDragDrop (files, pos); break;
+            default:  jassertfalse; break;
+        }
 
-    if (type == 0)
-        handleFileDragMove (files, pos);
-    else if (type == 1)
-        handleFileDragExit (files);
-    else if (type == 2)
-        handleFileDragDrop (files, pos);
+        return true;
+    }
 
-    return true;
+    return false;
 }
 
 bool NSViewComponentPeer::isOpaque()
@@ -1546,7 +1591,7 @@ void NSViewComponentPeer::drawRect (NSRect r)
     if (! component->isOpaque())
         CGContextClearRect (cg, CGContextGetClipBoundingBox (cg));
 
-#if USE_COREGRAPHICS_RENDERING
+  #if USE_COREGRAPHICS_RENDERING
     if (usingCoreGraphics)
     {
         CoreGraphicsContext context (cg, (float) [view frame].size.height);
@@ -1556,7 +1601,7 @@ void NSViewComponentPeer::drawRect (NSRect r)
         insideDrawRect = false;
     }
     else
-#endif
+  #endif
     {
         Image temp (getComponent()->isOpaque() ? Image::RGB : Image::ARGB,
                     (int) (r.size.width + 0.5f),
@@ -1590,7 +1635,7 @@ void NSViewComponentPeer::drawRect (NSRect r)
             insideDrawRect = false;
 
             CGColorSpaceRef colourSpace = CGColorSpaceCreateDeviceRGB();
-            CGImageRef image = CoreGraphicsImage::createImage (temp, false, colourSpace);
+            CGImageRef image = CoreGraphicsImage::createImage (temp, false, colourSpace, false);
             CGColorSpaceRelease (colourSpace);
             CGContextDrawImage (cg, CGRectMake (r.origin.x, r.origin.y, temp.getWidth(), temp.getHeight()), image);
             CGImageRelease (image);
@@ -1602,9 +1647,9 @@ const StringArray NSViewComponentPeer::getAvailableRenderingEngines()
 {
     StringArray s (ComponentPeer::getAvailableRenderingEngines());
 
-#if USE_COREGRAPHICS_RENDERING
+  #if USE_COREGRAPHICS_RENDERING
     s.add ("CoreGraphics Renderer");
-#endif
+  #endif
 
     return s;
 }
@@ -1659,9 +1704,18 @@ void Desktop::createMouseInputSources()
 //==============================================================================
 void juce_setKioskComponent (Component* kioskModeComponent, bool enableOrDisable, bool allowMenusAndBars)
 {
-    // Very annoyingly, this function has to use the old SetSystemUIMode function,
-    // which is in Carbon.framework. But, because there's no Cocoa equivalent, it
-    // is apparently still available in 64-bit apps..
+  #if defined (MAC_OS_X_VERSION_10_6) && MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_6
+    if (enableOrDisable)
+    {
+        [NSApp setPresentationOptions: (allowMenusAndBars ? (NSApplicationPresentationAutoHideDock | NSApplicationPresentationAutoHideMenuBar)
+                                                          : (NSApplicationPresentationHideDock | NSApplicationPresentationHideMenuBar))];
+        kioskModeComponent->setBounds (Desktop::getInstance().getMainMonitorArea (false));
+    }
+    else
+    {
+        [NSApp setPresentationOptions: NSApplicationPresentationDefault];
+    }
+  #else
     if (enableOrDisable)
     {
         SetSystemUIMode (kUIModeAllSuppressed, allowMenusAndBars ? kUIOptionAutoShowMenuBar : 0);
@@ -1671,6 +1725,7 @@ void juce_setKioskComponent (Component* kioskModeComponent, bool enableOrDisable
     {
         SetSystemUIMode (kUIModeNormal, 0);
     }
+  #endif
 }
 
 //==============================================================================

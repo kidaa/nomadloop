@@ -35,17 +35,16 @@ void SystemClipboard::copyTextToClipboard (const String& text)
     {
         if (EmptyClipboard() != 0)
         {
-            const int len = text.length();
+            const int bytesNeeded = CharPointer_UTF16::getBytesRequiredFor (text.getCharPointer()) + 4;
 
-            if (len > 0)
+            if (bytesNeeded > 0)
             {
-                HGLOBAL bufH = GlobalAlloc (GMEM_MOVEABLE | GMEM_DDESHARE,
-                                            (len + 1) * sizeof (wchar_t));
+                HGLOBAL bufH = GlobalAlloc (GMEM_MOVEABLE | GMEM_DDESHARE | GMEM_ZEROINIT, bytesNeeded + sizeof (WCHAR));
 
                 if (bufH != 0)
                 {
                     WCHAR* const data = static_cast <WCHAR*> (GlobalLock (bufH));
-                    text.copyToUnicode (data, len);
+                    text.copyToUTF16 (data, bytesNeeded);
                     GlobalUnlock (bufH);
 
                     SetClipboardData (CF_UNICODETEXT, bufH);
@@ -67,11 +66,11 @@ const String SystemClipboard::getTextFromClipboard()
 
         if (bufH != 0)
         {
-            const wchar_t* const data = (const wchar_t*) GlobalLock (bufH);
+            const WCHAR* const data = (const WCHAR*) GlobalLock (bufH);
 
             if (data != 0)
             {
-                result = String (data, (int) (GlobalSize (bufH) / sizeof (wchar_t)));
+                result = String (data, (int) (GlobalSize (bufH) / sizeof (WCHAR)));
 
                 GlobalUnlock (bufH);
             }

@@ -205,10 +205,9 @@ private:
 //==============================================================================
 #if JUCE_MAC || JUCE_IOS
 
-/** A handy C++ wrapper that creates and deletes an NSAutoreleasePool object
-    using RAII.
+/** A handy C++ wrapper that creates and deletes an NSAutoreleasePool object using RAII.
 */
-class ScopedAutoReleasePool
+class JUCE_API  ScopedAutoReleasePool
 {
 public:
     ScopedAutoReleasePool();

@@ -38,8 +38,7 @@ public:
         pixelStride = format_ == Image::RGB ? 3 : ((format_ == Image::ARGB) ? 4 : 1);
         lineStride = (pixelStride * jmax (1, width) + 3) & ~3;
 
-        imageDataAllocated.allocate (lineStride * jmax (1, height), clearImage);
-        imageData = imageDataAllocated;
+        imageData.allocate (lineStride * jmax (1, height), clearImage);
 
         CGColorSpaceRef colourSpace = (format == Image::SingleChannel) ? CGColorSpaceCreateDeviceGray()
                                                                        : CGColorSpaceCreateDeviceRGB();
@@ -58,6 +57,14 @@ public:
     Image::ImageType getType() const    { return Image::NativeImage; }
     LowLevelGraphicsContext* createLowLevelContext();
 
+    void initialiseBitmapData (Image::BitmapData& bitmap, int x, int y, Image::BitmapData::ReadWriteMode /*mode*/)
+    {
+        bitmap.data = imageData + x * pixelStride + y * lineStride;
+        bitmap.pixelFormat = format;
+        bitmap.lineStride = lineStride;
+        bitmap.pixelStride = pixelStride;
+    }
+
     SharedImage* clone()
     {
         CoreGraphicsImage* im = new CoreGraphicsImage (format, width, height, false);
@@ -66,7 +73,8 @@ public:
     }
 
     //==============================================================================
-    static CGImageRef createImage (const Image& juceImage, const bool forAlpha, CGColorSpaceRef colourSpace)
+    static CGImageRef createImage (const Image& juceImage, const bool forAlpha,
+                                   CGColorSpaceRef colourSpace, const bool mustOutliveSource)
     {
         const CoreGraphicsImage* nativeImage = dynamic_cast <const CoreGraphicsImage*> (juceImage.getSharedImage());
 
@@ -76,9 +84,19 @@ public:
         }
         else
         {
-            const Image::BitmapData srcData (juceImage, false);
+            const Image::BitmapData srcData (juceImage, Image::BitmapData::readOnly);
+            CGDataProviderRef provider;
 
-            CGDataProviderRef provider = CGDataProviderCreateWithData (0, srcData.data, srcData.lineStride * srcData.height, 0);
+            if (mustOutliveSource)
+            {
+                CFDataRef data = CFDataCreate (0, (const UInt8*) srcData.data, (CFIndex) (srcData.lineStride * srcData.height));
+                provider = CGDataProviderCreateWithCFData (data);
+                CFRelease (data);
+            }
+            else
+            {
+                provider = CGDataProviderCreateWithData (0, srcData.data, srcData.lineStride * srcData.height, 0);
+            }
 
             CGImageRef imageRef = CGImageCreate (srcData.width, srcData.height,
                                                  8, srcData.pixelStride * 8, srcData.lineStride,
@@ -90,7 +108,7 @@ public:
         }
     }
 
-#if JUCE_MAC
+  #if JUCE_MAC
     static NSImage* createNSImage (const Image& image)
     {
         const ScopedAutoReleasePool pool;
@@ -100,7 +118,7 @@ public:
         [im lockFocus];
 
         CGColorSpaceRef colourSpace = CGColorSpaceCreateDeviceRGB();
-        CGImageRef imageRef = createImage (image, false, colourSpace);
+        CGImageRef imageRef = createImage (image, false, colourSpace, false);
         CGColorSpaceRelease (colourSpace);
 
         CGContextRef cg = (CGContextRef) [[NSGraphicsContext currentContext] graphicsPort];
@@ -111,20 +129,21 @@ public:
 
         return im;
     }
-#endif
+  #endif
 
     //==============================================================================
     CGContextRef context;
-    HeapBlock<uint8> imageDataAllocated;
+    HeapBlock<uint8> imageData;
+    int pixelStride, lineStride;
 
 private:
     static CGBitmapInfo getCGImageFlags (const Image::PixelFormat& format)
     {
-#if JUCE_BIG_ENDIAN
+      #if JUCE_BIG_ENDIAN
         return format == Image::ARGB ? (kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Big) : kCGBitmapByteOrderDefault;
-#else
+      #else
         return format == Image::ARGB ? (kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Little) : kCGBitmapByteOrderDefault;
-#endif
+      #endif
     }
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (CoreGraphicsImage);
@@ -132,11 +151,11 @@ private:
 
 Image::SharedImage* Image::SharedImage::createNativeImage (PixelFormat format, int width, int height, bool clearImage)
 {
-#if USE_COREGRAPHICS_RENDERING
+  #if USE_COREGRAPHICS_RENDERING
     return new CoreGraphicsImage (format == RGB ? ARGB : format, width, height, clearImage);
-#else
+  #else
     return createSoftwareImage (format, width, height, clearImage);
-#endif
+  #endif
 }
 
 //==============================================================================
@@ -265,7 +284,7 @@ public:
             if (sourceImage.getFormat() != Image::SingleChannel)
                 singleChannelImage = sourceImage.convertedToFormat (Image::SingleChannel);
 
-            CGImageRef image = CoreGraphicsImage::createImage (singleChannelImage, true, greyColourSpace);
+            CGImageRef image = CoreGraphicsImage::createImage (singleChannelImage, true, greyColourSpace, true);
 
             flip();
             AffineTransform t (AffineTransform::scale (1.0f, -1.0f).translated (0, sourceImage.getHeight()).followedBy (transform));
@@ -382,16 +401,16 @@ public:
     {
         if (replaceExistingContents)
         {
-#if MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5
+          #if MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_5
             CGContextClearRect (context, cgRect);
-#else
-  #if MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5
+          #else
+           #if MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5
             if (CGContextDrawLinearGradient == 0) // (just a way of checking whether we're running in 10.5 or later)
                 CGContextClearRect (context, cgRect);
             else
-  #endif
+           #endif
                 CGContextSetBlendMode (context, kCGBlendModeCopy);
-#endif
+          #endif
 
             fillCGRect (cgRect, false);
             CGContextSetBlendMode (context, kCGBlendModeNormal);
@@ -456,7 +475,7 @@ public:
     {
         const int iw = sourceImage.getWidth();
         const int ih = sourceImage.getHeight();
-        CGImageRef image = CoreGraphicsImage::createImage (sourceImage, false, rgbColourSpace);
+        CGImageRef image = CoreGraphicsImage::createImage (sourceImage, false, rgbColourSpace, false);
 
         CGContextSaveGState (context);
         CGContextSetAlpha (context, state->fillType.getOpacity());
@@ -467,16 +486,16 @@ public:
 
         if (fillEntireClipAsTiles)
         {
-#if JUCE_IOS
+          #if JUCE_IOS
             CGContextDrawTiledImage (context, imageRect, image);
-#else
-  #if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
+          #else
+           #if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_5
             // There's a bug in CGContextDrawTiledImage that makes it incredibly slow
             // if it's doing a transformation - it's quicker to just draw lots of images manually
             if (CGContextDrawTiledImage != 0 && transform.isOnlyTranslation())
                 CGContextDrawTiledImage (context, imageRect, image);
             else
-  #endif
+           #endif
             {
                 // Fallback to manually doing a tiled fill on 10.4
                 CGRect clip = CGRectIntegral (CGContextGetClipBoundingBox (context));
@@ -496,7 +515,7 @@ public:
                     y += ih;
                 }
             }
-#endif
+          #endif
         }
         else
         {
@@ -681,8 +700,7 @@ private:
 
     CGShadingRef createGradient (const AffineTransform& transform, ColourGradient gradient)
     {
-        numGradientLookupEntries = gradient.createLookupTable (transform, gradientLookupTable);
-        --numGradientLookupEntries;
+        numGradientLookupEntries = gradient.createLookupTable (transform, gradientLookupTable) - 1;
 
         CGShadingRef result = 0;
         CGFunctionRef function = CGFunctionCreate (this, 1, 0, 4, 0, &gradientCallbacks);
@@ -803,7 +821,7 @@ const Image juce_loadWithCoreImage (InputStream& input)
     MemoryBlock data;
     input.readIntoMemoryBlock (data, -1);
 
-#if JUCE_IOS
+  #if JUCE_IOS
     JUCE_AUTORELEASEPOOL
     UIImage* image = [UIImage imageWithData: [NSData dataWithBytesNoCopy: data.getData()
                                                                   length: data.getSize()
@@ -813,7 +831,7 @@ const Image juce_loadWithCoreImage (InputStream& input)
     {
         CGImageRef loadedImage = image.CGImage;
 
-#else
+  #else
     CGDataProviderRef provider = CGDataProviderCreateWithData (0, data.getData(), data.getSize(), 0);
     CGImageSourceRef imageSource = CGImageSourceCreateWithDataProvider (provider, 0);
     CGDataProviderRelease (provider);
@@ -822,7 +840,7 @@ const Image juce_loadWithCoreImage (InputStream& input)
     {
         CGImageRef loadedImage = CGImageSourceCreateImageAtIndex (imageSource, 0, 0);
         CFRelease (imageSource);
-#endif
+  #endif
 
         if (loadedImage != 0)
         {
@@ -841,9 +859,9 @@ const Image juce_loadWithCoreImage (InputStream& input)
             CGContextDrawImage (cgImage->context, CGRectMake (0, 0, image.getWidth(), image.getHeight()), loadedImage);
             CGContextFlush (cgImage->context);
 
-#if ! JUCE_IOS
+          #if ! JUCE_IOS
             CFRelease (loadedImage);
-#endif
+          #endif
 
             // Because it's impossible to create a truly 24-bit CG image, this flag allows a user
             // to find out whether the file they just loaded the image from had an alpha channel or not.

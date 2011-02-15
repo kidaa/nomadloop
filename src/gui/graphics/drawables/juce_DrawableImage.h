@@ -28,6 +28,7 @@
 
 #include "juce_Drawable.h"
 #include "../imaging/juce_Image.h"
+#include "../../components/positioning/juce_RelativeParallelogram.h"
 
 
 //==============================================================================
@@ -92,13 +93,11 @@ public:
     /** @internal */
     const Rectangle<float> getDrawableBounds() const;
     /** @internal */
-    void refreshFromValueTree (const ValueTree& tree, ImageProvider* imageProvider);
+    void refreshFromValueTree (const ValueTree& tree, ComponentBuilder& builder);
     /** @internal */
-    const ValueTree createValueTree (ImageProvider* imageProvider) const;
+    const ValueTree createValueTree (ComponentBuilder::ImageProvider* imageProvider) const;
     /** @internal */
     static const Identifier valueTreeType;
-    /** @internal */
-    const Identifier getValueTreeType() const    { return valueTreeType; }
 
     //==============================================================================
     /** Internally-used class for wrapping a DrawableImage's state into a ValueTree. */
@@ -132,7 +131,9 @@ private:
     Colour overlayColour;
     RelativeParallelogram bounds;
 
-    void refreshTransformFromBounds();
+    friend class Drawable::Positioner<DrawableImage>;
+    bool registerCoordinates (RelativeCoordinatePositionerBase&);
+    void recalculateCoordinates (Expression::Scope*);
 
     DrawableImage& operator= (const DrawableImage&);
     JUCE_LEAK_DETECTOR (DrawableImage);

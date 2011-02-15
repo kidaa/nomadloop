@@ -32,7 +32,6 @@ BEGIN_JUCE_NAMESPACE
 #include "juce_ToolbarItemFactory.h"
 #include "juce_ToolbarItemPalette.h"
 #include "../menus/juce_PopupMenu.h"
-#include "../menus/juce_PopupMenuCustomComponent.h"
 #include "../lookandfeel/juce_LookAndFeel.h"
 #include "../layout/juce_StretchableObjectResizer.h"
 #include "../windows/juce_DialogWindow.h"
@@ -169,11 +168,11 @@ private:
 };
 
 //==============================================================================
-class Toolbar::MissingItemsComponent  : public PopupMenuCustomComponent
+class Toolbar::MissingItemsComponent  : public PopupMenu::CustomComponent
 {
 public:
     MissingItemsComponent (Toolbar& owner_, const int height_)
-        : PopupMenuCustomComponent (true),
+        : PopupMenu::CustomComponent (true),
           owner (&owner_),
           height (height_)
     {
@@ -559,7 +558,7 @@ void Toolbar::buttonClicked (Button*)
     {
         PopupMenu m;
         m.addCustomItem (1, new MissingItemsComponent (*this, getThickness()));
-        m.showAt (missingItemsButton);
+        m.showMenuAsync (PopupMenu::Options().withTargetComponent (missingItemsButton), 0);
     }
 }
 
@@ -686,6 +685,7 @@ public:
 
     ~ToolbarCustomisationDialog()
     {
+        toolbar->setEditingActive (false);
         setContentComponent (0, true);
     }
 
@@ -842,18 +842,8 @@ void Toolbar::showCustomisationDialog (ToolbarItemFactory& factory, const int op
 {
     setEditingActive (true);
 
-   #if JUCE_DEBUG
-    WeakReference<Component> checker (this);
-   #endif
-
-    ToolbarCustomisationDialog dw (factory, this, optionFlags);
-    dw.runModalLoop();
-
-   #if JUCE_DEBUG
-    jassert (checker != 0); // Don't delete the toolbar while it's being customised!
-   #endif
-
-    setEditingActive (false);
+    (new ToolbarCustomisationDialog (factory, this, optionFlags))
+        ->enterModalState (true, 0, true);
 }
 
 

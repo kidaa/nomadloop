@@ -179,9 +179,9 @@ void MainHostWindow::changeListenerCallback (ChangeBroadcaster*)
 
 const StringArray MainHostWindow::getMenuBarNames()
 {
-    const tchar* const names[] = { T("File"), T("Plugins"), T("Options"), 0 };
+    const char* const names[] = { "File", "Plugins", "Options", 0 };
 
-    return StringArray ((const tchar**) names);
+    return StringArray (names);
 }
 
 const PopupMenu MainHostWindow::getMenuForIndex (int topLevelMenuIndex, const String& /*menuName*/)
@@ -498,7 +498,7 @@ void MainHostWindow::filesDropped (const StringArray& files, int x, int y)
 
         Point<int> pos (x, y);
         if (graphEditor != 0)
-            pos = relativePositionToOtherComponent (graphEditor, pos);
+            pos = graphEditor->getLocalPoint (this, pos);
 
         for (int i = 0; i < jmin (5, typesFound.size()); ++i)
             createPlugin (typesFound.getUnchecked(i), pos.getX(), pos.getY());

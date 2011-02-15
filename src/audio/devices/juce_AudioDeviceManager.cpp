@@ -101,48 +101,25 @@ const OwnedArray <AudioIODeviceType>& AudioDeviceManager::getAvailableDeviceType
 }
 
 //==============================================================================
-AudioIODeviceType* juce_createAudioIODeviceType_CoreAudio();
-AudioIODeviceType* juce_createAudioIODeviceType_iPhoneAudio();
-AudioIODeviceType* juce_createAudioIODeviceType_WASAPI();
-AudioIODeviceType* juce_createAudioIODeviceType_DirectSound();
-AudioIODeviceType* juce_createAudioIODeviceType_ASIO();
-AudioIODeviceType* juce_createAudioIODeviceType_ALSA();
 AudioIODeviceType* juce_createAudioIODeviceType_JACK();
+
+static void addIfNotNull (OwnedArray <AudioIODeviceType>& list, AudioIODeviceType* const device)
+{
+    if (device != 0)
+        list.add (device);
+}
 
 void AudioDeviceManager::createAudioDeviceTypes (OwnedArray <AudioIODeviceType>& list)
 {
-    (void) list; // (to avoid 'unused param' warnings)
+    addIfNotNull (list, AudioIODeviceType::createAudioIODeviceType_WASAPI());
+    addIfNotNull (list, AudioIODeviceType::createAudioIODeviceType_DirectSound());
+    addIfNotNull (list, AudioIODeviceType::createAudioIODeviceType_ASIO());
 
-    #if JUCE_WINDOWS
-     #if JUCE_WASAPI
-     if (SystemStats::getOperatingSystemType() >= SystemStats::WinVista)
-         list.add (juce_createAudioIODeviceType_WASAPI());
-     #endif
+    addIfNotNull (list, AudioIODeviceType::createAudioIODeviceType_CoreAudio());
+    addIfNotNull (list, AudioIODeviceType::createAudioIODeviceType_iOSAudio());
 
-     #if JUCE_DIRECTSOUND
-     list.add (juce_createAudioIODeviceType_DirectSound());
-     #endif
-
-     #if JUCE_ASIO
-     list.add (juce_createAudioIODeviceType_ASIO());
-     #endif
-    #endif
-
-    #if JUCE_MAC
-     list.add (juce_createAudioIODeviceType_CoreAudio());
-    #endif
-
-    #if JUCE_IOS
-     list.add (juce_createAudioIODeviceType_iPhoneAudio());
-    #endif
-
-    #if JUCE_LINUX && JUCE_ALSA
-     list.add (juce_createAudioIODeviceType_ALSA());
-    #endif
-
-    #if JUCE_LINUX && JUCE_JACK
-     list.add (juce_createAudioIODeviceType_JACK());
-    #endif
+    addIfNotNull (list, AudioIODeviceType::createAudioIODeviceType_ALSA());
+    addIfNotNull (list, AudioIODeviceType::createAudioIODeviceType_JACK());
 }
 
 //==============================================================================
@@ -610,21 +587,21 @@ void AudioDeviceManager::addAudioCallback (AudioIODeviceCallback* newCallback)
     callbacks.add (newCallback);
 }
 
-void AudioDeviceManager::removeAudioCallback (AudioIODeviceCallback* callback)
+void AudioDeviceManager::removeAudioCallback (AudioIODeviceCallback* callbackToRemove)
 {
-    if (callback != 0)
+    if (callbackToRemove != 0)
     {
         bool needsDeinitialising = currentAudioDevice != 0;
 
         {
             const ScopedLock sl (audioCallbackLock);
 
-            needsDeinitialising = needsDeinitialising && callbacks.contains (callback);
-            callbacks.removeValue (callback);
+            needsDeinitialising = needsDeinitialising && callbacks.contains (callbackToRemove);
+            callbacks.removeValue (callbackToRemove);
         }
 
         if (needsDeinitialising)
-            callback->audioDeviceStopped();
+            callbackToRemove->audioDeviceStopped();
     }
 }
 
@@ -791,44 +768,25 @@ bool AudioDeviceManager::isMidiInputEnabled (const String& name) const
 }
 
 void AudioDeviceManager::addMidiInputCallback (const String& name,
-                                               MidiInputCallback* callback)
+                                               MidiInputCallback* callbackToAdd)
 {
-    removeMidiInputCallback (name, callback);
+    removeMidiInputCallback (name, callbackToAdd);
 
-    if (name.isEmpty())
+    if (name.isEmpty() || isMidiInputEnabled (name))
     {
-        midiCallbacks.add (callback);
-        midiCallbackDevices.add (0);
-    }
-    else
-    {
-        for (int i = enabledMidiInputs.size(); --i >= 0;)
-        {
-            if (enabledMidiInputs[i]->getName() == name)
-            {
-                const ScopedLock sl (midiCallbackLock);
-                midiCallbacks.add (callback);
-                midiCallbackDevices.add (enabledMidiInputs[i]);
-                break;
-            }
-        }
+        const ScopedLock sl (midiCallbackLock);
+        midiCallbacks.add (callbackToAdd);
+        midiCallbackDevices.add (name);
     }
 }
 
-void AudioDeviceManager::removeMidiInputCallback (const String& name,
-                                                  MidiInputCallback* /*callback*/)
+void AudioDeviceManager::removeMidiInputCallback (const String& name, MidiInputCallback* callback)
 {
-    const ScopedLock sl (midiCallbackLock);
-
     for (int i = midiCallbacks.size(); --i >= 0;)
     {
-        String devName;
-
-        if (midiCallbackDevices.getUnchecked(i) != 0)
-            devName = midiCallbackDevices.getUnchecked(i)->getName();
-
-        if (devName == name)
+        if (midiCallbackDevices[i] == name && midiCallbacks.getUnchecked(i) == callback)
         {
+            const ScopedLock sl (midiCallbackLock);
             midiCallbacks.remove (i);
             midiCallbackDevices.remove (i);
         }
@@ -846,9 +804,9 @@ void AudioDeviceManager::handleIncomingMidiMessageInt (MidiInput* source,
 
         for (int i = midiCallbackDevices.size(); --i >= 0;)
         {
-            MidiInput* const md = midiCallbackDevices.getUnchecked(i);
+            const String name (midiCallbackDevices[i]);
 
-            if (md == source || (md == 0 && isDefaultSource))
+            if ((isDefaultSource && name.isEmpty()) || (name.isNotEmpty() && name == source->getName()))
                 midiCallbacks.getUnchecked(i)->handleIncomingMidiMessage (source, message);
         }
     }

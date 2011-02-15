@@ -27,9 +27,10 @@
 #define __JUCE_DRAWABLE_JUCEHEADER__
 
 #include "../../components/juce_Component.h"
-#include "../geometry/juce_RelativeCoordinate.h"
-#include "../../../text/juce_XmlElement.h"
+#include "../../components/positioning/juce_RelativeCoordinate.h"
+#include "../../components/positioning/juce_RelativeCoordinatePositioner.h"
 #include "../../../containers/juce_ValueTree.h"
+#include "../../components/layout/juce_ComponentBuilder.h"
 class DrawableComposite;
 
 
@@ -157,54 +158,21 @@ public:
     static Drawable* createFromSVG (const XmlElement& svgDocument);
 
     //==============================================================================
-    /** This class is used when loading Drawables that contain images, and retrieves
-        the image for a stored identifier.
-        @see Drawable::createFromValueTree
-    */
-    class JUCE_API  ImageProvider
-    {
-    public:
-        ImageProvider() {}
-        virtual ~ImageProvider() {}
-
-        /** Retrieves the image associated with this identifier, which could be any
-            kind of string, number, filename, etc.
-
-            The image that is returned will be owned by the caller, but it may come
-            from the ImageCache.
-        */
-        virtual const Image getImageForIdentifier (const var& imageIdentifier) = 0;
-
-        /** Returns an identifier to be used to refer to a given image.
-            This is used when converting a drawable into a ValueTree, so if you're
-            only loading drawables, you can just return a var::null here.
-        */
-        virtual const var getIdentifierForImage (const Image& image) = 0;
-    };
-
     /** Tries to create a Drawable from a previously-saved ValueTree.
         The ValueTree must have been created by the createValueTree() method.
         If there are any images used within the drawable, you'll need to provide a valid
         ImageProvider object that can be used to retrieve these images from whatever type
         of identifier is used to represent them.
+        Internally, this uses a ComponentBuilder, and registerDrawableTypeHandlers().
     */
-    static Drawable* createFromValueTree (const ValueTree& tree, ImageProvider* imageProvider);
-
-    /** Tries to refresh a Drawable from the same ValueTree that was used to create it.
-        @returns the damage rectangle that will need repainting due to any changes that were made.
-    */
-    virtual void refreshFromValueTree (const ValueTree& tree, ImageProvider* imageProvider) = 0;
+    static Drawable* createFromValueTree (const ValueTree& tree, ComponentBuilder::ImageProvider* imageProvider);
 
     /** Creates a ValueTree to represent this Drawable.
-        The VarTree that is returned can be turned back into a Drawable with
-        createFromValueTree().
-        If there are any images used in this drawable, you'll need to provide a valid
-        ImageProvider object that can be used to create storable representations of them.
+        The ValueTree that is returned can be turned back into a Drawable with createFromValueTree().
+        If there are any images used in this drawable, you'll need to provide a valid ImageProvider
+        object that can be used to create storable representations of them.
     */
-    virtual const ValueTree createValueTree (ImageProvider* imageProvider) const = 0;
-
-    /** Returns the tag ID that is used for a ValueTree that stores this type of drawable.  */
-    virtual const Identifier getValueTreeType() const = 0;
+    virtual const ValueTree createValueTree (ComponentBuilder::ImageProvider* imageProvider) const = 0;
 
     /** Returns the area that this drawble covers.
         The result is expressed in this drawable's own coordinate space, and does not take
@@ -218,16 +186,21 @@ public:
     {
     public:
         ValueTreeWrapperBase (const ValueTree& state);
-        ~ValueTreeWrapperBase();
 
         ValueTree& getState() throw()           { return state; }
 
         const String getID() const;
-        void setID (const String& newID, UndoManager* undoManager);
-        static const Identifier idProperty;
+        void setID (const String& newID);
 
         ValueTree state;
     };
+
+    //==============================================================================
+    /** Registers a set of ComponentBuilder::TypeHandler objects that can be used to
+        load all the different Drawable types from a saved state.
+        @see ComponentBuilder::registerTypeHandler()
+    */
+    static void registerDrawableTypeHandlers (ComponentBuilder& componentBuilder);
 
 protected:
     //==============================================================================
@@ -235,17 +208,38 @@ protected:
     friend class DrawableShape;
 
     /** @internal */
-    static Drawable* createChildFromValueTree (DrawableComposite* parent, const ValueTree& tree, ImageProvider* imageProvider);
-    /** @internal */
     void transformContextToCorrectOrigin (Graphics& g);
-    /** @internal */
-    void markerHasMoved();
     /** @internal */
     void parentHierarchyChanged();
     /** @internal */
     void setBoundsToEnclose (const Rectangle<float>& area);
 
     Point<int> originRelativeToComponent;
+
+  #ifndef DOXYGEN
+    /** Internal utility class used by Drawables. */
+    template <class DrawableType>
+    class Positioner  : public RelativeCoordinatePositionerBase
+    {
+    public:
+        Positioner (DrawableType& component_)
+            : RelativeCoordinatePositionerBase (component_),
+              owner (component_)
+        {}
+
+        bool registerCoordinates()      { return owner.registerCoordinates (*this); }
+        void applyToComponentBounds()
+        {
+            ComponentScope scope (getComponent());
+            owner.recalculateCoordinates (&scope);
+        }
+
+    private:
+        DrawableType& owner;
+
+        JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Positioner);
+    };
+  #endif
 
 private:
     void nonConstDraw (Graphics& g, float opacity, const AffineTransform& transform);

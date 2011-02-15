@@ -27,6 +27,7 @@
 #define __JUCE_DRAWABLEPATH_JUCEHEADER__
 
 #include "juce_DrawableShape.h"
+#include "../../components/positioning/juce_RelativePointPath.h"
 
 
 //==============================================================================
@@ -54,6 +55,12 @@ public:
     */
     void setPath (const Path& newPath);
 
+    /** Sets the path using a RelativePointPath.
+        Calling this will set up a Component::Positioner to automatically update the path
+        if any of the points in the source path are dynamic.
+    */
+    void setPath (const RelativePointPath& newPath);
+
     /** Returns the current path. */
     const Path& getPath() const;
 
@@ -64,13 +71,11 @@ public:
     /** @internal */
     Drawable* createCopy() const;
     /** @internal */
-    void refreshFromValueTree (const ValueTree& tree, ImageProvider* imageProvider);
+    void refreshFromValueTree (const ValueTree& tree, ComponentBuilder& builder);
     /** @internal */
-    const ValueTree createValueTree (ImageProvider* imageProvider) const;
+    const ValueTree createValueTree (ComponentBuilder::ImageProvider* imageProvider) const;
     /** @internal */
     static const Identifier valueTreeType;
-    /** @internal */
-    const Identifier getValueTreeType() const       { return valueTreeType; }
 
     //==============================================================================
     /** Internally-used class for wrapping a DrawablePath's state into a ValueTree. */
@@ -92,24 +97,24 @@ public:
             int getNumControlPoints() const throw();
 
             const RelativePoint getControlPoint (int index) const;
-            Value getControlPointValue (int index, UndoManager* undoManager) const;
+            Value getControlPointValue (int index, UndoManager*) const;
             const RelativePoint getStartPoint() const;
             const RelativePoint getEndPoint() const;
-            void setControlPoint (int index, const RelativePoint& point, UndoManager* undoManager);
-            float getLength (Expression::EvaluationContext* nameFinder) const;
+            void setControlPoint (int index, const RelativePoint& point, UndoManager*);
+            float getLength (Expression::Scope*) const;
 
             ValueTreeWrapper getParent() const;
             Element getPreviousElement() const;
 
             const String getModeOfEndPoint() const;
-            void setModeOfEndPoint (const String& newMode, UndoManager* undoManager);
+            void setModeOfEndPoint (const String& newMode, UndoManager*);
 
-            void convertToLine (UndoManager* undoManager);
-            void convertToCubic (Expression::EvaluationContext* nameFinder, UndoManager* undoManager);
+            void convertToLine (UndoManager*);
+            void convertToCubic (Expression::Scope*, UndoManager*);
             void convertToPathBreak (UndoManager* undoManager);
-            ValueTree insertPoint (const Point<float>& targetPoint, Expression::EvaluationContext* nameFinder, UndoManager* undoManager);
+            ValueTree insertPoint (const Point<float>& targetPoint, Expression::Scope*, UndoManager*);
             void removePoint (UndoManager* undoManager);
-            float findProportionAlongLine (const Point<float>& targetPoint, Expression::EvaluationContext* nameFinder) const;
+            float findProportionAlongLine (const Point<float>& targetPoint, Expression::Scope*) const;
 
             static const Identifier mode, startSubPathElement, closeSubPathElement,
                                     lineToElement, quadraticToElement, cubicToElement;
@@ -122,15 +127,19 @@ public:
 
         ValueTree getPathState();
 
+        void readFrom (const RelativePointPath& path, UndoManager* undoManager);
+        void writeTo (RelativePointPath& path) const;
+
         static const Identifier nonZeroWinding, point1, point2, point3;
     };
-
-protected:
-    bool rebuildPath (Path& path) const;
 
 private:
     //==============================================================================
     ScopedPointer<RelativePointPath> relativePath;
+
+    class RelativePositioner;
+    friend class RelativePositioner;
+    void applyRelativePath (const RelativePointPath&, Expression::Scope*);
 
     DrawablePath& operator= (const DrawablePath&);
     JUCE_LEAK_DETECTOR (DrawablePath);

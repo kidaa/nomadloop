@@ -367,10 +367,12 @@ private:
     class SharedFontInternal  : public ReferenceCountedObject
     {
     public:
-        SharedFontInternal (const String& typefaceName, float height, float horizontalScale,
-                            float kerning, float ascent, int styleFlags,
-                            Typeface* typeface) throw();
+        SharedFontInternal (float height, int styleFlags) throw();
+        SharedFontInternal (const String& typefaceName, float height, int styleFlags) throw();
+        SharedFontInternal (const Typeface::Ptr& typeface) throw();
         SharedFontInternal (const SharedFontInternal& other) throw();
+
+        bool operator== (const SharedFontInternal&) const throw();
 
         String typefaceName;
         float height, horizontalScale, kerning, ascent;

@@ -27,6 +27,7 @@
 #define __JUCE_DRAWABLERECTANGLE_JUCEHEADER__
 
 #include "juce_DrawableShape.h"
+#include "../../components/positioning/juce_RelativeParallelogram.h"
 
 
 //==============================================================================
@@ -64,13 +65,11 @@ public:
     /** @internal */
     Drawable* createCopy() const;
     /** @internal */
-    void refreshFromValueTree (const ValueTree& tree, ImageProvider* imageProvider);
+    void refreshFromValueTree (const ValueTree& tree, ComponentBuilder& builder);
     /** @internal */
-    const ValueTree createValueTree (ImageProvider* imageProvider) const;
+    const ValueTree createValueTree (ComponentBuilder::ImageProvider* imageProvider) const;
     /** @internal */
     static const Identifier valueTreeType;
-    /** @internal */
-    const Identifier getValueTreeType() const    { return valueTreeType; }
 
     //==============================================================================
     /** Internally-used class for wrapping a DrawableRectangle's state into a ValueTree. */
@@ -80,25 +79,25 @@ public:
         ValueTreeWrapper (const ValueTree& state);
 
         const RelativeParallelogram getRectangle() const;
-        void setRectangle (const RelativeParallelogram& newBounds, UndoManager* undoManager);
+        void setRectangle (const RelativeParallelogram& newBounds, UndoManager*);
 
-        void setCornerSize (const RelativePoint& cornerSize, UndoManager* undoManager);
+        void setCornerSize (const RelativePoint& cornerSize, UndoManager*);
         const RelativePoint getCornerSize() const;
-        Value getCornerSizeValue (UndoManager* undoManager) const;
+        Value getCornerSizeValue (UndoManager*) const;
 
         static const Identifier topLeft, topRight, bottomLeft, cornerSize;
     };
 
 
-protected:
-    /** @internal */
-    bool rebuildPath (Path& path) const;
-
 private:
+    friend class Drawable::Positioner<DrawableRectangle>;
+
     RelativeParallelogram bounds;
     RelativePoint cornerSize;
 
-    const AffineTransform calculateTransform() const;
+    void rebuildPath();
+    bool registerCoordinates (RelativeCoordinatePositionerBase&);
+    void recalculateCoordinates (Expression::Scope*);
 
     DrawableRectangle& operator= (const DrawableRectangle&);
     JUCE_LEAK_DETECTOR (DrawableRectangle);

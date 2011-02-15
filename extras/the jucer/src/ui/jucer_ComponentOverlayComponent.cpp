@@ -42,7 +42,7 @@ ComponentOverlayComponent::ComponentOverlayComponent (Component* const target_,
 
     addChildComponent (border = new ResizableBorderComponent (this, this));
 
-    border->setBorderThickness (BorderSize (borderThickness));
+    border->setBorderThickness (BorderSize<int> (borderThickness));
 
     target->addComponentListener (this);
 
@@ -81,7 +81,7 @@ void ComponentOverlayComponent::paint (Graphics& g)
 
     if (selected)
     {
-        const BorderSize borderSize (border->getBorderThickness());
+        const BorderSize<int> borderSize (border->getBorderThickness());
 
         drawResizableBorder (g, getWidth(), getHeight(), borderSize, (isMouseOverOrDragging() || border->isMouseOverOrDragging()));
     }
@@ -170,7 +170,7 @@ void ComponentOverlayComponent::resizeStart()
     else
         originalAspectRatio = 1.0;
 
-    layout.getDocument()->getUndoManager().beginNewTransaction (T("Resize components"));
+    layout.getDocument()->getUndoManager().beginNewTransaction ("Resize components");
 }
 
 void ComponentOverlayComponent::resizeEnd()

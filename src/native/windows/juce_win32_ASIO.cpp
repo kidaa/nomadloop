@@ -809,7 +809,7 @@ private:
             // doing a direct load of the COM object (only available via the juce_createASIOAudioIODeviceForGUID function).
             if (optionalDllForDirectLoading.isNotEmpty())
             {
-                HMODULE h = LoadLibrary (optionalDllForDirectLoading);
+                HMODULE h = LoadLibrary (optionalDllForDirectLoading.toUTF16());
 
                 if (h != 0)
                 {
@@ -1822,7 +1822,7 @@ private:
     {
         HKEY subKey;
 
-        if (RegOpenKeyEx (hk, keyName, 0, KEY_READ, &subKey) == ERROR_SUCCESS)
+        if (RegOpenKeyEx (hk, keyName.toUTF16(), 0, KEY_READ, &subKey) == ERROR_SUCCESS)
         {
             WCHAR buf [256];
             zerostruct (buf);
@@ -1859,7 +1859,7 @@ private:
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ASIOAudioIODeviceType);
 };
 
-AudioIODeviceType* juce_createAudioIODeviceType_ASIO()
+AudioIODeviceType* AudioIODeviceType::createAudioIODeviceType_ASIO()
 {
     return new ASIOAudioIODeviceType();
 }

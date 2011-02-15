@@ -308,7 +308,7 @@ static Handle createHandleDataRef (Handle dataHandle, const char* fileName)
     {
         Str255 suffix;
 
-        CharacterFunctions::copy ((char*) suffix, fileName, 128);
+        strncpy ((char*) suffix, fileName, 128);
 
         StringPtr name = suffix;
         err = PtrAndHand (name, dataRef, name[0] + 1);
@@ -334,14 +334,7 @@ static Handle createHandleDataRef (Handle dataHandle, const char* fileName)
 
 static CFStringRef juceStringToCFString (const String& s)
 {
-    const int len = s.length();
-    const juce_wchar* const t = s;
-
-    HeapBlock <UniChar> temp (len + 2);
-    for (int i = 0; i <= len; ++i)
-        temp[i] = t[i];
-
-    return CFStringCreateWithCharacters (kCFAllocatorDefault, temp, len);
+    return CFStringCreateWithCString (kCFAllocatorDefault, s.toUTF8(), kCFStringEncodingUTF8);
 }
 
 static bool openMovie (QTNewMoviePropertyElement* props, int prop, Movie& movie)
@@ -478,24 +471,12 @@ void QuickTimeMovieComponent::setBoundsWithCorrectAspectRatio (const Rectangle<i
     int normalWidth, normalHeight;
     getMovieNormalSize (normalWidth, normalHeight);
 
-    if (normalWidth > 0 && normalHeight > 0 && ! spaceToFitWithin.isEmpty())
-    {
-        double x = 0.0, y = 0.0, w = normalWidth, h = normalHeight;
+    const Rectangle<int> normalSize (0, 0, normalWidth, normalHeight);
 
-        placement.applyTo (x, y, w, h,
-                           spaceToFitWithin.getX(), spaceToFitWithin.getY(),
-                           spaceToFitWithin.getWidth(), spaceToFitWithin.getHeight());
-
-        if (w > 0 && h > 0)
-        {
-            setBounds (roundToInt (x), roundToInt (y),
-                       roundToInt (w), roundToInt (h));
-        }
-    }
+    if (! (spaceToFitWithin.isEmpty() || normalSize.isEmpty()))
+        setBounds (placement.appliedTo (normalSize, spaceToFitWithin));
     else
-    {
         setBounds (spaceToFitWithin);
-    }
 }
 
 #endif

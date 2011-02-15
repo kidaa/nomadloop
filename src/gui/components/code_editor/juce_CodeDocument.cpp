@@ -34,7 +34,7 @@ BEGIN_JUCE_NAMESPACE
 class CodeDocumentLine
 {
 public:
-    CodeDocumentLine (const juce_wchar* const line_,
+    CodeDocumentLine (const String::CharPointerType& line_,
                       const int lineLength_,
                       const int numNewLineChars,
                       const int lineStartInFile_)
@@ -45,51 +45,59 @@ public:
     {
     }
 
-    ~CodeDocumentLine()
-    {
-    }
-
     static void createLines (Array <CodeDocumentLine*>& newLines, const String& text)
     {
-        const juce_wchar* const t = text;
-        int pos = 0;
+        String::CharPointerType t (text.getCharPointer());
+        int charNumInFile = 0;
+        bool finished = t.isEmpty();
 
-        while (t [pos] != 0)
+        while (! finished)
         {
-            const int startOfLine = pos;
+            String::CharPointerType startOfLine (t);
+            int startOfLineInFile = charNumInFile;
+            int lineLength = 0;
             int numNewLineChars = 0;
 
-            while (t[pos] != 0)
+            for (;;)
             {
-                if (t[pos] == '\r')
+                const juce_wchar c = t.getAndAdvance();
+
+                if (c == 0)
+                {
+                    finished = true;
+                    break;
+                }
+
+                ++charNumInFile;
+                ++lineLength;
+
+                if (c == '\r')
                 {
                     ++numNewLineChars;
-                    ++pos;
 
-                    if (t[pos] == '\n')
+                    if (*t == '\n')
                     {
+                        ++t;
+                        ++charNumInFile;
+                        ++lineLength;
                         ++numNewLineChars;
-                        ++pos;
                     }
 
                     break;
                 }
 
-                if (t[pos] == '\n')
+                if (c == '\n')
                 {
                     ++numNewLineChars;
-                    ++pos;
                     break;
                 }
-
-                ++pos;
             }
 
-            newLines.add (new CodeDocumentLine (t + startOfLine, pos - startOfLine,
-                                                numNewLineChars, startOfLine));
+            newLines.add (new CodeDocumentLine (startOfLine, lineLength,
+                                                numNewLineChars, startOfLineInFile));
         }
 
-        jassert (pos == text.length());
+        jassert (charNumInFile == text.length());
     }
 
     bool endsWithLineBreak() const throw()
@@ -283,7 +291,7 @@ bool CodeDocument::Position::operator!= (const Position& other) const throw()
     return ! operator== (other);
 }
 
-void CodeDocument::Position::setLineAndIndex (const int newLine, const int newIndexInLine)
+void CodeDocument::Position::setLineAndIndex (const int newLineNum, const int newIndexInLine)
 {
     jassert (owner != 0);
 
@@ -295,7 +303,7 @@ void CodeDocument::Position::setLineAndIndex (const int newLine, const int newIn
     }
     else
     {
-        if (newLine >= owner->lines.size())
+        if (newLineNum >= owner->lines.size())
         {
             line = owner->lines.size() - 1;
 
@@ -307,7 +315,7 @@ void CodeDocument::Position::setLineAndIndex (const int newLine, const int newIn
         }
         else
         {
-            line = jmax (0, newLine);
+            line = jmax (0, newLineNum);
 
             CodeDocumentLine* const l = owner->lines.getUnchecked (line);
             jassert (l != 0);
@@ -566,10 +574,10 @@ bool CodeDocument::writeToStream (OutputStream& stream)
     return true;
 }
 
-void CodeDocument::setNewLineCharacters (const String& newLine) throw()
+void CodeDocument::setNewLineCharacters (const String& newLineChars_) throw()
 {
-    jassert (newLine == "\r\n" || newLine == "\n" || newLine == "\r");
-    newLineChars = newLine;
+    jassert (newLineChars_ == "\r\n" || newLineChars_ == "\n" || newLineChars_ == "\r");
+    newLineChars = newLineChars_;
 }
 
 void CodeDocument::newTransaction()
@@ -706,7 +714,7 @@ void CodeDocument::checkLastLineStatus()
     if (lastLine != 0 && lastLine->endsWithLineBreak())
     {
         // check that there's an empty line at the end if the preceding one ends in a newline..
-        lines.add (new CodeDocumentLine (String::empty, 0, 0, lastLine->lineStartInFile + lastLine->lineLength));
+        lines.add (new CodeDocumentLine (String::empty.getCharPointer(), 0, 0, lastLine->lineStartInFile + lastLine->lineLength));
     }
 }
 

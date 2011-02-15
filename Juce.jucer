@@ -10,9 +10,9 @@
               jucerVersion="3.0.0">
   <EXPORTFORMATS>
     <XCODE_MAC targetFolder="Builds/MacOSX" vstFolder="~/SDKs/vstsdk2.4" rtasFolder="~/SDKs/PT_80_SDK"
-               juceFolder="."/>
-    <XCODE_IPHONE targetFolder="Builds/iPhone" vstFolder="~/SDKs/vstsdk2.4" rtasFolder="~/SDKs/PT_80_SDK"
-                  juceFolder="."/>
+               juceFolder="." objCExtraSuffix="JSlRKlNBb5"/>
+    <XCODE_IPHONE targetFolder="Builds/iOS" vstFolder="~/SDKs/vstsdk2.4" rtasFolder="~/SDKs/PT_80_SDK"
+                  juceFolder="." objCExtraSuffix="JSlRKlNBb5"/>
     <VS2005 targetFolder="Builds/VisualStudio2005" vstFolder="c:\SDKs\vstsdk2.4"
             rtasFolder="c:\SDKs\PT_80_SDK" juceFolder="." libraryType="1"
             libraryName_Debug="jucelib_static_Win32_debug.lib" libraryName_Release="jucelib_static_Win32.lib"/>
@@ -365,6 +365,8 @@
               file="src/containers/juce_DynamicObject.h"/>
         <FILE id="RNHQjBFmS" name="juce_ElementComparator.h" compile="0" resource="0"
               file="src/containers/juce_ElementComparator.h"/>
+        <FILE id="pnNXeAf" name="juce_LinkedListPointer.h" compile="0" resource="0"
+              file="src/containers/juce_LinkedListPointer.h"/>
         <FILE id="zy1yAvLC1" name="juce_NamedValueSet.cpp" compile="1" resource="0"
               file="src/containers/juce_NamedValueSet.cpp"/>
         <FILE id="YIzV0n7ns" name="juce_NamedValueSet.h" compile="0" resource="0"
@@ -377,6 +379,8 @@
               file="src/containers/juce_PropertySet.h"/>
         <FILE id="q1WQH39S3" name="juce_ReferenceCountedArray.h" compile="0"
               resource="0" file="src/containers/juce_ReferenceCountedArray.h"/>
+        <FILE id="YcflQG" name="juce_ScopedValueSetter.h" compile="0" resource="0"
+              file="src/containers/juce_ScopedValueSetter.h"/>
         <FILE id="CPW4LfoeP" name="juce_SortedSet.h" compile="0" resource="0"
               file="src/containers/juce_SortedSet.h"/>
         <FILE id="jo9VOycN5" name="juce_SparseSet.h" compile="0" resource="0"
@@ -714,6 +718,10 @@
                   resource="0" file="src/gui/components/layout/juce_ComponentBoundsConstrainer.cpp"/>
             <FILE id="f7Kk9YmVd" name="juce_ComponentBoundsConstrainer.h" compile="0"
                   resource="0" file="src/gui/components/layout/juce_ComponentBoundsConstrainer.h"/>
+            <FILE id="0GeyNq1" name="juce_ComponentBuilder.cpp" compile="1" resource="0"
+                  file="src/gui/components/layout/juce_ComponentBuilder.cpp"/>
+            <FILE id="VZuk8cB" name="juce_ComponentBuilder.h" compile="0" resource="0"
+                  file="src/gui/components/layout/juce_ComponentBuilder.h"/>
             <FILE id="nzIQyYlAT" name="juce_ComponentMovementWatcher.cpp" compile="1"
                   resource="0" file="src/gui/components/layout/juce_ComponentMovementWatcher.cpp"/>
             <FILE id="S2Qpuktm9" name="juce_ComponentMovementWatcher.h" compile="0"
@@ -786,8 +794,6 @@
                   file="src/gui/components/menus/juce_PopupMenu.cpp"/>
             <FILE id="VNJnvSCVQ" name="juce_PopupMenu.h" compile="0" resource="0"
                   file="src/gui/components/menus/juce_PopupMenu.h"/>
-            <FILE id="fdRptQQCr" name="juce_PopupMenuCustomComponent.h" compile="0"
-                  resource="0" file="src/gui/components/menus/juce_PopupMenuCustomComponent.h"/>
           </GROUP>
           <GROUP id="4Z6gX1IB5" name="mouse">
             <FILE id="zg6SjElG2" name="juce_ComponentDragger.cpp" compile="1" resource="0"
@@ -812,10 +818,6 @@
                   file="src/gui/components/mouse/juce_MouseEvent.cpp"/>
             <FILE id="w6gpReQJ" name="juce_MouseEvent.h" compile="0" resource="0"
                   file="src/gui/components/mouse/juce_MouseEvent.h"/>
-            <FILE id="jWJffCCWt" name="juce_MouseHoverDetector.cpp" compile="1"
-                  resource="0" file="src/gui/components/mouse/juce_MouseHoverDetector.cpp"/>
-            <FILE id="wLpGKPDBH" name="juce_MouseHoverDetector.h" compile="0" resource="0"
-                  file="src/gui/components/mouse/juce_MouseHoverDetector.h"/>
             <FILE id="RxLJE2TH8" name="juce_MouseInputSource.cpp" compile="1" resource="0"
                   file="src/gui/components/mouse/juce_MouseInputSource.cpp"/>
             <FILE id="bf62P4hKo" name="juce_MouseInputSource.h" compile="0" resource="0"
@@ -826,6 +828,36 @@
                   file="src/gui/components/mouse/juce_MouseListener.h"/>
             <FILE id="hCJfcdNV" name="juce_TooltipClient.h" compile="0" resource="0"
                   file="src/gui/components/mouse/juce_TooltipClient.h"/>
+          </GROUP>
+          <GROUP id="atSBpAe" name="positioning">
+            <FILE id="A9UAxfF" name="juce_MarkerList.cpp" compile="1" resource="0"
+                  file="src/gui/components/positioning/juce_MarkerList.cpp"/>
+            <FILE id="cpzKkZg" name="juce_MarkerList.h" compile="0" resource="0"
+                  file="src/gui/components/positioning/juce_MarkerList.h"/>
+            <FILE id="rDGFuZ8" name="juce_RelativeCoordinate.cpp" compile="1" resource="0"
+                  file="src/gui/components/positioning/juce_RelativeCoordinate.cpp"/>
+            <FILE id="joDe8QG" name="juce_RelativeCoordinate.h" compile="0" resource="0"
+                  file="src/gui/components/positioning/juce_RelativeCoordinate.h"/>
+            <FILE id="1eZoAMe" name="juce_RelativeCoordinatePositioner.cpp" compile="1"
+                  resource="0" file="src/gui/components/positioning/juce_RelativeCoordinatePositioner.cpp"/>
+            <FILE id="XAiqum" name="juce_RelativeCoordinatePositioner.h" compile="0"
+                  resource="0" file="src/gui/components/positioning/juce_RelativeCoordinatePositioner.h"/>
+            <FILE id="hHlqkdv" name="juce_RelativeParallelogram.cpp" compile="1"
+                  resource="0" file="src/gui/components/positioning/juce_RelativeParallelogram.cpp"/>
+            <FILE id="CsV5EuL" name="juce_RelativeParallelogram.h" compile="0"
+                  resource="0" file="src/gui/components/positioning/juce_RelativeParallelogram.h"/>
+            <FILE id="0YwEobm" name="juce_RelativePoint.cpp" compile="1" resource="0"
+                  file="src/gui/components/positioning/juce_RelativePoint.cpp"/>
+            <FILE id="qfEgr1N" name="juce_RelativePoint.h" compile="0" resource="0"
+                  file="src/gui/components/positioning/juce_RelativePoint.h"/>
+            <FILE id="Tpw467z" name="juce_RelativePointPath.cpp" compile="1" resource="0"
+                  file="src/gui/components/positioning/juce_RelativePointPath.cpp"/>
+            <FILE id="IWnsihE" name="juce_RelativePointPath.h" compile="0" resource="0"
+                  file="src/gui/components/positioning/juce_RelativePointPath.h"/>
+            <FILE id="0KZhQdm" name="juce_RelativeRectangle.cpp" compile="1" resource="0"
+                  file="src/gui/components/positioning/juce_RelativeRectangle.cpp"/>
+            <FILE id="TFUIpnH" name="juce_RelativeRectangle.h" compile="0" resource="0"
+                  file="src/gui/components/positioning/juce_RelativeRectangle.h"/>
           </GROUP>
           <GROUP id="ynWya5uGz" name="properties">
             <FILE id="MUcTrPpj" name="juce_BooleanPropertyComponent.cpp" compile="1"
@@ -880,10 +912,6 @@
                   file="src/gui/components/special/juce_DropShadower.cpp"/>
             <FILE id="tNsR3nrMx" name="juce_DropShadower.h" compile="0" resource="0"
                   file="src/gui/components/special/juce_DropShadower.h"/>
-            <FILE id="dPsalIXYm" name="juce_MagnifierComponent.cpp" compile="1"
-                  resource="0" file="src/gui/components/special/juce_MagnifierComponent.cpp"/>
-            <FILE id="9mE7Snh9t" name="juce_MagnifierComponent.h" compile="0" resource="0"
-                  file="src/gui/components/special/juce_MagnifierComponent.h"/>
             <FILE id="azZgJ9Sn" name="juce_MidiKeyboardComponent.cpp" compile="1"
                   resource="0" file="src/gui/components/special/juce_MidiKeyboardComponent.cpp"/>
             <FILE id="lZq5kJdPd" name="juce_MidiKeyboardComponent.h" compile="0"
@@ -1064,8 +1092,6 @@
                   file="src/gui/graphics/geometry/juce_AffineTransform.cpp"/>
             <FILE id="NWFLILuh7" name="juce_AffineTransform.h" compile="0" resource="0"
                   file="src/gui/graphics/geometry/juce_AffineTransform.h"/>
-            <FILE id="EzBXrEdQc" name="juce_BorderSize.cpp" compile="1" resource="0"
-                  file="src/gui/graphics/geometry/juce_BorderSize.cpp"/>
             <FILE id="Yrgxtk9Y" name="juce_BorderSize.h" compile="0" resource="0"
                   file="src/gui/graphics/geometry/juce_BorderSize.h"/>
             <FILE id="kctD1TPMS" name="juce_Line.h" compile="0" resource="0" file="src/gui/graphics/geometry/juce_Line.h"/>
@@ -1081,20 +1107,12 @@
             <FILE id="0sf51PJbY" name="juce_PathStrokeType.h" compile="0" resource="0"
                   file="src/gui/graphics/geometry/juce_PathStrokeType.h"/>
             <FILE id="n1Fp2JipH" name="juce_Point.h" compile="0" resource="0" file="src/gui/graphics/geometry/juce_Point.h"/>
-            <FILE id="rYmmzSqNV" name="juce_PositionedRectangle.cpp" compile="1"
-                  resource="0" file="src/gui/graphics/geometry/juce_PositionedRectangle.cpp"/>
-            <FILE id="KBwtfubIY" name="juce_PositionedRectangle.h" compile="0"
-                  resource="0" file="src/gui/graphics/geometry/juce_PositionedRectangle.h"/>
             <FILE id="6SejKO45p" name="juce_Rectangle.h" compile="0" resource="0"
                   file="src/gui/graphics/geometry/juce_Rectangle.h"/>
             <FILE id="HaB5yPbdw" name="juce_RectangleList.cpp" compile="1" resource="0"
                   file="src/gui/graphics/geometry/juce_RectangleList.cpp"/>
             <FILE id="OEwUQsN86" name="juce_RectangleList.h" compile="0" resource="0"
                   file="src/gui/graphics/geometry/juce_RectangleList.h"/>
-            <FILE id="qXlVCF8ol" name="juce_RelativeCoordinate.cpp" compile="1"
-                  resource="0" file="src/gui/graphics/geometry/juce_RelativeCoordinate.cpp"/>
-            <FILE id="OKz41frTz" name="juce_RelativeCoordinate.h" compile="0" resource="0"
-                  file="src/gui/graphics/geometry/juce_RelativeCoordinate.h"/>
           </GROUP>
           <GROUP id="UvRZ4CgGl" name="imaging">
             <GROUP id="UpDEgf4Fr" name="image_file_formats">
@@ -1249,12 +1267,6 @@
               file="src/memory/juce_WeakReference.h"/>
       </GROUP>
       <GROUP id="fRwnaei56" name="native">
-        <FILE id="m3AUpRM7f" name="juce_linux_NativeCode.cpp" compile="1" resource="0"
-              file="src/native/juce_linux_NativeCode.cpp"/>
-        <FILE id="Z3odH2NPv" name="juce_mac_NativeCode.mm" compile="1" resource="0"
-              file="src/native/juce_mac_NativeCode.mm"/>
-        <FILE id="z5G75xgix" name="juce_win32_NativeCode.cpp" compile="1" resource="0"
-              file="src/native/juce_win32_NativeCode.cpp"/>
         <GROUP id="yPi7BU95s" name="common">
           <FILE id="2wc3bGX" name="juce_MidiDataConcatenator.h" compile="0" resource="0"
                 file="src/native/common/juce_MidiDataConcatenator.h"/>
@@ -1282,6 +1294,8 @@
                 file="src/native/linux/juce_linux_Messaging.cpp"/>
           <FILE id="fTDp1NJrf" name="juce_linux_Midi.cpp" compile="1" resource="0"
                 file="src/native/linux/juce_linux_Midi.cpp"/>
+          <FILE id="mLB6yP" name="juce_linux_NativeCode.cpp" compile="1" resource="0"
+                file="src/native/linux/juce_linux_NativeCode.cpp"/>
           <FILE id="wsFiYQ9ch" name="juce_linux_NativeIncludes.h" compile="0"
                 resource="0" file="src/native/linux/juce_linux_NativeIncludes.h"/>
           <FILE id="TSc8pcu6K" name="juce_linux_Network.cpp" compile="1" resource="0"
@@ -1296,14 +1310,14 @@
                 file="src/native/linux/juce_linux_Windowing.cpp"/>
         </GROUP>
         <GROUP id="RLR9J7l7a" name="mac">
-          <FILE id="yE8Iony6z" name="juce_iphone_Audio.cpp" compile="1" resource="0"
-                file="src/native/mac/juce_iphone_Audio.cpp"/>
-          <FILE id="XTxdCBen" name="juce_iphone_MessageManager.mm" compile="1"
-                resource="0" file="src/native/mac/juce_iphone_MessageManager.mm"/>
-          <FILE id="kGVgE6vYV" name="juce_iphone_MiscUtilities.mm" compile="1"
-                resource="0" file="src/native/mac/juce_iphone_MiscUtilities.mm"/>
-          <FILE id="SKGkPpvaz" name="juce_iphone_UIViewComponentPeer.mm" compile="1"
-                resource="0" file="src/native/mac/juce_iphone_UIViewComponentPeer.mm"/>
+          <FILE id="yE8Iony6z" name="juce_ios_Audio.cpp" compile="1" resource="0"
+                file="src/native/mac/juce_ios_Audio.cpp"/>
+          <FILE id="XTxdCBen" name="juce_ios_MessageManager.mm" compile="1" resource="0"
+                file="src/native/mac/juce_ios_MessageManager.mm"/>
+          <FILE id="kGVgE6vYV" name="juce_ios_MiscUtilities.mm" compile="1" resource="0"
+                file="src/native/mac/juce_ios_MiscUtilities.mm"/>
+          <FILE id="SKGkPpvaz" name="juce_ios_UIViewComponentPeer.mm" compile="1"
+                resource="0" file="src/native/mac/juce_ios_UIViewComponentPeer.mm"/>
           <FILE id="2cnGnB7g9" name="juce_mac_AppleRemote.mm" compile="1" resource="0"
                 file="src/native/mac/juce_mac_AppleRemote.mm"/>
           <FILE id="8rKYGEkhh" name="juce_mac_AudioCDBurner.mm" compile="1" resource="0"
@@ -1336,6 +1350,8 @@
                 file="src/native/mac/juce_mac_MiscUtilities.mm"/>
           <FILE id="84ADkew8H" name="juce_mac_MouseCursor.mm" compile="1" resource="0"
                 file="src/native/mac/juce_mac_MouseCursor.mm"/>
+          <FILE id="FCbPaX" name="juce_mac_NativeCode.mm" compile="1" resource="0"
+                file="src/native/mac/juce_mac_NativeCode.mm"/>
           <FILE id="cOZYRIj0S" name="juce_mac_NativeIncludes.h" compile="0" resource="0"
                 file="src/native/mac/juce_mac_NativeIncludes.h"/>
           <FILE id="6yXpAwe4r" name="juce_mac_Network.mm" compile="1" resource="0"
@@ -1390,6 +1406,8 @@
                 file="src/native/windows/juce_win32_Midi.cpp"/>
           <FILE id="9ucc62F3e" name="juce_win32_Misc.cpp" compile="1" resource="0"
                 file="src/native/windows/juce_win32_Misc.cpp"/>
+          <FILE id="kUKTKh" name="juce_win32_NativeCode.cpp" compile="1" resource="0"
+                file="src/native/windows/juce_win32_NativeCode.cpp"/>
           <FILE id="nI5Yz3BGi" name="juce_win32_NativeIncludes.h" compile="0"
                 resource="0" file="src/native/windows/juce_win32_NativeIncludes.h"/>
           <FILE id="1rT0RTu06" name="juce_win32_Network.cpp" compile="1" resource="0"
@@ -1411,12 +1429,56 @@
           <FILE id="u1rCbQqVT" name="juce_win32_Windowing.cpp" compile="1" resource="0"
                 file="src/native/windows/juce_win32_Windowing.cpp"/>
         </GROUP>
+        <GROUP id="oKVTWQ" name="android">
+          <FILE id="JBId31" name="juce_android_Audio.cpp" compile="1" resource="0"
+                file="src/native/android/juce_android_Audio.cpp"/>
+          <FILE id="svLEk9" name="juce_android_CameraDevice.cpp" compile="1"
+                resource="0" file="src/native/android/juce_android_CameraDevice.cpp"/>
+          <FILE id="p8LoRE" name="juce_android_FileChooser.cpp" compile="1" resource="0"
+                file="src/native/android/juce_android_FileChooser.cpp"/>
+          <FILE id="vphAaz" name="juce_android_Files.cpp" compile="1" resource="0"
+                file="src/native/android/juce_android_Files.cpp"/>
+          <FILE id="XrSKE" name="juce_android_Fonts.cpp" compile="1" resource="0"
+                file="src/native/android/juce_android_Fonts.cpp"/>
+          <FILE id="VFjwst" name="juce_android_GraphicsContext.cpp" compile="1"
+                resource="0" file="src/native/android/juce_android_GraphicsContext.cpp"/>
+          <FILE id="TV84om" name="juce_android_Messaging.cpp" compile="1" resource="0"
+                file="src/native/android/juce_android_Messaging.cpp"/>
+          <FILE id="mJh1wV" name="juce_android_Midi.cpp" compile="1" resource="0"
+                file="src/native/android/juce_android_Midi.cpp"/>
+          <FILE id="cTwU1I" name="juce_android_Misc.cpp" compile="1" resource="0"
+                file="src/native/android/juce_android_Misc.cpp"/>
+          <FILE id="kCijWU" name="juce_android_NativeCode.cpp" compile="1" resource="0"
+                file="src/native/android/juce_android_NativeCode.cpp"/>
+          <FILE id="nE5bBA" name="juce_android_NativeIncludes.h" compile="0"
+                resource="0" file="src/native/android/juce_android_NativeIncludes.h"/>
+          <FILE id="fXioLO" name="juce_android_Network.cpp" compile="1" resource="0"
+                file="src/native/android/juce_android_Network.cpp"/>
+          <FILE id="YQ8ZrU" name="juce_android_OpenGLComponent.cpp" compile="1"
+                resource="0" file="src/native/android/juce_android_OpenGLComponent.cpp"/>
+          <FILE id="dEw2jT" name="juce_android_SystemStats.cpp" compile="1" resource="0"
+                file="src/native/android/juce_android_SystemStats.cpp"/>
+          <FILE id="M4x7Lf" name="juce_android_Threads.cpp" compile="1" resource="0"
+                file="src/native/android/juce_android_Threads.cpp"/>
+          <FILE id="IyYfds" name="juce_android_WebBrowserComponent.cpp" compile="1"
+                resource="0" file="src/native/android/juce_android_WebBrowserComponent.cpp"/>
+          <FILE id="RN0NVL" name="juce_android_Windowing.cpp" compile="1" resource="0"
+                file="src/native/android/juce_android_Windowing.cpp"/>
+        </GROUP>
       </GROUP>
       <GROUP id="DmPUetFJW" name="text">
         <FILE id="jr5l0DTZv" name="juce_CharacterFunctions.cpp" compile="1"
               resource="0" file="src/text/juce_CharacterFunctions.cpp"/>
         <FILE id="McKZNzGvH" name="juce_CharacterFunctions.h" compile="0" resource="0"
               file="src/text/juce_CharacterFunctions.h"/>
+        <FILE id="vCX7K0" name="juce_CharPointer_UTF8.h" compile="0" resource="0"
+              file="src/text/juce_CharPointer_UTF8.h"/>
+        <FILE id="KKhKRD" name="juce_CharPointer_UTF16.h" compile="0" resource="0"
+              file="src/text/juce_CharPointer_UTF16.h"/>
+        <FILE id="rE1hlF" name="juce_CharPointer_UTF32.h" compile="0" resource="0"
+              file="src/text/juce_CharPointer_UTF32.h"/>
+        <FILE id="rdfOEc" name="juce_CharPointer_ASCII.h" compile="0" resource="0"
+              file="src/text/juce_CharPointer_ASCII.h"/>
         <FILE id="iGtCiI8" name="juce_Identifier.cpp" compile="1" resource="0"
               file="src/text/juce_Identifier.cpp"/>
         <FILE id="CPlhWqs" name="juce_Identifier.h" compile="0" resource="0"
