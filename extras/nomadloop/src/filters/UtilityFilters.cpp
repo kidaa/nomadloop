@@ -316,15 +316,20 @@ void DefaultMidiOutputFilter::prepareToPlay(double sampleRate, int estimatedSamp
 {
 	this->sampleRate = sampleRate;
 	output = MidiOutput::openDevice(MidiOutput::getDefaultDeviceIndex());
-	output->startBackgroundThread();
+
+	if (output != 0)
+		output->startBackgroundThread();
 	Logger::outputDebugString(T("Prepare to play to default MIDI output: "));
 }
 
 void DefaultMidiOutputFilter::releaseResources()
 {
-	output->stopBackgroundThread();
-	output->reset();
-	delete output;
+	if (output != 0)
+	{
+		output->stopBackgroundThread();
+		output->reset();
+		delete output;
+	}
 }
 
 void DefaultMidiOutputFilter::processBlock(AudioSampleBuffer &, MidiBuffer &buffer)

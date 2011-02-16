@@ -249,9 +249,9 @@ void MainHostWindow::changeListenerCallback (ChangeBroadcaster*)
 
 const StringArray MainHostWindow::getMenuBarNames()
 {
-    const tchar* const names[] = { T("File"), T("View"), T("Plugins"), T("Options"), 0 };
+    const wchar_t* const names[] = { T("File"), T("View"), T("Plugins"), T("Options"), 0 };
 
-    return StringArray ((const tchar**) names);
+    return StringArray ((const wchar_t**) names);
 }
 
 const PopupMenu MainHostWindow::getMenuForIndex (int topLevelMenuIndex, const String& /*menuName*/)
