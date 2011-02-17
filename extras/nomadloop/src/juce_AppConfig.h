@@ -53,7 +53,7 @@
 #define JUCE_PLUGINHOST_AU  0
 #define JUCE_SUPPORT_CARBON 0
 #define JUCE_JACK 1
-#define JUCE_ALSA 1
+#define JUCE_ALSA 0
 #endif
 //#define JUCE_ONLY_BUILD_CORE_LIBRARY   1
 //#define JUCE_FORCE_DEBUG  1

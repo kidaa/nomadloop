@@ -22,6 +22,7 @@ package.config["Release"].defines   = { "LINUX=1", "NDEBUG=1" };
 
 package.includepaths = { 
     "/usr/include",
+    "/usr/include/freetype2",
     "/usr/include/vstsdk2.4"
 }
 
@@ -31,7 +32,7 @@ package.libpaths = {
 }
 
 package.config["Debug"].links = { 
-    "freetype", "pthread", "rt", "X11", "Xss", "GL", "GLU", "Xinerama", "asound", "juce_debug"
+    "freetype", "pthread", "rt", "X11", "Xss", "Xinerama"
 }
 
 package.config["Release"].links = { 

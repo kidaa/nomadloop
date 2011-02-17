@@ -106,7 +106,8 @@ FileChooserDialogBox::FileChooserDialogBox (const String& name,
     : ResizableWindow (name, backgroundColour, true),
       warnAboutOverwritingExistingFiles (warnAboutOverwritingExistingFiles_)
 {
-    setContentComponent (content = new ContentComponent (name, instructions, chooserComponent));
+    content = new ContentComponent (name, instructions, chooserComponent);
+    setContentOwned (content, false);
 
     setResizable (true, true);
     setResizeLimits (300, 300, 1200, 1000);
@@ -125,6 +126,7 @@ FileChooserDialogBox::~FileChooserDialogBox()
 }
 
 //==============================================================================
+#if JUCE_MODAL_LOOPS_PERMITTED
 bool FileChooserDialogBox::show (int w, int h)
 {
     return showAt (-1, -1, w, h);
@@ -154,6 +156,7 @@ bool FileChooserDialogBox::showAt (int x, int y, int w, int h)
     setVisible (false);
     return ok;
 }
+#endif
 
 void FileChooserDialogBox::centreWithDefaultSize (Component* componentToCentreAround)
 {

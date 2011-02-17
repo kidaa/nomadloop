@@ -2,3 +2,19 @@ NomadLoop is a digital audio host focused on live-looping, real-time metacomposi
 
 It is based on Julian Storen's excellent JUCE library for C++, and released under the terms of the GNU GPL.
 
+
+== Building ==
+
+=== Ubuntu ===
+1) get premake from http://sourceforge.net/projects/premake/files/Premake/3.7/premake-linux-3.7.tar.gz/download (On 64-bit Linux, you'll need to compile it from source)
+
+2) apt-get install g++ libfreetype6-dev libx11-dev libxinerama-dev libxcursor-dev libxss-dev libjack-dev 
+
+3) cd nomadloop/extras/nomadloop/build/linux/
+
+4) ./runpremake
+
+5) make
+
+6) ./build/NomadLoop
+

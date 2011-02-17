@@ -60,16 +60,12 @@ public:
     }
 
     /** This is a pointer comparison, it doesn't compare the actual text. */
-    inline bool operator== (const CharPointer_UTF8& other) const throw()
-    {
-        return data == other.data;
-    }
-
-    /** This is a pointer comparison, it doesn't compare the actual text. */
-    inline bool operator!= (const CharPointer_UTF8& other) const throw()
-    {
-        return data == other.data;
-    }
+    inline bool operator== (const CharPointer_UTF8& other) const throw() { return data == other.data; }
+    inline bool operator!= (const CharPointer_UTF8& other) const throw() { return data != other.data; }
+    inline bool operator<= (const CharPointer_UTF8& other) const throw() { return data <= other.data; }
+    inline bool operator<  (const CharPointer_UTF8& other) const throw() { return data < other.data; }
+    inline bool operator>= (const CharPointer_UTF8& other) const throw() { return data >= other.data; }
+    inline bool operator>  (const CharPointer_UTF8& other) const throw() { return data > other.data; }
 
     /** Returns the address that this pointer is pointing to. */
     inline CharType* getAddress() const throw()         { return data; }
@@ -83,7 +79,7 @@ public:
     /** Returns the unicode character that this pointer is pointing to. */
     juce_wchar operator*() const throw()
     {
-        const char byte = *data;
+        const signed char byte = (signed char) *data;
 
         if (byte >= 0)
             return byte;
@@ -119,7 +115,7 @@ public:
     /** Moves this pointer along to the next character in the string. */
     CharPointer_UTF8& operator++() throw()
     {
-        const char n = *data++;
+        const signed char n = (signed char) *data++;
 
         if (n < 0)
         {
@@ -139,7 +135,7 @@ public:
         advances the pointer to point to the next character. */
     juce_wchar getAndAdvance() throw()
     {
-        const char byte = *data++;
+        const signed char byte = (signed char) *data++;
 
         if (byte >= 0)
             return byte;
@@ -241,6 +237,12 @@ public:
     size_t lengthUpTo (const size_t maxCharsToCount) const throw()
     {
         return CharacterFunctions::lengthUpTo (*this, maxCharsToCount);
+    }
+
+    /** Returns the number of characters in this string, or up to the given end pointer, whichever is lower. */
+    size_t lengthUpTo (const CharPointer_UTF8& end) const throw()
+    {
+        return CharacterFunctions::lengthUpTo (*this, end);
     }
 
     /** Returns the number of bytes that are used to represent this string.
@@ -484,7 +486,7 @@ public:
     {
         while (--maxBytesToRead >= 0 && *dataToTest != 0)
         {
-            const char byte = *dataToTest;
+            const signed char byte = (signed char) *dataToTest;
 
             if (byte < 0)
             {
