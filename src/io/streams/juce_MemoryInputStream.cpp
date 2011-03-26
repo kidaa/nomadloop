@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -136,8 +136,7 @@ public:
 
     static const String createRandomWideCharString()
     {
-        juce_wchar buffer [50];
-        zerostruct (buffer);
+        juce_wchar buffer [50] = { 0 };
 
         for (int i = 0; i < numElementsInArray (buffer) - 1; ++i)
         {
@@ -153,7 +152,7 @@ public:
                 buffer[i] = (juce_wchar) (1 + Random::getSystemRandom().nextInt (0xff));
         }
 
-        return buffer;
+        return CharPointer_UTF32 (buffer);
     }
 };
 

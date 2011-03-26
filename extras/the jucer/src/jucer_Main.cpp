@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -103,7 +103,7 @@ public:
 
     void anotherInstanceStarted (const String& commandLine)
     {
-        if (theMainWindow != 0)
+        if (theMainWindow != 0 && commandLine.unquoted().isNotEmpty())
             theMainWindow->openFile (commandLine.unquoted());
     }
 };

@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -92,7 +92,7 @@
 #ifdef _MSC_VER
   #pragma pack (pop)
 
-  #if JUCE_DEBUG
+  #if JUCE_DEBUGxxx // (the debug lib in the 8.0 SDK fails to link, so we'll stick to the release one...)
    #define PT_LIB_PATH  JucePlugin_WinBag_path "\\Debug\\lib\\"
   #else
    #define PT_LIB_PATH  JucePlugin_WinBag_path "\\Release\\lib\\"
@@ -102,7 +102,6 @@
   #pragma comment(lib, PT_LIB_PATH "DigiExt.lib")
   #pragma comment(lib, PT_LIB_PATH "DSI.lib")
   #pragma comment(lib, PT_LIB_PATH "PluginLib.lib")
-
 #endif
 
 #undef Component
@@ -885,7 +884,7 @@ private:
 
         void GetNameOfLength (char* name, int maxLength, OSType inControllerType) const
         {
-            juceFilter->getParameterName (index).copyToCString (name, maxLength);
+            juceFilter->getParameterName (index).copyToUTF8 (name, maxLength);
         }
 
         long GetPriority() const        { return kFicCooperativeTaskPriority; }
@@ -900,7 +899,7 @@ private:
 
         void GetValueString (char* valueString, int maxLength, long value) const
         {
-            juceFilter->getParameterText (index).copyToCString (valueString, maxLength);
+            juceFilter->getParameterText (index).copyToUTF8 (valueString, maxLength);
         }
 
         Cmn_Bool IsAutomatable() const
@@ -925,7 +924,7 @@ public:
     JucePlugInGroup()
     {
         DefineManufacturerNamesAndID (JucePlugin_Manufacturer, JucePlugin_RTASManufacturerCode);
-        DefinePlugInNamesAndVersion (createRTASName().toCString(), JucePlugin_VersionCode);
+        DefinePlugInNamesAndVersion (createRTASName().toUTF8(), JucePlugin_VersionCode);
 
 #ifndef JUCE_DEBUG
         AddGestalt (pluginGestalt_IsCacheable);
@@ -955,7 +954,7 @@ public:
                                        JucePlugin_RTASProductId,
                                        JucePlugin_RTASCategory);
 
-            type->DefineTypeNames (createRTASName().toCString());
+            type->DefineTypeNames (createRTASName().toUTF8().getAddress());
             type->DefineSampleRateSupport (eSupports48kAnd96kAnd192k);
 
             type->DefineStemFormats (getFormatForChans (channelConfigs [i][0] != 0 ? channelConfigs [i][0] : channelConfigs [i][1]),

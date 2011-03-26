@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -285,6 +285,17 @@ public:
             }
         }
 #endif
+    }
+
+    EdgeTable* getEdgeTableForGlyph (int glyphNumber, const AffineTransform& transform)
+    {
+        Path path;
+
+        if (getOutlineForGlyph (glyphNumber, path) && ! path.isEmpty())
+            return new EdgeTable (path.getBoundsTransformed (transform).getSmallestIntegerContainer().expanded (1, 0),
+                                  path, transform);
+
+        return 0;
     }
 
     bool getOutlineForGlyph (int glyphNumber, Path& path)

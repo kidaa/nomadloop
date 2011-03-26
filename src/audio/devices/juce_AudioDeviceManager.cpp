@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -101,8 +101,6 @@ const OwnedArray <AudioIODeviceType>& AudioDeviceManager::getAvailableDeviceType
 }
 
 //==============================================================================
-AudioIODeviceType* juce_createAudioIODeviceType_JACK();
-
 static void addIfNotNull (OwnedArray <AudioIODeviceType>& list, AudioIODeviceType* const device)
 {
     if (device != 0)
@@ -114,12 +112,11 @@ void AudioDeviceManager::createAudioDeviceTypes (OwnedArray <AudioIODeviceType>&
     addIfNotNull (list, AudioIODeviceType::createAudioIODeviceType_WASAPI());
     addIfNotNull (list, AudioIODeviceType::createAudioIODeviceType_DirectSound());
     addIfNotNull (list, AudioIODeviceType::createAudioIODeviceType_ASIO());
-
     addIfNotNull (list, AudioIODeviceType::createAudioIODeviceType_CoreAudio());
     addIfNotNull (list, AudioIODeviceType::createAudioIODeviceType_iOSAudio());
-
     addIfNotNull (list, AudioIODeviceType::createAudioIODeviceType_ALSA());
     addIfNotNull (list, AudioIODeviceType::createAudioIODeviceType_JACK());
+    addIfNotNull (list, AudioIODeviceType::createAudioIODeviceType_Android());
 }
 
 //==============================================================================
@@ -468,7 +465,7 @@ double AudioDeviceManager::chooseBestSampleRate (double rate) const
     {
         const double sr = currentAudioDevice->getSampleRate (i);
 
-        if (sr >= 44100.0 && (lowestAbove44 == 0 || sr < lowestAbove44))
+        if (sr >= 44100.0 && (lowestAbove44 < 1.0 || sr < lowestAbove44))
             lowestAbove44 = sr;
     }
 
@@ -613,7 +610,7 @@ void AudioDeviceManager::audioDeviceIOCallbackInt (const float** inputChannelDat
 {
     const ScopedLock sl (audioCallbackLock);
 
-    if (inputLevelMeasurementEnabledCount > 0)
+    if (inputLevelMeasurementEnabledCount > 0 && numInputChannels > 0)
     {
         for (int j = 0; j < numSamples; ++j)
         {
@@ -633,6 +630,10 @@ void AudioDeviceManager::audioDeviceIOCallbackInt (const float** inputChannelDat
             else
                 inputLevel = 0;
         }
+    }
+    else
+    {
+        inputLevel = 0;
     }
 
     if (callbacks.size() > 0)

@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -56,7 +56,7 @@ namespace FileChooserHelpers
         FileChooserCallbackInfo* info = (FileChooserCallbackInfo*) lpData;
 
         if (msg == BFFM_INITIALIZED)
-            SendMessage (hWnd, BFFM_SETSELECTIONW, TRUE, (LPARAM) info->initialPath.toUTF16().getAddress());
+            SendMessage (hWnd, BFFM_SETSELECTIONW, TRUE, (LPARAM) info->initialPath.toWideCharPointer());
         else if (msg == BFFM_VALIDATEFAILEDW)
             info->returnedString = (LPCWSTR) lParam;
         else if (msg == BFFM_VALIDATEFAILEDA)
@@ -100,8 +100,7 @@ namespace FileChooserHelpers
 
                 if (comp != 0)
                 {
-                    WCHAR path [MAX_PATH * 2];
-                    zerostruct (path);
+                    WCHAR path [MAX_PATH * 2] = { 0 };
                     CommDlg_OpenSave_GetFilePath (GetParent (hdlg), (LPARAM) &path, MAX_PATH);
 
                     comp->selectedFileChanged (File (path));
@@ -182,12 +181,10 @@ void FileChooser::showPlatformDialog (Array<File>& results, const String& title_
 
     if (selectsDirectory)
     {
-        BROWSEINFO bi;
-        zerostruct (bi);
-
+        BROWSEINFO bi = { 0 };
         bi.hwndOwner = (HWND) parentWindow.getWindowHandle();
         bi.pszDisplayName = files;
-        bi.lpszTitle = title.toUTF16();
+        bi.lpszTitle = title.toWideCharPointer();
         bi.lParam = (LPARAM) &info;
         bi.lpfn = browseCallbackProc;
       #ifdef BIF_USENEWUI
@@ -239,23 +236,21 @@ void FileChooser::showPlatformDialog (Array<File>& results, const String& title_
         filter.copyToUTF16 (filters + (bytesWritten / sizeof (WCHAR)) + 1,
                             (filterSpaceNumChars - 1) * sizeof (WCHAR) - bytesWritten);
 
-        OPENFILENAMEW of;
-        zerostruct (of);
-
+        OPENFILENAMEW of = { 0 };
         String localPath (info.initialPath);
 
-      #ifdef OPENFILENAME_SIZE_VERSION_400W
+       #ifdef OPENFILENAME_SIZE_VERSION_400W
         of.lStructSize = OPENFILENAME_SIZE_VERSION_400W;
-      #else
+       #else
         of.lStructSize = sizeof (of);
-      #endif
+       #endif
         of.hwndOwner = (HWND) parentWindow.getWindowHandle();
         of.lpstrFilter = filters.getData();
         of.nFilterIndex = 1;
         of.lpstrFile = files;
         of.nMaxFile = charsAvailableForResult;
-        of.lpstrInitialDir = localPath.toUTF16();
-        of.lpstrTitle = title.toUTF16();
+        of.lpstrInitialDir = localPath.toWideCharPointer();
+        of.lpstrTitle = title.toWideCharPointer();
         of.Flags = flags;
         of.lCustData = (LPARAM) &info;
 

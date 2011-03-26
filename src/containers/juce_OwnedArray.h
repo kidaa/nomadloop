@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -170,13 +170,9 @@ public:
         ObjectClass* const* e = data.elements.getData();
         ObjectClass* const* const end = e + numUsed;
 
-        while (e != end)
-        {
+        for (; e != end; ++e)
             if (objectToLookFor == *e)
                 return static_cast <int> (e - data.elements.getData());
-
-            ++e;
-        }
 
         return -1;
     }
@@ -192,13 +188,9 @@ public:
         ObjectClass* const* e = data.elements.getData();
         ObjectClass* const* const end = e + numUsed;
 
-        while (e != end)
-        {
+        for (; e != end; ++e)
             if (objectToLookFor == *e)
                 return true;
-
-            ++e;
-        }
 
         return false;
     }
@@ -419,16 +411,18 @@ public:
         @param comparator   the comparator to use to compare the elements - see the sort method
                             for details about this object's structure
         @param newObject    the new object to insert to the array
+        @returns the index at which the new object was added
         @see add, sort, indexOfSorted
     */
     template <class ElementComparator>
-    void addSorted (ElementComparator& comparator,
-                    ObjectClass* const newObject) throw()
+    int addSorted (ElementComparator& comparator, ObjectClass* const newObject) throw()
     {
         (void) comparator;  // if you pass in an object with a static compareElements() method, this
                             // avoids getting warning messages about the parameter being unused
         const ScopedLockType lock (getLock());
-        insert (findInsertIndexInSortedArray (comparator, data.elements.getData(), newObject, 0, numUsed), newObject);
+        const int index = findInsertIndexInSortedArray (comparator, data.elements.getData(), newObject, 0, numUsed);
+        insert (index, newObject);
+        return index;
     }
 
     /** Finds the index of an object in the array, assuming that the array is sorted.
@@ -564,17 +558,15 @@ public:
                        const bool deleteObject = true)
     {
         const ScopedLockType lock (getLock());
-        ObjectClass** e = data.elements.getData();
+        ObjectClass** const e = data.elements.getData();
 
-        for (int i = numUsed; --i >= 0;)
+        for (int i = 0; i < numUsed; ++i)
         {
-            if (objectToRemove == *e)
+            if (objectToRemove == e[i])
             {
-                remove (static_cast <int> (e - data.elements.getData()), deleteObject);
+                remove (i, deleteObject);
                 break;
             }
-
-            ++e;
         }
     }
 

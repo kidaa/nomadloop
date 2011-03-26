@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -40,6 +40,9 @@
 #endif
 #ifndef __JUCE_ELEMENTCOMPARATOR_JUCEHEADER__
  #include "containers/juce_ElementComparator.h"
+#endif
+#ifndef __JUCE_HASHMAP_JUCEHEADER__
+ #include "containers/juce_HashMap.h"
 #endif
 #ifndef __JUCE_LINKEDLISTPOINTER_JUCEHEADER__
  #include "containers/juce_LinkedListPointer.h"

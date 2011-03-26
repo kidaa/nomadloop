@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -224,7 +224,7 @@ public:
     static const Identifier getColourPropertyId (const int colourId)
     {
         String s;
-        s.preallocateStorage (18);
+        s.preallocateBytes (32);
         s << "jcclr_" << String::toHexString (colourId);
         return s;
     }
@@ -1093,6 +1093,11 @@ void Component::setBounds (const Rectangle<int>& r)
 void Component::setBounds (const RelativeRectangle& newBounds)
 {
     newBounds.applyToComponent (*this);
+}
+
+void Component::setBounds (const String& newBoundsExpression)
+{
+    setBounds (RelativeRectangle (newBoundsExpression));
 }
 
 void Component::setBoundsRelative (const float x, const float y,

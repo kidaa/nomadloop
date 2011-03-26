@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -29,6 +29,7 @@
 #include "../juce_Component.h"
 #include "../layout/juce_ScrollBar.h"
 #include "../keyboard/juce_TextInputTarget.h"
+#include "../keyboard/juce_CaretComponent.h"
 #include "juce_CodeDocument.h"
 #include "juce_CodeTokeniser.h"
 
@@ -93,6 +94,9 @@ public:
 
     /** Returns the current caret position. */
     const CodeDocument::Position getCaretPos() const            { return caretPos; }
+
+    /** Returns the position of the caret, relative to the editor's origin. */
+    const Rectangle<int> getCaretRectangle();
 
     /** Moves the caret.
         If selecting is true, the section of the document between the current
@@ -208,7 +212,6 @@ public:
     enum ColourIds
     {
         backgroundColourId          = 0x1004500,  /**< A colour to use to fill the editor's background. */
-        caretColourId               = 0x1004501,  /**< The colour to draw the caret. */
         highlightColourId           = 0x1004502,  /**< The colour to use for the highlighted background under
                                                        selected text. */
         defaultTextColourId         = 0x1004503   /**< The colour to use for text when no syntax colouring is
@@ -254,6 +257,8 @@ public:
                               const CodeDocument::Position& affectedTextEnd);
     /** @internal */
     bool isTextInputActive() const;
+    /** @internal */
+    void setTemporaryUnderlining (const Array <Range<int> >&);
 
 private:
     //==============================================================================
@@ -270,8 +275,6 @@ private:
     CodeDocument::Position caretPos;
     CodeDocument::Position selectionStart, selectionEnd;
 
-    class CaretComponent;
-    friend class ScopedPointer <CaretComponent>;
     ScopedPointer<CaretComponent> caret;
     ScrollBar verticalScrollBar, horizontalScrollBar;
 
@@ -299,6 +302,7 @@ private:
     void moveLineDelta (int delta, bool selecting);
 
     //==============================================================================
+    void updateCaretPosition();
     void updateScrollBars();
     void scrollToLineInternal (int line);
     void scrollToColumnInternal (double column);

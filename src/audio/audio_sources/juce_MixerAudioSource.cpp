@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -59,7 +59,7 @@ void MixerAudioSource::addInputSource (AudioSource* input, const bool deleteWhen
             localBufferSize = bufferSizeExpected;
         }
 
-        if (localRate != 0.0)
+        if (localRate > 0.0)
             input->prepareToPlay (localBufferSize, localRate);
 
         const ScopedLock sl (lock);

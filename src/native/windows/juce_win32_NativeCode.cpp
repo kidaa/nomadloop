@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -85,8 +85,8 @@ BEGIN_JUCE_NAMESPACE
 #include "../../audio/audio_sources/juce_AudioSource.h"
 #include "../../audio/dsp/juce_AudioDataConverters.h"
 #include "../../audio/devices/juce_AudioIODeviceType.h"
-#include "../../audio/devices/juce_MidiOutput.h"
-#include "../../audio/devices/juce_MidiInput.h"
+#include "../../audio/midi/juce_MidiOutput.h"
+#include "../../audio/midi/juce_MidiInput.h"
 #include "../../containers/juce_ScopedValueSetter.h"
 #include "../common/juce_MidiDataConcatenator.h"
 

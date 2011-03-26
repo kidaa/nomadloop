@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -240,15 +240,13 @@ public:
                     if (owner->shouldDropFilesWhenDraggedExternally (dragDescLocal, source, files, canMoveFiles)
                          && files.size() > 0)
                     {
-                        WeakReference<Component> cdw (this);
+                        WeakReference<Component> thisWeakRef (this);
                         setVisible (false);
 
                         if (ModifierKeys::getCurrentModifiersRealtime().isAnyMouseButtonDown())
                             DragAndDropContainer::performExternalDragDropOfFiles (files, canMoveFiles);
 
-                        if (cdw != 0)
-                            delete this;
-
+                        delete thisWeakRef.get();
                         return;
                     }
                 }
@@ -398,6 +396,14 @@ void DragAndDropContainer::startDragging (const String& sourceDescription,
 
         static_cast <DragImageComponent*> (static_cast <Component*> (dragImageComponent))->updateLocation (false, lastMouseDown);
         dragImageComponent->setVisible (true);
+
+       #if JUCE_WINDOWS
+        // Under heavy load, the layered window's paint callback can often be lost by the OS,
+        // so forcing a repaint at least once makes sure that the window becomes visible..
+        ComponentPeer* const peer = dragImageComponent->getPeer();
+        if (peer != 0)
+            peer->performAnyPendingRepaintsNow();
+       #endif
     }
 }
 

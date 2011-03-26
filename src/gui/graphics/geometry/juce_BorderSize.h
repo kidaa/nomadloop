@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -102,7 +102,7 @@ public:
     void setBottom (ValueType newBottomGap) throw()     { bottom = newBottomGap; }
 
     /** Changes the right gap. */
-    void setRight (ValueType newRightGap) throw()        { right = newRightGap; }
+    void setRight (ValueType newRightGap) throw()       { right = newRightGap; }
 
     //==============================================================================
     /** Returns a rectangle with these borders removed from it. */

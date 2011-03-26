@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -146,6 +146,8 @@ public:
     static AudioIODeviceType* createAudioIODeviceType_ALSA();
     /** Creates a JACK device type if it's available on this platform, or returns null. */
     static AudioIODeviceType* createAudioIODeviceType_JACK();
+    /** Creates an Android device type if it's available on this platform, or returns null. */
+    static AudioIODeviceType* createAudioIODeviceType_Android();
 
 protected:
     explicit AudioIODeviceType (const String& typeName);

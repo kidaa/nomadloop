@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -310,14 +310,14 @@ void ScrollBar::lookAndFeelChanged()
 
 void ScrollBar::resized()
 {
-    const int length = ((vertical) ? getHeight() : getWidth());
+    const int length = vertical ? getHeight() : getWidth();
 
-    const int buttonSize = (upButton != 0) ? jmin (getLookAndFeel().getScrollbarButtonSize (*this), (length >> 1))
+    const int buttonSize = (upButton != 0) ? jmin (getLookAndFeel().getScrollbarButtonSize (*this), length / 2)
                                            : 0;
 
     if (length < 32 + getLookAndFeel().getMinimumScrollbarThumbSize (*this))
     {
-        thumbAreaStart = length >> 1;
+        thumbAreaStart = length / 2;
         thumbAreaSize = 0;
     }
     else

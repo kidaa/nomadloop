@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -37,11 +37,13 @@ class ComponentBoundsConstrainer;
 
 //==============================================================================
 /**
-    The base class for window objects that wrap a component as a real operating
-    system object.
+    The Component class uses a ComponentPeer internally to create and manage a real
+    operating-system window.
 
-    This is an abstract base class - the platform specific code contains default
-    implementations of it that create and manage windows.
+    This is an abstract base class - the platform specific code contains implementations of
+    it for the various platforms.
+
+    User-code should very rarely need to have any involvement with this class.
 
     @see Component::createNewPeer
 */
@@ -251,13 +253,6 @@ public:
     /** Tries to give the window keyboard focus. */
     virtual void grabFocus() = 0;
 
-    /** Tells the window that text input may be required at the given position.
-
-        This may cause things like a virtual on-screen keyboard to appear, depending
-        on the OS.
-    */
-    virtual void textInputRequired (const Point<int>& position) = 0;
-
     /** Called when the window gains keyboard focus. */
     void handleFocusGain();
     /** Called when the window loses keyboard focus. */
@@ -279,6 +274,16 @@ public:
 
     /** Called whenever a modifier key is pressed or released. */
     void handleModifierKeysChange();
+
+    //==============================================================================
+    /** Tells the window that text input may be required at the given position.
+        This may cause things like a virtual on-screen keyboard to appear, depending
+        on the OS.
+    */
+    virtual void textInputRequired (const Point<int>& position) = 0;
+
+    /** If there's some kind of OS input-method in progress, this should dismiss it. */
+    virtual void dismissPendingTextInput();
 
     /** Returns the currently focused TextInputTarget, or null if none is found. */
     TextInputTarget* findCurrentTextInputTarget();
@@ -351,7 +356,7 @@ public:
 
     //==============================================================================
     virtual const StringArray getAvailableRenderingEngines();
-    virtual int getCurrentRenderingEngine() throw();
+    virtual int getCurrentRenderingEngine() const;
     virtual void setCurrentRenderingEngine (int index);
 
 protected:

@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -49,7 +49,6 @@
           return true;
 
       Logger::writeToLog ("CoreAudio error: " + String (lineNum) + " - " + String::toHexString ((int) err));
-      jassertfalse;
       return false;
   }
 
@@ -151,8 +150,7 @@ public:
                         String name;
 
                         {
-                            char channelName [256];
-                            zerostruct (channelName);
+                            char channelName [256] = { 0 };
                             UInt32 nameSize = sizeof (channelName);
                             UInt32 channelNum = chanNum + 1;
                             pa.mSelector = kAudioDevicePropertyChannelName;
@@ -901,6 +899,8 @@ public:
 
     ~CoreAudioIODevice()
     {
+        close();
+
         AudioObjectPropertyAddress pa;
         pa.mSelector = kAudioObjectPropertySelectorWildcard;
         pa.mScope = kAudioObjectPropertyScopeWildcard;

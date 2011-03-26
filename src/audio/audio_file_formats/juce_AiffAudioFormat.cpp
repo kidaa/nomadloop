@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -308,8 +308,7 @@ private:
         output->writeIntBigEndian (lengthInSamples);
         output->writeShortBigEndian ((short) bitsPerSample);
 
-        uint8 sampleRateBytes[10];
-        zeromem (sampleRateBytes, 10);
+        uint8 sampleRateBytes[10] = { 0 };
 
         if (sampleRate <= 1)
         {
@@ -404,7 +403,7 @@ AudioFormatReader* AiffAudioFormat::createReaderFor (InputStream* sourceStream, 
 {
     ScopedPointer <AiffAudioFormatReader> w (new AiffAudioFormatReader (sourceStream));
 
-    if (w->sampleRate != 0)
+    if (w->sampleRate > 0)
         return w.release();
 
     if (! deleteStreamIfOpeningFails)

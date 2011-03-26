@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -333,7 +333,7 @@ var::var (const char* const value_)  : type (&VariantType_String::instance)
     value.stringValue = new String (value_);
 }
 
-var::var (const juce_wchar* const value_)  : type (&VariantType_String::instance)
+var::var (const wchar_t* const value_)  : type (&VariantType_String::instance)
 {
     value.stringValue = new String (value_);
 }
@@ -383,7 +383,7 @@ var& var::operator= (int64 newValue)              { var v (newValue); swapWith (
 var& var::operator= (bool newValue)               { var v (newValue); swapWith (v); return *this; }
 var& var::operator= (double newValue)             { var v (newValue); swapWith (v); return *this; }
 var& var::operator= (const char* newValue)        { var v (newValue); swapWith (v); return *this; }
-var& var::operator= (const juce_wchar* newValue)  { var v (newValue); swapWith (v); return *this; }
+var& var::operator= (const wchar_t* newValue)     { var v (newValue); swapWith (v); return *this; }
 var& var::operator= (const String& newValue)      { var v (newValue); swapWith (v); return *this; }
 var& var::operator= (DynamicObject* newValue)     { var v (newValue); swapWith (v); return *this; }
 var& var::operator= (MethodFunction newValue)     { var v (newValue); swapWith (v); return *this; }

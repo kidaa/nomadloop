@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -32,7 +32,7 @@
 
     Macros that will be set here are:
 
-    - One of JUCE_WINDOWS, JUCE_MAC or JUCE_LINUX.
+    - One of JUCE_WINDOWS, JUCE_MAC JUCE_LINUX, JUCE_IOS, JUCE_ANDROID, etc.
     - Either JUCE_32BIT or JUCE_64BIT, depending on the architecture.
     - Either JUCE_LITTLE_ENDIAN or JUCE_BIG_ENDIAN.
     - Either JUCE_INTEL or JUCE_PPC

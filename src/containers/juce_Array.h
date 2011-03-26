@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -60,11 +60,7 @@ template <typename ElementType,
 class Array
 {
 private:
-  #if JUCE_VC8_OR_EARLIER
-    typedef const ElementType& ParameterType;
-  #else
     typedef PARAMETER_TYPE (ElementType) ParameterType;
-  #endif
 
 public:
     //==============================================================================
@@ -303,13 +299,9 @@ public:
         const ElementType* e = data.elements.getData();
         const ElementType* const end = e + numUsed;
 
-        while (e != end)
-        {
+        for (; e != end; ++e)
             if (elementToLookFor == *e)
                 return static_cast <int> (e - data.elements.getData());
-
-            ++e;
-        }
 
         return -1;
     }
@@ -325,13 +317,9 @@ public:
         const ElementType* e = data.elements.getData();
         const ElementType* const end = e + numUsed;
 
-        while (e != end)
-        {
+        for (; e != end; ++e)
             if (elementToLookFor == *e)
                 return true;
-
-            ++e;
-        }
 
         return false;
     }
@@ -597,13 +585,16 @@ public:
         @param comparator   the comparator to use to compare the elements - see the sort()
                             method for details about the form this object should take
         @param newElement   the new element to insert to the array
+        @returns the index at which the new item was added
         @see addUsingDefaultSort, add, sort
     */
     template <class ElementComparator>
-    void addSorted (ElementComparator& comparator, ParameterType newElement)
+    int addSorted (ElementComparator& comparator, ParameterType newElement)
     {
         const ScopedLockType lock (getLock());
-        insert (findInsertIndexInSortedArray (comparator, data.elements.getData(), newElement, 0, numUsed), newElement);
+        const int index = findInsertIndexInSortedArray (comparator, data.elements.getData(), newElement, 0, numUsed);
+        insert (index, newElement);
+        return index;
     }
 
     /** Inserts a new element into the array, assuming that the array is sorted.
@@ -716,17 +707,15 @@ public:
     void removeValue (ParameterType valueToRemove)
     {
         const ScopedLockType lock (getLock());
-        ElementType* e = data.elements;
+        ElementType* const e = data.elements;
 
-        for (int i = numUsed; --i >= 0;)
+        for (int i = 0; i < numUsed; ++i)
         {
-            if (valueToRemove == *e)
+            if (valueToRemove == e[i])
             {
-                remove (static_cast <int> (e - data.elements.getData()));
+                remove (i);
                 break;
             }
-
-            ++e;
         }
     }
 

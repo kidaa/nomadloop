@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -91,9 +91,7 @@ public:
     int subPathIndex;
 
     /** Returns true if the current segment is the last in the current sub-path. */
-    bool isLastInSubpath() const throw()        { return stackPos == stackBase.getData()
-                                                           && (index >= path.numElements || points [index] == Path::moveMarker); }
-
+    bool isLastInSubpath() const throw();
 
     /** This is the default value that should be used for the tolerance value (see the constructor parameters). */
     static const float defaultTolerance;

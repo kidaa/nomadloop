@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -90,7 +90,7 @@ public:
             if (headers != 0)
             {
                 V_VT (&headersVar) = VT_BSTR;
-                V_BSTR (&headersVar) = SysAllocString ((const OLECHAR*) headers->joinIntoString ("\r\n").toUTF16().getAddress());
+                V_BSTR (&headersVar) = SysAllocString ((const OLECHAR*) headers->joinIntoString ("\r\n").toWideCharPointer());
             }
 
             if (postData != 0 && postData->getSize() > 0)
@@ -118,7 +118,7 @@ public:
                 }
             }
 
-            browser->Navigate ((BSTR) (const OLECHAR*) url.toUTF16().getAddress(),
+            browser->Navigate ((BSTR) (const OLECHAR*) url.toWideCharPointer(),
                                &flags, &frame,
                                &postDataVar, &headersVar);
 

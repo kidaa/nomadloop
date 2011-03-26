@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -74,14 +74,14 @@ public:
         The pool will own all the pointers that it returns, deleting them when the pool itself
         is deleted.
     */
-    const String::CharPointerType getPooledString (const juce_wchar* original);
+    const String::CharPointerType getPooledString (const wchar_t* original);
 
     //==============================================================================
     /** Returns the number of strings in the pool. */
     int size() const throw();
 
     /** Returns one of the strings in the pool, by index. */
-    const juce_wchar* operator[] (int index) const throw();
+    const String::CharPointerType operator[] (int index) const throw();
 
 private:
     Array <String> strings;

@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -40,10 +40,6 @@ BEGIN_JUCE_NAMESPACE
  #include "../events/juce_MessageManager.h"
  #include "../gui/components/buttons/juce_TextButton.h"
  #include "../gui/components/lookandfeel/juce_LookAndFeel.h"
-#endif
-
-#if JUCE_WINDOWS
- extern void juce_shutdownWin32Sockets();  // (defined in the sockets code)
 #endif
 
 #if JUCE_DEBUG
@@ -100,10 +96,6 @@ JUCE_API void JUCE_CALLTYPE shutdownJuce_NonGUI()
 
         LocalisedStrings::setCurrentMappings (0);
         Thread::stopAllThreads (3000);
-
-      #if JUCE_WINDOWS
-        juce_shutdownWin32Sockets();
-      #endif
 
       #if JUCE_DEBUG
         juce_CheckForDanglingStreams();

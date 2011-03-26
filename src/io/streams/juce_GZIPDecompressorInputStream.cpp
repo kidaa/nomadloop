@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -275,6 +275,12 @@ bool GZIPDecompressorInputStream::setPosition (int64 newPos)
 
     skipNextBytes (newPos - currentPos);
     return true;
+}
+
+// (This is used as a way for the zip file code to use the crc32 function without including zlib)
+unsigned long juce_crc32 (unsigned long crc, const unsigned char* buf, unsigned len)
+{
+    return zlibNamespace::crc32 (crc, buf, len);
 }
 
 END_JUCE_NAMESPACE

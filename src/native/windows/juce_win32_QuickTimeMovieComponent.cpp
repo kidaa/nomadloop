@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -375,8 +375,7 @@ bool juce_OpenQuickTimeMovieFromStream (InputStream* input, Movie& movie, Handle
     dataHandle = 0;
     bool ok = false;
 
-    QTNewMoviePropertyElement props[5];
-    zeromem (props, sizeof (props));
+    QTNewMoviePropertyElement props[5] = { 0 };
     int prop = 0;
 
     DataReferenceRecord dr;

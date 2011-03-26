@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -91,8 +91,7 @@ namespace XmlIdentifierChars
 
     /*static void generateIdentifierCharConstants()
     {
-        uint32 n[8];
-        zerostruct (n);
+        uint32 n[8] = { 0 };
         for (int i = 0; i < 256; ++i)
             if (isIdentifierCharSlow (i))
                 n[i >> 5] |= (1 << (i & 31));
@@ -209,7 +208,7 @@ void XmlDocument::skipHeader()
             return;
 
        #if JUCE_DEBUG
-        const String header ((input + headerStart).getAddress(), headerEnd - headerStart);
+        const String header (input + headerStart, headerEnd - headerStart);
         const String encoding (header.fromFirstOccurrenceOf ("encoding", false, true)
                                      .fromFirstOccurrenceOf ("=", false, false)
                                      .fromFirstOccurrenceOf ("\"", false, false)
@@ -252,7 +251,7 @@ void XmlDocument::skipHeader()
             --n;
     }
 
-    dtdText = String (docType.getAddress(), (int) (input.getAddress() - (docType.getAddress() + 1))).trim();
+    dtdText = String (docType, (int) (input.getAddress() - (docType.getAddress() + 1))).trim();
 }
 
 void XmlDocument::skipNextWhiteSpace()
@@ -383,7 +382,7 @@ XmlElement* XmlDocument::readNextElement (const bool alsoParseSubElements)
             }
         }
 
-        node = new XmlElement (String (input.getAddress(), tagLen));
+        node = new XmlElement (String (input, tagLen));
         input += tagLen;
         LinkedListPointer<XmlElement::XmlAttributeNode>::Appender attributeAppender (node->attributes);
 
@@ -433,7 +432,7 @@ XmlElement* XmlDocument::readNextElement (const bool alsoParseSubElements)
                         if (nextChar == '"' || nextChar == '\'')
                         {
                             XmlElement::XmlAttributeNode* const newAtt
-                                = new XmlElement::XmlAttributeNode (String (attNameStart.getAddress(), attNameLen),
+                                = new XmlElement::XmlAttributeNode (String (attNameStart, attNameLen),
                                                                     String::empty);
 
                             readQuotedString (newAtt->value);
@@ -517,7 +516,7 @@ void XmlDocument::readChildElements (XmlElement* parent)
                     ++len;
                 }
 
-                childAppender.append (XmlElement::createTextElement (String (inputStart.getAddress(), len)));
+                childAppender.append (XmlElement::createTextElement (String (inputStart, len)));
             }
             else
             {
@@ -713,7 +712,7 @@ void XmlDocument::readEntity (String& result)
         {
             input += closingSemiColon + 1;
 
-            result += expandExternalEntity (String (entityNameStart.getAddress(), closingSemiColon));
+            result += expandExternalEntity (String (entityNameStart, closingSemiColon));
         }
     }
 }
@@ -728,10 +727,12 @@ const String XmlDocument::expandEntity (const String& ent)
 
     if (ent[0] == '#')
     {
-        if (ent[1] == 'x' || ent[1] == 'X')
+        const juce_wchar char1 = ent[1];
+
+        if (char1 == 'x' || char1 == 'X')
             return String::charToString (static_cast <juce_wchar> (ent.substring (2).getHexValue32()));
 
-        if (ent[1] >= '0' && ent[1] <= '9')
+        if (char1 >= '0' && char1 <= '9')
             return String::charToString (static_cast <juce_wchar> (ent.substring (1).getIntValue()));
 
         setLastError ("illegal escape sequence", false);

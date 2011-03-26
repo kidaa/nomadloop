@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -227,15 +227,14 @@ private:
             // break up the url..
             TCHAR file[1024], server[1024];
 
-            URL_COMPONENTS uc;
-            zerostruct (uc);
+            URL_COMPONENTS uc = { 0 };
             uc.dwStructSize = sizeof (uc);
             uc.dwUrlPathLength = sizeof (file);
             uc.dwHostNameLength = sizeof (server);
             uc.lpszUrlPath = file;
             uc.lpszHostName = server;
 
-            if (InternetCrackUrl (address.toUTF16(), 0, 0, &uc))
+            if (InternetCrackUrl (address.toWideCharPointer(), 0, 0, &uc))
             {
                 int disable = 1;
                 InternetSetOption (sessionHandle, INTERNET_OPTION_DISABLE_AUTODIAL, &disable, sizeof (disable));
@@ -292,10 +291,9 @@ private:
 
                         if (request != 0)
                         {
-                            INTERNET_BUFFERS buffers;
-                            zerostruct (buffers);
+                            INTERNET_BUFFERS buffers = { 0 };
                             buffers.dwStructSize = sizeof (INTERNET_BUFFERS);
-                            buffers.lpcszHeader = headers.toUTF16();
+                            buffers.lpcszHeader = headers.toWideCharPointer();
                             buffers.dwHeadersLength = headers.length();
                             buffers.dwBufferTotal = (DWORD) postData.getSize();
 
@@ -392,39 +390,36 @@ namespace MACAddressHelpers
 
         if (NetbiosCall != 0)
         {
-            NCB ncb;
-            zerostruct (ncb);
+            LANA_ENUM enums = { 0 };
 
-            struct ASTAT
             {
-                ADAPTER_STATUS adapt;
-                NAME_BUFFER    NameBuff [30];
-            };
-
-            ASTAT astat;
-            zeromem (&astat, sizeof (astat));  // (can't use zerostruct here in VC6)
-
-            LANA_ENUM enums;
-            zerostruct (enums);
-
-            ncb.ncb_command = NCBENUM;
-            ncb.ncb_buffer = (unsigned char*) &enums;
-            ncb.ncb_length = sizeof (LANA_ENUM);
-            NetbiosCall (&ncb);
+                NCB ncb = { 0 };
+                ncb.ncb_command = NCBENUM;
+                ncb.ncb_buffer = (unsigned char*) &enums;
+                ncb.ncb_length = sizeof (LANA_ENUM);
+                NetbiosCall (&ncb);
+            }
 
             for (int i = 0; i < enums.length; ++i)
             {
-                zerostruct (ncb);
-                ncb.ncb_command = NCBRESET;
-                ncb.ncb_lana_num = enums.lana[i];
+                NCB ncb2 = { 0 };
+                ncb2.ncb_command = NCBRESET;
+                ncb2.ncb_lana_num = enums.lana[i];
 
-                if (NetbiosCall (&ncb) == 0)
+                if (NetbiosCall (&ncb2) == 0)
                 {
-                    zerostruct (ncb);
+                    NCB ncb = { 0 };
                     memcpy (ncb.ncb_callname, "*                   ", NCBNAMSZ);
                     ncb.ncb_command = NCBASTAT;
                     ncb.ncb_lana_num = enums.lana[i];
 
+                    struct ASTAT
+                    {
+                        ADAPTER_STATUS adapt;
+                        NAME_BUFFER    NameBuff [30];
+                    };
+
+                    ASTAT astat = { 0 };
                     ncb.ncb_buffer = (unsigned char*) &astat;
                     ncb.ncb_length = sizeof (ASTAT);
 
@@ -457,18 +452,16 @@ bool PlatformUtilities::launchEmailWithAttachments (const String& targetEmailAdd
 
     if (mapiSendMail != 0)
     {
-        MapiMessage message;
-        zerostruct (message);
-        message.lpszSubject = (LPSTR) emailSubject.toCString();
-        message.lpszNoteText = (LPSTR) bodyText.toCString();
+        MapiMessage message = { 0 };
+        message.lpszSubject = (LPSTR) emailSubject.toUTF8().getAddress();
+        message.lpszNoteText = (LPSTR) bodyText.toUTF8().getAddress();
 
-        MapiRecipDesc recip;
-        zerostruct (recip);
+        MapiRecipDesc recip = { 0 };
         recip.ulRecipClass = MAPI_TO;
         String targetEmailAddress_ (targetEmailAddress);
         if (targetEmailAddress_.isEmpty())
             targetEmailAddress_ = " "; // (Windows Mail can't deal with a blank address)
-        recip.lpszName = (LPSTR) targetEmailAddress_.toCString();
+        recip.lpszName = (LPSTR) targetEmailAddress_.toUTF8().getAddress();
         message.nRecipCount = 1;
         message.lpRecips = &recip;
 
@@ -481,7 +474,7 @@ bool PlatformUtilities::launchEmailWithAttachments (const String& targetEmailAdd
         for (int i = 0; i < filesToAttach.size(); ++i)
         {
             files[i].nPosition = (ULONG) -1;
-            files[i].lpszPathName = (LPSTR) filesToAttach[i].toCString();
+            files[i].lpszPathName = (LPSTR) filesToAttach[i].toUTF8().getAddress();
         }
 
         ok = (mapiSendMail (0, 0, &message, MAPI_DIALOG | MAPI_LOGON_UI, 0) == SUCCESS_SUCCESS);

@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -94,6 +94,9 @@ public:
         least-recently added file will be dropped from the end.
     */
     void addFile (const File& file);
+
+    /** Removes a file from the list. */
+    void removeFile (const File& file);
 
     /** Checks each of the files in the list, removing any that don't exist.
 

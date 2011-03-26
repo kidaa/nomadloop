@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -242,7 +242,7 @@ void ResamplingAudioSource::setFilterCoefficients (double c1, double c2, double 
 
 void ResamplingAudioSource::resetFilters()
 {
-    zeromem (filterStates, sizeof (FilterState) * numChannels);
+    filterStates.clear (numChannels);
 }
 
 void ResamplingAudioSource::applyFilter (float* samples, int num, FilterState& fs)

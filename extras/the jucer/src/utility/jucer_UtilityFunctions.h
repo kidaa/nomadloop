@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -148,7 +148,7 @@ public:
     const String toString() const throw()
     {
         String s;
-        s.preallocateStorage (12);
+        s.preallocateBytes (32);
         addPosDescription (s, xMode, x);  s << ' ';
         addPosDescription (s, yMode, y);  s << ' ';
         addSizeDescription (s, wMode, w); s << ' ';

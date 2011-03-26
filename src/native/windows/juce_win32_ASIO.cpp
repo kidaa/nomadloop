@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -73,7 +73,7 @@ namespace ASIODebugging
 
 //==============================================================================
 class ASIOAudioIODevice;
-static ASIOAudioIODevice* volatile currentASIODev[3] = { 0, 0, 0 };
+static ASIOAudioIODevice* volatile currentASIODev[3] = { 0 };
 
 static const int maxASIOChannels = 160;
 
@@ -245,9 +245,8 @@ public:
         if (sampleRate == 0)
             sampleRate = 44100;
 
-        long numSources = 32;
-        ASIOClockSource clocks[32];
-        zeromem (clocks, sizeof (clocks));
+        ASIOClockSource clocks[32] = { 0 };
+        long numSources = numElementsInArray (clocks);
         asioObject->getClockSources (clocks, &numSources);
         bool isSourceSet = false;
 
@@ -440,9 +439,7 @@ public:
                     {
                         inBuffers[n] = tempBuffer + (currentBlockSizeSamples * n);
 
-                        ASIOChannelInfo channelInfo;
-                        zerostruct (channelInfo);
-
+                        ASIOChannelInfo channelInfo = { 0 };
                         channelInfo.channel = i;
                         channelInfo.isInput = 1;
                         asioObject->getChannelInfo (&channelInfo);
@@ -469,9 +466,7 @@ public:
                     {
                         outBuffers[n] = tempBuffer + (currentBlockSizeSamples * (numActiveInputChans + n));
 
-                        ASIOChannelInfo channelInfo;
-                        zerostruct (channelInfo);
-
+                        ASIOChannelInfo channelInfo = { 0 };
                         channelInfo.channel = i;
                         channelInfo.isInput = 0;
                         asioObject->getChannelInfo (&channelInfo);
@@ -809,7 +804,7 @@ private:
             // doing a direct load of the COM object (only available via the juce_createASIOAudioIODeviceForGUID function).
             if (optionalDllForDirectLoading.isNotEmpty())
             {
-                HMODULE h = LoadLibrary (optionalDllForDirectLoading.toUTF16());
+                HMODULE h = LoadLibrary (optionalDllForDirectLoading.toWideCharPointer());
 
                 if (h != 0)
                 {
@@ -842,8 +837,7 @@ private:
     {
         if (asioObject != 0)
         {
-            char buffer [256];
-            zeromem (buffer, sizeof (buffer));
+            char buffer [256] = { 0 };
 
             if (! asioObject->init (windowHandle))
             {
@@ -1042,12 +1036,9 @@ private:
 
                         updateSampleRates();
 
-                        ASIOChannelInfo channelInfo;
-                        channelInfo.type = 0;
-
                         for (i = 0; i < totalNumInputChans; ++i)
                         {
-                            zerostruct (channelInfo);
+                            ASIOChannelInfo channelInfo = { 0 };
                             channelInfo.channel = i;
                             channelInfo.isInput = 1;
                             asioObject->getChannelInfo (&channelInfo);
@@ -1057,7 +1048,7 @@ private:
 
                         for (i = 0; i < totalNumOutputChans; ++i)
                         {
-                            zerostruct (channelInfo);
+                            ASIOChannelInfo channelInfo = { 0 };
                             channelInfo.channel = i;
                             channelInfo.isInput = 0;
                             asioObject->getChannelInfo (&channelInfo);
@@ -1658,10 +1649,6 @@ public:
         CoInitialize (0);
     }
 
-    ~ASIOAudioIODeviceType()
-    {
-    }
-
     //==============================================================================
     void scanForDevices()
     {
@@ -1673,21 +1660,12 @@ public:
         HKEY hk = 0;
         int index = 0;
 
-        if (RegOpenKeyA (HKEY_LOCAL_MACHINE, "software\\asio", &hk) == ERROR_SUCCESS)
+        if (RegOpenKey (HKEY_LOCAL_MACHINE, _T("software\\asio"), &hk) == ERROR_SUCCESS)
         {
-            for (;;)
-            {
-                char name [256];
+            TCHAR name [256];
 
-                if (RegEnumKeyA (hk, index++, name, 256) == ERROR_SUCCESS)
-                {
-                    addDriverInfo (name, hk);
-                }
-                else
-                {
-                    break;
-                }
-            }
+            while (RegEnumKey (hk, index++, name, numElementsInArray (name)) == ERROR_SUCCESS)
+                addDriverInfo (name, hk);
 
             RegCloseKey (hk);
         }
@@ -1774,39 +1752,31 @@ private:
         if (RegOpenKey (HKEY_CLASSES_ROOT, _T("clsid"), &hk) == ERROR_SUCCESS)
         {
             int index = 0;
+            TCHAR name [512];
 
-            for (;;)
+            while (RegEnumKey (hk, index++, name, numElementsInArray (name)) == ERROR_SUCCESS)
             {
-                WCHAR buf [512];
-
-                if (RegEnumKey (hk, index++, buf, 512) == ERROR_SUCCESS)
+                if (classId.equalsIgnoreCase (name))
                 {
-                    if (classId.equalsIgnoreCase (buf))
+                    HKEY subKey, pathKey;
+
+                    if (RegOpenKeyEx (hk, name, 0, KEY_READ, &subKey) == ERROR_SUCCESS)
                     {
-                        HKEY subKey, pathKey;
-
-                        if (RegOpenKeyEx (hk, buf, 0, KEY_READ, &subKey) == ERROR_SUCCESS)
+                        if (RegOpenKeyEx (subKey, _T("InprocServer32"), 0, KEY_READ, &pathKey) == ERROR_SUCCESS)
                         {
-                            if (RegOpenKeyEx (subKey, _T("InprocServer32"), 0, KEY_READ, &pathKey) == ERROR_SUCCESS)
-                            {
-                                WCHAR pathName [1024];
-                                DWORD dtype = REG_SZ;
-                                DWORD dsize = sizeof (pathName);
+                            TCHAR pathName [1024];
+                            DWORD dtype = REG_SZ;
+                            DWORD dsize = sizeof (pathName);
 
-                                if (RegQueryValueEx (pathKey, 0, 0, &dtype, (LPBYTE) pathName, &dsize) == ERROR_SUCCESS)
-                                    ok = File (pathName).exists();
+                            if (RegQueryValueEx (pathKey, 0, 0, &dtype, (LPBYTE) pathName, &dsize) == ERROR_SUCCESS)
+                                ok = File (pathName).exists();
 
-                                RegCloseKey (pathKey);
-                            }
-
-                            RegCloseKey (subKey);
+                            RegCloseKey (pathKey);
                         }
 
-                        break;
+                        RegCloseKey (subKey);
                     }
-                }
-                else
-                {
+
                     break;
                 }
             }
@@ -1822,10 +1792,9 @@ private:
     {
         HKEY subKey;
 
-        if (RegOpenKeyEx (hk, keyName.toUTF16(), 0, KEY_READ, &subKey) == ERROR_SUCCESS)
+        if (RegOpenKeyEx (hk, keyName.toWideCharPointer(), 0, KEY_READ, &subKey) == ERROR_SUCCESS)
         {
-            WCHAR buf [256];
-            zerostruct (buf);
+            TCHAR buf [256] = { 0 };
             DWORD dtype = REG_SZ;
             DWORD dsize = sizeof (buf);
 

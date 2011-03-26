@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -98,8 +98,7 @@ namespace
             if (parent == 0)
                 break;
 
-            TCHAR windowType [32];
-            zeromem (windowType, sizeof (windowType));
+            TCHAR windowType [32] = { 0 };
             GetClassName (parent, windowType, 31);
 
             if (String (windowType).equalsIgnoreCase ("MDIClient"))
@@ -108,10 +107,8 @@ namespace
                 break;
             }
 
-            RECT windowPos;
+            RECT windowPos, parentPos;
             GetWindowRect (w, &windowPos);
-
-            RECT parentPos;
             GetWindowRect (parent, &parentPos);
 
             int dw = (parentPos.right - parentPos.left) - (windowPos.right - windowPos.left);

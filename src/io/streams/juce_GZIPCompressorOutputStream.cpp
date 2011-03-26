@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -40,7 +40,6 @@ namespace zlibNamespace
 BEGIN_JUCE_NAMESPACE
 
 #include "juce_GZIPCompressorOutputStream.h"
-
 
 //==============================================================================
 class GZIPCompressorOutputStream::GZIPCompressorHelper

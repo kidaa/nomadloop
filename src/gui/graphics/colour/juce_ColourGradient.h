@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -163,8 +163,8 @@ private:
             : position (position_), colour (colour_)
         {}
 
-        bool operator== (const ColourPoint& other) const throw()   { return position == other.position && colour == other.colour; }
-        bool operator!= (const ColourPoint& other) const throw()   { return position != other.position || colour != other.colour; }
+        bool operator== (const ColourPoint& other) const throw();
+        bool operator!= (const ColourPoint& other) const throw();
 
         double position;
         Colour colour;

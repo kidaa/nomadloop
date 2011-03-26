@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -33,10 +33,9 @@ BEGIN_JUCE_NAMESPACE
 
 //==============================================================================
 JUCE_JNI_CALLBACK (JuceAppActivity, launchApp, void, (JNIEnv* env, jobject activity,
-                                                      jstring appFile, jstring appDataDir,
-                                                      int screenWidth, int screenHeight))
+                                                      jstring appFile, jstring appDataDir))
 {
-    android.initialise (env, activity, appFile, appDataDir, screenWidth, screenHeight);
+    android.initialise (env, activity, appFile, appDataDir);
 
     JUCEApplication::createInstance = &juce_CreateApplication;
 

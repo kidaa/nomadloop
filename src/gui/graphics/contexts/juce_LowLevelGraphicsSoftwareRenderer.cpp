@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -190,8 +190,10 @@ private:
 class LinearGradientPixelGenerator
 {
 public:
-    LinearGradientPixelGenerator (const ColourGradient& gradient, const AffineTransform& transform, const PixelARGB* const lookupTable_, const int numEntries_)
-        : lookupTable (lookupTable_), numEntries (numEntries_)
+    LinearGradientPixelGenerator (const ColourGradient& gradient, const AffineTransform& transform,
+                                  const PixelARGB* const lookupTable_, const int numEntries_)
+        : lookupTable (lookupTable_),
+          numEntries (numEntries_)
     {
         jassert (numEntries_ >= 0);
         Point<float> p1 (gradient.point1);
@@ -1223,7 +1225,6 @@ public:
     ClipRegion_EdgeTable (const RectangleList& r) : edgeTable (r) {}
     ClipRegion_EdgeTable (const Rectangle<int>& bounds, const Path& p, const AffineTransform& t) : edgeTable (bounds, p, t) {}
     ClipRegion_EdgeTable (const ClipRegion_EdgeTable& other) : edgeTable (other.edgeTable) {}
-    ~ClipRegion_EdgeTable() {}
 
     const Ptr clone() const
     {
@@ -1429,7 +1430,6 @@ public:
     ClipRegion_RectangleList (const Rectangle<int>& r) : clip (r) {}
     ClipRegion_RectangleList (const RectangleList& r) : clip (r) {}
     ClipRegion_RectangleList (const ClipRegion_RectangleList& other) : clip (other.clip) {}
-    ~ClipRegion_RectangleList() {}
 
     const Ptr clone() const
     {
@@ -1728,14 +1728,9 @@ private:
                         {
                             r.setEdgeTableYPos (totalTop);
 
-                            if (doLeftAlpha)
-                                r.handleEdgeTablePixel (totalLeft, (leftAlpha * topAlpha) >> 8);
-
-                            if (clippedWidth > 0)
-                                r.handleEdgeTableLine (clippedLeft, clippedWidth, topAlpha);
-
-                            if (doRightAlpha)
-                                r.handleEdgeTablePixel (right, (rightAlpha * topAlpha) >> 8);
+                            if (doLeftAlpha)        r.handleEdgeTablePixel (totalLeft, (leftAlpha * topAlpha) >> 8);
+                            if (clippedWidth > 0)   r.handleEdgeTableLine (clippedLeft, clippedWidth, topAlpha);
+                            if (doRightAlpha)       r.handleEdgeTablePixel (right, (rightAlpha * topAlpha) >> 8);
                         }
 
                         const int endY = jmin (bottom, clipBottom);
@@ -1743,28 +1738,18 @@ private:
                         {
                             r.setEdgeTableYPos (y);
 
-                            if (doLeftAlpha)
-                                r.handleEdgeTablePixel (totalLeft, leftAlpha);
-
-                            if (clippedWidth > 0)
-                                r.handleEdgeTableLineFull (clippedLeft, clippedWidth);
-
-                            if (doRightAlpha)
-                                r.handleEdgeTablePixel (right, rightAlpha);
+                            if (doLeftAlpha)        r.handleEdgeTablePixel (totalLeft, leftAlpha);
+                            if (clippedWidth > 0)   r.handleEdgeTableLineFull (clippedLeft, clippedWidth);
+                            if (doRightAlpha)       r.handleEdgeTablePixel (right, rightAlpha);
                         }
 
                         if (bottomAlpha != 0 && bottom < clipBottom)
                         {
                             r.setEdgeTableYPos (bottom);
 
-                            if (doLeftAlpha)
-                                r.handleEdgeTablePixel (totalLeft, (leftAlpha * bottomAlpha) >> 8);
-
-                            if (clippedWidth > 0)
-                                r.handleEdgeTableLine (clippedLeft, clippedWidth, bottomAlpha);
-
-                            if (doRightAlpha)
-                                r.handleEdgeTablePixel (right, (rightAlpha * bottomAlpha) >> 8);
+                            if (doLeftAlpha)        r.handleEdgeTablePixel (totalLeft, (leftAlpha * bottomAlpha) >> 8);
+                            if (clippedWidth > 0)   r.handleEdgeTableLine (clippedLeft, clippedWidth, bottomAlpha);
+                            if (doRightAlpha)       r.handleEdgeTablePixel (right, (rightAlpha * bottomAlpha) >> 8);
                         }
                     }
                 }
@@ -2075,6 +2060,18 @@ public:
             SoftwareRendererClasses::ClipRegion_EdgeTable* edgeTableClip = new SoftwareRendererClasses::ClipRegion_EdgeTable (edgeTable);
             SoftwareRendererClasses::ClipRegionBase::Ptr shapeToFill (edgeTableClip);
             edgeTableClip->edgeTable.translate (x + xOffset, y + yOffset);
+            fillShape (shapeToFill, false);
+        }
+    }
+
+    void drawGlyph (const Font& f, int glyphNumber, const AffineTransform& transform)
+    {
+        const ScopedPointer<EdgeTable> et (f.getTypeface()->getEdgeTableForGlyph (glyphNumber, getTransformWith (transform)));
+
+        if (et != 0)
+        {
+            SoftwareRendererClasses::ClipRegion_EdgeTable* edgeTableClip = new SoftwareRendererClasses::ClipRegion_EdgeTable (*et);
+            SoftwareRendererClasses::ClipRegionBase::Ptr shapeToFill (edgeTableClip);
             fillShape (shapeToFill, false);
         }
     }
@@ -2405,23 +2402,14 @@ public:
         font = newFont;
         snapToIntegerCoordinate = newFont.getTypeface()->isHinted();
         glyph = glyphNumber;
-        edgeTable = 0;
 
-        Path glyphPath;
-        font.getTypeface()->getOutlineForGlyph (glyphNumber, glyphPath);
-
-        if (! glyphPath.isEmpty())
-        {
-            const float fontHeight = font.getHeight();
-            const AffineTransform transform (AffineTransform::scale (fontHeight * font.getHorizontalScale(), fontHeight)
-#if JUCE_MAC || JUCE_IOS
-                                                             .translated (0.0f, -0.5f)
-#endif
-                                             );
-
-            edgeTable = new EdgeTable (glyphPath.getBoundsTransformed (transform).getSmallestIntegerContainer().expanded (1, 0),
-                                       glyphPath, transform);
-        }
+        const float fontHeight = font.getHeight();
+        edgeTable = font.getTypeface()->getEdgeTableForGlyph (glyphNumber,
+                                                              AffineTransform::scale (fontHeight * font.getHorizontalScale(), fontHeight)
+                                                                            #if JUCE_MAC || JUCE_IOS
+                                                                              .translated (0.0f, -0.5f)
+                                                                            #endif
+                                                              );
     }
 
     Font font;
@@ -2531,9 +2519,9 @@ void LowLevelGraphicsSoftwareRenderer::drawGlyph (int glyphNumber, const AffineT
     }
     else
     {
-        Path p;
-        f.getTypeface()->getOutlineForGlyph (glyphNumber, p);
-        fillPath (p, AffineTransform::scale (f.getHeight() * f.getHorizontalScale(), f.getHeight()).followedBy (transform));
+        const float fontHeight = f.getHeight();
+        currentState->drawGlyph (f, glyphNumber, AffineTransform::scale (fontHeight * f.getHorizontalScale(), fontHeight)
+                                                                 .followedBy (transform));
     }
 }
 

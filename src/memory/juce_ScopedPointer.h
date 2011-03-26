@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -128,12 +128,10 @@ public:
     }
 
     //==============================================================================
-    /** Returns the object that this ScopedPointer refers to.
-    */
+    /** Returns the object that this ScopedPointer refers to. */
     inline operator ObjectType*() const throw()                                     { return object; }
 
-    /** Returns the object that this ScopedPointer refers to.
-    */
+    /** Returns the object that this ScopedPointer refers to. */
     inline ObjectType& operator*() const throw()                                    { return *object; }
 
     /** Lets you access methods and properties of the object that this ScopedPointer refers to. */
@@ -141,7 +139,6 @@ public:
 
     //==============================================================================
     /** Removes the current object from this ScopedPointer without deleting it.
-
         This will return the current object, and set the ScopedPointer to a null pointer.
     */
     ObjectType* release() throw()                                                   { ObjectType* const o = object; object = 0; return o; }

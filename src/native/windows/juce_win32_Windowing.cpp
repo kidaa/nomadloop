@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -57,8 +57,6 @@ extern bool juce_IsRunningInWine();
 static bool shouldDeactivateTitleBar = true;
 
 #define WM_TRAYNOTIFY WM_USER + 100
-
-using ::abs;
 
 //==============================================================================
 typedef BOOL (WINAPI* UpdateLayeredWinFunc) (HWND, HDC, POINT*, SIZE*, HDC, POINT*, COLORREF, BLENDFUNCTION*, DWORD);
@@ -188,7 +186,7 @@ public:
         previousBitmap = SelectObject (hdc, hBitmap);
 
         if (format_ == Image::ARGB && clearImage)
-            zeromem (bitmapData, abs (h * lineStride));
+            zeromem (bitmapData, std::abs (h * lineStride));
 
         imageData = bitmapData - (lineStride * (h - 1));
     }
@@ -428,33 +426,6 @@ long improbableWindowNumber = 0xf965aa01; // also referenced by messaging.cpp
 
 
 //==============================================================================
-bool KeyPress::isKeyCurrentlyDown (const int keyCode)
-{
-    SHORT k = (SHORT) keyCode;
-
-    if ((keyCode & extendedKeyModifier) == 0
-         && (k >= (SHORT) 'a' && k <= (SHORT) 'z'))
-        k += (SHORT) 'A' - (SHORT) 'a';
-
-    const SHORT translatedValues[] = { (SHORT) ',', VK_OEM_COMMA,
-                                       (SHORT) '+', VK_OEM_PLUS,
-                                       (SHORT) '-', VK_OEM_MINUS,
-                                       (SHORT) '.', VK_OEM_PERIOD,
-                                       (SHORT) ';', VK_OEM_1,
-                                       (SHORT) ':', VK_OEM_1,
-                                       (SHORT) '/', VK_OEM_2,
-                                       (SHORT) '?', VK_OEM_2,
-                                       (SHORT) '[', VK_OEM_4,
-                                       (SHORT) ']', VK_OEM_6 };
-
-    for (int i = 0; i < numElementsInArray (translatedValues); i += 2)
-        if (k == translatedValues [i])
-            k = translatedValues [i + 1];
-
-    return (GetKeyState (k) & 0x8000) != 0;
-}
-
-//==============================================================================
 class Win32ComponentPeer  : public ComponentPeer
 {
 public:
@@ -470,11 +441,7 @@ public:
                         HWND parentToAddTo_)
         : ComponentPeer (component, windowStyleFlags),
           dontRepaint (false),
-      #if JUCE_DIRECT2D
-          currentRenderingEngine (direct2DRenderingEngine),
-      #else
           currentRenderingEngine (softwareRenderingEngine),
-      #endif
           fullScreen (false),
           isDragging (false),
           isMouseOver (false),
@@ -542,7 +509,7 @@ public:
 
     void setTitle (const String& title)
     {
-        SetWindowText (hwnd, title.toUTF16());
+        SetWindowText (hwnd, title.toWideCharPointer());
     }
 
     void setPosition (int x, int y)
@@ -838,6 +805,11 @@ public:
         SetCaretPos (0, 0);
     }
 
+    void dismissPendingTextInput()
+    {
+        imeHandler.handleSetContext (hwnd, false);
+    }
+
     void repaint (const Rectangle<int>& area)
     {
         const RECT r = { area.getX(), area.getY(), area.getRight(), area.getBottom() };
@@ -847,8 +819,9 @@ public:
     void performAnyPendingRepaintsNow()
     {
         MSG m;
-        if (component->isVisible() && PeekMessage (&m, hwnd, WM_PAINT, WM_PAINT, PM_REMOVE))
-            DispatchMessage (&m);
+        if (component->isVisible()
+             && (PeekMessage (&m, hwnd, WM_PAINT, WM_PAINT, PM_REMOVE) || isUsingUpdateLayeredWindow()))
+            handlePaintMessage();
     }
 
     //==============================================================================
@@ -961,19 +934,21 @@ public:
     }
 
     //==============================================================================
-    bool isInside (HWND h) const
+    bool isInside (HWND h) const throw()
     {
         return GetAncestor (hwnd, GA_ROOT) == h;
     }
 
     //==============================================================================
+    static bool isKeyDown (const int key) throw()   { return (GetAsyncKeyState (key) & 0x8000) != 0; }
+
     static void updateKeyModifiers() throw()
     {
         int keyMods = 0;
-        if (GetKeyState (VK_SHIFT) & 0x8000)    keyMods |= ModifierKeys::shiftModifier;
-        if (GetKeyState (VK_CONTROL) & 0x8000)  keyMods |= ModifierKeys::ctrlModifier;
-        if (GetKeyState (VK_MENU) & 0x8000)     keyMods |= ModifierKeys::altModifier;
-        if (GetKeyState (VK_RMENU) & 0x8000)    keyMods &= ~(ModifierKeys::ctrlModifier | ModifierKeys::altModifier);
+        if (isKeyDown (VK_SHIFT))   keyMods |= ModifierKeys::shiftModifier;
+        if (isKeyDown (VK_CONTROL)) keyMods |= ModifierKeys::ctrlModifier;
+        if (isKeyDown (VK_MENU))    keyMods |= ModifierKeys::altModifier;
+        if (isKeyDown (VK_RMENU))   keyMods &= ~(ModifierKeys::ctrlModifier | ModifierKeys::altModifier);
 
         currentModifiers = currentModifiers.withOnlyMouseButtons().withFlags (keyMods);
     }
@@ -1014,9 +989,9 @@ private:
     HWND hwnd, parentToAddTo;
     ScopedPointer<DropShadower> shadower;
     RenderingEngineType currentRenderingEngine;
-  #if JUCE_DIRECT2D
+   #if JUCE_DIRECT2D
     ScopedPointer<Direct2DLowLevelGraphicsContext> direct2DContext;
-  #endif
+   #endif
     bool fullScreen, isDragging, isMouseOver, hasCreatedCaret, constrainerIsResizing;
     BorderSize<int> windowBorder;
     HICON currentWindowIcon;
@@ -1028,11 +1003,8 @@ private:
     class TemporaryImage    : public Timer
     {
     public:
-        //==============================================================================
         TemporaryImage() {}
-        ~TemporaryImage() {}
 
-        //==============================================================================
         const Image& getImage (const bool transparent, const int w, const int h)
         {
             const Image::PixelFormat format = transparent ? Image::ARGB : Image::RGB;
@@ -1044,7 +1016,6 @@ private:
             return image;
         }
 
-        //==============================================================================
         void timerCallback()
         {
             stopTimer();
@@ -1064,49 +1035,49 @@ private:
     {
     public:
         WindowClassHolder()
-            : windowClassName ("JUCE_")
         {
-            // this name has to be different for each app/dll instance because otherwise
-            // poor old Win32 can get a bit confused (even despite it not being a process-global
-            // window class).
+            // this name has to be different for each app/dll instance because otherwise poor old Win32 can
+            // get a bit confused (even despite it not being a process-global window class).
+            String windowClassName ("JUCE_");
             windowClassName << (int) (Time::currentTimeMillis() & 0x7fffffff);
 
             HINSTANCE moduleHandle = (HINSTANCE) PlatformUtilities::getCurrentModuleInstanceHandle();
 
-            TCHAR moduleFile [1024];
-            moduleFile[0] = 0;
+            TCHAR moduleFile [1024] = { 0 };
             GetModuleFileName (moduleHandle, moduleFile, 1024);
             WORD iconNum = 0;
 
-            WNDCLASSEX wcex;
+            WNDCLASSEX wcex = { 0 };
             wcex.cbSize         = sizeof (wcex);
             wcex.style          = CS_OWNDC;
             wcex.lpfnWndProc    = (WNDPROC) windowProc;
-            wcex.lpszClassName  = windowClassName.toUTF16();
-            wcex.cbClsExtra     = 0;
+            wcex.lpszClassName  = windowClassName.toWideCharPointer();
             wcex.cbWndExtra     = 32;
             wcex.hInstance      = moduleHandle;
             wcex.hIcon          = ExtractAssociatedIcon (moduleHandle, moduleFile, &iconNum);
             iconNum = 1;
             wcex.hIconSm        = ExtractAssociatedIcon (moduleHandle, moduleFile, &iconNum);
-            wcex.hCursor        = 0;
-            wcex.hbrBackground  = 0;
-            wcex.lpszMenuName   = 0;
 
-            RegisterClassEx (&wcex);
+            atom = RegisterClassEx (&wcex);
+            jassert (atom != 0);
         }
 
         ~WindowClassHolder()
         {
             if (ComponentPeer::getNumPeers() == 0)
-                UnregisterClass (windowClassName.toUTF16(), (HINSTANCE) PlatformUtilities::getCurrentModuleInstanceHandle());
+                UnregisterClass (getWindowClassName(), (HINSTANCE) PlatformUtilities::getCurrentModuleInstanceHandle());
 
             clearSingletonInstance();
         }
 
-        String windowClassName;
+        LPCTSTR getWindowClassName() const throw()      { return (LPCTSTR) MAKELONG (atom, 0); }
 
         juce_DeclareSingleton_SingleThreaded_Minimal (WindowClassHolder);
+
+    private:
+        ATOM atom;
+
+        JUCE_DECLARE_NON_COPYABLE (WindowClassHolder);
     };
 
     //==============================================================================
@@ -1161,16 +1132,16 @@ private:
         if ((styleFlags & windowIgnoresMouseClicks) != 0)
             exstyle |= WS_EX_TRANSPARENT;
 
-        if ((styleFlags & windowIsSemiTransparent) != 0
-              && Desktop::canUseSemiTransparentWindows())
+        if ((styleFlags & windowIsSemiTransparent) != 0 && Desktop::canUseSemiTransparentWindows())
             exstyle |= WS_EX_LAYERED;
 
-        hwnd = CreateWindowEx (exstyle, WindowClassHolder::getInstance()->windowClassName.toUTF16(), L"", type, 0, 0, 0, 0,
-                               parentToAddTo, 0, (HINSTANCE) PlatformUtilities::getCurrentModuleInstanceHandle(), 0);
+        hwnd = CreateWindowEx (exstyle, WindowClassHolder::getInstance()->getWindowClassName(),
+                               L"", type, 0, 0, 0, 0, parentToAddTo, 0,
+                               (HINSTANCE) PlatformUtilities::getCurrentModuleInstanceHandle(), 0);
 
-      #if JUCE_DIRECT2D
-        updateDirect2DContext();
-      #endif
+       #if JUCE_DIRECT2D
+        setCurrentRenderingEngine (1);
+       #endif
 
         if (hwnd != 0)
         {
@@ -1272,7 +1243,7 @@ private:
     //==============================================================================
     void handlePaintMessage()
     {
-#if JUCE_DIRECT2D
+       #if JUCE_DIRECT2D
         if (direct2DContext != 0)
         {
             RECT r;
@@ -1286,7 +1257,8 @@ private:
             }
         }
         else
-#endif
+       #endif
+
         {
             HRGN rgn = CreateRectRgn (0, 0, 0, 0);
             const int regionType = GetUpdateRgn (hwnd, rgn, false);
@@ -1411,9 +1383,9 @@ private:
             EndPaint (hwnd, &paintStruct);
         }
 
-#ifndef JUCE_GCC  //xxx should add this fn for gcc..
+       #ifndef JUCE_GCC
         _fpreset(); // because some graphics cards can unmask FP exceptions
-#endif
+       #endif
 
         lastPaintTime = Time::getMillisecondCounter();
     }
@@ -1428,24 +1400,17 @@ private:
     {
         StringArray s (ComponentPeer::getAvailableRenderingEngines());
 
-#if JUCE_DIRECT2D
-        // xxx is this correct? Seems to enable it on Vista too??
-        OSVERSIONINFO info;
-        zerostruct (info);
-        info.dwOSVersionInfoSize = sizeof (OSVERSIONINFO);
-        GetVersionEx (&info);
-        if (info.dwMajorVersion >= 6)
+       #if JUCE_DIRECT2D
+        if (SystemStats::getOperatingSystemType() >= SystemStats::Windows7)
             s.add ("Direct2D");
-#endif
+       #endif
+
         return s;
     }
 
-    int getCurrentRenderingEngine() throw()
-    {
-        return currentRenderingEngine;
-    }
+    int getCurrentRenderingEngine() const    { return currentRenderingEngine; }
 
-#if JUCE_DIRECT2D
+   #if JUCE_DIRECT2D
     void updateDirect2DContext()
     {
         if (currentRenderingEngine != direct2DRenderingEngine)
@@ -1453,17 +1418,20 @@ private:
         else if (direct2DContext == 0)
             direct2DContext = new Direct2DLowLevelGraphicsContext (hwnd);
     }
-#endif
+   #endif
 
     void setCurrentRenderingEngine (int index)
     {
         (void) index;
 
-#if JUCE_DIRECT2D
-        currentRenderingEngine = index == 1 ? direct2DRenderingEngine : softwareRenderingEngine;
-        updateDirect2DContext();
-        repaint (component->getLocalBounds());
-#endif
+       #if JUCE_DIRECT2D
+        if (getAvailableRenderingEngines().size() > 1)
+        {
+            currentRenderingEngine = index == 1 ? direct2DRenderingEngine : softwareRenderingEngine;
+            updateDirect2DContext();
+            repaint (component->getLocalBounds());
+        }
+       #endif
     }
 
     void doMouseMove (const Point<int>& position)
@@ -1732,6 +1700,13 @@ private:
         return handleKeyPress (key, textChar);
     }
 
+    void forwardMessageToParent (UINT message, WPARAM wParam, LPARAM lParam) const
+    {
+        HWND parentH = GetParent (hwnd);
+        if (parentH != 0)
+            PostMessage (parentH, message, wParam, lParam);
+    }
+
     bool doAppCommand (const LPARAM lParam)
     {
         int key = 0;
@@ -1839,6 +1814,34 @@ private:
 
             if (component->isCurrentlyBlockedByAnotherModalComponent())
                 Component::getCurrentlyModalComponent()->toFront (true);
+        }
+    }
+
+    void handleLeftClickInNCArea (WPARAM wParam)
+    {
+        if (! sendInputAttemptWhenModalMessage())
+        {
+            switch (wParam)
+            {
+            case HTBOTTOM:
+            case HTBOTTOMLEFT:
+            case HTBOTTOMRIGHT:
+            case HTGROWBOX:
+            case HTLEFT:
+            case HTRIGHT:
+            case HTTOP:
+            case HTTOPLEFT:
+            case HTTOPRIGHT:
+                if (isConstrainedNativeWindow())
+                {
+                    constrainerIsResizing = true;
+                    constrainer->resizeStart();
+                }
+                break;
+
+            default:
+                break;
+            }
         }
     }
 
@@ -2010,10 +2013,11 @@ private:
                 return 0;
 
             case WM_NCPAINT:
+                if (wParam != 1) // (1 = a repaint of the entire NC region)
+                    handlePaintMessage(); // this must be done, even with native titlebars, or there are rendering artifacts.
+
                 if (hasTitleBar())
-                    break;
-                else if (wParam != 1)
-                    handlePaintMessage();
+                    break; // let the DefWindowProc handle drawing the frame.
 
                 return 0;
 
@@ -2086,6 +2090,8 @@ private:
             case WM_SYSKEYDOWN:
                 if (doKeyDown (wParam))
                     return 0;
+                else
+                    forwardMessageToParent (message, wParam, lParam);
 
                 break;
 
@@ -2093,12 +2099,16 @@ private:
             case WM_SYSKEYUP:
                 if (doKeyUp (wParam))
                     return 0;
+                else
+                    forwardMessageToParent (message, wParam, lParam);
 
                 break;
 
             case WM_CHAR:
                 if (doKeyChar ((int) wParam, lParam))
                     return 0;
+                else
+                    forwardMessageToParent (message, wParam, lParam);
 
                 break;
 
@@ -2274,30 +2284,7 @@ private:
                 break;
 
             case WM_NCLBUTTONDOWN:
-                if (! sendInputAttemptWhenModalMessage())
-                {
-                    switch (wParam)
-                    {
-                    case HTBOTTOM:
-                    case HTBOTTOMLEFT:
-                    case HTBOTTOMRIGHT:
-                    case HTGROWBOX:
-                    case HTLEFT:
-                    case HTRIGHT:
-                    case HTTOP:
-                    case HTTOPLEFT:
-                    case HTTOPRIGHT:
-                        if (isConstrainedNativeWindow())
-                        {
-                            constrainerIsResizing = true;
-                            constrainer->resizeStart();
-                        }
-                        break;
-
-                    default:
-                        break;
-                    };
-                }
+                handleLeftClickInNCArea (wParam);
                 break;
 
             case WM_NCRBUTTONDOWN:
@@ -2305,8 +2292,14 @@ private:
                 sendInputAttemptWhenModalMessage();
                 break;
 
-            //case WM_IME_STARTCOMPOSITION;
-              //  return 0;
+            case WM_IME_SETCONTEXT:
+                imeHandler.handleSetContext (h, wParam == TRUE);
+                lParam &= ~ISC_SHOWUICOMPOSITIONWINDOW;
+                break;
+
+            case WM_IME_STARTCOMPOSITION:  imeHandler.handleStartComposition (*this); return 0;
+            case WM_IME_ENDCOMPOSITION:    imeHandler.handleEndComposition (*this, h); break;
+            case WM_IME_COMPOSITION:       imeHandler.handleComposition (*this, h, lParam); return 0;
 
             case WM_GETDLGCODE:
                 return DLGC_WANTALLKEYS;
@@ -2344,6 +2337,233 @@ private:
         return false;
     }
 
+    //==============================================================================
+    class IMEHandler
+    {
+    public:
+        IMEHandler()
+        {
+            reset();
+        }
+
+        void handleSetContext (HWND hWnd, const bool windowIsActive)
+        {
+            if (compositionInProgress && ! windowIsActive)
+            {
+                compositionInProgress = false;
+
+                HIMC hImc = ImmGetContext (hWnd);
+                if (hImc != 0)
+                {
+                    ImmNotifyIME (hImc, NI_COMPOSITIONSTR, CPS_COMPLETE, 0);
+                    ImmReleaseContext (hWnd, hImc);
+                }
+            }
+        }
+
+        void handleStartComposition (ComponentPeer& owner)
+        {
+            reset();
+            TextInputTarget* const target = owner.findCurrentTextInputTarget();
+
+            if (target != 0)
+                target->insertTextAtCaret (String::empty);
+        }
+
+        void handleEndComposition (ComponentPeer& owner, HWND hWnd)
+        {
+            if (compositionInProgress)
+            {
+                // If this occurs, the user has cancelled the composition, so clear their changes..
+                TextInputTarget* const target = owner.findCurrentTextInputTarget();
+
+                if (target != 0)
+                {
+                    target->setHighlightedRegion (compositionRange);
+                    target->insertTextAtCaret (String::empty);
+                    compositionRange.setLength (0);
+
+                    target->setHighlightedRegion (Range<int>::emptyRange (compositionRange.getEnd()));
+                    target->setTemporaryUnderlining (Array<Range<int> >());
+                }
+
+                HIMC hImc = ImmGetContext (hWnd);
+
+                if (hImc != 0)
+                {
+                    ImmNotifyIME (hImc, NI_CLOSECANDIDATE, 0, 0);
+                    ImmReleaseContext (hWnd, hImc);
+                }
+            }
+
+            reset();
+        }
+
+        void handleComposition (ComponentPeer& owner, HWND hWnd, const LPARAM lParam)
+        {
+            TextInputTarget* const target = owner.findCurrentTextInputTarget();
+            HIMC hImc = ImmGetContext (hWnd);
+
+            if (target == 0 || hImc == 0)
+                return;
+
+            if (compositionRange.getStart() < 0)
+                compositionRange = Range<int>::emptyRange (target->getHighlightedRegion().getStart());
+
+            if ((lParam & GCS_RESULTSTR) != 0) // (composition has finished)
+            {
+                replaceCurrentSelection (target, getCompositionString (hImc, GCS_RESULTSTR),
+                                         Range<int>::emptyRange (compositionRange.getEnd()));
+
+                target->setTemporaryUnderlining (Array<Range<int> >());
+
+                compositionInProgress = false;
+            }
+            else if ((lParam & GCS_COMPSTR) != 0) // (composition is still in-progress)
+            {
+                const String newContent (getCompositionString (hImc, GCS_COMPSTR));
+                const Range<int> selection (getCompositionSelection (hImc, lParam));
+
+                replaceCurrentSelection (target, newContent, selection);
+
+                target->setTemporaryUnderlining (getCompositionUnderlines (hImc, lParam));
+                compositionInProgress = true;
+            }
+
+            moveCandidateWindowToLeftAlignWithSelection (hImc, owner, target);
+            ImmReleaseContext (hWnd, hImc);
+        }
+
+    private:
+        //==============================================================================
+        Range<int> compositionRange; // The range being modified in the TextInputTarget
+        bool compositionInProgress;
+
+        //==============================================================================
+        void reset()
+        {
+            compositionRange = Range<int>::emptyRange (-1);
+            compositionInProgress = false;
+        }
+
+        const String getCompositionString (HIMC hImc, const DWORD type) const
+        {
+            jassert (hImc != 0);
+
+            const int stringSizeBytes = ImmGetCompositionString (hImc, type, 0, 0);
+
+            if (stringSizeBytes > 0)
+            {
+                HeapBlock<TCHAR> buffer;
+                buffer.calloc (stringSizeBytes / sizeof (TCHAR) + 1);
+                ImmGetCompositionString (hImc, type, buffer, stringSizeBytes);
+                return String (buffer);
+            }
+
+            return String::empty;
+        }
+
+        int getCompositionCaretPos (HIMC hImc, LPARAM lParam, const String& currentIMEString) const
+        {
+            jassert (hImc != 0);
+
+            if ((lParam & CS_NOMOVECARET) != 0)
+                return compositionRange.getStart();
+
+            if ((lParam & GCS_CURSORPOS) != 0)
+            {
+                const int localCaretPos = ImmGetCompositionString (hImc, GCS_CURSORPOS, 0, 0);
+                return compositionRange.getStart() + jmax (0, localCaretPos);
+            }
+
+            return compositionRange.getStart() + currentIMEString.length();
+        }
+
+        // Get selected/highlighted range while doing composition:
+        // returned range is relative to beginning of TextInputTarget, not composition string
+        const Range<int> getCompositionSelection (HIMC hImc, LPARAM lParam) const
+        {
+            jassert (hImc != 0);
+            int selectionStart = 0;
+            int selectionEnd = 0;
+
+            if ((lParam & GCS_COMPATTR) != 0)
+            {
+                // Get size of attributes array:
+                const int attributeSizeBytes = ImmGetCompositionString (hImc, GCS_COMPATTR, 0, 0);
+
+                if (attributeSizeBytes > 0)
+                {
+                    // Get attributes (8 bit flag per character):
+                    HeapBlock<char> attributes (attributeSizeBytes);
+                    ImmGetCompositionString (hImc, GCS_COMPATTR, attributes, attributeSizeBytes);
+
+                    selectionStart = 0;
+
+                    for (selectionStart = 0; selectionStart < attributeSizeBytes; ++selectionStart)
+                        if (attributes[selectionStart] == ATTR_TARGET_CONVERTED || attributes[selectionStart] == ATTR_TARGET_NOTCONVERTED)
+                            break;
+
+                    for (selectionEnd = selectionStart; selectionEnd < attributeSizeBytes; ++selectionEnd)
+                        if (attributes [selectionEnd] != ATTR_TARGET_CONVERTED && attributes[selectionEnd] != ATTR_TARGET_NOTCONVERTED)
+                            break;
+                }
+            }
+
+            return Range<int> (selectionStart, selectionEnd) + compositionRange.getStart();
+        }
+
+        void replaceCurrentSelection (TextInputTarget* const target, const String& newContent, const Range<int>& newSelection)
+        {
+            target->setHighlightedRegion (compositionRange);
+            target->insertTextAtCaret (newContent);
+            compositionRange.setLength (newContent.length());
+
+            target->setHighlightedRegion (newSelection);
+        }
+
+        const Array<Range<int> > getCompositionUnderlines (HIMC hImc, LPARAM lParam) const
+        {
+            Array<Range<int> > result;
+
+            if (hImc != 0 && (lParam & GCS_COMPCLAUSE) != 0)
+            {
+                const int clauseDataSizeBytes = ImmGetCompositionString (hImc, GCS_COMPCLAUSE, 0, 0);
+
+                if (clauseDataSizeBytes > 0)
+                {
+                    const int numItems = clauseDataSizeBytes / sizeof (uint32);
+                    HeapBlock<uint32> clauseData (numItems);
+
+                    if (ImmGetCompositionString (hImc, GCS_COMPCLAUSE, clauseData, clauseDataSizeBytes) > 0)
+                        for (int i = 0; i < numItems - 1; ++i)
+                            result.add (Range<int> (clauseData [i], clauseData [i + 1]) + compositionRange.getStart());
+                }
+            }
+
+            return result;
+        }
+
+        void moveCandidateWindowToLeftAlignWithSelection (HIMC hImc, ComponentPeer& peer, TextInputTarget* target) const
+        {
+            Component* const targetComp = dynamic_cast <Component*> (target);
+
+            if (targetComp != 0)
+            {
+                const Rectangle<int> area (peer.getComponent()
+                                              ->getLocalArea (targetComp, target->getCaretRectangle()));
+
+                CANDIDATEFORM pos = { 0, CFS_CANDIDATEPOS, { area.getX(), area.getBottom() }, { 0, 0, 0, 0 } };
+                ImmSetCandidateWindow (hImc, &pos);
+            }
+        }
+
+        JUCE_DECLARE_NON_COPYABLE (IMEHandler);
+    };
+
+    IMEHandler imeHandler;
+
+    //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Win32ComponentPeer);
 };
 
@@ -2369,14 +2589,41 @@ const ModifierKeys ModifierKeys::getCurrentModifiersRealtime() throw()
     Win32ComponentPeer::updateKeyModifiers();
 
     int mouseMods = 0;
-    if ((GetKeyState (VK_LBUTTON) & 0x8000) != 0)   mouseMods |= ModifierKeys::leftButtonModifier;
-    if ((GetKeyState (VK_RBUTTON) & 0x8000) != 0)   mouseMods |= ModifierKeys::rightButtonModifier;
-    if ((GetKeyState (VK_MBUTTON) & 0x8000) != 0)   mouseMods |= ModifierKeys::middleButtonModifier;
+    if (Win32ComponentPeer::isKeyDown (VK_LBUTTON))  mouseMods |= ModifierKeys::leftButtonModifier;
+    if (Win32ComponentPeer::isKeyDown (VK_RBUTTON))  mouseMods |= ModifierKeys::rightButtonModifier;
+    if (Win32ComponentPeer::isKeyDown (VK_MBUTTON))  mouseMods |= ModifierKeys::middleButtonModifier;
 
     Win32ComponentPeer::currentModifiers
         = Win32ComponentPeer::currentModifiers.withoutMouseButtons().withFlags (mouseMods);
 
     return Win32ComponentPeer::currentModifiers;
+}
+
+//==============================================================================
+bool KeyPress::isKeyCurrentlyDown (const int keyCode)
+{
+    SHORT k = (SHORT) keyCode;
+
+    if ((keyCode & extendedKeyModifier) == 0
+         && (k >= (SHORT) 'a' && k <= (SHORT) 'z'))
+        k += (SHORT) 'A' - (SHORT) 'a';
+
+    const SHORT translatedValues[] = { (SHORT) ',', VK_OEM_COMMA,
+                                       (SHORT) '+', VK_OEM_PLUS,
+                                       (SHORT) '-', VK_OEM_MINUS,
+                                       (SHORT) '.', VK_OEM_PERIOD,
+                                       (SHORT) ';', VK_OEM_1,
+                                       (SHORT) ':', VK_OEM_1,
+                                       (SHORT) '/', VK_OEM_2,
+                                       (SHORT) '?', VK_OEM_2,
+                                       (SHORT) '[', VK_OEM_4,
+                                       (SHORT) ']', VK_OEM_6 };
+
+    for (int i = 0; i < numElementsInArray (translatedValues); i += 2)
+        if (k == translatedValues [i])
+            k = translatedValues [i + 1];
+
+    return Win32ComponentPeer::isKeyDown (k);
 }
 
 //==============================================================================
@@ -2442,7 +2689,7 @@ bool AlertWindow::showNativeDialogBox (const String& title,
                                        const String& bodyText,
                                        bool isOkCancel)
 {
-    return MessageBox (0, bodyText.toUTF16(), title.toUTF16(),
+    return MessageBox (0, bodyText.toWideCharPointer(), title.toWideCharPointer(),
                        MB_SETFOREGROUND | (isOkCancel ? MB_OKCANCEL
                                                       : MB_OK)) == IDOK;
 }
@@ -2482,8 +2729,6 @@ public:
         startTimer (10000);
         timerCallback();
     }
-
-    ~ScreenSaverDefeater() {}
 
     void timerCallback()
     {
@@ -2540,7 +2785,7 @@ bool Desktop::isScreenSaverEnabled() throw()
 */
 
 //==============================================================================
-void juce_setKioskComponent (Component* kioskModeComponent, bool enableOrDisable, bool /*allowMenusAndBars*/)
+void Desktop::setKioskComponent (Component* kioskModeComponent, bool enableOrDisable, bool /*allowMenusAndBars*/)
 {
     if (enableOrDisable)
         kioskModeComponent->setBounds (Desktop::getInstance().getMainMonitorArea (false));
@@ -2550,13 +2795,11 @@ void juce_setKioskComponent (Component* kioskModeComponent, bool enableOrDisable
 static BOOL CALLBACK enumMonitorsProc (HMONITOR, HDC, LPRECT r, LPARAM userInfo)
 {
     Array <Rectangle<int> >* const monitorCoords = (Array <Rectangle<int> >*) userInfo;
-
     monitorCoords->add (Rectangle<int> (r->left, r->top, r->right - r->left, r->bottom - r->top));
-
     return TRUE;
 }
 
-void juce_updateMultiMonitorInfo (Array <Rectangle<int> >& monitorCoords, const bool clipToWorkArea)
+void Desktop::getCurrentMonitorPositions (Array <Rectangle<int> >& monitorCoords, const bool clipToWorkArea)
 {
     EnumDisplayMonitors (0, 0, &enumMonitorsProc, (LPARAM) &monitorCoords);
 
@@ -2596,7 +2839,7 @@ const Image juce_createIconForFile (const File& file)
     WORD iconNum = 0;
 
     HICON icon = ExtractAssociatedIcon ((HINSTANCE) PlatformUtilities::getCurrentModuleInstanceHandle(),
-                                        const_cast <WCHAR*> (file.getFullPathName().toUTF16().getAddress()), &iconNum);
+                                        const_cast <WCHAR*> (file.getFullPathName().toWideCharPointer()), &iconNum);
 
     if (icon != 0)
     {
@@ -2720,7 +2963,6 @@ class JuceDropSource   : public ComBaseClassHelper <IDropSource>
 {
 public:
     JuceDropSource() {}
-    ~JuceDropSource() {}
 
     HRESULT __stdcall QueryContinueDrag (BOOL escapePressed, DWORD keys)
     {
@@ -2748,8 +2990,6 @@ public:
           index (0)
     {
     }
-
-    ~JuceEnumFormatEtc()  {}
 
     HRESULT __stdcall Clone (IEnumFORMATETC** result)
     {
@@ -2981,6 +3221,5 @@ bool DragAndDropContainer::performExternalDragDropOfText (const String& text)
 
     return performDragDrop (&format, &medium, DROPEFFECT_COPY | DROPEFFECT_MOVE);
 }
-
 
 #endif

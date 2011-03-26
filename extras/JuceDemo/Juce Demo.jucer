@@ -21,12 +21,17 @@
     <LINUX_MAKE targetFolder="Builds/Linux" vstFolder="~/SDKs/vstsdk2.4" juceFolder="../../../juce"/>
     <VS2010 targetFolder="Builds/VisualStudio2010" vstFolder="c:\SDKs\vstsdk2.4"
             rtasFolder="c:\SDKs\PT_80_SDK" libraryType="1" juceFolder="../../../juce"/>
+    <ANDROID targetFolder="Builds/Android" androidSDKPath="${user.home}/SDKs/android-sdk-mac_x86"
+             androidNDKPath="${user.home}/SDKs/android-ndk-r5" juceFolder="../../../juce"
+             androidInternetNeeded="1"/>
   </EXPORTFORMATS>
   <CONFIGURATIONS>
     <CONFIGURATION name="Debug" isDebug="1" optimisation="1" targetName="JuceDemo"
-                   osxSDK="default" osxCompatibility="default" defines="JUCE_UNIT_TESTS=1"/>
+                   osxSDK="default" osxCompatibility="default" defines="JUCE_UNIT_TESTS=1"
+                   osxArchitecture="default"/>
     <CONFIGURATION name="Release" isDebug="0" optimisation="2" targetName="JuceDemo"
-                   osxSDK="default" osxCompatibility="default" defines="JUCE_UNIT_TESTS=1"/>
+                   osxSDK="default" osxCompatibility="10.4 SDK" defines="JUCE_UNIT_TESTS=1"
+                   osxArchitecture="32BitUniversal"/>
   </CONFIGURATIONS>
   <MAINGROUP id="0bU7ypLe" name="Juce Demo">
     <GROUP id="BEJsSEFfF" name="Source">

@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -103,7 +103,7 @@ public:
         }
 
         StringArray fontDirs;
-        fontDirs.addTokens (String::fromUTF8 (getenv ("JUCE_FONT_PATH")), ";,", String::empty);
+        fontDirs.addTokens (CharPointer_UTF8 (getenv ("JUCE_FONT_PATH")), ";,", String::empty);
         fontDirs.removeEmptyStrings (true);
 
         if (fontDirs.size() == 0)

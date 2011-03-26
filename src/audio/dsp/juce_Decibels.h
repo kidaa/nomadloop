@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -57,7 +57,7 @@ public:
     static Type gainToDecibels (const Type gain,
                                 const Type minusInfinityDb = (Type) defaultMinusInfinitydB)
     {
-        return gain > Type() ? jmax (minusInfinityDb, (Type) std::log (gain) * (Type) 20.0)
+        return gain > Type() ? jmax (minusInfinityDb, (Type) std::log10 (gain) * (Type) 20.0)
                              : minusInfinityDb;
     }
 

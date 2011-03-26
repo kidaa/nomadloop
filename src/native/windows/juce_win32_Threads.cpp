@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -166,7 +166,7 @@ void Thread::setCurrentThreadName (const String& name)
     } info;
 
     info.dwType = 0x1000;
-    info.szName = name.toCString();
+    info.szName = name.toUTF8();
     info.dwThreadID = GetCurrentThreadId();
     info.dwFlags = 0;
 
@@ -303,9 +303,9 @@ void Process::lowerPrivilege()
 
 void Process::terminate()
 {
-  #if JUCE_MSVC && JUCE_CHECK_MEMORY_LEAKS
+   #if JUCE_MSVC && JUCE_CHECK_MEMORY_LEAKS
     _CrtDumpMemoryLeaks();
-  #endif
+   #endif
 
     // bullet in the head in case there's a problem shutting down..
     ExitProcess (0);
@@ -318,7 +318,7 @@ void* PlatformUtilities::loadDynamicLibrary (const String& name)
 
     JUCE_TRY
     {
-        result = LoadLibrary (name.toUTF16());
+        result = LoadLibrary (name.toWideCharPointer());
     }
     JUCE_CATCH_ALL
 
@@ -337,7 +337,7 @@ void PlatformUtilities::freeDynamicLibrary (void* h)
 
 void* PlatformUtilities::getProcedureEntryPoint (void* h, const String& name)
 {
-    return (h != 0) ? (void*) GetProcAddress ((HMODULE) h, name.toCString()) : 0; // (void* cast is required for mingw)
+    return (h != 0) ? (void*) GetProcAddress ((HMODULE) h, name.toUTF8()) : 0; // (void* cast is required for mingw)
 }
 
 
@@ -345,10 +345,17 @@ void* PlatformUtilities::getProcedureEntryPoint (void* h, const String& name)
 class InterProcessLock::Pimpl
 {
 public:
-    Pimpl (const String& name, const int timeOutMillisecs)
+    Pimpl (String name, const int timeOutMillisecs)
         : handle (0), refCount (1)
     {
-        handle = CreateMutex (0, TRUE, ("Global\\" + name.replaceCharacter ('\\','/')).toUTF16());
+        name = name.replaceCharacter ('\\', '/');
+        handle = CreateMutexW (0, TRUE, ("Global\\" + name).toWideCharPointer());
+
+        // Not 100% sure why a global mutex sometimes can't be allocated, but if it fails, fall back to
+        // a local one. (A local one also sometimes fails on other machines so neither type appears to be
+        // universally reliable)
+        if (handle == 0)
+            handle = CreateMutexW (0, TRUE, ("Local\\" + name).toWideCharPointer());
 
         if (handle != 0 && GetLastError() == ERROR_ALREADY_EXISTS)
         {

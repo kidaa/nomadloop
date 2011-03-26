@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -108,7 +108,7 @@ const String SystemStats::getLogonName()
             user = pw->pw_name;
     }
 
-    return String::fromUTF8 (user);
+    return CharPointer_UTF8 (user);
 }
 
 const String SystemStats::getFullUserName()

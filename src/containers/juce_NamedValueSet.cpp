@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -146,7 +146,7 @@ bool NamedValueSet::set (const Identifier& name, const var& newValue)
 
         if (v->name == name)
         {
-            if (v->value == newValue)
+            if (v->value.equalsWithSameType (newValue))
                 return false;
 
             v->value = newValue;

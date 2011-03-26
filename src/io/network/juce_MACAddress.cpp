@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -56,7 +56,6 @@ MACAddress::MACAddress (const uint8 bytes[6])
 const String MACAddress::toString() const
 {
     String s;
-    s.preallocateStorage (18);
 
     for (int i = 0; i < numElementsInArray (asBytes); ++i)
     {

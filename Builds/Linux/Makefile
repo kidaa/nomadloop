@@ -69,7 +69,6 @@ OBJECTS := \
   $(OBJDIR)/juce_AudioDeviceManager_c24db832.o \
   $(OBJDIR)/juce_AudioIODevice_f7da876b.o \
   $(OBJDIR)/juce_AudioIODeviceType_e5d402c5.o \
-  $(OBJDIR)/juce_MidiOutput_f6dc5af3.o \
   $(OBJDIR)/juce_AudioDataConverters_dc0ece28.o \
   $(OBJDIR)/juce_AudioSampleBuffer_af6ff195.o \
   $(OBJDIR)/juce_IIRFilter_9a31e47f.o \
@@ -79,6 +78,7 @@ OBJECTS := \
   $(OBJDIR)/juce_MidiMessage_5b1f5753.o \
   $(OBJDIR)/juce_MidiMessageCollector_108abdc4.o \
   $(OBJDIR)/juce_MidiMessageSequence_a577dcb4.o \
+  $(OBJDIR)/juce_MidiOutput_3cc0f43f.o \
   $(OBJDIR)/juce_VSTPluginFormat_e4d590ea.o \
   $(OBJDIR)/juce_AudioPluginFormat_a7021cd6.o \
   $(OBJDIR)/juce_AudioPluginFormatManager_259e5a81.o \
@@ -163,6 +163,7 @@ OBJECTS := \
   $(OBJDIR)/juce_FileTreeComponent_8cb2d3a3.o \
   $(OBJDIR)/juce_ImagePreviewComponent_a108ea50.o \
   $(OBJDIR)/juce_WildcardFileFilter_9337b18.o \
+  $(OBJDIR)/juce_CaretComponent_26bf4433.o \
   $(OBJDIR)/juce_KeyboardFocusTraverser_6325fc08.o \
   $(OBJDIR)/juce_KeyListener_631ada24.o \
   $(OBJDIR)/juce_KeyMappingEditorComponent_a0183a92.o \
@@ -177,6 +178,7 @@ OBJECTS := \
   $(OBJDIR)/juce_MultiDocumentPanel_50e05aac.o \
   $(OBJDIR)/juce_ResizableBorderComponent_7f4f2182.o \
   $(OBJDIR)/juce_ResizableCornerComponent_1cac2df9.o \
+  $(OBJDIR)/juce_ResizableEdgeComponent_b9c9291.o \
   $(OBJDIR)/juce_ScrollBar_89666ad4.o \
   $(OBJDIR)/juce_StretchableLayoutManager_6bf5d800.o \
   $(OBJDIR)/juce_StretchableLayoutResizerBar_a720084c.o \
@@ -531,11 +533,6 @@ $(OBJDIR)/juce_AudioIODeviceType_e5d402c5.o: ../../src/audio/devices/juce_AudioI
 	@echo "Compiling juce_AudioIODeviceType.cpp"
 	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 
-$(OBJDIR)/juce_MidiOutput_f6dc5af3.o: ../../src/audio/devices/juce_MidiOutput.cpp
-	-@mkdir -p $(OBJDIR)
-	@echo "Compiling juce_MidiOutput.cpp"
-	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
-
 $(OBJDIR)/juce_AudioDataConverters_dc0ece28.o: ../../src/audio/dsp/juce_AudioDataConverters.cpp
 	-@mkdir -p $(OBJDIR)
 	@echo "Compiling juce_AudioDataConverters.cpp"
@@ -579,6 +576,11 @@ $(OBJDIR)/juce_MidiMessageCollector_108abdc4.o: ../../src/audio/midi/juce_MidiMe
 $(OBJDIR)/juce_MidiMessageSequence_a577dcb4.o: ../../src/audio/midi/juce_MidiMessageSequence.cpp
 	-@mkdir -p $(OBJDIR)
 	@echo "Compiling juce_MidiMessageSequence.cpp"
+	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
+
+$(OBJDIR)/juce_MidiOutput_3cc0f43f.o: ../../src/audio/midi/juce_MidiOutput.cpp
+	-@mkdir -p $(OBJDIR)
+	@echo "Compiling juce_MidiOutput.cpp"
 	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 
 $(OBJDIR)/juce_VSTPluginFormat_e4d590ea.o: ../../src/audio/plugins/formats/juce_VSTPluginFormat.cpp
@@ -1001,6 +1003,11 @@ $(OBJDIR)/juce_WildcardFileFilter_9337b18.o: ../../src/gui/components/filebrowse
 	@echo "Compiling juce_WildcardFileFilter.cpp"
 	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 
+$(OBJDIR)/juce_CaretComponent_26bf4433.o: ../../src/gui/components/keyboard/juce_CaretComponent.cpp
+	-@mkdir -p $(OBJDIR)
+	@echo "Compiling juce_CaretComponent.cpp"
+	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
+
 $(OBJDIR)/juce_KeyboardFocusTraverser_6325fc08.o: ../../src/gui/components/keyboard/juce_KeyboardFocusTraverser.cpp
 	-@mkdir -p $(OBJDIR)
 	@echo "Compiling juce_KeyboardFocusTraverser.cpp"
@@ -1069,6 +1076,11 @@ $(OBJDIR)/juce_ResizableBorderComponent_7f4f2182.o: ../../src/gui/components/lay
 $(OBJDIR)/juce_ResizableCornerComponent_1cac2df9.o: ../../src/gui/components/layout/juce_ResizableCornerComponent.cpp
 	-@mkdir -p $(OBJDIR)
 	@echo "Compiling juce_ResizableCornerComponent.cpp"
+	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
+
+$(OBJDIR)/juce_ResizableEdgeComponent_b9c9291.o: ../../src/gui/components/layout/juce_ResizableEdgeComponent.cpp
+	-@mkdir -p $(OBJDIR)
+	@echo "Compiling juce_ResizableEdgeComponent.cpp"
 	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 
 $(OBJDIR)/juce_ScrollBar_89666ad4.o: ../../src/gui/components/layout/juce_ScrollBar.cpp

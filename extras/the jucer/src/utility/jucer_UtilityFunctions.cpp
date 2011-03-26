@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -33,7 +33,7 @@ const String replaceCEscapeChars (const String& s)
     const int len = s.length();
 
     String r;
-    r.preallocateStorage (len + 2);
+    r.preallocateBytes (4 * len + 4);
     bool lastWasHexEscapeCode = false;
 
     for (int i = 0; i < len; ++i)

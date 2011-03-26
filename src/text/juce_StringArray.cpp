@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -45,34 +45,42 @@ StringArray::StringArray (const String& firstValue)
     strings.add (firstValue);
 }
 
-StringArray::StringArray (const juce_wchar* const* const initialStrings,
-                          const int numberOfStrings)
+namespace StringArrayHelpers
 {
-    for (int i = 0; i < numberOfStrings; ++i)
-        strings.add (initialStrings [i]);
-}
+    template <typename CharType>
+    void addArray (Array<String>& dest, const CharType* const* strings)
+    {
+        if (strings != 0)
+            while (*strings != 0)
+                dest.add (*strings++);
+    }
 
-StringArray::StringArray (const char* const* const initialStrings,
-                          const int numberOfStrings)
-{
-    for (int i = 0; i < numberOfStrings; ++i)
-        strings.add (initialStrings [i]);
-}
-
-StringArray::StringArray (const juce_wchar* const* const initialStrings)
-{
-    int i = 0;
-
-    while (initialStrings[i] != 0)
-        strings.add (initialStrings [i++]);
+    template <typename CharType>
+    void addArray (Array<String>& dest, const CharType* const* const strings, const int numberOfStrings)
+    {
+        for (int i = 0; i < numberOfStrings; ++i)
+            dest.add (strings [i]);
+    }
 }
 
 StringArray::StringArray (const char* const* const initialStrings)
 {
-    int i = 0;
+    StringArrayHelpers::addArray (strings, initialStrings);
+}
 
-    while (initialStrings[i] != 0)
-        strings.add (initialStrings [i++]);
+StringArray::StringArray (const char* const* const initialStrings, const int numberOfStrings)
+{
+    StringArrayHelpers::addArray (strings, initialStrings, numberOfStrings);
+}
+
+StringArray::StringArray (const wchar_t* const* const initialStrings)
+{
+    StringArrayHelpers::addArray (strings, initialStrings);
+}
+
+StringArray::StringArray (const wchar_t* const* const initialStrings, const int numberOfStrings)
+{
+    StringArrayHelpers::addArray (strings, initialStrings, numberOfStrings);
 }
 
 StringArray& StringArray::operator= (const StringArray& other)
@@ -308,14 +316,14 @@ const String StringArray::joinIntoString (const String& separator, int start, in
     if (start == last - 1)
         return strings.getReference (start);
 
-    const int separatorLen = separator.length();
-    int charsNeeded = separatorLen * (last - start - 1);
+    const size_t separatorBytes = separator.getCharPointer().sizeInBytes() - sizeof (String::CharPointerType::CharType);
+    size_t bytesNeeded = separatorBytes * (last - start - 1);
 
     for (int i = start; i < last; ++i)
-        charsNeeded += strings.getReference(i).length();
+        bytesNeeded += strings.getReference(i).getCharPointer().sizeInBytes() - sizeof (String::CharPointerType::CharType);
 
     String result;
-    result.preallocateStorage (charsNeeded);
+    result.preallocateBytes (bytesNeeded);
 
     String::CharPointerType dest (result.getCharPointer());
 
@@ -326,7 +334,7 @@ const String StringArray::joinIntoString (const String& separator, int start, in
         if (! s.isEmpty())
             dest.writeAll (s.getCharPointer());
 
-        if (++start < last && separatorLen > 0)
+        if (++start < last && separatorBytes > 0)
             dest.writeAll (separator.getCharPointer());
     }
 
@@ -346,48 +354,25 @@ int StringArray::addTokens (const String& text, const String& breakCharacters, c
 
     if (text.isNotEmpty())
     {
-        bool insideQuotes = false;
-        juce_wchar currentQuoteChar = 0;
-
         String::CharPointerType t (text.getCharPointer());
-        String::CharPointerType tokenStart (t);
-        int numChars = 0;
 
         for (;;)
         {
-            const juce_wchar c = t.getAndAdvance();
-            ++numChars;
+            String::CharPointerType tokenEnd (CharacterFunctions::findEndOfToken (t,
+                                                                                  breakCharacters.getCharPointer(),
+                                                                                  quoteCharacters.getCharPointer()));
 
-            const bool isBreak = (c == 0) || ((! insideQuotes) && breakCharacters.containsChar (c));
-
-            if (! isBreak)
-            {
-                if (quoteCharacters.containsChar (c))
-                {
-                    if (insideQuotes)
-                    {
-                        // only break out of quotes-mode if we find a matching quote to the
-                        // one that we opened with..
-                        if (currentQuoteChar == c)
-                            insideQuotes = false;
-                    }
-                    else
-                    {
-                        insideQuotes = true;
-                        currentQuoteChar = c;
-                    }
-                }
-            }
-            else
-            {
-                add (String (tokenStart, numChars - 1));
-                ++num;
-                tokenStart = t;
-                numChars = 0;
-            }
-
-            if (c == 0)
+            if (tokenEnd == t)
                 break;
+
+            add (String (t, tokenEnd));
+            ++num;
+            t = tokenEnd;
+
+            if (t.isEmpty())
+                break;
+
+            ++t;
         }
     }
 

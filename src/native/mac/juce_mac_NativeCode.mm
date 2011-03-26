@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -67,6 +67,7 @@ BEGIN_JUCE_NAMESPACE
 #include "../../events/juce_MessageManager.h"
 #include "../../containers/juce_ReferenceCountedArray.h"
 #include "../../gui/graphics/contexts/juce_LowLevelGraphicsSoftwareRenderer.h"
+#include "../../gui/graphics/contexts/juce_EdgeTable.h"
 #include "../../gui/graphics/imaging/juce_ImageFileFormat.h"
 #include "../../gui/graphics/imaging/juce_CameraDevice.h"
 #include "../../gui/components/windows/juce_AlertWindow.h"
@@ -89,8 +90,8 @@ BEGIN_JUCE_NAMESPACE
 #include "../../audio/audio_sources/juce_AudioSource.h"
 #include "../../audio/dsp/juce_AudioDataConverters.h"
 #include "../../audio/devices/juce_AudioIODeviceType.h"
-#include "../../audio/devices/juce_MidiOutput.h"
-#include "../../audio/devices/juce_MidiInput.h"
+#include "../../audio/midi/juce_MidiOutput.h"
+#include "../../audio/midi/juce_MidiInput.h"
 #include "../../containers/juce_ScopedValueSetter.h"
 #include "../common/juce_MidiDataConcatenator.h"
 #undef Point
@@ -123,14 +124,13 @@ class MessageQueue
 public:
     MessageQueue()
     {
-      #if MAC_OS_X_VERSION_MIN_REQUIRED > MAC_OS_X_VERSION_10_4 && ! JUCE_IOS
+       #if MAC_OS_X_VERSION_MIN_REQUIRED > MAC_OS_X_VERSION_10_4 && ! JUCE_IOS
         runLoop = CFRunLoopGetMain();
-      #else
+       #else
         runLoop = CFRunLoopGetCurrent();
-      #endif
+       #endif
 
-        CFRunLoopSourceContext sourceContext;
-        zerostruct (sourceContext);
+        CFRunLoopSourceContext sourceContext = { 0 };
         sourceContext.info = this;
         sourceContext.perform = runLoopSourceCallback;
         runLoopSource = CFRunLoopSourceCreate (kCFAllocatorDefault, 1, &sourceContext);

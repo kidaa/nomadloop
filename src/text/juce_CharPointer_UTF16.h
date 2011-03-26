@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -68,9 +68,9 @@ public:
     inline bool operator== (const CharPointer_UTF16& other) const throw() { return data == other.data; }
     inline bool operator!= (const CharPointer_UTF16& other) const throw() { return data != other.data; }
     inline bool operator<= (const CharPointer_UTF16& other) const throw() { return data <= other.data; }
-    inline bool operator<  (const CharPointer_UTF16& other) const throw() { return data < other.data; }
+    inline bool operator<  (const CharPointer_UTF16& other) const throw() { return data <  other.data; }
     inline bool operator>= (const CharPointer_UTF16& other) const throw() { return data >= other.data; }
-    inline bool operator>  (const CharPointer_UTF16& other) const throw() { return data > other.data; }
+    inline bool operator>  (const CharPointer_UTF16& other) const throw() { return data >  other.data; }
 
     /** Returns the address that this pointer is pointing to. */
     inline CharType* getAddress() const throw()         { return data; }
@@ -103,6 +103,17 @@ public:
         return *this;
     }
 
+    /** Moves this pointer back to the previous character in the string. */
+    CharPointer_UTF16& operator--() throw()
+    {
+        const juce_wchar n = *--data;
+
+        if (n >= 0xdc00 && n <= 0xdfff)
+            --data;
+
+        return *this;
+    }
+
     /** Returns the character that this pointer is currently pointing to, and then
         advances the pointer to point to the next character. */
     juce_wchar getAndAdvance() throw()
@@ -126,10 +137,22 @@ public:
     /** Moves this pointer forwards by the specified number of characters. */
     void operator+= (int numToSkip) throw()
     {
-        jassert (numToSkip >= 0);
+        if (numToSkip < 0)
+        {
+            while (++numToSkip <= 0)
+                --*this;
+        }
+        else
+        {
+            while (--numToSkip >= 0)
+                ++*this;
+        }
+    }
 
-        while (--numToSkip >= 0)
-            ++*this;
+    /** Moves this pointer backwards by the specified number of characters. */
+    void operator-= (int numToSkip) throw()
+    {
+        operator+= (-numToSkip);
     }
 
     /** Returns the character at a given character index from the start of the string. */
@@ -145,6 +168,14 @@ public:
     {
         CharPointer_UTF16 p (*this);
         p += numToSkip;
+        return p;
+    }
+
+    /** Returns a pointer which is moved backwards from this one by the specified number of characters. */
+    CharPointer_UTF16 operator- (const int numToSkip) const throw()
+    {
+        CharPointer_UTF16 p (*this);
+        p += -numToSkip;
         return p;
     }
 
@@ -432,6 +463,12 @@ public:
         }
 
         return true;
+    }
+
+    /** Atomically swaps this pointer for a new value, returning the previous value. */
+    CharPointer_UTF16 atomicSwap (const CharPointer_UTF16& newValue)
+    {
+        return CharPointer_UTF16 (reinterpret_cast <Atomic<CharType*>&> (data).exchange (newValue.data));
     }
 
     /** These values are the byte-order-mark (BOM) values for a UTF-16 stream. */

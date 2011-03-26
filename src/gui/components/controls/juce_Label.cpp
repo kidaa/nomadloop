@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -30,6 +30,7 @@ BEGIN_JUCE_NAMESPACE
 #include "juce_Label.h"
 #include "../lookandfeel/juce_LookAndFeel.h"
 #include "../windows/juce_ComponentPeer.h"
+#include "../keyboard/juce_CaretComponent.h"
 
 
 //==============================================================================
@@ -311,10 +312,10 @@ TextEditor* Label::createEditorComponent()
                          TextEditor::textColourId,
                          TextEditor::highlightColourId,
                          TextEditor::highlightedTextColourId,
-                         TextEditor::caretColourId,
                          TextEditor::outlineColourId,
                          TextEditor::focusedOutlineColourId,
-                         TextEditor::shadowColourId };
+                         TextEditor::shadowColourId,
+                         CaretComponent::caretColourId };
 
     for (int i = 0; i < numElementsInArray (cols); ++i)
         ed->setColour (cols[i], findColour (cols[i]));

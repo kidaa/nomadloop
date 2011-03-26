@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -151,10 +151,9 @@ const Rectangle<float> DrawableImage::getDrawableBounds() const
     return image.getBounds().toFloat();
 }
 
-bool DrawableImage::hitTest (int x, int y) const
+bool DrawableImage::hitTest (int x, int y)
 {
-    return (! image.isNull())
-            && image.getPixelAt (x, y).getAlpha() >= 127;
+    return Drawable::hitTest (x, y) && image.isValid() && image.getPixelAt (x, y).getAlpha() >= 127;
 }
 
 Drawable* DrawableImage::createCopy() const

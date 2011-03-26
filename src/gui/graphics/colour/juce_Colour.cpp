@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -339,7 +339,7 @@ void Colour::getHSB (float& h, float& s, float& v) const throw()
     {
         s = (hi - lo) / (float) hi;
 
-        if (s != 0)
+        if (s > 0)
         {
             const float invDiff = 1.0f / (hi - lo);
 

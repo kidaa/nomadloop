@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -75,6 +75,11 @@ public:
         if (isMainFill ? owner.mainFill.recalculateCoords (&scope)
                        : owner.strokeFill.recalculateCoords (&scope))
             owner.repaint();
+    }
+
+    void applyNewBounds (const Rectangle<int>&)
+    {
+        jassertfalse; // drawables can't be resized directly!
     }
 
 private:

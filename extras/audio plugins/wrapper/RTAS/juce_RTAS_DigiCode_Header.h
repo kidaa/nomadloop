@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -47,7 +47,7 @@
 
   // the Digidesign projects all use a struct alignment of 2..
   #pragma pack (2)
-  #pragma warning (disable: 4267 4996 4311 4312 4103)
+  #pragma warning (disable: 4267 4996 4311 4312 4103 4121 4100 4127 4189 4245 4389 4512 4701)
 
   #include <ForcedInclude.h>
 

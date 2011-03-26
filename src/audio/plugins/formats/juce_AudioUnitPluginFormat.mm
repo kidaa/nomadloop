@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -570,8 +570,7 @@ void AudioUnitPluginInstance::setPluginCallbacks()
     if (audioUnit != 0)
     {
         {
-            AURenderCallbackStruct info;
-            zerostruct (info);
+            AURenderCallbackStruct info = { 0 };
             info.inputProcRefCon = this;
             info.inputProc = renderGetInputCallback;
 
@@ -580,8 +579,7 @@ void AudioUnitPluginInstance::setPluginCallbacks()
         }
 
         {
-            HostCallbackInfo info;
-            zerostruct (info);
+            HostCallbackInfo info = { 0 };
             info.hostUserData = this;
             info.beatAndTempoProc = getBeatAndTempoCallback;
             info.musicalTimeLocationProc = getMusicalTimeLocationCallback;
@@ -630,8 +628,7 @@ void AudioUnitPluginInstance::prepareToPlay (double sampleRate_,
         AudioUnitReset (audioUnit, kAudioUnitScope_Global, 0);
 
         {
-            AudioStreamBasicDescription stream;
-            zerostruct (stream);
+            AudioStreamBasicDescription stream = { 0 };
             stream.mSampleRate = sampleRate_;
             stream.mFormatID = kAudioFormatLinearPCM;
             stream.mFormatFlags = kAudioFormatFlagsNativeFloatPacked | kAudioFormatFlagIsNonInterleaved;
@@ -705,7 +702,8 @@ OSStatus AudioUnitPluginInstance::renderGetInput (AudioUnitRenderActionFlags* io
             }
             else
             {
-                zeromem (ioData->mBuffers[i].mData, sizeof (float) * inNumberFrames);
+                zeromem (ioData->mBuffers[i].mData,
+                         sizeof (float) * inNumberFrames);
             }
         }
     }
@@ -1229,8 +1227,7 @@ void AudioUnitPluginInstance::setParameter (int index, float newValue)
 
 const String AudioUnitPluginInstance::getParameterName (int index)
 {
-    AudioUnitParameterInfo info;
-    zerostruct (info);
+    AudioUnitParameterInfo info = { 0 };
     UInt32 sz = sizeof (info);
 
     String name;
@@ -1310,7 +1307,7 @@ void AudioUnitPluginInstance::setCurrentProgram (int newIndex)
     current.presetName = 0;
 
     AudioUnitSetProperty (audioUnit,
-                          kAudioUnitProperty_FactoryPresets,
+                          kAudioUnitProperty_PresentPreset,
                           kAudioUnitScope_Global,
                           0, &current, sizeof (AUPreset));
 }
@@ -1502,12 +1499,10 @@ const StringArray AudioUnitPluginFormat::searchPathsForPlugins (const FileSearch
 {
     StringArray result;
     ComponentRecord* comp = 0;
-    ComponentDescription desc;
-    zerostruct (desc);
 
     for (;;)
     {
-        zerostruct (desc);
+        ComponentDescription desc = { 0 };
         comp = FindNextComponent (comp, &desc);
 
         if (comp == 0)

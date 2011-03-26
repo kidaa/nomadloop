@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -125,7 +125,7 @@ void PlatformUtilities::freeDynamicLibrary (void* handle)
 
 void* PlatformUtilities::getProcedureEntryPoint (void* libraryHandle, const String& procedureName)
 {
-    return dlsym (libraryHandle, procedureName.toCString());
+    return dlsym (libraryHandle, procedureName.toUTF8());
 }
 
 #endif

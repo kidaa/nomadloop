@@ -277,9 +277,6 @@
     <ClCompile Include="..\..\src\audio\devices\juce_AudioIODeviceType.cpp">
       <Filter>Juce\Source\audio\devices</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\audio\devices\juce_MidiOutput.cpp">
-      <Filter>Juce\Source\audio\devices</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\src\audio\dsp\juce_AudioDataConverters.cpp">
       <Filter>Juce\Source\audio\dsp</Filter>
     </ClCompile>
@@ -305,6 +302,9 @@
       <Filter>Juce\Source\audio\midi</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\audio\midi\juce_MidiMessageSequence.cpp">
+      <Filter>Juce\Source\audio\midi</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\audio\midi\juce_MidiOutput.cpp">
       <Filter>Juce\Source\audio\midi</Filter>
     </ClCompile>
     <ClCompile Include="..\..\extras\audio plugins\wrapper\AU\juce_AU_Wrapper.mm">
@@ -598,6 +598,9 @@
     <ClCompile Include="..\..\src\gui\components\filebrowser\juce_WildcardFileFilter.cpp">
       <Filter>Juce\Source\gui\components\filebrowser</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\src\gui\components\keyboard\juce_CaretComponent.cpp">
+      <Filter>Juce\Source\gui\components\keyboard</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\src\gui\components\keyboard\juce_KeyboardFocusTraverser.cpp">
       <Filter>Juce\Source\gui\components\keyboard</Filter>
     </ClCompile>
@@ -638,6 +641,9 @@
       <Filter>Juce\Source\gui\components\layout</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\gui\components\layout\juce_ResizableCornerComponent.cpp">
+      <Filter>Juce\Source\gui\components\layout</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\gui\components\layout\juce_ResizableEdgeComponent.cpp">
       <Filter>Juce\Source\gui\components\layout</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\gui\components\layout\juce_ScrollBar.cpp">
@@ -1386,12 +1392,6 @@
     <ClInclude Include="..\..\src\audio\devices\juce_AudioIODeviceType.h">
       <Filter>Juce\Source\audio\devices</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\audio\devices\juce_MidiInput.h">
-      <Filter>Juce\Source\audio\devices</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\src\audio\devices\juce_MidiOutput.h">
-      <Filter>Juce\Source\audio\devices</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\src\audio\dsp\juce_AudioDataConverters.h">
       <Filter>Juce\Source\audio\dsp</Filter>
     </ClInclude>
@@ -1410,6 +1410,9 @@
     <ClInclude Include="..\..\src\audio\midi\juce_MidiFile.h">
       <Filter>Juce\Source\audio\midi</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\src\audio\midi\juce_MidiInput.h">
+      <Filter>Juce\Source\audio\midi</Filter>
+    </ClInclude>
     <ClInclude Include="..\..\src\audio\midi\juce_MidiKeyboardState.h">
       <Filter>Juce\Source\audio\midi</Filter>
     </ClInclude>
@@ -1420,6 +1423,9 @@
       <Filter>Juce\Source\audio\midi</Filter>
     </ClInclude>
     <ClInclude Include="..\..\src\audio\midi\juce_MidiMessageSequence.h">
+      <Filter>Juce\Source\audio\midi</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\audio\midi\juce_MidiOutput.h">
       <Filter>Juce\Source\audio\midi</Filter>
     </ClInclude>
     <ClInclude Include="..\..\extras\audio plugins\wrapper\RTAS\juce_RTAS_DigiCode_Header.h">
@@ -1516,6 +1522,9 @@
       <Filter>Juce\Source\containers</Filter>
     </ClInclude>
     <ClInclude Include="..\..\src\containers\juce_ElementComparator.h">
+      <Filter>Juce\Source\containers</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\containers\juce_HashMap.h">
       <Filter>Juce\Source\containers</Filter>
     </ClInclude>
     <ClInclude Include="..\..\src\containers\juce_LinkedListPointer.h">
@@ -1776,6 +1785,9 @@
     <ClInclude Include="..\..\src\gui\components\filebrowser\juce_WildcardFileFilter.h">
       <Filter>Juce\Source\gui\components\filebrowser</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\src\gui\components\keyboard\juce_CaretComponent.h">
+      <Filter>Juce\Source\gui\components\keyboard</Filter>
+    </ClInclude>
     <ClInclude Include="..\..\src\gui\components\keyboard\juce_KeyboardFocusTraverser.h">
       <Filter>Juce\Source\gui\components\keyboard</Filter>
     </ClInclude>
@@ -1819,6 +1831,9 @@
       <Filter>Juce\Source\gui\components\layout</Filter>
     </ClInclude>
     <ClInclude Include="..\..\src\gui\components\layout\juce_ResizableCornerComponent.h">
+      <Filter>Juce\Source\gui\components\layout</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\gui\components\layout\juce_ResizableEdgeComponent.h">
       <Filter>Juce\Source\gui\components\layout</Filter>
     </ClInclude>
     <ClInclude Include="..\..\src\gui\components\layout\juce_ScrollBar.h">

@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -128,12 +128,6 @@
 #ifndef __JUCE_AUDIOIODEVICETYPE_JUCEHEADER__
  #include "audio/devices/juce_AudioIODeviceType.h"
 #endif
-#ifndef __JUCE_MIDIINPUT_JUCEHEADER__
- #include "audio/devices/juce_MidiInput.h"
-#endif
-#ifndef __JUCE_MIDIOUTPUT_JUCEHEADER__
- #include "audio/devices/juce_MidiOutput.h"
-#endif
 #ifndef __JUCE_AUDIODATACONVERTERS_JUCEHEADER__
  #include "audio/dsp/juce_AudioDataConverters.h"
 #endif
@@ -152,6 +146,9 @@
 #ifndef __JUCE_MIDIFILE_JUCEHEADER__
  #include "audio/midi/juce_MidiFile.h"
 #endif
+#ifndef __JUCE_MIDIINPUT_JUCEHEADER__
+ #include "audio/midi/juce_MidiInput.h"
+#endif
 #ifndef __JUCE_MIDIKEYBOARDSTATE_JUCEHEADER__
  #include "audio/midi/juce_MidiKeyboardState.h"
 #endif
@@ -163,6 +160,9 @@
 #endif
 #ifndef __JUCE_MIDIMESSAGESEQUENCE_JUCEHEADER__
  #include "audio/midi/juce_MidiMessageSequence.h"
+#endif
+#ifndef __JUCE_MIDIOUTPUT_JUCEHEADER__
+ #include "audio/midi/juce_MidiOutput.h"
 #endif
 #ifndef __JUCE_AUDIOUNITPLUGINFORMAT_JUCEHEADER__
  #include "audio/plugins/formats/juce_AudioUnitPluginFormat.h"
@@ -401,6 +401,9 @@
 #ifndef __JUCE_MODALCOMPONENTMANAGER_JUCEHEADER__
  #include "gui/components/juce_ModalComponentManager.h"
 #endif
+#ifndef __JUCE_CARETCOMPONENT_JUCEHEADER__
+ #include "gui/components/keyboard/juce_CaretComponent.h"
+#endif
 #ifndef __JUCE_KEYBOARDFOCUSTRAVERSER_JUCEHEADER__
  #include "gui/components/keyboard/juce_KeyboardFocusTraverser.h"
 #endif
@@ -445,6 +448,9 @@
 #endif
 #ifndef __JUCE_RESIZABLECORNERCOMPONENT_JUCEHEADER__
  #include "gui/components/layout/juce_ResizableCornerComponent.h"
+#endif
+#ifndef __JUCE_RESIZABLEEDGECOMPONENT_JUCEHEADER__
+ #include "gui/components/layout/juce_ResizableEdgeComponent.h"
 #endif
 #ifndef __JUCE_SCROLLBAR_JUCEHEADER__
  #include "gui/components/layout/juce_ScrollBar.h"

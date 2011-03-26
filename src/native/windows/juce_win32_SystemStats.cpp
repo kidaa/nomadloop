@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -31,7 +31,7 @@
 //==============================================================================
 void Logger::outputDebugString (const String& text)
 {
-    OutputDebugString ((text + "\n").toUTF16());
+    OutputDebugString ((text + "\n").toWideCharPointer());
 }
 
 //==============================================================================
@@ -67,8 +67,7 @@ const String SystemStats::getCpuVendor()
 
 static void juce_getCpuVendor (char* const v)
 {
-    int vendor[4];
-    zeromem (vendor, 16);
+    int vendor[4] = { 0 };
 
 #ifdef JUCE_64BIT
 #else
@@ -345,9 +344,8 @@ int SystemStats::getPageSize()
 //==============================================================================
 const String SystemStats::getLogonName()
 {
-    TCHAR text [256];
+    TCHAR text [256] = { 0 };
     DWORD len = numElementsInArray (text) - 2;
-    zerostruct (text);
     GetUserName (text, &len);
     return String (text, len);
 }

@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -845,7 +845,11 @@ private:
     bool scrollWheelEnabled : 1, snapsToMousePos : 1;
     ScopedPointer<Label> valueBox;
     ScopedPointer<Button> incButton, decButton;
-    ScopedPointer <Component> popupDisplay;
+
+    class PopupDisplayComponent;
+    friend class PopupDisplayComponent;
+    friend class ScopedPointer <PopupDisplayComponent>;
+    ScopedPointer <PopupDisplayComponent> popupDisplay;
     Component* parentForPopupDisplay;
 
     float getLinearSliderPos (double value);

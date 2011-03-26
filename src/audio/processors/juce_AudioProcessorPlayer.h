@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -28,7 +28,7 @@
 
 #include "juce_AudioProcessor.h"
 #include "../devices/juce_AudioIODevice.h"
-#include "../devices/juce_MidiInput.h"
+#include "../midi/juce_MidiInput.h"
 #include "../midi/juce_MidiMessageCollector.h"
 
 

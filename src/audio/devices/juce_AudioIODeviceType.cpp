@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -67,5 +67,10 @@ AudioIODeviceType* AudioIODeviceType::createAudioIODeviceType_ALSA()            
 #if ! (JUCE_LINUX && JUCE_JACK)
 AudioIODeviceType* AudioIODeviceType::createAudioIODeviceType_JACK()            { return 0; }
 #endif
+
+#if ! JUCE_ANDROID
+AudioIODeviceType* AudioIODeviceType::createAudioIODeviceType_Android()         { return 0; }
+#endif
+
 
 END_JUCE_NAMESPACE

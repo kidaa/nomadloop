@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -214,7 +214,7 @@ const File File::getCurrentWorkingDirectory()
         bufferSize += 1024;
     }
 
-    return File (String::fromUTF8 (cwd));
+    return File (CharPointer_UTF8 (cwd));
 }
 
 bool File::setAsCurrentWorkingDirectory() const
@@ -490,7 +490,7 @@ const File juce_getExecutableFile()
   #else
     Dl_info exeInfo;
     dladdr ((void*) juce_getExecutableFile, &exeInfo);  // (can't be a const void* on android)
-    return File::getCurrentWorkingDirectory().getChildFile (String::fromUTF8 (exeInfo.dli_fname));
+    return File::getCurrentWorkingDirectory().getChildFile (CharPointer_UTF8 (exeInfo.dli_fname));
   #endif
 }
 
@@ -523,8 +523,7 @@ const String File::getVolumeLabel() const
         char            mountPointSpace [MAXPATHLEN];
     } attrBuf;
 
-    struct attrlist attrList;
-    zerostruct (attrList);
+    struct attrlist attrList = { 0 };
     attrList.bitmapcount = ATTR_BIT_MAP_COUNT;
     attrList.volattr = ATTR_VOL_INFO | ATTR_VOL_NAME;
 
@@ -608,8 +607,7 @@ public:
 
         if (handle != 0)
         {
-            struct flock fl;
-            zerostruct (fl);
+            struct flock fl = { 0 };
             fl.l_whence = SEEK_SET;
             fl.l_type = F_WRLCK;
 
@@ -645,8 +643,7 @@ public:
     {
         if (handle != 0)
         {
-            struct flock fl;
-            zerostruct (fl);
+            struct flock fl = { 0 };
             fl.l_whence = SEEK_SET;
             fl.l_type = F_UNLCK;
 

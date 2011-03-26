@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -34,6 +34,7 @@
 #include "../menus/juce_PopupMenu.h"
 #include "../../../containers/juce_Value.h"
 #include "../keyboard/juce_TextInputTarget.h"
+#include "../keyboard/juce_CaretComponent.h"
 
 
 //==============================================================================
@@ -133,9 +134,7 @@ public:
 
     //==============================================================================
     /** Makes the caret visible or invisible.
-
         By default the caret is visible.
-
         @see setCaretColour, setCaretPosition
     */
     void setCaretVisible (bool shouldBeVisible);
@@ -143,7 +142,7 @@ public:
     /** Returns true if the caret is enabled.
         @see setCaretVisible
     */
-    bool isCaretVisible() const                                 { return caretVisible; }
+    bool isCaretVisible() const                                 { return caret != 0; }
 
     //==============================================================================
     /** Enables/disables a vertical scrollbar.
@@ -221,8 +220,6 @@ public:
                                                    highlighting.*/
 
         highlightedTextColourId  = 0x1000203, /**< The colour with which to draw the text in highlighted sections. */
-
-        caretColourId            = 0x1000204, /**< The colour with which to draw the caret. */
 
         outlineColourId          = 0x1000205, /**< If this is non-transparent, it will be used to draw a box around
                                                    the edge of the component. */
@@ -373,7 +370,7 @@ public:
     */
     Value& getTextValue();
 
-    /** Inserts some text at the current cursor position.
+    /** Inserts some text at the current caret position.
 
         If a section of the text is highlighted, it will be replaced by
         this string, otherwise it will be inserted.
@@ -388,20 +385,18 @@ public:
     /** Deletes all the text from the editor. */
     void clear();
 
-    /** Deletes the currently selected region, and puts it on the clipboard.
-
+    /** Deletes the currently selected region.
+        This doesn't copy the deleted section to the clipboard - if you need to do that, call copy() first.
         @see copy, paste, SystemClipboard
     */
     void cut();
 
-    /** Copies any currently selected region to the clipboard.
-
+    /** Copies the currently selected region to the clipboard.
         @see cut, paste, SystemClipboard
     */
     void copy();
 
-    /** Pastes the contents of the clipboard into the editor at the cursor position.
-
+    /** Pastes the contents of the clipboard into the editor at the caret position.
         @see cut, copy, SystemClipboard
     */
     void paste();
@@ -496,12 +491,12 @@ public:
     */
     const BorderSize<int> getBorder() const;
 
-    /** Used to disable the auto-scrolling which keeps the cursor visible.
+    /** Used to disable the auto-scrolling which keeps the caret visible.
 
-        If true (the default), the editor will scroll when the cursor moves offscreen. If
+        If true (the default), the editor will scroll when the caret moves offscreen. If
         set to false, it won't.
     */
-    void setScrollToShowCursor (bool shouldScrollToShowCursor);
+    void setScrollToShowCursor (bool shouldScrollToShowCaret);
 
     //==============================================================================
     /** @internal */
@@ -533,7 +528,11 @@ public:
     /** @internal */
     void colourChanged();
     /** @internal */
+    void lookAndFeelChanged();
+    /** @internal */
     bool isTextInputActive() const;
+    /** @internal */
+    void setTemporaryUnderlining (const Array <Range<int> >&);
 
     //==============================================================================
     /** This adds the items to the popup menu.
@@ -583,13 +582,12 @@ protected:
     void moveCaret (int newCaretPos);
 
     /** @internal */
-    void moveCursorTo (int newPosition, bool isSelecting);
+    void moveCaretTo (int newPosition, bool isSelecting);
 
     /** Used internally to dispatch a text-change message. */
     void textChanged();
 
-    /** Begins a new transaction in the UndoManager.
-    */
+    /** Begins a new transaction in the UndoManager. */
     void newTransaction();
 
     /** Used internally to trigger an undo or redo. */
@@ -622,19 +620,17 @@ private:
     bool multiline                  : 1;
     bool wordWrap                   : 1;
     bool returnKeyStartsNewLine     : 1;
-    bool caretVisible               : 1;
     bool popupMenuEnabled           : 1;
     bool selectAllTextWhenFocused   : 1;
     bool scrollbarVisible           : 1;
     bool wasFocused                 : 1;
-    bool caretFlashState            : 1;
-    bool keepCursorOnScreen         : 1;
+    bool keepCaretOnScreen          : 1;
     bool tabKeyUsed                 : 1;
     bool menuActive                 : 1;
     bool valueTextNeedsUpdating     : 1;
 
     UndoManager undoManager;
-    float cursorX, cursorY, cursorHeight;
+    ScopedPointer<CaretComponent> caret;
     int maxTextLength;
     Range<int> selection;
     int leftIndent, topIndent;
@@ -657,6 +653,7 @@ private:
 
     String allowedCharacters;
     ListenerList <Listener> listeners;
+    Array <Range<int> > underlinedSections;
 
     void coalesceSimilarSections();
     void splitSection (int sectionIndex, int charToSplitAt);
@@ -678,7 +675,6 @@ private:
     void updateTextHolderSize();
     float getWordWrapWidth() const;
     void timerCallbackInt();
-    void repaintCaret();
     void repaintText (const Range<int>& range);
     UndoManager* getUndoManager() throw();
 

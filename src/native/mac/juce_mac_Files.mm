@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -85,17 +85,15 @@ namespace FileHelpers
         return [[NSURL fileURLWithPath: juceStringToNS (path)]
                     getResourceValue: &hidden forKey: NSURLIsHiddenKey error: &err]
                 && [hidden boolValue];
-      #else
-        #if JUCE_IOS
+      #elif JUCE_IOS
         return File (path).getFileName().startsWithChar ('.');
-        #else
+      #else
         FSRef ref;
         LSItemInfoRecord info;
 
         return FSPathMakeRefWithOptions ((const UInt8*) path.toUTF8().getAddress(), kFSPathMakeRefDoNotFollowLeafSymlink, &ref, 0) == noErr
                  && LSCopyItemInfoForRef (&ref, kLSRequestBasicFlagsOnly, &info) == noErr
                  && (info.flags & kLSItemInfoIsInvisible) != 0;
-        #endif
       #endif
     }
 
@@ -212,7 +210,7 @@ const File File::getSpecialLocation (const SpecialLocationType type)
 
         case invokedExecutableFile:
             if (juce_Argv0 != 0)
-                return File (String::fromUTF8 (juce_Argv0));
+                return File (CharPointer_UTF8 (juce_Argv0));
             // deliberate fall-through...
 
         case currentExecutableFile:
@@ -328,8 +326,6 @@ public:
         const ScopedAutoReleasePool pool;
 
         enumerator = [[[NSFileManager defaultManager] enumeratorAtPath: juceStringToNS (directory.getFullPathName())] retain];
-
-        wildcardUTF8 = wildCard.toUTF8();
     }
 
     ~Pimpl()
@@ -342,6 +338,7 @@ public:
                Time* const modTime, Time* const creationTime, bool* const isReadOnly)
     {
         const ScopedAutoReleasePool pool;
+        const char* wildcardUTF8 = 0;
 
         for (;;)
         {
@@ -351,6 +348,9 @@ public:
 
             [enumerator skipDescendents];
             filenameFound = nsStringToJuce (file);
+
+            if (wildcardUTF8 == 0)
+                wildcardUTF8 = wildCard.toUTF8();
 
             if (fnmatch (wildcardUTF8, filenameFound.toUTF8(), FNM_CASEFOLD) != 0)
                 continue;
@@ -367,7 +367,6 @@ public:
 
 private:
     String parentDir, wildCard;
-    const char* wildcardUTF8;
     NSDirectoryEnumerator* enumerator;
 
     JUCE_DECLARE_NON_COPYABLE (Pimpl);
@@ -449,11 +448,10 @@ bool PlatformUtilities::makeFSRefFromPath (FSRef* destFSRef, const String& path)
 
 const String PlatformUtilities::makePathFromFSRef (FSRef* file)
 {
-    char path [2048];
-    zerostruct (path);
+    char path [2048] = { 0 };
 
     if (FSRefMakePath (file, (UInt8*) path, sizeof (path) - 1) == noErr)
-        return PlatformUtilities::convertToPrecomposedUnicode (String::fromUTF8 (path));
+        return PlatformUtilities::convertToPrecomposedUnicode (CharPointer_UTF8 (path));
 
     return String::empty;
 }

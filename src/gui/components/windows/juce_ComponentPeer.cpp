@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -286,6 +286,10 @@ TextInputTarget* ComponentPeer::findCurrentTextInputTarget()
     return 0;
 }
 
+void ComponentPeer::dismissPendingTextInput()
+{
+}
+
 //==============================================================================
 void ComponentPeer::handleBroughtToFront()
 {
@@ -497,7 +501,7 @@ public:
 
     void messageCallback()
     {
-        if (target != 0)
+        if (target.get() != 0)
             dropTarget->filesDropped (files, position.getX(), position.getY());
     }
 
@@ -565,7 +569,7 @@ const StringArray ComponentPeer::getAvailableRenderingEngines()
     return s;
 }
 
-int ComponentPeer::getCurrentRenderingEngine() throw()
+int ComponentPeer::getCurrentRenderingEngine() const
 {
     return 0;
 }

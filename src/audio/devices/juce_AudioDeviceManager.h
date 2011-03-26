@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -27,8 +27,8 @@
 #define __JUCE_AUDIODEVICEMANAGER_JUCEHEADER__
 
 #include "juce_AudioIODeviceType.h"
-#include "juce_MidiInput.h"
-#include "juce_MidiOutput.h"
+#include "../midi/juce_MidiInput.h"
+#include "../midi/juce_MidiOutput.h"
 #include "../../text/juce_XmlElement.h"
 #include "../../gui/components/controls/juce_ComboBox.h"
 #include "../dsp/juce_AudioSampleBuffer.h"
@@ -327,8 +327,7 @@ public:
 
         @see addMidiInputCallback, isMidiInputEnabled
     */
-    void setMidiInputEnabled (const String& midiInputDeviceName,
-                              bool enabled);
+    void setMidiInputEnabled (const String& midiInputDeviceName, bool enabled);
 
     /** Returns true if a given midi input device is being used.
 
@@ -476,33 +475,22 @@ private:
                              public MidiInputCallback
     {
     public:
-        AudioDeviceManager* owner;
-
-        void audioDeviceIOCallback (const float** inputChannelData,
-                                    int totalNumInputChannels,
-                                    float** outputChannelData,
-                                    int totalNumOutputChannels,
-                                    int numSamples);
-
+        void audioDeviceIOCallback (const float**, int, float**, int, int);
         void audioDeviceAboutToStart (AudioIODevice*);
-
         void audioDeviceStopped();
+        void handleIncomingMidiMessage (MidiInput*, const MidiMessage&);
 
-        void handleIncomingMidiMessage (MidiInput* source, const MidiMessage& message);
+        AudioDeviceManager* owner;
     };
 
     CallbackHandler callbackHandler;
     friend class CallbackHandler;
 
-    void audioDeviceIOCallbackInt (const float** inputChannelData,
-                                   int totalNumInputChannels,
-                                   float** outputChannelData,
-                                   int totalNumOutputChannels,
-                                   int numSamples);
-    void audioDeviceAboutToStartInt (AudioIODevice* device);
+    void audioDeviceIOCallbackInt (const float** inputChannelData, int totalNumInputChannels,
+                                   float** outputChannelData, int totalNumOutputChannels, int numSamples);
+    void audioDeviceAboutToStartInt (AudioIODevice*);
     void audioDeviceStoppedInt();
-
-    void handleIncomingMidiMessageInt (MidiInput* source, const MidiMessage& message);
+    void handleIncomingMidiMessageInt (MidiInput*, const MidiMessage&);
 
     const String restartDevice (int blockSizeToUse, double sampleRateToUse,
                                 const BigInteger& ins, const BigInteger& outs);

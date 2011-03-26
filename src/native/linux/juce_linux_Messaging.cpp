@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -268,7 +268,7 @@ namespace LinuxErrorHandling
         char requestStr[64] = { 0 };
 
         XGetErrorText (display, event->error_code, errorStr, 64);
-        XGetErrorDatabaseText (display, "XRequest", String (event->request_code).toCString(), "Unknown", requestStr, 64);
+        XGetErrorDatabaseText (display, "XRequest", String (event->request_code).toUTF8(), "Unknown", requestStr, 64);
         DBG ("ERROR: X returned " + String (errorStr) + " for operation " + String (requestStr));
     #endif
 
@@ -345,7 +345,7 @@ void MessageManager::doPlatformSpecificInitialisation()
     if (displayName.isEmpty())
         displayName = ":0.0";
 
-    display = XOpenDisplay (displayName.toCString());
+    display = XOpenDisplay (displayName.toUTF8());
 
     if (display != 0)  // This is not fatal! we can run headless.
     {
@@ -381,7 +381,7 @@ void MessageManager::doPlatformSpecificShutdown()
     }
 }
 
-bool juce_postMessageToSystemQueue (Message* message)
+bool MessageManager::postMessageToSystemQueue (Message* message)
 {
     if (LinuxErrorHandling::errorOccurred)
         return false;
@@ -439,7 +439,7 @@ void* MessageManager::callFunctionOnMessageThread (MessageCallbackFunction* func
 }
 
 // this function expects that it will NEVER be called simultaneously for two concurrent threads
-bool juce_dispatchNextMessageOnSystemQueue (bool returnIfNoPendingMessages)
+bool MessageManager::dispatchNextMessageOnSystemQueue (bool returnIfNoPendingMessages)
 {
     while (! LinuxErrorHandling::errorOccurred)
     {

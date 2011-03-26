@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -584,7 +584,7 @@ public:
             conv = new AudioData::ConverterInstance <AudioData::Pointer<F2, E2, AudioData::NonInterleaved, AudioData::Const>,
                                                      AudioData::Pointer<F1, E1, AudioData::NonInterleaved, AudioData::NonConst> >();
             if (! inPlace)
-                zerostruct (reversed);
+                zeromem (reversed, sizeof (reversed));
 
             conv->convertSamples (reversed, inPlace ? reversed : converted, numSamples);
 

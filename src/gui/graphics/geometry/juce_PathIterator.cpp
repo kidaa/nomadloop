@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -61,6 +61,12 @@ PathFlatteningIterator::PathFlatteningIterator (const Path& path_,
 
 PathFlatteningIterator::~PathFlatteningIterator()
 {
+}
+
+bool PathFlatteningIterator::isLastInSubpath() const throw()
+{
+    return stackPos == stackBase.getData()
+             && (index >= path.numElements || points [index] == Path::moveMarker);
 }
 
 bool PathFlatteningIterator::next()

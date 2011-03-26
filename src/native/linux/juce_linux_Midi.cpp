@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -128,7 +128,7 @@ namespace
                                                           : SND_SEQ_OPEN_OUTPUT, 0) == 0)
         {
             snd_seq_set_client_name (seqHandle,
-                                     (deviceNameToOpen + (forInput ? " Input" : " Output")).toCString());
+                                     (deviceNameToOpen + (forInput ? " Input" : " Output")).toUTF8());
 
             const int portId
                 = snd_seq_create_simple_port (seqHandle,

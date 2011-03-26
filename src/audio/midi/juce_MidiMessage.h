@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -243,6 +243,7 @@ public:
 
         @param channel      the midi channel, in the range 1 to 16
         @param noteNumber   the key number, 0 to 127
+        @param velocity     in the range 0 to 127
         @see isNoteOff
     */
     static const MidiMessage noteOff (int channel, int noteNumber, uint8 velocity = 0) throw();

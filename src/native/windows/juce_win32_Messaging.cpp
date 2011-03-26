@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -33,7 +33,9 @@ static const unsigned int specialId             = WM_APP + 0x4400;
 static const unsigned int broadcastId           = WM_APP + 0x4403;
 static const unsigned int specialCallbackId     = WM_APP + 0x4402;
 
-static const TCHAR* const messageWindowName     = _T("JUCEWindow");
+static const TCHAR* const messageWindowName = _T("JUCEWindow");
+static ATOM messageWindowClassAtom = 0;
+static LPCTSTR getMessageWindowClassName() throw()      { return (LPCTSTR) MAKELONG (messageWindowClassAtom, 0); }
 
 HWND juce_messageWindowHandle = 0;
 
@@ -78,8 +80,10 @@ static LRESULT CALLBACK juce_MessageWndProc (HWND h,
             }
             else if (message == WM_COPYDATA && ((const COPYDATASTRUCT*) lParam)->dwData == broadcastId)
             {
-                const String messageString ((const juce_wchar*) ((const COPYDATASTRUCT*) lParam)->lpData,
-                                            ((const COPYDATASTRUCT*) lParam)->cbData / sizeof (juce_wchar));
+                const COPYDATASTRUCT* data = (COPYDATASTRUCT*) lParam;
+
+                const String messageString (CharPointer_UTF32 ((const CharPointer_UTF32::CharType*) data->lpData),
+                                            data->cbData / sizeof (CharPointer_UTF32::CharType));
 
                 PostMessage (juce_messageWindowHandle, broadcastId, 0, (LPARAM) new String (messageString));
                 return 0;
@@ -144,7 +148,7 @@ static bool isEventBlockedByModalComps (MSG& m)
     return false;
 }
 
-bool juce_dispatchNextMessageOnSystemQueue (const bool returnIfNoPendingMessages)
+bool MessageManager::dispatchNextMessageOnSystemQueue (const bool returnIfNoPendingMessages)
 {
     MSG m;
 
@@ -186,7 +190,7 @@ bool juce_dispatchNextMessageOnSystemQueue (const bool returnIfNoPendingMessages
 }
 
 //==============================================================================
-bool juce_postMessageToSystemQueue (Message* message)
+bool MessageManager::postMessageToSystemQueue (Message* message)
 {
     message->incReferenceCount();
     return PostMessage (juce_messageWindowHandle, specialId, 0, (LPARAM) message) != 0;
@@ -215,29 +219,29 @@ void* MessageManager::callFunctionOnMessageThread (MessageCallbackFunction* call
 }
 
 //==============================================================================
-static BOOL CALLBACK BroadcastEnumWindowProc (HWND hwnd, LPARAM lParam)
+static BOOL CALLBACK broadcastEnumWindowProc (HWND hwnd, LPARAM lParam)
 {
     if (hwnd != juce_messageWindowHandle)
-        reinterpret_cast <Array<void*>*> (lParam)->add ((void*) hwnd);
+        reinterpret_cast <Array<HWND>*> (lParam)->add (hwnd);
 
     return TRUE;
 }
 
 void MessageManager::broadcastMessage (const String& value)
 {
-    Array<void*> windows;
-    EnumWindows (&BroadcastEnumWindowProc, (LPARAM) &windows);
+    Array<HWND> windows;
+    EnumWindows (&broadcastEnumWindowProc, (LPARAM) &windows);
 
     const String localCopy (value);
 
     COPYDATASTRUCT data;
     data.dwData = broadcastId;
-    data.cbData = (localCopy.length() + 1) * sizeof (juce_wchar);
-    data.lpData = (void*) localCopy.toUTF16().getAddress();
+    data.cbData = (localCopy.length() + 1) * sizeof (CharPointer_UTF32::CharType);
+    data.lpData = (void*) localCopy.toUTF32().getAddress();
 
     for (int i = windows.size(); --i >= 0;)
     {
-        HWND hwnd = (HWND) windows.getUnchecked(i);
+        HWND hwnd = windows.getUnchecked(i);
 
         TCHAR windowName [64]; // no need to read longer strings than this
         GetWindowText (hwnd, windowName, 64);
@@ -249,58 +253,45 @@ void MessageManager::broadcastMessage (const String& value)
             SendMessageTimeout (hwnd, WM_COPYDATA,
                                 (WPARAM) juce_messageWindowHandle,
                                 (LPARAM) &data,
-                                SMTO_BLOCK | SMTO_ABORTIFHUNG,
-                                8000,
-                                &result);
+                                SMTO_BLOCK | SMTO_ABORTIFHUNG, 8000, &result);
         }
     }
 }
 
 //==============================================================================
-static const String getMessageWindowClassName()
-{
-    // this name has to be different for each app/dll instance because otherwise
-    // poor old Win32 can get a bit confused (even despite it not being a process-global
-    // window class).
-
-    static int number = 0;
-    if (number == 0)
-        number = 0x7fffffff & (int) Time::getHighResolutionTicks();
-
-    return "JUCEcs_" + String (number);
-}
-
 void MessageManager::doPlatformSpecificInitialisation()
 {
     OleInitialize (0);
 
-    const String className (getMessageWindowClassName());
+    // this name has to be different for each app/dll instance because otherwise
+    // poor old Win32 can get a bit confused (even despite it not being a process-global
+    // window class).
 
-    HMODULE hmod = (HMODULE) PlatformUtilities::getCurrentModuleInstanceHandle();
+    String className ("JUCEcs_");
+    className << (int) (Time::getHighResolutionTicks() & 0x7fffffff);
 
-    WNDCLASSEX wc;
-    zerostruct (wc);
+    HMODULE moduleHandle = (HMODULE) PlatformUtilities::getCurrentModuleInstanceHandle();
 
+    WNDCLASSEX wc = { 0 };
     wc.cbSize         = sizeof (wc);
     wc.lpfnWndProc    = (WNDPROC) juce_MessageWndProc;
     wc.cbWndExtra     = 4;
-    wc.hInstance      = hmod;
-    wc.lpszClassName  = className.toUTF16();
+    wc.hInstance      = moduleHandle;
+    wc.lpszClassName  = className.toWideCharPointer();
 
-    RegisterClassEx (&wc);
+    messageWindowClassAtom = RegisterClassEx (&wc);
+    jassert (messageWindowClassAtom != 0);
 
-    juce_messageWindowHandle = CreateWindow (wc.lpszClassName,
-                                             messageWindowName,
-                                             0, 0, 0, 0, 0, 0, 0,
-                                             hmod, 0);
+    juce_messageWindowHandle = CreateWindow (getMessageWindowClassName(), messageWindowName,
+                                             0, 0, 0, 0, 0, 0, 0, moduleHandle, 0);
+    jassert (juce_messageWindowHandle != 0);
 }
 
 void MessageManager::doPlatformSpecificShutdown()
 {
     DestroyWindow (juce_messageWindowHandle);
-    UnregisterClass (getMessageWindowClassName().toUTF16(), 0);
+    UnregisterClass (getMessageWindowClassName(), 0);
     OleUninitialize();
 }
-
 
 #endif

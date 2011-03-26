@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -44,7 +44,7 @@ DynamicLibraryLoader::~DynamicLibraryLoader()
 bool DynamicLibraryLoader::load (const String& name)
 {
     FreeLibrary ((HMODULE) libHandle);
-    libHandle = name.isNotEmpty() ? LoadLibrary (name.toUTF16()) : 0;
+    libHandle = name.isNotEmpty() ? LoadLibrary (name.toWideCharPointer()) : 0;
     return libHandle != 0;
 }
 

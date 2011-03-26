@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -26,28 +26,31 @@
 #include "../../core/juce_TargetPlatform.h"
 
 #if JUCE_WINDOWS
-  #include <winsock2.h>
+ #include <winsock2.h>
+ #include <ws2tcpip.h>
 
-  #if JUCE_MSVC
-    #pragma warning (push)
-    #pragma warning (disable : 4127 4389 4018)
-  #endif
+ #if JUCE_MSVC
+  #pragma warning (push)
+  #pragma warning (disable : 4127 4389 4018)
+ #endif
 
 #else
-  #if JUCE_LINUX || JUCE_ANDROID
-    #include <sys/types.h>
-    #include <sys/socket.h>
-    #include <sys/errno.h>
-    #include <unistd.h>
-    #include <netinet/in.h>
-  #elif (MACOSX_DEPLOYMENT_TARGET <= MAC_OS_X_VERSION_10_4) && ! JUCE_IOS
-    #include <CoreServices/CoreServices.h>
-  #endif
+ #if JUCE_LINUX || JUCE_ANDROID
+  #include <sys/types.h>
+  #include <sys/socket.h>
+  #include <sys/errno.h>
+  #include <unistd.h>
+  #include <netinet/in.h>
+ #endif
 
-  #include <fcntl.h>
-  #include <netdb.h>
-  #include <arpa/inet.h>
-  #include <netinet/tcp.h>
+ #include <fcntl.h>
+ #include <netdb.h>
+ #include <arpa/inet.h>
+ #include <netinet/tcp.h>
+#endif
+
+#ifndef AI_NUMERICSERV  // (missing in older Mac SDKs)
+ #define AI_NUMERICSERV 0x1000
 #endif
 
 #include "../../core/juce_StandardHeader.h"
@@ -58,48 +61,31 @@ BEGIN_JUCE_NAMESPACE
 #include "../../threads/juce_ScopedLock.h"
 #include "../../threads/juce_Thread.h"
 
-#if JUCE_LINUX || JUCE_MAC || JUCE_IOS || JUCE_ANDROID
- typedef socklen_t juce_socklen_t;
+#if JUCE_WINDOWS
+ typedef int       juce_socklen_t;
 #else
- typedef int juce_socklen_t;
+ typedef socklen_t juce_socklen_t;
 #endif
 
-
 //==============================================================================
-#if JUCE_WINDOWS
-
 namespace SocketHelpers
 {
-    typedef int (__stdcall juce_CloseWin32SocketLibCall) (void);
-    static juce_CloseWin32SocketLibCall* juce_CloseWin32SocketLib = 0;
-
-    void initWin32Sockets()
+    void initSockets()
     {
-        static CriticalSection lock;
-        const ScopedLock sl (lock);
+       #if JUCE_WINDOWS
+        static bool socketsStarted = false;
 
-        if (SocketHelpers::juce_CloseWin32SocketLib == 0)
+        if (! socketsStarted)
         {
+            socketsStarted = true;
+
             WSADATA wsaData;
             const WORD wVersionRequested = MAKEWORD (1, 1);
             WSAStartup (wVersionRequested, &wsaData);
-
-            SocketHelpers::juce_CloseWin32SocketLib = &WSACleanup;
         }
+       #endif
     }
-}
 
-void juce_shutdownWin32Sockets()
-{
-    if (SocketHelpers::juce_CloseWin32SocketLib != 0)
-        (*SocketHelpers::juce_CloseWin32SocketLib)();
-}
-
-#endif
-
-//==============================================================================
-namespace SocketHelpers
-{
     bool resetSocketOptions (const int handle, const bool isDatagram, const bool allowBroadcast) throw()
     {
         const int sndBufSize = 65536;
@@ -118,8 +104,7 @@ namespace SocketHelpers
         if (handle <= 0 || port <= 0)
             return false;
 
-        struct sockaddr_in servTmpAddr;
-        zerostruct (servTmpAddr);
+        struct sockaddr_in servTmpAddr = { 0 };
         servTmpAddr.sin_family = PF_INET;
         servTmpAddr.sin_addr.s_addr = htonl (INADDR_ANY);
         servTmpAddr.sin_port = htons ((uint16) port);
@@ -138,15 +123,15 @@ namespace SocketHelpers
         {
             int bytesThisTime;
 
-    #if JUCE_WINDOWS
+           #if JUCE_WINDOWS
             bytesThisTime = recv (handle, static_cast<char*> (destBuffer) + bytesRead, maxBytesToRead - bytesRead, 0);
-    #else
+           #else
             while ((bytesThisTime = (int) ::read (handle, addBytesToPointer (destBuffer, bytesRead), maxBytesToRead - bytesRead)) < 0
                      && errno == EINTR
                      && connected)
             {
             }
-    #endif
+           #endif
 
             if (bytesThisTime <= 0 || ! connected)
             {
@@ -190,10 +175,10 @@ namespace SocketHelpers
         fd_set* const prset = forReading ? &rset : 0;
         fd_set* const pwset = forReading ? 0 : &wset;
 
-    #if JUCE_WINDOWS
+       #if JUCE_WINDOWS
         if (select (handle + 1, prset, pwset, 0, timeoutp) < 0)
             return -1;
-    #else
+       #else
         {
             int result;
             while ((result = select (handle + 1, prset, pwset, 0, timeoutp)) < 0
@@ -204,7 +189,7 @@ namespace SocketHelpers
             if (result < 0)
                 return -1;
         }
-    #endif
+       #endif
 
         {
             int opt;
@@ -215,21 +200,15 @@ namespace SocketHelpers
                 return -1;
         }
 
-        if ((forReading && FD_ISSET (handle, &rset))
-             || ((! forReading) && FD_ISSET (handle, &wset)))
-            return 1;
-
-        return 0;
+        return FD_ISSET (handle, forReading ? &rset : &wset) ? 1 : 0;
     }
 
     bool setSocketBlockingState (const int handle, const bool shouldBlock) throw()
     {
-    #if JUCE_WINDOWS
+       #if JUCE_WINDOWS
         u_long nonBlocking = shouldBlock ? 0 : 1;
-
-        if (ioctlsocket (handle, FIONBIO, &nonBlocking) != 0)
-            return false;
-    #else
+        return ioctlsocket (handle, FIONBIO, &nonBlocking) == 0;
+       #else
         int socketFlags = fcntl (handle, F_GETFL, 0);
 
         if (socketFlags == -1)
@@ -240,11 +219,8 @@ namespace SocketHelpers
         else
             socketFlags |= O_NONBLOCK;
 
-        if (fcntl (handle, F_SETFL, socketFlags) != 0)
-            return false;
-    #endif
-
-        return true;
+        return fcntl (handle, F_SETFL, socketFlags) == 0;
+       #endif
     }
 
     bool connectSocket (int volatile& handle,
@@ -254,47 +230,45 @@ namespace SocketHelpers
                         const int portNumber,
                         const int timeOutMillisecs) throw()
     {
-        struct hostent* const hostEnt = gethostbyname (hostName.toUTF8());
+        struct addrinfo hints = { 0 };
+        hints.ai_family = AF_UNSPEC;
+        hints.ai_socktype = isDatagram ? SOCK_DGRAM : SOCK_STREAM;
+        hints.ai_flags = AI_NUMERICSERV;
 
-        if (hostEnt == 0)
+        struct addrinfo* info = 0;
+        if (getaddrinfo (hostName.toUTF8(), String (portNumber).toUTF8(), &hints, &info) != 0 || info == 0)
             return false;
 
-        struct in_addr targetAddress;
-        memcpy (&targetAddress.s_addr,
-                *(hostEnt->h_addr_list),
-                sizeof (targetAddress.s_addr));
-
-        struct sockaddr_in servTmpAddr;
-        zerostruct (servTmpAddr);
-        servTmpAddr.sin_family = PF_INET;
-        servTmpAddr.sin_addr = targetAddress;
-        servTmpAddr.sin_port = htons ((uint16) portNumber);
+        if (handle < 0)
+            handle = (int) socket (info->ai_family, info->ai_socktype, 0);
 
         if (handle < 0)
-            handle = (int) socket (AF_INET, isDatagram ? SOCK_DGRAM : SOCK_STREAM, 0);
-
-        if (handle < 0)
+        {
+            freeaddrinfo (info);
             return false;
+        }
 
         if (isDatagram)
         {
-            *serverAddress = new struct sockaddr_in();
-            *((struct sockaddr_in*) *serverAddress) = servTmpAddr;
+            struct sockaddr* s = new struct sockaddr();
+            *s = *(info->ai_addr);
+            *serverAddress = s;
 
+            freeaddrinfo (info);
             return true;
         }
 
         setSocketBlockingState (handle, false);
-
-        const int result = ::connect (handle, (struct sockaddr*) &servTmpAddr, sizeof (struct sockaddr_in));
+        const int result = ::connect (handle, info->ai_addr, info->ai_addrlen);
+        freeaddrinfo (info);
 
         if (result < 0)
         {
-    #if JUCE_WINDOWS
+           #if JUCE_WINDOWS
             if (result == SOCKET_ERROR && WSAGetLastError() == WSAEWOULDBLOCK)
-    #else
+           #else
             if (errno == EINPROGRESS)
-    #endif
+           #endif
             {
                 if (waitForReadiness (handle, false, timeOutMillisecs) != 1)
                 {
@@ -318,9 +292,7 @@ StreamingSocket::StreamingSocket()
       connected (false),
       isListener (false)
 {
-#if JUCE_WINDOWS
-    SocketHelpers::initWin32Sockets();
-#endif
+    SocketHelpers::initSockets();
 }
 
 StreamingSocket::StreamingSocket (const String& hostName_,
@@ -332,10 +304,7 @@ StreamingSocket::StreamingSocket (const String& hostName_,
       connected (true),
       isListener (false)
 {
-#if JUCE_WINDOWS
-    SocketHelpers::initWin32Sockets();
-#endif
-
+    SocketHelpers::initSockets();
     SocketHelpers::resetSocketOptions (handle_, false, false);
 }
 
@@ -356,9 +325,9 @@ int StreamingSocket::write (const void* sourceBuffer, const int numBytesToWrite)
     if (isListener || ! connected)
         return -1;
 
-#if JUCE_WINDOWS
+   #if JUCE_WINDOWS
     return send (handle, (const char*) sourceBuffer, numBytesToWrite, 0);
-#else
+   #else
     int result;
 
     while ((result = (int) ::write (handle, sourceBuffer, numBytesToWrite)) < 0
@@ -367,7 +336,7 @@ int StreamingSocket::write (const void* sourceBuffer, const int numBytesToWrite)
     }
 
     return result;
-#endif
+   #endif
 }
 
 //==============================================================================
@@ -415,12 +384,12 @@ bool StreamingSocket::connect (const String& remoteHostName,
 
 void StreamingSocket::close()
 {
-#if JUCE_WINDOWS
+   #if JUCE_WINDOWS
     if (handle != SOCKET_ERROR || connected)
         closesocket (handle);
 
     connected = false;
-#else
+   #else
     if (connected)
     {
         connected = false;
@@ -435,7 +404,7 @@ void StreamingSocket::close()
 
     if (handle != -1)
         ::close (handle);
-#endif
+   #endif
 
     hostName = String::empty;
     portNumber = 0;
@@ -453,8 +422,7 @@ bool StreamingSocket::createListener (const int newPortNumber, const String& loc
     portNumber = newPortNumber;
     isListener = true;
 
-    struct sockaddr_in servTmpAddr;
-    zerostruct (servTmpAddr);
+    struct sockaddr_in servTmpAddr = { 0 };
     servTmpAddr.sin_family = PF_INET;
     servTmpAddr.sin_addr.s_addr = htonl (INADDR_ANY);
 
@@ -516,9 +484,7 @@ DatagramSocket::DatagramSocket (const int localPortNumber, const bool allowBroad
       allowBroadcast (allowBroadcast_),
       serverAddress (0)
 {
-#if JUCE_WINDOWS
-    SocketHelpers::initWin32Sockets();
-#endif
+    SocketHelpers::initSockets();
 
     handle = (int) socket (AF_INET, SOCK_DGRAM, 0);
     bindToPort (localPortNumber);
@@ -533,9 +499,7 @@ DatagramSocket::DatagramSocket (const String& hostName_, const int portNumber_,
       allowBroadcast (false),
       serverAddress (0)
 {
-#if JUCE_WINDOWS
-    SocketHelpers::initWin32Sockets();
-#endif
+    SocketHelpers::initSockets();
 
     SocketHelpers::resetSocketOptions (handle_, true, allowBroadcast);
     bindToPort (localPortNumber);
@@ -545,19 +509,19 @@ DatagramSocket::~DatagramSocket()
 {
     close();
 
-    delete static_cast <struct sockaddr_in*> (serverAddress);
+    delete static_cast <struct sockaddr*> (serverAddress);
     serverAddress = 0;
 }
 
 void DatagramSocket::close()
 {
-#if JUCE_WINDOWS
+   #if JUCE_WINDOWS
     closesocket (handle);
     connected = false;
-#else
+   #else
     connected = false;
     ::close (handle);
-#endif
+   #endif
 
     hostName = String::empty;
     portNumber = 0;
@@ -644,7 +608,7 @@ bool DatagramSocket::isLocal() const throw()
 }
 
 #if JUCE_MSVC
-  #pragma warning (pop)
+ #pragma warning (pop)
 #endif
 
 END_JUCE_NAMESPACE

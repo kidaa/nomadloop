@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -33,7 +33,7 @@ void MessageManager::doPlatformSpecificInitialisation() {}
 void MessageManager::doPlatformSpecificShutdown() {}
 
 //==============================================================================
-bool juce_dispatchNextMessageOnSystemQueue (const bool returnIfNoPendingMessages)
+bool MessageManager::dispatchNextMessageOnSystemQueue (const bool returnIfNoPendingMessages)
 {
     Logger::outputDebugString ("*** Modal loops are not possible in Android!! Exiting...");
     exit (1);
@@ -42,7 +42,7 @@ bool juce_dispatchNextMessageOnSystemQueue (const bool returnIfNoPendingMessages
 }
 
 //==============================================================================
-bool juce_postMessageToSystemQueue (Message* message)
+bool MessageManager::postMessageToSystemQueue (Message* message)
 {
     message->incReferenceCount();
     getEnv()->CallVoidMethod (android.activity, android.postMessage, (jlong) (pointer_sized_uint) message);

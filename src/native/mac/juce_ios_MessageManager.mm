@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -138,7 +138,7 @@ void MessageManager::doPlatformSpecificShutdown()
     deleteAndZero (dispatcher);
 }
 
-bool juce_postMessageToSystemQueue (Message* message)
+bool MessageManager::postMessageToSystemQueue (Message* message)
 {
     if (dispatcher != 0)
         dispatcher->messageQueue.post (message);

@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -87,7 +87,7 @@ public:
     /** @internal */
     void paint (Graphics& g);
     /** @internal */
-    bool hitTest (int x, int y) const;
+    bool hitTest (int x, int y);
     /** @internal */
     Drawable* createCopy() const;
     /** @internal */

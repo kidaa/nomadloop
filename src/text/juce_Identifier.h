@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -76,11 +76,11 @@ public:
     const String toString() const                                       { return name; }
 
     /** Returns this identifier's raw string pointer. */
-    operator const juce_wchar*() const throw()                          { return name; }
+    operator const String::CharPointerType() const throw()              { return name; }
 
 private:
     //==============================================================================
-    const juce_wchar* name;
+    String::CharPointerType name;
 
     static StringPool& getPool();
 };

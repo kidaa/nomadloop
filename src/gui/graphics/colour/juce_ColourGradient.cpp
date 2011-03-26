@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -217,6 +217,16 @@ bool ColourGradient::isInvisible() const throw()
             return false;
 
     return true;
+}
+
+bool ColourGradient::ColourPoint::operator== (const ColourPoint& other) const throw()
+{
+    return position == other.position && colour == other.colour;
+}
+
+bool ColourGradient::ColourPoint::operator!= (const ColourPoint& other) const throw()
+{
+    return position != other.position || colour != other.colour;
 }
 
 

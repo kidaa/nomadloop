@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -99,12 +99,13 @@ public:
         if (FAILED (hr))
             return;
 
-        AM_MEDIA_TYPE mt;
-        zerostruct (mt);
-        mt.majortype = MEDIATYPE_Video;
-        mt.subtype = MEDIASUBTYPE_RGB24;
-        mt.formattype = FORMAT_VideoInfo;
-        sampleGrabber->SetMediaType (&mt);
+        {
+            AM_MEDIA_TYPE mt = { 0 };
+            mt.majortype = MEDIATYPE_Video;
+            mt.subtype = MEDIASUBTYPE_RGB24;
+            mt.formattype = FORMAT_VideoInfo;
+            sampleGrabber->SetMediaType (&mt);
+        }
 
         callback = new GrabberCallback (*this);
         hr = sampleGrabber->SetCallback (callback, 1);
@@ -123,7 +124,7 @@ public:
         if (FAILED (hr))
             return;
 
-        zerostruct (mt);
+        AM_MEDIA_TYPE mt = { 0 };
         hr = sampleGrabber->GetConnectedMediaType (&mt);
         VIDEOINFOHEADER* pVih = (VIDEOINFOHEADER*) (mt.pbFormat);
         width = pVih->bmiHeader.biWidth;
@@ -272,7 +273,7 @@ public:
 
             if (SUCCEEDED (hr))
             {
-                hr = fileSink->SetFileName (file.getFullPathName().toUTF16(), 0);
+                hr = fileSink->SetFileName (file.getFullPathName().toWideCharPointer(), 0);
 
                 if (SUCCEEDED (hr))
                 {
@@ -316,7 +317,7 @@ public:
                                    .replace ("$AVGTIMEPERFRAME", String (10000000 / maxFramesPerSecond));
 
                         ComSmartPtr <IWMProfile> currentProfile;
-                        hr = profileManager->LoadProfileByData (prof.toUTF16(), currentProfile.resetAndGetPointerAddress());
+                        hr = profileManager->LoadProfileByData (prof.toWideCharPointer(), currentProfile.resetAndGetPointerAddress());
                         hr = asfConfig->ConfigureFilterUsingProfile (currentProfile);
 
                         if (SUCCEEDED (hr))
@@ -601,8 +602,7 @@ private:
 
             if (wantedDirection == dir)
             {
-                PIN_INFO info;
-                zerostruct (info);
+                PIN_INFO info = { 0 };
                 pin->QueryPinInfo (&info);
 
                 if (pinName == 0 || String (pinName).equalsIgnoreCase (String (info.achName)))

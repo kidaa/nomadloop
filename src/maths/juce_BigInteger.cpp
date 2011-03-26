@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -206,7 +206,7 @@ void BigInteger::clear()
     }
     else
     {
-        zeromem (values, sizeof (uint32) * (numValues + 1));
+        values.clear (numValues + 1);
     }
 
     highestBit = -1;

@@ -173,12 +173,6 @@
                 file="src/audio/devices/juce_AudioIODeviceType.cpp"/>
           <FILE id="3KG3Y3kcE" name="juce_AudioIODeviceType.h" compile="0" resource="0"
                 file="src/audio/devices/juce_AudioIODeviceType.h"/>
-          <FILE id="1MAVwUzyb" name="juce_MidiInput.h" compile="0" resource="0"
-                file="src/audio/devices/juce_MidiInput.h"/>
-          <FILE id="3mOyjl6Dz" name="juce_MidiOutput.cpp" compile="1" resource="0"
-                file="src/audio/devices/juce_MidiOutput.cpp"/>
-          <FILE id="5pzlP77pj" name="juce_MidiOutput.h" compile="0" resource="0"
-                file="src/audio/devices/juce_MidiOutput.h"/>
         </GROUP>
         <GROUP id="JEC3xi6Gk" name="dsp">
           <FILE id="b44zjbiH2" name="juce_AudioDataConverters.cpp" compile="1"
@@ -205,6 +199,8 @@
                 file="src/audio/midi/juce_MidiFile.cpp"/>
           <FILE id="YjJL88613" name="juce_MidiFile.h" compile="0" resource="0"
                 file="src/audio/midi/juce_MidiFile.h"/>
+          <FILE id="YgtuNQ" name="juce_MidiInput.h" compile="0" resource="0"
+                file="src/audio/midi/juce_MidiInput.h"/>
           <FILE id="5J6iavXIB" name="juce_MidiKeyboardState.cpp" compile="1"
                 resource="0" file="src/audio/midi/juce_MidiKeyboardState.cpp"/>
           <FILE id="Vq6VqUSqR" name="juce_MidiKeyboardState.h" compile="0" resource="0"
@@ -221,6 +217,10 @@
                 resource="0" file="src/audio/midi/juce_MidiMessageSequence.cpp"/>
           <FILE id="4hDIb1h50" name="juce_MidiMessageSequence.h" compile="0"
                 resource="0" file="src/audio/midi/juce_MidiMessageSequence.h"/>
+          <FILE id="dhtLL" name="juce_MidiOutput.cpp" compile="1" resource="0"
+                file="src/audio/midi/juce_MidiOutput.cpp"/>
+          <FILE id="EkOemA" name="juce_MidiOutput.h" compile="0" resource="0"
+                file="src/audio/midi/juce_MidiOutput.h"/>
         </GROUP>
         <GROUP id="rWnJUOyOY" name="plugins">
           <GROUP id="2KbZnNZ" name="wrapper code">
@@ -365,6 +365,7 @@
               file="src/containers/juce_DynamicObject.h"/>
         <FILE id="RNHQjBFmS" name="juce_ElementComparator.h" compile="0" resource="0"
               file="src/containers/juce_ElementComparator.h"/>
+        <FILE id="KG5Z3O" name="juce_HashMap.h" compile="0" resource="0" file="src/containers/juce_HashMap.h"/>
         <FILE id="pnNXeAf" name="juce_LinkedListPointer.h" compile="0" resource="0"
               file="src/containers/juce_LinkedListPointer.h"/>
         <FILE id="zy1yAvLC1" name="juce_NamedValueSet.cpp" compile="1" resource="0"
@@ -682,6 +683,10 @@
                   file="src/gui/components/filebrowser/juce_WildcardFileFilter.h"/>
           </GROUP>
           <GROUP id="PAM9sn3Rp" name="keyboard">
+            <FILE id="KAEiwD" name="juce_CaretComponent.cpp" compile="1" resource="0"
+                  file="src/gui/components/keyboard/juce_CaretComponent.cpp"/>
+            <FILE id="UpJwqg" name="juce_CaretComponent.h" compile="0" resource="0"
+                  file="src/gui/components/keyboard/juce_CaretComponent.h"/>
             <FILE id="mUtddLtZX" name="juce_KeyboardFocusTraverser.cpp" compile="1"
                   resource="0" file="src/gui/components/keyboard/juce_KeyboardFocusTraverser.cpp"/>
             <FILE id="edrEUIDT" name="juce_KeyboardFocusTraverser.h" compile="0"
@@ -742,6 +747,10 @@
                   resource="0" file="src/gui/components/layout/juce_ResizableCornerComponent.cpp"/>
             <FILE id="BNceExpX" name="juce_ResizableCornerComponent.h" compile="0"
                   resource="0" file="src/gui/components/layout/juce_ResizableCornerComponent.h"/>
+            <FILE id="RqXFh" name="juce_ResizableEdgeComponent.cpp" compile="1"
+                  resource="0" file="src/gui/components/layout/juce_ResizableEdgeComponent.cpp"/>
+            <FILE id="yO4Ojb" name="juce_ResizableEdgeComponent.h" compile="0"
+                  resource="0" file="src/gui/components/layout/juce_ResizableEdgeComponent.h"/>
             <FILE id="bz95sXSrm" name="juce_ScrollBar.cpp" compile="1" resource="0"
                   file="src/gui/components/layout/juce_ScrollBar.cpp"/>
             <FILE id="fNljvLwAj" name="juce_ScrollBar.h" compile="0" resource="0"

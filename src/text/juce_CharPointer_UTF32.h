@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -64,9 +64,9 @@ public:
     inline bool operator== (const CharPointer_UTF32& other) const throw() { return data == other.data; }
     inline bool operator!= (const CharPointer_UTF32& other) const throw() { return data != other.data; }
     inline bool operator<= (const CharPointer_UTF32& other) const throw() { return data <= other.data; }
-    inline bool operator<  (const CharPointer_UTF32& other) const throw() { return data < other.data; }
+    inline bool operator<  (const CharPointer_UTF32& other) const throw() { return data <  other.data; }
     inline bool operator>= (const CharPointer_UTF32& other) const throw() { return data >= other.data; }
-    inline bool operator>  (const CharPointer_UTF32& other) const throw() { return data > other.data; }
+    inline bool operator>  (const CharPointer_UTF32& other) const throw() { return data >  other.data; }
 
     /** Returns the address that this pointer is pointing to. */
     inline CharType* getAddress() const throw()         { return data; }

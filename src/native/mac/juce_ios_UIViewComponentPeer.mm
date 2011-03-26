@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -916,8 +916,9 @@ void UIViewComponentPeer::redirectMovedOrResized()
 }
 
 //==============================================================================
-void juce_setKioskComponent (Component* kioskModeComponent, bool enableOrDisable, bool allowMenusAndBars)
+void Desktop::setKioskComponent (Component* kioskModeComponent, bool enableOrDisable, bool allowMenusAndBars)
 {
+    // TODO
 }
 
 //==============================================================================
@@ -992,7 +993,7 @@ Desktop::DisplayOrientation Desktop::getCurrentOrientation() const
     return convertToJuceOrientation ([[UIApplication sharedApplication] statusBarOrientation]);
 }
 
-void juce_updateMultiMonitorInfo (Array <Rectangle <int> >& monitorCoords, const bool clipToWorkArea)
+void Desktop::getCurrentMonitorPositions (Array <Rectangle <int> >& monitorCoords, const bool clipToWorkArea)
 {
     const ScopedAutoReleasePool pool;
     monitorCoords.clear();

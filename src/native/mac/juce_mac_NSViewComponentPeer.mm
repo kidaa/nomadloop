@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -172,7 +172,7 @@ public:
     void toBehind (ComponentPeer* other);
     void setIcon (const Image& newIcon);
     const StringArray getAvailableRenderingEngines();
-    int getCurrentRenderingEngine() throw();
+    int getCurrentRenderingEngine() const;
     void setCurrentRenderingEngine (int index);
 
     /* When you use multiple DLLs which share similarly-named obj-c classes - like
@@ -1654,7 +1654,7 @@ const StringArray NSViewComponentPeer::getAvailableRenderingEngines()
     return s;
 }
 
-int NSViewComponentPeer::getCurrentRenderingEngine() throw()
+int NSViewComponentPeer::getCurrentRenderingEngine() const
 {
     return usingCoreGraphics ? 1 : 0;
 }
@@ -1702,7 +1702,7 @@ void Desktop::createMouseInputSources()
 }
 
 //==============================================================================
-void juce_setKioskComponent (Component* kioskModeComponent, bool enableOrDisable, bool allowMenusAndBars)
+void Desktop::setKioskComponent (Component* kioskModeComponent, bool enableOrDisable, bool allowMenusAndBars)
 {
   #if defined (MAC_OS_X_VERSION_10_6) && MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_6
     if (enableOrDisable)

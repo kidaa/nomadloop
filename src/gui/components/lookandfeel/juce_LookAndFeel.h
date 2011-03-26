@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -59,6 +59,7 @@ class FilePreviewComponent;
 class ImageButton;
 class CallOutBox;
 class Drawable;
+class CaretComponent;
 
 //==============================================================================
 /**
@@ -293,6 +294,8 @@ public:
     //==============================================================================
     virtual void fillTextEditorBackground (Graphics& g, int width, int height, TextEditor& textEditor);
     virtual void drawTextEditorOutline (Graphics& g, int width, int height, TextEditor& textEditor);
+
+    virtual CaretComponent* createCaretComponent (Component* keyFocusOwner);
 
     //==============================================================================
     // These return a pointer to an internally cached drawable - make sure you don't keep
@@ -602,7 +605,7 @@ public:
     virtual const Rectangle<int> getPropertyComponentContentPosition (PropertyComponent& component);
 
     //==============================================================================
-    void drawCallOutBoxBackground (CallOutBox& box, Graphics& g, const Path& path);
+    virtual void drawCallOutBoxBackground (CallOutBox& box, Graphics& g, const Path& path);
 
     //==============================================================================
     virtual void drawLevelMeter (Graphics& g, int width, int height, float level);

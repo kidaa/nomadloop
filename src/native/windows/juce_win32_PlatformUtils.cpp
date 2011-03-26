@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -55,13 +55,13 @@ namespace
 
             if (createForWriting)
             {
-                if (RegCreateKeyEx (rootKey, name.toUTF16(), 0, 0, REG_OPTION_NON_VOLATILE,
+                if (RegCreateKeyEx (rootKey, name.toWideCharPointer(), 0, 0, REG_OPTION_NON_VOLATILE,
                                     (KEY_WRITE | KEY_QUERY_VALUE), 0, &key, &result) == ERROR_SUCCESS)
                     return key;
             }
             else
             {
-                if (RegOpenKeyEx (rootKey, name.toUTF16(), 0, KEY_READ, &key) == ERROR_SUCCESS)
+                if (RegOpenKeyEx (rootKey, name.toWideCharPointer(), 0, KEY_READ, &key) == ERROR_SUCCESS)
                     return key;
             }
         }
@@ -82,7 +82,7 @@ const String PlatformUtilities::getRegistryValue (const String& regValuePath,
         unsigned long bufferSize = sizeof (buffer);
         DWORD type = REG_SZ;
 
-        if (RegQueryValueEx (k, valueName.toUTF16(), 0, &type, (LPBYTE) buffer, &bufferSize) == ERROR_SUCCESS)
+        if (RegQueryValueEx (k, valueName.toWideCharPointer(), 0, &type, (LPBYTE) buffer, &bufferSize) == ERROR_SUCCESS)
         {
             if (type == REG_SZ)
                 result = buffer;
@@ -104,8 +104,8 @@ void PlatformUtilities::setRegistryValue (const String& regValuePath,
 
     if (k != 0)
     {
-        RegSetValueEx (k, valueName.toUTF16(), 0, REG_SZ,
-                       (const BYTE*) value.toUTF16().getAddress(),
+        RegSetValueEx (k, valueName.toWideCharPointer(), 0, REG_SZ,
+                       (const BYTE*) value.toWideCharPointer(),
                        CharPointer_UTF16::getBytesRequiredFor (value.getCharPointer()));
 
         RegCloseKey (k);
@@ -124,7 +124,7 @@ bool PlatformUtilities::registryValueExists (const String& regValuePath)
         unsigned long bufferSize = sizeof (buffer);
         DWORD type = 0;
 
-        if (RegQueryValueEx (k, valueName.toUTF16(), 0, &type, buffer, &bufferSize) == ERROR_SUCCESS)
+        if (RegQueryValueEx (k, valueName.toWideCharPointer(), 0, &type, buffer, &bufferSize) == ERROR_SUCCESS)
             exists = true;
 
         RegCloseKey (k);
@@ -140,7 +140,7 @@ void PlatformUtilities::deleteRegistryValue (const String& regValuePath)
 
     if (k != 0)
     {
-        RegDeleteValue (k, valueName.toUTF16());
+        RegDeleteValue (k, valueName.toWideCharPointer());
         RegCloseKey (k);
     }
 }
@@ -152,7 +152,7 @@ void PlatformUtilities::deleteRegistryKey (const String& regKeyPath)
 
     if (k != 0)
     {
-        RegDeleteKey (k, valueName.toUTF16());
+        RegDeleteKey (k, valueName.toWideCharPointer());
         RegCloseKey (k);
     }
 }
@@ -172,9 +172,7 @@ void PlatformUtilities::registerFileAssociation (const String& fileExtension,
                           targetExecutable.getFullPathName() + "," + String (-iconResourceNumber));
 
     setRegistryValue (key + "\\", fullDescription);
-
-    setRegistryValue (key + "\\shell\\open\\command\\",
-                      targetExecutable.getFullPathName() + " %1");
+    setRegistryValue (key + "\\shell\\open\\command\\", targetExecutable.getFullPathName() + " %1");
 }
 
 
@@ -194,12 +192,10 @@ bool juce_IsRunningInWine()
 //==============================================================================
 const String JUCE_CALLTYPE PlatformUtilities::getCurrentCommandLineParams()
 {
-    String s (::GetCommandLineW());
-
-    StringArray tokens;
-    tokens.addTokens (s, true); // tokenise so that we can remove the initial filename argument
-
-    return tokens.joinIntoString (" ", 1);
+    const String commandLine (GetCommandLineW());
+    return String (CharacterFunctions::findEndOfToken (commandLine.getCharPointer(),
+                                                       String (" ").getCharPointer(),
+                                                       String ("\"").getCharPointer())).trimStart();
 }
 
 //==============================================================================
@@ -220,9 +216,9 @@ void PlatformUtilities::setCurrentModuleInstanceHandle (void* const newHandle) t
 
 void PlatformUtilities::fpuReset()
 {
-#if JUCE_MSVC
+   #if JUCE_MSVC
     _clearfp();
-#endif
+   #endif
 }
 
 //==============================================================================

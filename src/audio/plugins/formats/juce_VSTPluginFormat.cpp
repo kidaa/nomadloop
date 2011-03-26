@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -483,7 +483,7 @@ public:
 
         if (file.hasFileExtension (".vst"))
         {
-            const char* const utf8 = filename.toUTF8();
+            const char* const utf8 = filename.toUTF8().getAddress();
             CFURLRef url = CFURLCreateFromFileSystemRepresentation (0, (const UInt8*) utf8,
                                                                     strlen (utf8), file.isDirectory());
 
@@ -708,8 +708,7 @@ public:
         desc.name = name;
 
         {
-            char buffer [512];
-            zerostruct (buffer);
+            char buffer [512] = { 0 };
             dispatch (effGetEffectName, 0, 0, buffer, 0);
 
             desc.descriptiveName = String (buffer).trim();
@@ -725,8 +724,7 @@ public:
         desc.category = getCategory();
 
         {
-            char buffer [kVstMaxVendorStrLen + 8];
-            zerostruct (buffer);
+            char buffer [kVstMaxVendorStrLen + 8] = { 0 };
             dispatch (effGetVendorString, 0, 0, buffer, 0);
             desc.manufacturerName = buffer;
         }
@@ -1269,8 +1267,7 @@ public:
                 {
                     const Rectangle<int> clip (g.getClipBounds());
 
-                    XEvent ev;
-                    zerostruct (ev);
+                    XEvent ev = { 0 };
                     ev.xexpose.type = Expose;
                     ev.xexpose.display = display;
                     ev.xexpose.window = pluginWindow;
@@ -1327,8 +1324,7 @@ public:
 
         toFront (true);
 
-        XEvent ev;
-        zerostruct (ev);
+        XEvent ev = { 0 };
         ev.xbutton.display = display;
         ev.xbutton.type = ButtonPress;
         ev.xbutton.window = pluginWindow;
@@ -1648,8 +1644,7 @@ private:
     {
         if (pluginWindow != 0)
         {
-            XEvent ev;
-            zerostruct (ev);
+            XEvent ev = { 0 };
             ev.xcrossing.display = display;
             ev.xcrossing.type = EnterNotify;
             ev.xcrossing.window = pluginWindow;
@@ -1672,8 +1667,7 @@ private:
     {
         if (pluginWindow != 0)
         {
-            XEvent ev;
-            zerostruct (ev);
+            XEvent ev = { 0 };
             ev.xcrossing.display = display;
             ev.xcrossing.type = LeaveNotify;
             ev.xcrossing.window = pluginWindow;
@@ -1697,8 +1691,7 @@ private:
     {
         if (pluginWindow != 0)
         {
-            XEvent ev;
-            zerostruct (ev);
+            XEvent ev = { 0 };
             ev.xmotion.display = display;
             ev.xmotion.type = MotionNotify;
             ev.xmotion.window = pluginWindow;
@@ -1718,8 +1711,7 @@ private:
     {
         if (pluginWindow != 0)
         {
-            XEvent ev;
-            zerostruct (ev);
+            XEvent ev = { 0 };
             ev.xmotion.display = display;
             ev.xmotion.type = MotionNotify;
             ev.xmotion.window = pluginWindow;
@@ -1740,8 +1732,7 @@ private:
     {
         if (pluginWindow != 0)
         {
-            XEvent ev;
-            zerostruct (ev);
+            XEvent ev = { 0 };
             ev.xbutton.display = display;
             ev.xbutton.type = ButtonRelease;
             ev.xbutton.window = pluginWindow;
@@ -1763,8 +1754,7 @@ private:
     {
         if (pluginWindow != 0)
         {
-            XEvent ev;
-            zerostruct (ev);
+            XEvent ev = { 0 };
             ev.xbutton.display = display;
             ev.xbutton.type = ButtonPress;
             ev.xbutton.window = pluginWindow;
@@ -2014,7 +2004,7 @@ void VSTPluginInstance::setParamsInProgramBlock (fxProgram* const prog)
     prog->fxVersion = vst_swap (getVersionNumber());
     prog->numParams = vst_swap (numParams);
 
-    getCurrentProgramName().copyToCString (prog->prgName, sizeof (prog->prgName) - 1);
+    getCurrentProgramName().copyToUTF8 (prog->prgName, sizeof (prog->prgName) - 1);
 
     for (int i = 0; i < numParams; ++i)
         prog->params[i] = vst_swapFloat (getParameter (i));
@@ -2065,7 +2055,7 @@ bool VSTPluginInstance::saveToFXBFile (MemoryBlock& dest, bool isFXB, int maxSiz
             set->numPrograms = vst_swap (numPrograms);
             set->chunkSize = vst_swap ((long) chunk.getSize());
 
-            getCurrentProgramName().copyToCString (set->name, sizeof (set->name) - 1);
+            getCurrentProgramName().copyToUTF8 (set->name, sizeof (set->name) - 1);
             chunk.copyTo (set->chunk, 0, chunk.getSize());
         }
     }
@@ -2230,7 +2220,7 @@ namespace
                 if (JUCEApplication::getInstance() != 0)
                     hostName = JUCEApplication::getInstance()->getApplicationName();
 
-                hostName.copyToCString ((char*) ptr, jmin (kVstMaxVendorStrLen, kVstMaxProductStrLen) - 1);
+                hostName.copyToUTF8 ((char*) ptr, jmin (kVstMaxVendorStrLen, kVstMaxProductStrLen) - 1);
                 break;
             }
 
@@ -2489,8 +2479,7 @@ const String VSTPluginInstance::getParameterName (int index)
     {
         jassert (index >= 0 && index < effect->numParams);
 
-        char nm [256];
-        zerostruct (nm);
+        char nm [256] = { 0 };
         dispatch (effGetParamName, index, 0, nm, 0);
         return String (nm).trim();
     }
@@ -2504,8 +2493,7 @@ const String VSTPluginInstance::getParameterLabel (int index) const
     {
         jassert (index >= 0 && index < effect->numParams);
 
-        char nm [256];
-        zerostruct (nm);
+        char nm [256] = { 0 };
         dispatch (effGetParamLabel, index, 0, nm, 0);
         return String (nm).trim();
     }
@@ -2519,8 +2507,7 @@ const String VSTPluginInstance::getParameterText (int index)
     {
         jassert (index >= 0 && index < effect->numParams);
 
-        char nm [256];
-        zerostruct (nm);
+        char nm [256] = { 0 };
         dispatch (effGetParamDisplay, index, 0, nm, 0);
         return String (nm).trim();
     }
@@ -2544,7 +2531,7 @@ void VSTPluginInstance::createTempParameterStore (MemoryBlock& dest)
     dest.setSize (64 + 4 * getNumParameters());
     dest.fillWith (0);
 
-    getCurrentProgramName().copyToCString ((char*) dest.getData(), 63);
+    getCurrentProgramName().copyToUTF8 ((char*) dest.getData(), 63);
 
     float* const p = (float*) (((char*) dest.getData()) + 64);
     for (int i = 0; i < getNumParameters(); ++i)
@@ -2575,8 +2562,7 @@ const String VSTPluginInstance::getProgramName (int index)
     }
     else if (effect != 0)
     {
-        char nm [256];
-        zerostruct (nm);
+        char nm [256] = { 0 };
 
         if (dispatch (effGetProgramNameIndexed,
                       jlimit (0, getNumPrograms(), index),
@@ -2594,7 +2580,7 @@ void VSTPluginInstance::changeProgramName (int index, const String& newName)
     if (index == getCurrentProgram())
     {
         if (getNumPrograms() > 0 && newName != getCurrentProgramName())
-            dispatch (effSetProgramName, 0, 0, (void*) newName.substring (0, 24).toCString(), 0.0f);
+            dispatch (effSetProgramName, 0, 0, (void*) newName.substring (0, 24).toUTF8().getAddress(), 0.0f);
     }
     else
     {
@@ -2606,8 +2592,7 @@ void VSTPluginInstance::updateStoredProgramNames()
 {
     if (effect != 0 && getNumPrograms() > 0)
     {
-        char nm [256];
-        zerostruct (nm);
+        char nm [256] = { 0 };
 
         // only do this if the plugin can't use indexed names..
         if (dispatch (effGetProgramNameIndexed, 0, -1, nm, 0) == 0)
@@ -2632,8 +2617,7 @@ const String VSTPluginInstance::getCurrentProgramName()
 {
     if (effect != 0)
     {
-        char nm [256];
-        zerostruct (nm);
+        char nm [256] = { 0 };
         dispatch (effGetProgramName, 0, 0, nm, 0);
 
         const int index = getCurrentProgram();
@@ -2778,11 +2762,9 @@ void VSTPluginFormat::findAllTypesForFile (OwnedArray <PluginDescription>& resul
         else
         {
             // It's a shell plugin, so iterate all the subtypes...
-            char shellEffectName [64];
-
             for (;;)
             {
-                zerostruct (shellEffectName);
+                char shellEffectName [64] = { 0 };
                 const int uid = instance->dispatch (effShellGetNextPlugin, 0, 0, shellEffectName, 0);
 
                 if (uid == 0)

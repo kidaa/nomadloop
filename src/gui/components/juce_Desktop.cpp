@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -65,17 +65,14 @@ Desktop& JUCE_CALLTYPE Desktop::getInstance()
 Desktop* Desktop::instance = 0;
 
 //==============================================================================
-extern void juce_updateMultiMonitorInfo (Array <Rectangle<int> >& monitorCoords,
-                                         const bool clipToWorkArea);
-
 void Desktop::refreshMonitorSizes()
 {
     Array <Rectangle<int> > oldClipped, oldUnclipped;
     oldClipped.swapWithArray (monitorCoordsClipped);
     oldUnclipped.swapWithArray (monitorCoordsUnclipped);
 
-    juce_updateMultiMonitorInfo (monitorCoordsClipped, true);
-    juce_updateMultiMonitorInfo (monitorCoordsUnclipped, false);
+    getCurrentMonitorPositions (monitorCoordsClipped, true);
+    getCurrentMonitorPositions (monitorCoordsUnclipped, false);
     jassert (monitorCoordsClipped.size() == monitorCoordsUnclipped.size());
 
     if (oldClipped != monitorCoordsClipped
@@ -381,8 +378,6 @@ void Desktop::resetTimer()
 }
 
 //==============================================================================
-extern void juce_setKioskComponent (Component* kioskModeComponent, bool enableOrDisable, bool allowMenusAndBars);
-
 void Desktop::setKioskModeComponent (Component* componentToUse, const bool allowMenusAndBars)
 {
     if (kioskModeComponent != componentToUse)
@@ -392,7 +387,7 @@ void Desktop::setKioskModeComponent (Component* componentToUse, const bool allow
 
         if (kioskModeComponent != 0)
         {
-            juce_setKioskComponent (kioskModeComponent, false, allowMenusAndBars);
+            setKioskComponent (kioskModeComponent, false, allowMenusAndBars);
 
             kioskModeComponent->setBounds (kioskComponentOriginalBounds);
         }
@@ -406,7 +401,7 @@ void Desktop::setKioskModeComponent (Component* componentToUse, const bool allow
 
             kioskComponentOriginalBounds = kioskModeComponent->getBounds();
 
-            juce_setKioskComponent (kioskModeComponent, true, allowMenusAndBars);
+            setKioskComponent (kioskModeComponent, true, allowMenusAndBars);
         }
     }
 }

@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -76,12 +76,12 @@ public:
 
             for (int i = 0; i < keyPresses.size(); ++i)
             {
-                const String key (keyPresses.getReference(i).getTextDescription());
+                const String key (keyPresses.getReference(i).getTextDescriptionWithIcons());
 
                 if (shortcutKey.isNotEmpty())
                     shortcutKey << ", ";
 
-                if (key.length() == 1)
+                if (key.length() == 1 && key[0] < 128)
                     shortcutKey << "shortcut: '" << key << '\'';
                 else
                     shortcutKey << key;

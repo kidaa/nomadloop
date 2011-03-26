@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -132,8 +132,7 @@ namespace XmlOutputFunctions
 
     void generateLegalCharConstants()
     {
-        uint8 n[32];
-        zerostruct (n);
+        uint8 n[32] = { 0 };
         for (int i = 0; i < 256; ++i)
             if (isLegalXmlCharSlow (i))
                 n[i >> 3] |= (1 << (i & 7));

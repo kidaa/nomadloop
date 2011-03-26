@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -32,51 +32,33 @@ namespace
 {
     const String nsStringToJuce (NSString* s)
     {
-        return String::fromUTF8 ([s UTF8String]);
+        return CharPointer_UTF8 ([s UTF8String]);
     }
 
     NSString* juceStringToNS (const String& s)
     {
         return [NSString stringWithUTF8String: s.toUTF8()];
     }
-
-    //==============================================================================
-    const String convertUTF16ToString (const UniChar* utf16)
-    {
-        String s;
-
-        while (*utf16 != 0)
-            s += (juce_wchar) *utf16++;
-
-        return s;
-    }
 }
 
 const String PlatformUtilities::cfStringToJuceString (CFStringRef cfString)
 {
-    String result;
+    if (cfString == 0)
+        return String::empty;
 
-    if (cfString != 0)
-    {
-        CFRange range = { 0, CFStringGetLength (cfString) };
-        HeapBlock <UniChar> u (range.length + 1);
-        CFStringGetCharacters (cfString, range, u);
-        u[range.length] = 0;
-        result = convertUTF16ToString (u);
-    }
+    CFRange range = { 0, CFStringGetLength (cfString) };
+    HeapBlock <UniChar> u (range.length + 1);
+    CFStringGetCharacters (cfString, range, u);
+    u[range.length] = 0;
 
-    return result;
+    return String (CharPointer_UTF16 ((const CharPointer_UTF16::CharType*) u.getData()));
 }
 
 CFStringRef PlatformUtilities::juceStringToCFString (const String& s)
 {
-    const int len = s.length();
-    HeapBlock <UniChar> temp (len + 2);
+    CharPointer_UTF16 utf16 (s.toUTF16());
 
-    for (int i = 0; i <= len; ++i)
-        temp[i] = s[i];
-
-    return CFStringCreateWithCharacters (kCFAllocatorDefault, temp, len);
+    return CFStringCreateWithCharacters (kCFAllocatorDefault, (const UniChar*) utf16.getAddress(), utf16.length());
 }
 
 const String PlatformUtilities::convertToPrecomposedUnicode (const String& s)

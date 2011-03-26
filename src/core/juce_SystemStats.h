@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -38,8 +38,6 @@ class JUCE_API  SystemStats
 public:
     //==============================================================================
     /** Returns the current version of JUCE,
-
-        (just in case you didn't already know at compile-time.)
 
         See also the JUCE_VERSION, JUCE_MAJOR_VERSION and JUCE_MINOR_VERSION macros.
     */

@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -182,7 +182,12 @@ void ComponentBoundsConstrainer::checkComponentBounds (Component* component)
 void ComponentBoundsConstrainer::applyBoundsToComponent (Component* component,
                                                          const Rectangle<int>& bounds)
 {
-    component->setBounds (bounds);
+    Component::Positioner* const positioner = component->getPositioner();
+
+    if (positioner != 0)
+        positioner->applyNewBounds (bounds);
+    else
+        component->setBounds (bounds);
 }
 
 //==============================================================================

@@ -172,9 +172,6 @@
             <File RelativePath="..\..\src\audio\devices\juce_AudioIODevice.h"/>
             <File RelativePath="..\..\src\audio\devices\juce_AudioIODeviceType.cpp"/>
             <File RelativePath="..\..\src\audio\devices\juce_AudioIODeviceType.h"/>
-            <File RelativePath="..\..\src\audio\devices\juce_MidiInput.h"/>
-            <File RelativePath="..\..\src\audio\devices\juce_MidiOutput.cpp"/>
-            <File RelativePath="..\..\src\audio\devices\juce_MidiOutput.h"/>
           </Filter>
           <Filter Name="dsp">
             <File RelativePath="..\..\src\audio\dsp\juce_AudioDataConverters.cpp"/>
@@ -190,6 +187,7 @@
             <File RelativePath="..\..\src\audio\midi\juce_MidiBuffer.h"/>
             <File RelativePath="..\..\src\audio\midi\juce_MidiFile.cpp"/>
             <File RelativePath="..\..\src\audio\midi\juce_MidiFile.h"/>
+            <File RelativePath="..\..\src\audio\midi\juce_MidiInput.h"/>
             <File RelativePath="..\..\src\audio\midi\juce_MidiKeyboardState.cpp"/>
             <File RelativePath="..\..\src\audio\midi\juce_MidiKeyboardState.h"/>
             <File RelativePath="..\..\src\audio\midi\juce_MidiMessage.cpp"/>
@@ -198,6 +196,8 @@
             <File RelativePath="..\..\src\audio\midi\juce_MidiMessageCollector.h"/>
             <File RelativePath="..\..\src\audio\midi\juce_MidiMessageSequence.cpp"/>
             <File RelativePath="..\..\src\audio\midi\juce_MidiMessageSequence.h"/>
+            <File RelativePath="..\..\src\audio\midi\juce_MidiOutput.cpp"/>
+            <File RelativePath="..\..\src\audio\midi\juce_MidiOutput.h"/>
           </Filter>
           <Filter Name="plugins">
             <Filter Name="wrapper code">
@@ -353,6 +353,7 @@
           <File RelativePath="..\..\src\containers\juce_DynamicObject.cpp"/>
           <File RelativePath="..\..\src\containers\juce_DynamicObject.h"/>
           <File RelativePath="..\..\src\containers\juce_ElementComparator.h"/>
+          <File RelativePath="..\..\src\containers\juce_HashMap.h"/>
           <File RelativePath="..\..\src\containers\juce_LinkedListPointer.h"/>
           <File RelativePath="..\..\src\containers\juce_NamedValueSet.cpp"/>
           <File RelativePath="..\..\src\containers\juce_NamedValueSet.h"/>
@@ -524,6 +525,8 @@
               <File RelativePath="..\..\src\gui\components\filebrowser\juce_WildcardFileFilter.h"/>
             </Filter>
             <Filter Name="keyboard">
+              <File RelativePath="..\..\src\gui\components\keyboard\juce_CaretComponent.cpp"/>
+              <File RelativePath="..\..\src\gui\components\keyboard\juce_CaretComponent.h"/>
               <File RelativePath="..\..\src\gui\components\keyboard\juce_KeyboardFocusTraverser.cpp"/>
               <File RelativePath="..\..\src\gui\components\keyboard\juce_KeyboardFocusTraverser.h"/>
               <File RelativePath="..\..\src\gui\components\keyboard\juce_KeyListener.cpp"/>
@@ -555,6 +558,8 @@
               <File RelativePath="..\..\src\gui\components\layout\juce_ResizableBorderComponent.h"/>
               <File RelativePath="..\..\src\gui\components\layout\juce_ResizableCornerComponent.cpp"/>
               <File RelativePath="..\..\src\gui\components\layout\juce_ResizableCornerComponent.h"/>
+              <File RelativePath="..\..\src\gui\components\layout\juce_ResizableEdgeComponent.cpp"/>
+              <File RelativePath="..\..\src\gui\components\layout\juce_ResizableEdgeComponent.h"/>
               <File RelativePath="..\..\src\gui\components\layout\juce_ScrollBar.cpp"/>
               <File RelativePath="..\..\src\gui\components\layout\juce_ScrollBar.h"/>
               <File RelativePath="..\..\src\gui\components\layout\juce_StretchableLayoutManager.cpp"/>

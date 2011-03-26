@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -59,10 +59,11 @@ namespace
     int findCloseQuote (const String& text, int startPos)
     {
         juce_wchar lastChar = 0;
+        String::CharPointerType t (text.getCharPointer() + startPos);
 
         for (;;)
         {
-            const juce_wchar c = text [startPos];
+            const juce_wchar c = t.getAndAdvance();
 
             if (c == 0 || (c == '"' && lastChar != '\\'))
                 break;

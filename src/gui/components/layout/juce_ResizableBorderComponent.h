@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -31,7 +31,7 @@
 
 //==============================================================================
 /**
-    A component that resizes its parent window when dragged.
+    A component that resizes its parent component when dragged.
 
     This component forms a frame around the edge of a component, allowing it to
     be dragged by the edges or corners to resize it - like the way windows are

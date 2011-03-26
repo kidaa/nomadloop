@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -525,6 +525,13 @@ public:
         @see setBounds, RelativeRectangle::applyToComponent(), Expression
     */
     void setBounds (const RelativeRectangle& newBounds);
+
+    /** Sets the component's bounds with an expression.
+        The string is parsed as a RelativeRectangle expression - see the notes for
+        Component::setBounds (const RelativeRectangle&) for more information. This method is
+        basically just a shortcut for writing setBounds (RelativeRectangle ("..."))
+    */
+    void setBounds (const String& newBoundsExpression);
 
     /** Changes the component's position and size in terms of fractions of its parent's size.
 
@@ -2182,6 +2189,13 @@ public:
 
         /** Returns the component that this positioner controls. */
         Component& getComponent() const throw()     { return component; }
+
+        /** Attempts to set the component's position to the given rectangle.
+            Unlike simply calling Component::setBounds(), this may involve the positioner
+            being smart enough to adjust itself to fit the new bounds, e.g. a RelativeRectangle's
+            positioner may try to reverse the expressions used to make them fit these new coordinates.
+        */
+        virtual void applyNewBounds (const Rectangle<int>& newBounds) = 0;
 
     private:
         Component& component;

@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -698,6 +698,7 @@ public:
 
     ~ALSAAudioIODevice()
     {
+        close();
     }
 
     const StringArray getOutputChannelNames()       { return internal.channelNamesOut; }

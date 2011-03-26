@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -97,7 +97,7 @@ const String::CharPointerType StringPool::getPooledString (const char* const s)
     return StringPoolHelpers::getPooledStringFromArray (strings, s);
 }
 
-const String::CharPointerType StringPool::getPooledString (const juce_wchar* const s)
+const String::CharPointerType StringPool::getPooledString (const wchar_t* const s)
 {
     if (s == 0 || *s == 0)
         return String::empty.getCharPointer();
@@ -110,7 +110,7 @@ int StringPool::size() const throw()
     return strings.size();
 }
 
-const juce_wchar* StringPool::operator[] (const int index) const throw()
+const String::CharPointerType StringPool::operator[] (const int index) const throw()
 {
     return strings [index].getCharPointer();
 }

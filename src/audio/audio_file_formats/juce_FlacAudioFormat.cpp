@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -507,7 +507,7 @@ AudioFormatReader* FlacAudioFormat::createReaderFor (InputStream* in,
 {
     ScopedPointer<FlacReader> r (new FlacReader (in));
 
-    if (r->sampleRate != 0)
+    if (r->sampleRate > 0)
         return r.release();
 
     if (! deleteStreamIfOpeningFails)

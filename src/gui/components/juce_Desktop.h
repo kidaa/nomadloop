@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -377,10 +377,13 @@ private:
 
     int getNumDisplayMonitors() const throw();
     const Rectangle<int> getDisplayMonitorCoordinates (int index, bool clippedToWorkArea) const throw();
+    static void getCurrentMonitorPositions (Array <Rectangle<int> >& monitorCoords, const bool clipToWorkArea);
 
     void addDesktopComponent (Component* c);
     void removeDesktopComponent (Component* c);
     void componentBroughtToFront (Component* c);
+
+    static void setKioskComponent (Component* kioskModeComponent, bool enableOrDisable, bool allowMenusAndBars);
 
     void triggerFocusCallback();
     void handleAsyncUpdate();

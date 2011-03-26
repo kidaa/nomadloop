@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -57,16 +57,13 @@ public:
                const Path& pathToAdd,
                const AffineTransform& transform);
 
-    /** Creates an edge table containing a rectangle.
-    */
+    /** Creates an edge table containing a rectangle. */
     EdgeTable (const Rectangle<int>& rectangleToAdd);
 
-    /** Creates an edge table containing a rectangle list.
-    */
+    /** Creates an edge table containing a rectangle list. */
     EdgeTable (const RectangleList& rectanglesToAdd);
 
-    /** Creates an edge table containing a rectangle.
-    */
+    /** Creates an edge table containing a rectangle. */
     EdgeTable (const Rectangle<float>& rectangleToAdd);
 
     /** Creates a copy of another edge table. */

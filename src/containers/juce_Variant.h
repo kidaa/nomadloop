@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -67,7 +67,7 @@ public:
     var (bool value) throw();
     var (double value) throw();
     var (const char* value);
-    var (const juce_wchar* value);
+    var (const wchar_t* value);
     var (const String& value);
     var (DynamicObject* object);
     var (MethodFunction method) throw();
@@ -78,7 +78,7 @@ public:
     var& operator= (bool value);
     var& operator= (double value);
     var& operator= (const char* value);
-    var& operator= (const juce_wchar* value);
+    var& operator= (const wchar_t* value);
     var& operator= (const String& value);
     var& operator= (DynamicObject* object);
     var& operator= (MethodFunction method);

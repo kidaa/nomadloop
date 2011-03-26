@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -195,56 +195,58 @@ private:
         if (! decomposeURL (address, hostName, hostPath, hostPort))
             return;
 
-        const struct hostent* host = 0;
+        String serverName, proxyName, proxyPath;
+        int proxyPort = 0;
         int port = 0;
 
-        String proxyName, proxyPath;
-        int proxyPort = 0;
-
-        String proxyURL (getenv ("http_proxy"));
+        const String proxyURL (getenv ("http_proxy"));
         if (proxyURL.startsWithIgnoreCase ("http://"))
         {
             if (! decomposeURL (proxyURL, proxyName, proxyPath, proxyPort))
                 return;
 
-            host = gethostbyname (proxyName.toUTF8());
+            serverName = proxyName;
             port = proxyPort;
         }
         else
         {
-            host = gethostbyname (hostName.toUTF8());
+            serverName = hostName;
             port = hostPort;
         }
 
-        if (host == 0)
+        struct addrinfo hints = { 0 };
+        hints.ai_family = AF_UNSPEC;
+        hints.ai_socktype = SOCK_STREAM;
+        hints.ai_flags = AI_NUMERICSERV;
+
+        struct addrinfo* result = 0;
+        if (getaddrinfo (serverName.toUTF8(), String (port).toUTF8(), &hints, &result) != 0 || result == 0)
             return;
 
+        socketHandle = socket (result->ai_family, result->ai_socktype, 0);
+
+        if (socketHandle == -1)
         {
-            struct sockaddr_in socketAddress;
-            zerostruct (socketAddress);
-            memcpy (&socketAddress.sin_addr, host->h_addr, host->h_length);
-            socketAddress.sin_family = host->h_addrtype;
-            socketAddress.sin_port = htons (port);
-
-            socketHandle = socket (host->h_addrtype, SOCK_STREAM, 0);
-
-            if (socketHandle == -1)
-                return;
-
-            int receiveBufferSize = 16384;
-            setsockopt (socketHandle, SOL_SOCKET, SO_RCVBUF, (char*) &receiveBufferSize, sizeof (receiveBufferSize));
-            setsockopt (socketHandle, SOL_SOCKET, SO_KEEPALIVE, 0, 0);
-
-          #if JUCE_MAC
-            setsockopt (socketHandle, SOL_SOCKET, SO_NOSIGPIPE, 0, 0);
-          #endif
-
-            if (connect (socketHandle, (struct sockaddr*) &socketAddress, sizeof (socketAddress)) == -1)
-            {
-                closeSocket();
-                return;
-            }
+            freeaddrinfo (result);
+            return;
         }
+
+        int receiveBufferSize = 16384;
+        setsockopt (socketHandle, SOL_SOCKET, SO_RCVBUF, (char*) &receiveBufferSize, sizeof (receiveBufferSize));
+        setsockopt (socketHandle, SOL_SOCKET, SO_KEEPALIVE, 0, 0);
+
+      #if JUCE_MAC
+        setsockopt (socketHandle, SOL_SOCKET, SO_NOSIGPIPE, 0, 0);
+      #endif
+
+        if (connect (socketHandle, result->ai_addr, result->ai_addrlen) == -1)
+        {
+            closeSocket();
+            freeaddrinfo (result);
+            return;
+        }
+
+        freeaddrinfo (result);
 
         {
             const MemoryBlock requestHeader (createRequestHeader (hostName, hostPort, proxyName, proxyPort,
@@ -329,7 +331,7 @@ private:
                 numConsecutiveLFs = 0;
         }
 
-        const String header (String::fromUTF8 ((const char*) buffer.getData()));
+        const String header (CharPointer_UTF8 ((const char*) buffer.getData()));
 
         if (header.startsWithIgnoreCase ("HTTP/"))
             return header.trimEnd();

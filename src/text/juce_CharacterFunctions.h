@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -267,10 +267,6 @@ public:
     }
 
     //==============================================================================
-    static int ftime (char* dest, int maxChars, const char* format, const struct tm* tm) throw();
-    static int ftime (juce_wchar* dest, int maxChars, const juce_wchar* format, const struct tm* tm) throw();
-
-    //==============================================================================
     template <typename CharPointerType>
     static size_t lengthUpTo (CharPointerType text, const size_t maxCharsToCount) throw()
     {
@@ -441,6 +437,24 @@ public:
         }
     }
 
+    template <typename CharPointerType1, typename CharPointerType2>
+    static int indexOfIgnoreCase (CharPointerType1 haystack, const CharPointerType2& needle) throw()
+    {
+        int index = 0;
+        const int needleLength = (int) needle.length();
+
+        for (;;)
+        {
+            if (haystack.compareIgnoreCaseUpTo (needle, needleLength) == 0)
+                return index;
+
+            if (haystack.getAndAdvance() == 0)
+                return -1;
+
+            ++index;
+        }
+    }
+
     template <typename Type>
     static int indexOfChar (Type text, const juce_wchar charToFind) throw()
     {
@@ -484,6 +498,34 @@ public:
             ++p;
 
         return p;
+    }
+
+    template <typename Type>
+    static Type findEndOfToken (const Type& text, const Type& breakCharacters, const Type& quoteCharacters)
+    {
+        Type t (text);
+        juce_wchar currentQuoteChar = 0;
+
+        while (! t.isEmpty())
+        {
+            const juce_wchar c = t.getAndAdvance();
+
+            if (currentQuoteChar == 0 && breakCharacters.indexOf (c) >= 0)
+            {
+                --t;
+                break;
+            }
+
+            if (quoteCharacters.indexOf (c) >= 0)
+            {
+                if (currentQuoteChar == 0)
+                    currentQuoteChar = c;
+                else if (currentQuoteChar == c)
+                    currentQuoteChar = 0;
+            }
+        }
+
+        return t;
     }
 
 private:

@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -178,8 +178,7 @@ namespace XSHMHelpers
                 trappedErrorCode = 0;
                 XErrorHandler oldHandler = XSetErrorHandler (errorTrapHandler);
 
-                XShmSegmentInfo segmentInfo;
-                zerostruct (segmentInfo);
+                XShmSegmentInfo segmentInfo = { 0 };
                 XImage* xImage = XShmCreateImage (display, DefaultVisual (display, DefaultScreen (display)),
                                                   24, ZPixmap, 0, &segmentInfo, 50, 50);
 
@@ -507,11 +506,8 @@ public:
         if (! usingXShm)
 #endif
         {
-            imageDataAllocated.malloc (lineStride * h);
+            imageDataAllocated.allocate (lineStride * h, format_ == Image::ARGB && clearImage);
             imageData = imageDataAllocated;
-
-            if (format_ == Image::ARGB && clearImage)
-                zeromem (imageData, h * lineStride);
 
             xImage = (XImage*) juce_calloc (sizeof (XImage));
 
@@ -750,25 +746,19 @@ class LinuxComponentPeer  : public ComponentPeer
 {
 public:
     //==============================================================================
-    LinuxComponentPeer (Component* const component, const int windowStyleFlags)
+    LinuxComponentPeer (Component* const component, const int windowStyleFlags, Window parentToAddTo)
         : ComponentPeer (component, windowStyleFlags),
-          windowH (0),
-          parentWindow (0),
-          wx (0),
-          wy (0),
-          ww (0),
-          wh (0),
-          fullScreen (false),
-          mapped (false),
-          visual (0),
-          depth (0)
+          windowH (0), parentWindow (0),
+          wx (0), wy (0), ww (0), wh (0),
+          fullScreen (false), mapped (false),
+          visual (0), depth (0)
     {
         // it's dangerous to create a window on a thread other than the message thread..
         jassert (MessageManager::getInstance()->currentThreadHasLockedMessageManager());
 
         repainter = new LinuxRepaintManager (this);
 
-        createWindow();
+        createWindow (parentToAddTo);
 
         setTitle (component->getName());
     }
@@ -1693,8 +1683,7 @@ public:
 
         if (managerWin != None)
         {
-            XEvent ev;
-            zerostruct (ev);
+            XEvent ev = { 0 };
             ev.xclient.type = ClientMessage;
             ev.xclient.window = managerWin;
             ev.xclient.message_type = XInternAtom (display, "_NET_SYSTEM_TRAY_OPCODE", False);
@@ -2009,8 +1998,7 @@ private:
 
         if (hints != None)
         {
-            MotifWmHints motifHints;
-            zerostruct (motifHints);
+            MotifWmHints motifHints = { 0 };
             motifHints.flags = 2; /* MWM_HINTS_DECORATIONS */
             motifHints.decorations = 0;
 
@@ -2049,9 +2037,7 @@ private:
 
         if (hints != None)
         {
-            MotifWmHints motifHints;
-            zerostruct (motifHints);
-
+            MotifWmHints motifHints = { 0 };
             motifHints.flags = 1 | 2; /* MWM_HINTS_FUNCTIONS | MWM_HINTS_DECORATIONS */
             motifHints.decorations = 2 /* MWM_DECOR_BORDER */ | 8 /* MWM_DECOR_TITLE */ | 16; /* MWM_DECOR_MENU */
 
@@ -2133,7 +2119,7 @@ private:
                              (unsigned char*) &netHints, numHints);
     }
 
-    void createWindow()
+    void createWindow (Window parentToAddTo)
     {
         ScopedXLock xlock;
         Atoms::initialiseAtoms();
@@ -2163,7 +2149,7 @@ private:
         swa.colormap = colormap;
         swa.event_mask = getAllEventsMask();
 
-        windowH = XCreateWindow (display, root,
+        windowH = XCreateWindow (display, parentToAddTo != 0 ? parentToAddTo : root,
                                  0, 0, 1, 1,
                                  0, depth, InputOutput, visual,
                                  CWBorderPixel | CWColormap | CWBackPixmap | CWEventMask,
@@ -2377,8 +2363,7 @@ private:
 
     void sendDragAndDropStatus (const bool acceptDrop, Atom dropAction)
     {
-        XClientMessageEvent msg;
-        zerostruct (msg);
+        XClientMessageEvent msg = { 0 };
         msg.message_type = Atoms::XdndStatus;
         msg.data.l[1] = (acceptDrop ? 1 : 0) | 2; // 2 indicates that we want to receive position messages
         msg.data.l[4] = dropAction;
@@ -2388,16 +2373,14 @@ private:
 
     void sendDragAndDropLeave()
     {
-        XClientMessageEvent msg;
-        zerostruct (msg);
+        XClientMessageEvent msg = { 0 };
         msg.message_type = Atoms::XdndLeave;
         sendDragAndDropMessage (msg);
     }
 
     void sendDragAndDropFinish()
     {
-        XClientMessageEvent msg;
-        zerostruct (msg);
+        XClientMessageEvent msg = { 0 };
         msg.message_type = Atoms::XdndFinished;
         sendDragAndDropMessage (msg);
     }
@@ -2657,16 +2640,16 @@ const ModifierKeys ModifierKeys::getCurrentModifiersRealtime() throw()
 
 
 //==============================================================================
-void juce_setKioskComponent (Component* kioskModeComponent, bool enableOrDisable, bool allowMenusAndBars)
+void Desktop::setKioskComponent (Component* kioskModeComponent, bool enableOrDisable, bool allowMenusAndBars)
 {
     if (enableOrDisable)
         kioskModeComponent->setBounds (Desktop::getInstance().getMainMonitorArea (false));
 }
 
 //==============================================================================
-ComponentPeer* Component::createNewPeer (int styleFlags, void* /*nativeWindowToAttachTo*/)
+ComponentPeer* Component::createNewPeer (int styleFlags, void* nativeWindowToAttachTo)
 {
-    return new LinuxComponentPeer (this, styleFlags);
+    return new LinuxComponentPeer (this, styleFlags, (Window) nativeWindowToAttachTo);
 }
 
 
@@ -2699,7 +2682,7 @@ void juce_windowMessageReceive (XEvent* event)
 }
 
 //==============================================================================
-void juce_updateMultiMonitorInfo (Array <Rectangle<int> >& monitorCoords, const bool /*clipToWorkArea*/)
+void Desktop::getCurrentMonitorPositions (Array <Rectangle<int> >& monitorCoords, const bool /*clipToWorkArea*/)
 {
     if (display == 0)
         return;

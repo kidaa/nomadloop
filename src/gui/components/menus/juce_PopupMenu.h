@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -448,9 +448,9 @@ public:
         */
         bool isItemHighlighted() const throw()                  { return isHighlighted; }
 
-        /** @internal. */
+        /** @internal */
         bool isTriggeredAutomatically() const throw()           { return triggeredAutomatically; }
-        /** @internal. */
+        /** @internal */
         void setHighlighted (bool shouldBeHighlighted);
 
     private:

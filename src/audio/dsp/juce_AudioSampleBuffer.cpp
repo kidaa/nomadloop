@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -192,7 +192,7 @@ void AudioSampleBuffer::setSize (const int newNumChannels,
             if (avoidReallocating && allocatedBytes >= newTotalBytes)
             {
                 if (clearExtraSpace)
-                    zeromem (allocatedData, newTotalBytes);
+                    allocatedData.clear (newTotalBytes);
             }
             else
             {

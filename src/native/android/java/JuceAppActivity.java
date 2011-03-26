@@ -29,12 +29,21 @@ import android.app.Activity;
 import android.os.Bundle;
 import android.content.Context;
 import android.view.ViewGroup;
-import android.view.Display;
-import android.view.WindowManager;
 import android.graphics.Paint;
+import android.graphics.Canvas;
+import android.graphics.Path;
+import android.graphics.Bitmap;
+import android.graphics.Matrix;
+import android.graphics.RectF;
+import android.graphics.Rect;
 import android.text.ClipboardManager;
 import com.juce.ComponentPeerView;
-
+import java.io.BufferedInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.URL;
+import java.net.HttpURLConnection;
 
 //==============================================================================
 public final class JuceAppActivity   extends Activity
@@ -52,13 +61,6 @@ public final class JuceAppActivity   extends Activity
 
         viewHolder = new ViewHolder (this);
         setContentView (viewHolder);
-
-        WindowManager wm = (WindowManager) getSystemService (WINDOW_SERVICE);
-        Display display = wm.getDefaultDisplay();
-
-        launchApp (getApplicationInfo().publicSourceDir,
-                   getApplicationInfo().dataDir,
-                   display.getWidth(), display.getHeight());
     }
 
     @Override
@@ -68,10 +70,16 @@ public final class JuceAppActivity   extends Activity
         super.onDestroy();
     }
 
+    private void callAppLauncher()
+    {
+        launchApp (getApplicationInfo().publicSourceDir,
+                   getApplicationInfo().dataDir);
+    }
+
     //==============================================================================
-    public native void launchApp (String appFile, String appDataDir,
-                                  int screenWidth, int screenHeight);
+    public native void launchApp (String appFile, String appDataDir);
     public native void quitApp();
+    public native void setScreenSize (int screenWidth, int screenHeight);
 
     //==============================================================================
     public static final void printToConsole (String s)
@@ -85,23 +93,21 @@ public final class JuceAppActivity   extends Activity
 
     public final void postMessage (long value)
     {
-        messageHandler.post (new MessageCallback (this, value));
+        messageHandler.post (new MessageCallback (value));
     }
 
     final class MessageCallback  implements Runnable
     {
-        public MessageCallback (JuceAppActivity app_, long value_)
+        public MessageCallback (long value_)
         {
-            app = app_;
             value = value_;
         }
 
         public final void run()
         {
-            app.deliverMessage (value);
+            deliverMessage (value);
         }
 
-        private JuceAppActivity app;
         private long value;
     }
 
@@ -131,7 +137,16 @@ public final class JuceAppActivity   extends Activity
 
         protected final void onLayout (boolean changed, int left, int top, int right, int bottom)
         {
+            setScreenSize (getWidth(), getHeight());
+
+            if (isFirstResize)
+            {
+                isFirstResize = false;
+                callAppLauncher();
+            }
         }
+
+        private boolean isFirstResize = true;
     }
 
     public final void excludeClipRegion (android.graphics.Canvas canvas, float left, float top, float right, float bottom)
@@ -153,95 +168,136 @@ public final class JuceAppActivity   extends Activity
     }
 
     //==============================================================================
-    /*class PathGrabber  extends Path
+    public final int[] renderGlyph (char glyph, Paint paint, Matrix matrix, Rect bounds)
     {
-        public PathGrabber()
-        {
-            pathString = new StringBuilder();
-        }
+        Path p = new Path();
+        paint.getTextPath (String.valueOf (glyph), 0, 1, 0.0f, 0.0f, p);
 
-        @Override
-        public void addPath (Path src)
-        {
-        }
+        RectF boundsF = new RectF();
+        p.computeBounds (boundsF, true);
+        matrix.mapRect (boundsF);
 
-        @Override
-        public void addPath (Path src, float dx, float dy)
-        {
-        }
+        boundsF.roundOut (bounds);
+        bounds.left--;
+        bounds.right++;
 
-        @Override
-        public void close()
-        {
-            pathString.append ('c');
-        }
+        final int w = bounds.width();
+        final int h = bounds.height();
 
-        @Override
-        public void moveTo (float x, float y)
-        {
-            pathString.append ('m');
-            pathString.append (String.valueOf (x));
-            pathString.append (String.valueOf (y));
-        }
+        Bitmap bm = Bitmap.createBitmap (w, h, Bitmap.Config.ARGB_8888);
 
-        @Override
-        public void lineTo (float x, float y)
-        {
-            pathString.append ('l');
-            pathString.append (String.valueOf (x));
-            pathString.append (String.valueOf (y));
-        }
+        Canvas c = new Canvas (bm);
+        matrix.postTranslate (-bounds.left, -bounds.top);
+        c.setMatrix (matrix);
+        c.drawPath (p, paint);
 
-        @Override
-        public void quadTo (float x1, float y1, float x2, float y2)
-        {
-            pathString.append ('q');
-            pathString.append (String.valueOf (x1));
-            pathString.append (String.valueOf (y1));
-            pathString.append (String.valueOf (x2));
-            pathString.append (String.valueOf (y2));
-        }
+        int sizeNeeded = w * h;
+        if (cachedRenderArray.length < sizeNeeded)
+            cachedRenderArray = new int [sizeNeeded];
 
-        @Override
-        public void cubicTo (float x1, float y1, float x2, float y2, float x3, float y3)
-        {
-            pathString.append ('b');
-            pathString.append (String.valueOf (x1));
-            pathString.append (String.valueOf (y1));
-            pathString.append (String.valueOf (x2));
-            pathString.append (String.valueOf (y2));
-            pathString.append (String.valueOf (x3));
-            pathString.append (String.valueOf (y3));
-        }
+        bm.getPixels (cachedRenderArray, 0, w, 0, 0, w, h);
+        bm.recycle();
+        return cachedRenderArray;
+    }
 
-        @Override
-        public void reset()
-        {
-            rewind();
-        }
+    private int[] cachedRenderArray = new int [256];
 
-        @Override
-        public void rewind()
-        {
-            pathString.setLength (0);
-        }
-
-        public String getJucePath()
-        {
-            if (getFillType() == FillType.EVEN_ODD)
-                return "z" + pathString.toString();
-            else
-                return "n" + pathString.toString();
-        }
-
-        private StringBuilder pathString;
-    }*/
-
-    public String createPathForGlyph (Paint paint, char c)
+    //==============================================================================
+    public static class HTTPStream
     {
-        /*PathGrabber pg = new PathGrabber();
-        paint.getTextPath (String.valueOf (c), 0, 1, 0, 0, pg);
-        return pg.getJucePath();*/
-        return "";
+        public HTTPStream (HttpURLConnection connection_) throws IOException
+        {
+            connection = connection_;
+            inputStream = new BufferedInputStream (connection.getInputStream());
+        }
+
+        public final void release()
+        {
+            try
+            {
+                inputStream.close();
+            }
+            catch (IOException e)
+            {}
+
+            connection.disconnect();
+        }
+
+        public final int read (byte[] buffer, int numBytes)
+        {
+            int num = 0;
+
+            try
+            {
+                num = inputStream.read (buffer, 0, numBytes);
+            }
+            catch (IOException e)
+            {}
+
+            if (num > 0)
+                position += num;
+
+            return num;
+        }
+
+        public final long getPosition()
+        {
+            return position;
+        }
+
+        public final long getTotalLength()
+        {
+            return -1;
+        }
+
+        public final boolean isExhausted()
+        {
+            return false;
+        }
+
+        public final boolean setPosition (long newPos)
+        {
+            return false;
+        }
+
+        private HttpURLConnection connection;
+        private InputStream inputStream;
+        private long position;
+    }
+
+    public static final HTTPStream createHTTPStream (String address, boolean isPost, byte[] postData,
+                                                     String headers, int timeOutMs, java.lang.StringBuffer responseHeaders)
+    {
+        try
+        {
+            HttpURLConnection connection = (HttpURLConnection) (new URL (address).openConnection());
+
+            if (connection != null)
+            {
+                try
+                {
+                    if (isPost)
+                    {
+                        connection.setConnectTimeout (timeOutMs);
+                        connection.setDoOutput (true);
+                        connection.setChunkedStreamingMode (0);
+
+                        OutputStream out = connection.getOutputStream();
+                        out.write (postData);
+                        out.flush();
+                    }
+
+                    return new HTTPStream (connection);
+                }
+                catch (Throwable e)
+                {
+                    connection.disconnect();
+                }
+            }
+        }
+        catch (Throwable e)
+        {}
+
+        return null;
     }
 }

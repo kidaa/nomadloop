@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -38,9 +38,15 @@ SystemStats::CPUFlags SystemStats::cpuFlags;
 
 const String SystemStats::getJUCEVersion()
 {
-    return "JUCE v" + String (JUCE_MAJOR_VERSION)
-              + "." + String (JUCE_MINOR_VERSION)
-              + "." + String (JUCE_BUILDNUMBER);
+    #define JUCE_STRINGIFYVERSION2(a) #a
+    #define JUCE_STRINGIFYVERSION(a) JUCE_STRINGIFYVERSION2(a)
+
+    return "JUCE v" JUCE_STRINGIFYVERSION(JUCE_MAJOR_VERSION)
+                "." JUCE_STRINGIFYVERSION(JUCE_MINOR_VERSION)
+                "." JUCE_STRINGIFYVERSION(JUCE_BUILDNUMBER);
+
+    #undef JUCE_STRINGIFYVERSION
+    #undef JUCE_STRINGIFYVERSION2
 }
 
 //==============================================================================

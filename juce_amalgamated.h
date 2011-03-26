@@ -73,7 +73,7 @@ namespace JuceDummyNamespace {}
 */
 #define JUCE_MAJOR_VERSION	  1
 #define JUCE_MINOR_VERSION	  53
-#define JUCE_BUILDNUMBER	32
+#define JUCE_BUILDNUMBER	59
 
 /** Current Juce version number.
 
@@ -95,7 +95,7 @@ namespace JuceDummyNamespace {}
 
 	Macros that will be set here are:
 
-	- One of JUCE_WINDOWS, JUCE_MAC or JUCE_LINUX.
+	- One of JUCE_WINDOWS, JUCE_MAC JUCE_LINUX, JUCE_IOS, JUCE_ANDROID, etc.
 	- Either JUCE_32BIT or JUCE_64BIT, depending on the architecture.
 	- Either JUCE_LITTLE_ENDIAN or JUCE_BIG_ENDIAN.
 	- Either JUCE_INTEL or JUCE_PPC
@@ -542,8 +542,8 @@ namespace JuceDummyNamespace {}
 
 /** This macro defines the C calling convention used as the standard for Juce calls. */
 #if JUCE_MSVC
-  #define JUCE_CALLTYPE		 __stdcall
-  #define JUCE_CDECL		__cdecl
+  #define JUCE_CALLTYPE   __stdcall
+  #define JUCE_CDECL	  __cdecl
 #else
   #define JUCE_CALLTYPE
   #define JUCE_CDECL
@@ -560,64 +560,42 @@ namespace JuceDummyNamespace {}
   #define juce_LogCurrentAssertion
 #endif
 
-#if JUCE_DEBUG
-
-  // If debugging is enabled..
-
-  /** Writes a string to the standard error stream.
-
-	This is only compiled in a debug build.
-
-	@see Logger::outputDebugString
+#if JUCE_MAC || DOXYGEN
+  /** This will try to break into the debugger if the app is currently being debugged.
+	  If called by an app that's not being debugged, the behaiour isn't defined - it may crash or not, depending
+	  on the platform.
+	  @see jassert()
   */
-  #define DBG(dbgtext)		{ JUCE_NAMESPACE::String tempDbgBuf; tempDbgBuf << dbgtext; JUCE_NAMESPACE::Logger::outputDebugString (tempDbgBuf); }
+  #define juce_breakDebugger	{ Debugger(); }
+#elif JUCE_IOS || JUCE_LINUX || JUCE_ANDROID
+  #define juce_breakDebugger	{ kill (0, SIGTRAP); }
+#elif JUCE_USE_INTRINSICS
+  #pragma intrinsic (__debugbreak)
+  #define juce_breakDebugger	{ __debugbreak(); }
+#elif JUCE_GCC
+  #define juce_breakDebugger        { asm("int $3"); }
+#else
+  #define juce_breakDebugger	{ __asm int 3 }
+#endif
 
-  // Assertions..
-
-  #if JUCE_WINDOWS || DOXYGEN
-
-	#if JUCE_USE_INTRINSICS
-	  #pragma intrinsic (__debugbreak)
-
-	  /** This will try to break the debugger if one is currently hosting this app.
-		  @see jassert()
-	  */
-	  #define juce_breakDebugger		__debugbreak();
-
-	#elif JUCE_GCC
-	  /** This will try to break the debugger if one is currently hosting this app.
-		  @see jassert()
-	  */
-	  #define juce_breakDebugger            asm("int $3");
-	#else
-	  /** This will try to break the debugger if one is currently hosting this app.
-		  @see jassert()
-	  */
-	  #define juce_breakDebugger		{ __asm int 3 }
-	#endif
-  #elif JUCE_MAC
-	#define juce_breakDebugger		  Debugger();
-  #elif JUCE_IOS || JUCE_LINUX || JUCE_ANDROID
-	#define juce_breakDebugger		  kill (0, SIGTRAP);
-  #endif
+#if JUCE_DEBUG || DOXYGEN
+  /** Writes a string to the standard error stream.
+	  This is only compiled in a debug build.
+	  @see Logger::outputDebugString
+  */
+  #define DBG(dbgtext)		  { JUCE_NAMESPACE::String tempDbgBuf; tempDbgBuf << dbgtext; JUCE_NAMESPACE::Logger::outputDebugString (tempDbgBuf); }
 
   /** This will always cause an assertion failure.
-
-	  It is only compiled in a debug build, (unless JUCE_LOG_ASSERTIONS is enabled
-	  in juce_Config.h).
-
-	  @see jassert()
+	  It is only compiled in a debug build, (unless JUCE_LOG_ASSERTIONS is enabled for your build).
+	  @see jassert
   */
   #define jassertfalse		  { juce_LogCurrentAssertion; if (JUCE_NAMESPACE::juce_isRunningUnderDebugger()) juce_breakDebugger; }
 
   /** Platform-independent assertion macro.
 
-	  This gets optimised out when not being built with debugging turned on.
-
-	  Be careful not to call any functions within its arguments that are vital to
-	  the behaviour of the program, because these won't get called in the release
-	  build.
-
+	  This macro gets turned into a no-op when you're building with debugging turned off, so be
+	  careful that the expression you pass to it doesn't perform any actions that are vital for the
+	  correct behaviour of your program!
 	  @see jassertfalse
   */
   #define jassert(expression)	   { if (! (expression)) jassertfalse; }
@@ -627,13 +605,12 @@ namespace JuceDummyNamespace {}
   // If debugging is disabled, these dummy debug and assertion macros are used..
 
   #define DBG(dbgtext)
-
   #define jassertfalse		  { juce_LogCurrentAssertion }
 
   #if JUCE_LOG_ASSERTIONS
-	#define jassert(expression)	 { if (! (expression)) jassertfalse; }
+   #define jassert(expression)	  { if (! (expression)) jassertfalse; }
   #else
-	#define jassert(a)		  { }
+   #define jassert(a)		   {}
   #endif
 
 #endif
@@ -646,13 +623,13 @@ namespace JuceDummyNamespace {}
 #endif
 
 /** A compile-time assertion macro.
-
-	If the expression parameter is false, the macro will cause a compile error.
+	If the expression parameter is false, the macro will cause a compile error. (The actual error
+	message that the compiler generates may be completely bizarre and seem to have no relation to
+	the place where you put the static_assert though!)
 */
 #define static_jassert(expression)	  JUCE_NAMESPACE::JuceStaticAssert<expression>::dummy();
 
-/** This is a shorthand macro for declaring stubs for a class's copy constructor and
-	operator=.
+/** This is a shorthand macro for declaring stubs for a class's copy constructor and operator=.
 
 	For example, instead of
 	@code
@@ -691,7 +668,7 @@ namespace JuceDummyNamespace {}
  #define JUCE_JOIN_MACRO_HELPER(a, b)  a ## b
 #endif
 
-/** Good old C macro concatenation helper.
+/** A good old-fashioned C macro concatenation helper.
 	This combines two items (which may themselves be macros) into a single string,
 	avoiding the pitfalls of the ## macro operator.
 */
@@ -730,42 +707,32 @@ namespace JuceDummyNamespace {}
 
 #endif
 
-// Macros for inlining.
-
-#if JUCE_MSVC
+#if JUCE_DEBUG || DOXYGEN
   /** A platform-independent way of forcing an inline function.
-
 	  Use the syntax: @code
 	  forcedinline void myfunction (int x)
 	  @endcode
   */
-  #ifndef JUCE_DEBUG
-	#define forcedinline  __forceinline
-  #else
-	#define forcedinline  inline
-  #endif
-
-  #define JUCE_ALIGN(bytes) __declspec (align (bytes))
-
+  #define forcedinline  inline
 #else
-  /** A platform-independent way of forcing an inline function.
-
-	  Use the syntax: @code
-	  forcedinline void myfunction (int x)
-	  @endcode
-  */
-  #ifndef JUCE_DEBUG
-	#define forcedinline  inline __attribute__((always_inline))
+  #if JUCE_MSVC
+   #define forcedinline	   __forceinline
   #else
-	#define forcedinline  inline
+   #define forcedinline	   inline __attribute__((always_inline))
   #endif
+#endif
 
-  #define JUCE_ALIGN(bytes) __attribute__ ((aligned (bytes)))
-
+#if JUCE_MSVC || DOXYGEN
+  /** This can be placed before a stack or member variable declaration to tell the compiler
+	  to align it to the specified number of bytes. */
+  #define JUCE_ALIGN(bytes)   __declspec (align (bytes))
+#else
+  #define JUCE_ALIGN(bytes)   __attribute__ ((aligned (bytes)))
 #endif
 
 // Cross-compiler deprecation macros..
-#if JUCE_MSVC && ! JUCE_NO_DEPRECATION_WARNINGS
+#if DOXYGEN || (JUCE_MSVC && ! JUCE_NO_DEPRECATION_WARNINGS)
+ /** This can be used to wrap a function which has been deprecated. */
  #define JUCE_DEPRECATED(functionDef)	 __declspec(deprecated) functionDef
 #elif JUCE_GCC  && ! JUCE_NO_DEPRECATION_WARNINGS
  #define JUCE_DEPRECATED(functionDef)	 functionDef __attribute__ ((deprecated))
@@ -777,8 +744,7 @@ namespace JuceDummyNamespace {}
  #define JUCE_MODAL_LOOPS_PERMITTED 0
 #else
  /** Some operating environments don't provide a modal loop mechanism, so this flag can be
-	 used to disable any functions that try to run a modal loop.
- */
+	 used to disable any functions that try to run a modal loop. */
  #define JUCE_MODAL_LOOPS_PERMITTED 1
 #endif
 
@@ -1433,7 +1399,7 @@ inline int roundFloatToInt (const float value) throw()
 namespace TypeHelpers
 {
   #if JUCE_VC8_OR_EARLIER
-	#define PARAMETER_TYPE(a) a
+	#define PARAMETER_TYPE(type) const type&
   #else
 	/** The ParameterType struct is used to find the best type to use when passing some kind
 		of object as a parameter.
@@ -1880,9 +1846,6 @@ public:
 		return isNeg ? -v : v;
 	}
 
-	static int ftime (char* dest, int maxChars, const char* format, const struct tm* tm) throw();
-	static int ftime (juce_wchar* dest, int maxChars, const juce_wchar* format, const struct tm* tm) throw();
-
 	template <typename CharPointerType>
 	static size_t lengthUpTo (CharPointerType text, const size_t maxCharsToCount) throw()
 	{
@@ -2053,6 +2016,24 @@ public:
 		}
 	}
 
+	template <typename CharPointerType1, typename CharPointerType2>
+	static int indexOfIgnoreCase (CharPointerType1 haystack, const CharPointerType2& needle) throw()
+	{
+		int index = 0;
+		const int needleLength = (int) needle.length();
+
+		for (;;)
+		{
+			if (haystack.compareIgnoreCaseUpTo (needle, needleLength) == 0)
+				return index;
+
+			if (haystack.getAndAdvance() == 0)
+				return -1;
+
+			++index;
+		}
+	}
+
 	template <typename Type>
 	static int indexOfChar (Type text, const juce_wchar charToFind) throw()
 	{
@@ -2098,12 +2079,44 @@ public:
 		return p;
 	}
 
+	template <typename Type>
+	static Type findEndOfToken (const Type& text, const Type& breakCharacters, const Type& quoteCharacters)
+	{
+		Type t (text);
+		juce_wchar currentQuoteChar = 0;
+
+		while (! t.isEmpty())
+		{
+			const juce_wchar c = t.getAndAdvance();
+
+			if (currentQuoteChar == 0 && breakCharacters.indexOf (c) >= 0)
+			{
+				--t;
+				break;
+			}
+
+			if (quoteCharacters.indexOf (c) >= 0)
+			{
+				if (currentQuoteChar == 0)
+					currentQuoteChar = c;
+				else if (currentQuoteChar == c)
+					currentQuoteChar = 0;
+			}
+		}
+
+		return t;
+	}
+
 private:
 	static double mulexp10 (const double value, int exponent) throw();
 };
 
 #endif   // __JUCE_CHARACTERFUNCTIONS_JUCEHEADER__
 /*** End of inlined file: juce_CharacterFunctions.h ***/
+
+#ifndef JUCE_STRING_UTF_TYPE
+ #define JUCE_STRING_UTF_TYPE 8
+#endif
 
 #if JUCE_MSVC
   #pragma warning (push)
@@ -2511,9 +2524,9 @@ public:
 	inline bool operator== (const CharPointer_UTF8& other) const throw() { return data == other.data; }
 	inline bool operator!= (const CharPointer_UTF8& other) const throw() { return data != other.data; }
 	inline bool operator<= (const CharPointer_UTF8& other) const throw() { return data <= other.data; }
-	inline bool operator<  (const CharPointer_UTF8& other) const throw() { return data < other.data; }
+	inline bool operator<  (const CharPointer_UTF8& other) const throw() { return data <  other.data; }
 	inline bool operator>= (const CharPointer_UTF8& other) const throw() { return data >= other.data; }
-	inline bool operator>  (const CharPointer_UTF8& other) const throw() { return data > other.data; }
+	inline bool operator>  (const CharPointer_UTF8& other) const throw() { return data >  other.data; }
 
 	/** Returns the address that this pointer is pointing to. */
 	inline CharType* getAddress() const throw()	 { return data; }
@@ -2579,6 +2592,25 @@ public:
 		return *this;
 	}
 
+	/** Moves this pointer back to the previous character in the string. */
+	CharPointer_UTF8& operator--() throw()
+	{
+		const char n = *--data;
+
+		if ((n & 0xc0) == 0xc0)
+		{
+			int count = 3;
+
+			do
+			{
+				--data;
+			}
+			while ((*data & 0xc0) == 0xc0 && --count >= 0);
+		}
+
+		return *this;
+	}
+
 	/** Returns the character that this pointer is currently pointing to, and then
 		advances the pointer to point to the next character. */
 	juce_wchar getAndAdvance() throw()
@@ -2627,10 +2659,22 @@ public:
 	/** Moves this pointer forwards by the specified number of characters. */
 	void operator+= (int numToSkip) throw()
 	{
-		jassert (numToSkip >= 0);
+		if (numToSkip < 0)
+		{
+			while (++numToSkip <= 0)
+				--*this;
+		}
+		else
+		{
+			while (--numToSkip >= 0)
+				++*this;
+		}
+	}
 
-		while (--numToSkip >= 0)
-			++*this;
+	/** Moves this pointer backwards by the specified number of characters. */
+	void operator-= (int numToSkip) throw()
+	{
+		operator+= (-numToSkip);
 	}
 
 	/** Returns the character at a given character index from the start of the string. */
@@ -2646,6 +2690,14 @@ public:
 	{
 		CharPointer_UTF8 p (*this);
 		p += numToSkip;
+		return p;
+	}
+
+	/** Returns a pointer which is moved backwards from this one by the specified number of characters. */
+	CharPointer_UTF8 operator- (int numToSkip) const throw()
+	{
+		CharPointer_UTF8 p (*this);
+		p += -numToSkip;
 		return p;
 	}
 
@@ -2968,6 +3020,12 @@ public:
 		return true;
 	}
 
+	/** Atomically swaps this pointer for a new value, returning the previous value. */
+	CharPointer_UTF8 atomicSwap (const CharPointer_UTF8& newValue)
+	{
+		return CharPointer_UTF8 (reinterpret_cast <Atomic<CharType*>&> (data).exchange (newValue.data));
+	}
+
 	/** These values are the byte-order-mark (BOM) values for a UTF-8 stream. */
 	enum
 	{
@@ -3028,9 +3086,9 @@ public:
 	inline bool operator== (const CharPointer_UTF16& other) const throw() { return data == other.data; }
 	inline bool operator!= (const CharPointer_UTF16& other) const throw() { return data != other.data; }
 	inline bool operator<= (const CharPointer_UTF16& other) const throw() { return data <= other.data; }
-	inline bool operator<  (const CharPointer_UTF16& other) const throw() { return data < other.data; }
+	inline bool operator<  (const CharPointer_UTF16& other) const throw() { return data <  other.data; }
 	inline bool operator>= (const CharPointer_UTF16& other) const throw() { return data >= other.data; }
-	inline bool operator>  (const CharPointer_UTF16& other) const throw() { return data > other.data; }
+	inline bool operator>  (const CharPointer_UTF16& other) const throw() { return data >  other.data; }
 
 	/** Returns the address that this pointer is pointing to. */
 	inline CharType* getAddress() const throw()	 { return data; }
@@ -3063,6 +3121,17 @@ public:
 		return *this;
 	}
 
+	/** Moves this pointer back to the previous character in the string. */
+	CharPointer_UTF16& operator--() throw()
+	{
+		const juce_wchar n = *--data;
+
+		if (n >= 0xdc00 && n <= 0xdfff)
+			--data;
+
+		return *this;
+	}
+
 	/** Returns the character that this pointer is currently pointing to, and then
 		advances the pointer to point to the next character. */
 	juce_wchar getAndAdvance() throw()
@@ -3086,10 +3155,22 @@ public:
 	/** Moves this pointer forwards by the specified number of characters. */
 	void operator+= (int numToSkip) throw()
 	{
-		jassert (numToSkip >= 0);
+		if (numToSkip < 0)
+		{
+			while (++numToSkip <= 0)
+				--*this;
+		}
+		else
+		{
+			while (--numToSkip >= 0)
+				++*this;
+		}
+	}
 
-		while (--numToSkip >= 0)
-			++*this;
+	/** Moves this pointer backwards by the specified number of characters. */
+	void operator-= (int numToSkip) throw()
+	{
+		operator+= (-numToSkip);
 	}
 
 	/** Returns the character at a given character index from the start of the string. */
@@ -3105,6 +3186,14 @@ public:
 	{
 		CharPointer_UTF16 p (*this);
 		p += numToSkip;
+		return p;
+	}
+
+	/** Returns a pointer which is moved backwards from this one by the specified number of characters. */
+	CharPointer_UTF16 operator- (const int numToSkip) const throw()
+	{
+		CharPointer_UTF16 p (*this);
+		p += -numToSkip;
 		return p;
 	}
 
@@ -3394,6 +3483,12 @@ public:
 		return true;
 	}
 
+	/** Atomically swaps this pointer for a new value, returning the previous value. */
+	CharPointer_UTF16 atomicSwap (const CharPointer_UTF16& newValue)
+	{
+		return CharPointer_UTF16 (reinterpret_cast <Atomic<CharType*>&> (data).exchange (newValue.data));
+	}
+
 	/** These values are the byte-order-mark (BOM) values for a UTF-16 stream. */
 	enum
 	{
@@ -3461,9 +3556,9 @@ public:
 	inline bool operator== (const CharPointer_UTF32& other) const throw() { return data == other.data; }
 	inline bool operator!= (const CharPointer_UTF32& other) const throw() { return data != other.data; }
 	inline bool operator<= (const CharPointer_UTF32& other) const throw() { return data <= other.data; }
-	inline bool operator<  (const CharPointer_UTF32& other) const throw() { return data < other.data; }
+	inline bool operator<  (const CharPointer_UTF32& other) const throw() { return data <  other.data; }
 	inline bool operator>= (const CharPointer_UTF32& other) const throw() { return data >= other.data; }
-	inline bool operator>  (const CharPointer_UTF32& other) const throw() { return data > other.data; }
+	inline bool operator>  (const CharPointer_UTF32& other) const throw() { return data >  other.data; }
 
 	/** Returns the address that this pointer is pointing to. */
 	inline CharType* getAddress() const throw()	 { return data; }
@@ -3815,9 +3910,9 @@ public:
 	inline bool operator== (const CharPointer_ASCII& other) const throw() { return data == other.data; }
 	inline bool operator!= (const CharPointer_ASCII& other) const throw() { return data != other.data; }
 	inline bool operator<= (const CharPointer_ASCII& other) const throw() { return data <= other.data; }
-	inline bool operator<  (const CharPointer_ASCII& other) const throw() { return data < other.data; }
+	inline bool operator<  (const CharPointer_ASCII& other) const throw() { return data <  other.data; }
 	inline bool operator>= (const CharPointer_ASCII& other) const throw() { return data >= other.data; }
-	inline bool operator>  (const CharPointer_ASCII& other) const throw() { return data > other.data; }
+	inline bool operator>  (const CharPointer_ASCII& other) const throw() { return data >  other.data; }
 
 	/** Returns the address that this pointer is pointing to. */
 	inline CharType* getAddress() const throw()	 { return data; }
@@ -4191,21 +4286,33 @@ public:
 	*/
 	String (const char* text, size_t maxChars);
 
-	/** Creates a string from a zero-terminated unicode text string. */
-	String (const juce_wchar* unicodeText);
-
-	/** Creates a string from a unicode text string.
-
-		This will use up the the first maxChars characters of the string (or
-		less if the string is actually shorter)
+	/** Creates a string from a whcar_t character string.
+		Depending on the platform, this may be treated as either UTF-32 or UTF-16.
 	*/
-	String (const juce_wchar* unicodeText, size_t maxChars);
+	String (const wchar_t* text);
+
+	/** Creates a string from a whcar_t character string.
+		Depending on the platform, this may be treated as either UTF-32 or UTF-16.
+	*/
+	String (const wchar_t* text, size_t maxChars);
 
 	/** Creates a string from a UTF-8 character string */
 	String (const CharPointer_UTF8& text);
 
+	/** Creates a string from a UTF-8 character string */
+	String (const CharPointer_UTF8& text, size_t maxChars);
+
+	/** Creates a string from a UTF-8 character string */
+	String (const CharPointer_UTF8& start, const CharPointer_UTF8& end);
+
 	/** Creates a string from a UTF-16 character string */
 	String (const CharPointer_UTF16& text);
+
+	/** Creates a string from a UTF-16 character string */
+	String (const CharPointer_UTF16& text, size_t maxChars);
+
+	/** Creates a string from a UTF-16 character string */
+	String (const CharPointer_UTF16& start, const CharPointer_UTF16& end);
 
 	/** Creates a string from a UTF-32 character string */
 	String (const CharPointer_UTF32& text);
@@ -4218,14 +4325,6 @@ public:
 
 	/** Creates a string from an ASCII character string */
 	String (const CharPointer_ASCII& text);
-
-   #if ! JUCE_NATIVE_WCHAR_IS_UTF32
-	/** Creates a string from a UTF-16 character string */
-	String (const wchar_t* text);
-
-	/** Creates a string from a UTF-16 character string */
-	String (const wchar_t* text, size_t maxChars);
-   #endif
 
 	/** Creates a string from a single character. */
 	static const String charToString (juce_wchar character);
@@ -4240,8 +4339,27 @@ public:
 	*/
 	static const String empty;
 
-	/** This is the character encoding type used internally to store the string. */
+	/** This is the character encoding type used internally to store the string.
+
+		By setting the value of JUCE_STRING_UTF_TYPE to 8, 16, or 32, you can change the
+		internal storage format of the String class. UTF-8 uses the least space (if your strings
+		contain few extended characters), but call operator[] involves iterating the string to find
+		the required index. UTF-32 provides instant random access to its characters, but uses 4 bytes
+		per character to store them. UTF-16 uses more space than UTF-8 and is also slow to index,
+		but is the native wchar_t format used in Windows.
+
+		It doesn't matter too much which format you pick, because the toUTF8(), toUTF16() and
+		toUTF32() methods let you access the string's content in any of the other formats.
+	*/
+   #if (JUCE_STRING_UTF_TYPE == 32)
 	typedef CharPointer_UTF32 CharPointerType;
+   #elif (JUCE_STRING_UTF_TYPE == 16)
+	typedef CharPointer_UTF16 CharPointerType;
+   #elif (JUCE_STRING_UTF_TYPE == 8)
+	typedef CharPointer_UTF8  CharPointerType;
+   #else
+	#error "You must set the value of JUCE_STRING_UTF_TYPE to be either 8, 16, or 32!"
+   #endif
 
 	/** Generates a probably-unique 32-bit hashcode from this string. */
 	int hashCode() const throw();
@@ -4258,21 +4376,21 @@ public:
 	String& operator= (const String& other) throw();
 
 	/** Appends another string at the end of this one. */
-	String& operator+= (const juce_wchar* textToAppend);
-	/** Appends another string at the end of this one. */
 	String& operator+= (const String& stringToAppend);
+	/** Appends another string at the end of this one. */
+	String& operator+= (const char* textToAppend);
+	/** Appends another string at the end of this one. */
+	String& operator+= (const wchar_t* textToAppend);
+	/** Appends a decimal number at the end of this string. */
+	String& operator+= (int numberToAppend);
 	/** Appends a character at the end of this string. */
 	String& operator+= (char characterToAppend);
 	/** Appends a character at the end of this string. */
-	String& operator+= (juce_wchar characterToAppend);
+	String& operator+= (wchar_t characterToAppend);
    #if ! JUCE_NATIVE_WCHAR_IS_UTF32
 	/** Appends a character at the end of this string. */
-	String& operator+= (wchar_t characterToAppend);
-	/** Appends another string at the end of this one. */
-	String& operator+= (const wchar_t* textToAppend);
+	String& operator+= (juce_wchar characterToAppend);
    #endif
-	/** Appends a decimal number at the end of this string. */
-	String& operator+= (int numberToAppend);
 
 	/** Appends a string to the end of this one.
 
@@ -4291,34 +4409,42 @@ public:
 	{
 		if (textToAppend.getAddress() != 0)
 		{
-			const size_t numExtraChars = textToAppend.lengthUpTo (maxCharsToTake);
+			size_t extraBytesNeeded = 0;
+			size_t numChars = 0;
 
-			if (numExtraChars > 0)
+			for (CharPointer t (textToAppend); numChars < maxCharsToTake && ! t.isEmpty();)
 			{
-				const int oldLen = length();
-				preallocateStorage (oldLen + numExtraChars);
-				CharPointerType (text + oldLen).writeWithCharLimit (textToAppend, (int) (numExtraChars + 1));
+				extraBytesNeeded += CharPointerType::getBytesRequiredFor (t.getAndAdvance());
+				++numChars;
+			}
+
+			if (numChars > 0)
+			{
+				const size_t byteOffsetOfNull = getByteOffsetOfEnd();
+
+				preallocateBytes (byteOffsetOfNull + extraBytesNeeded);
+				CharPointerType (addBytesToPointer (text.getAddress(), (int) byteOffsetOfNull)).writeWithCharLimit (textToAppend, (int) (numChars + 1));
 			}
 		}
 	}
 
-	/** Appends a string to the end of this one.
-
-		@param textToAppend	 the string to add
-		@param maxCharsToTake   the maximum number of characters to take from the string passed in
-	*/
+	/** Appends a string to the end of this one. */
 	template <class CharPointer>
 	void appendCharPointer (const CharPointer& textToAppend)
 	{
 		if (textToAppend.getAddress() != 0)
 		{
-			const size_t numExtraChars = textToAppend.length();
+			size_t extraBytesNeeded = 0;
 
-			if (numExtraChars > 0)
+			for (CharPointer t (textToAppend); ! t.isEmpty();)
+				extraBytesNeeded += CharPointerType::getBytesRequiredFor (t.getAndAdvance());
+
+			if (extraBytesNeeded > 0)
 			{
-				const int oldLen = length();
-				preallocateStorage (oldLen + numExtraChars);
-				CharPointerType (text + oldLen).writeAll (textToAppend);
+				const size_t byteOffsetOfNull = getByteOffsetOfEnd();
+
+				preallocateBytes (byteOffsetOfNull + extraBytesNeeded);
+				CharPointerType (addBytesToPointer (text.getAddress(), (int) byteOffsetOfNull)).writeAll (textToAppend);
 			}
 		}
 	}
@@ -4326,17 +4452,13 @@ public:
 	// Comparison methods..
 
 	/** Returns true if the string contains no characters.
-
 		Note that there's also an isNotEmpty() method to help write readable code.
-
 		@see containsNonWhitespaceChars()
 	*/
 	inline bool isEmpty() const throw()			 { return text[0] == 0; }
 
 	/** Returns true if the string contains at least one character.
-
 		Note that there's also an isEmpty() method to help write readable code.
-
 		@see containsNonWhitespaceChars()
 	*/
 	inline bool isNotEmpty() const throw()		  { return text[0] != 0; }
@@ -4345,36 +4467,32 @@ public:
 	bool equalsIgnoreCase (const String& other) const throw();
 
 	/** Case-insensitive comparison with another string. */
-	bool equalsIgnoreCase (const juce_wchar* other) const throw();
+	bool equalsIgnoreCase (const wchar_t* other) const throw();
 
 	/** Case-insensitive comparison with another string. */
 	bool equalsIgnoreCase (const char* other) const throw();
 
 	/** Case-sensitive comparison with another string.
-		@returns	 0 if the two strings are identical; negative if this string
-					 comes before the other one alphabetically, or positive if it
-					 comes after it.
+		@returns	 0 if the two strings are identical; negative if this string comes before
+					 the other one alphabetically, or positive if it comes after it.
 	*/
 	int compare (const String& other) const throw();
 
 	/** Case-sensitive comparison with another string.
-		@returns	 0 if the two strings are identical; negative if this string
-					 comes before the other one alphabetically, or positive if it
-					 comes after it.
+		@returns	 0 if the two strings are identical; negative if this string comes before
+					 the other one alphabetically, or positive if it comes after it.
 	*/
 	int compare (const char* other) const throw();
 
 	/** Case-sensitive comparison with another string.
-		@returns	 0 if the two strings are identical; negative if this string
-					 comes before the other one alphabetically, or positive if it
-					 comes after it.
+		@returns	 0 if the two strings are identical; negative if this string comes before
+					 the other one alphabetically, or positive if it comes after it.
 	*/
-	int compare (const juce_wchar* other) const throw();
+	int compare (const wchar_t* other) const throw();
 
 	/** Case-insensitive comparison with another string.
-		@returns	 0 if the two strings are identical; negative if this string
-					 comes before the other one alphabetically, or positive if it
-					 comes after it.
+		@returns	 0 if the two strings are identical; negative if this string comes before
+					 the other one alphabetically, or positive if it comes after it.
 	*/
 	int compareIgnoreCase (const String& other) const throw();
 
@@ -4383,9 +4501,8 @@ public:
 		The comparison used here is case-insensitive and ignores leading non-alphanumeric
 		characters, making it good for sorting human-readable strings.
 
-		@returns	 0 if the two strings are identical; negative if this string
-					 comes before the other one alphabetically, or positive if it
-					 comes after it.
+		@returns	 0 if the two strings are identical; negative if this string comes before
+					 the other one alphabetically, or positive if it comes after it.
 	*/
 	int compareLexicographically (const String& other) const throw();
 
@@ -4476,7 +4593,6 @@ public:
 	int indexOfWholeWordIgnoreCase (const String& wordToLookFor) const throw();
 
 	/** Looks for any of a set of characters in the string.
-
 		Uses a case-sensitive comparison.
 
 		@returns	true if the string contains any of the characters from
@@ -4485,7 +4601,6 @@ public:
 	bool containsAnyOf (const String& charactersItMightContain) const throw();
 
 	/** Looks for a set of characters in the string.
-
 		Uses a case-sensitive comparison.
 
 		@returns	Returns false if any of the characters in this string do not occur in
@@ -4515,18 +4630,14 @@ public:
 	// Substring location methods..
 
 	/** Searches for a character inside this string.
-
 		Uses a case-sensitive comparison.
-
 		@returns	the index of the first occurrence of the character in this
 					string, or -1 if it's not found.
 	*/
 	int indexOfChar (juce_wchar characterToLookFor) const throw();
 
 	/** Searches for a character inside this string.
-
 		Uses a case-sensitive comparison.
-
 		@param startIndex	   the index from which the search should proceed
 		@param characterToLookFor   the character to look for
 		@returns		the index of the first occurrence of the character in this
@@ -4551,67 +4662,54 @@ public:
 					  bool ignoreCase = false) const throw();
 
 	/** Searches for a substring within this string.
-
 		Uses a case-sensitive comparison.
-
 		@returns	the index of the first occurrence of this substring, or -1 if it's not found.
+					If textToLookFor is an empty string, this will always return 0.
 	*/
-	int indexOf (const String& text) const throw();
+	int indexOf (const String& textToLookFor) const throw();
 
 	/** Searches for a substring within this string.
-
 		Uses a case-sensitive comparison.
-
 		@param startIndex	   the index from which the search should proceed
 		@param textToLookFor	the string to search for
 		@returns		the index of the first occurrence of this substring, or -1 if it's not found.
+								If textToLookFor is an empty string, this will always return -1.
 	*/
-	int indexOf (int startIndex,
-				 const String& textToLookFor) const throw();
+	int indexOf (int startIndex, const String& textToLookFor) const throw();
 
 	/** Searches for a substring within this string.
-
 		Uses a case-insensitive comparison.
-
 		@returns	the index of the first occurrence of this substring, or -1 if it's not found.
+					If textToLookFor is an empty string, this will always return 0.
 	*/
 	int indexOfIgnoreCase (const String& textToLookFor) const throw();
 
 	/** Searches for a substring within this string.
-
 		Uses a case-insensitive comparison.
-
 		@param startIndex	   the index from which the search should proceed
 		@param textToLookFor	the string to search for
 		@returns		the index of the first occurrence of this substring, or -1 if it's not found.
+								If textToLookFor is an empty string, this will always return -1.
 	*/
-	int indexOfIgnoreCase (int startIndex,
-						   const String& textToLookFor) const throw();
+	int indexOfIgnoreCase (int startIndex, const String& textToLookFor) const throw();
 
 	/** Searches for a character inside this string (working backwards from the end of the string).
-
 		Uses a case-sensitive comparison.
-
-		@returns		the index of the last occurrence of the character in this
-							string, or -1 if it's not found.
+		@returns	the index of the last occurrence of the character in this string, or -1 if it's not found.
 	*/
 	int lastIndexOfChar (juce_wchar character) const throw();
 
 	/** Searches for a substring inside this string (working backwards from the end of the string).
-
 		Uses a case-sensitive comparison.
-
-		@returns		the index of the start of the last occurrence of the
-							substring within this string, or -1 if it's not found.
+		@returns	the index of the start of the last occurrence of the substring within this string,
+					or -1 if it's not found. If textToLookFor is an empty string, this will always return -1.
 	*/
 	int lastIndexOf (const String& textToLookFor) const throw();
 
 	/** Searches for a substring inside this string (working backwards from the end of the string).
-
 		Uses a case-insensitive comparison.
-
-		@returns		the index of the start of the last occurrence of the
-							substring within this string, or -1 if it's not found.
+		@returns	the index of the start of the last occurrence of the substring within this string, or -1
+					if it's not found. If textToLookFor is an empty string, this will always return -1.
 	*/
 	int lastIndexOfIgnoreCase (const String& textToLookFor) const throw();
 
@@ -4633,13 +4731,19 @@ public:
 	// Substring extraction and manipulation methods..
 
 	/** Returns the character at this index in the string.
+		In a release build, no checks are made to see if the index is within a valid range, so be
+		careful! In a debug build, the index is checked and an assertion fires if it's out-of-range.
 
-		No checks are made to see if the index is within a valid range, so be careful!
+		Also beware that depending on the encoding format that the string is using internally, this
+		method may execute in either O(1) or O(n) time, so be careful when using it in your algorithms.
+		If you're scanning through a string to inspect its characters, you should never use this operator
+		for random access, it's far more efficient to call getCharPointer() to return a pointer, and
+		then to use that to iterate the string.
+		@see getCharPointer
 	*/
 	const juce_wchar operator[] (int index) const throw();
 
 	/** Returns the final character of the string.
-
 		If the string is empty this will return 0.
 	*/
 	juce_wchar getLastCharacter() const throw();
@@ -4747,8 +4851,10 @@ public:
 
 	/** Returns a copy of this string with any whitespace characters removed from the start and end. */
 	const String trim() const;
+
 	/** Returns a copy of this string with any whitespace characters removed from the start. */
 	const String trimStart() const;
+
 	/** Returns a copy of this string with any whitespace characters removed from the end. */
 	const String trimEnd() const;
 
@@ -4926,9 +5032,11 @@ public:
 		here because of the popular unrest that was stirred-up when I tried to remove it...
 
 		If you're really determined to use it, at least make sure that you never, ever,
-		pass any String objects to it as parameters.
+		pass any String objects to it as parameters. And bear in mind that internally, depending
+		on the platform, it may be using wchar_t or char character types, so that even string
+		literals can't be safely used as parameters if you're writing portable code.
 	*/
-	static const String formatted (const juce_wchar* formatString, ... );
+	static const String formatted (const String formatString, ... );
 
 	// Numeric conversions..
 
@@ -5073,14 +5181,6 @@ public:
 									 int size,
 									 int groupSize = 1);
 
-	/** Returns a unicode version of this string.
-
-		Because it returns a reference to the string's internal data, the pointer
-		that is returned must not be stored anywhere, as it can become invalid whenever
-		any string methods (even some const ones!) are called.
-	*/
-	inline operator const juce_wchar*() const throw()	   { return toUTF32().getAddress(); }
-
 	/** Returns the character pointer currently being used to store this string.
 
 		Because it returns a reference to the string's internal data, the pointer
@@ -5123,7 +5223,21 @@ public:
 
 		@see getCharPointer, toUTF8, toUTF16
 	*/
-	inline CharPointer_UTF32 toUTF32() const throw()	{ return text; }
+	CharPointer_UTF32 toUTF32() const;
+
+	/** Returns a pointer to a wchar_t version of this string.
+
+		Because it returns a reference to the string's internal data, the pointer
+		that is returned must not be stored anywhere, as it can be deleted whenever the
+		string changes.
+
+		Bear in mind that the wchar_t type is different on different platforms, so on
+		Windows, this will be equivalent to calling toUTF16(), on unix it'll be the same
+		as calling toUTF32(), etc.
+
+		@see getCharPointer, toUTF8, toUTF16, toUTF32
+	*/
+	const wchar_t* toWideCharPointer() const;
 
 	/** Creates a String from a UTF-8 encoded buffer.
 		If the size is < 0, it'll keep reading until it hits a zero.
@@ -5170,33 +5284,22 @@ public:
 	*/
 	int copyToUTF16 (CharPointer_UTF16::CharType* destBuffer, int maxBufferSizeBytes) const throw();
 
-	/** Returns a version of this string using the default 8-bit multi-byte system encoding.
+	/** Copies the string to a buffer as UTF-16 characters.
 
-		Because it returns a reference to the string's internal data, the pointer
-		that is returned must not be stored anywhere, as it can be deleted whenever the
-		string changes.
+		Returns the number of bytes copied to the buffer, including the terminating null
+		character.
 
-		@see getNumBytesAsCString, copyToCString, toUTF8
+		To find out how many bytes you need to store this string as UTF-32, you can call
+		CharPointer_UTF32::getBytesRequiredFor (myString.getCharPointer())
+
+		@param destBuffer	   the place to copy it to; if this is a null pointer, the method just
+								returns the number of bytes required (including the terminating null character).
+		@param maxBufferSizeBytes  the size of the destination buffer, in bytes. If the string won't fit, it'll
+								put in as many as it can while still allowing for a terminating null char at the
+								end, and will return the number of bytes that were actually used.
+		@see CharPointer_UTF32::writeWithDestByteLimit
 	*/
-	const char* toCString() const;
-
-	/** Returns the number of bytes required to represent this string as C-string.
-		The number returned does NOT include the trailing zero.
-		Note that you can also get this value by using CharPointer_UTF8::getBytesRequiredFor (myString.getCharPointer())
-	*/
-	int getNumBytesAsCString() const throw();
-
-	/** Copies the string to a buffer.
-
-		@param destBuffer	   the place to copy it to; if this is a null pointer,
-								the method just returns the number of bytes required
-								(including the terminating null character).
-		@param maxBufferSizeBytes  the size of the destination buffer, in bytes. If the
-								string won't fit, it'll put in as many as it can while
-								still allowing for a terminating null char at the end, and
-								will return the number of bytes that were actually used.
-	*/
-	int copyToCString (char* destBuffer, int maxBufferSizeBytes) const throw();
+	int copyToUTF32 (CharPointer_UTF32::CharType* destBuffer, int maxBufferSizeBytes) const throw();
 
 	/** Increases the string's internally allocated storage.
 
@@ -5208,11 +5311,11 @@ public:
 		beforehand, so that these methods won't have to keep resizing the string
 		to append the extra characters.
 
-		@param numCharsNeeded   the number of characters to allocate storage for. If this
+		@param numBytesNeeded   the number of bytes to allocate storage for. If this
 								value is less than the currently allocated size, it will
 								have no effect.
 	*/
-	void preallocateStorage (size_t numCharsNeeded);
+	void preallocateBytes (size_t numBytesNeeded);
 
 	/** Swaps the contents of this string with another one.
 		This is a very fast operation, as no allocation or copying needs to be done.
@@ -5247,20 +5350,16 @@ private:
 
 	CharPointerType text;
 
-	struct Preallocation
+	struct PreallocationBytes
 	{
-		explicit Preallocation (size_t);
-		size_t numChars;
+		explicit PreallocationBytes (size_t);
+		size_t numBytes;
 	};
 
-	// This constructor preallocates a certain amount of memory
-	explicit String (const Preallocation&);
-	String (const String& stringToCopy, size_t charsToAllocate);
-
-	void appendFixedLength (const juce_wchar* text, int numExtraChars);
-
-	void enlarge (size_t newTotalNumChars);
-	void* createSpaceAtEndOfBuffer (size_t numExtraBytes) const;
+	explicit String (const PreallocationBytes&); // This constructor preallocates a certain amount of memory
+	void appendFixedLength (const char* text, int numExtraChars);
+	size_t getByteOffsetOfEnd() const throw();
+	JUCE_DEPRECATED (String (const String& stringToCopy, size_t charsToAllocate));
 
 	// This private cast operator should prevent strings being accidentally cast
 	// to bools (this is possible because the compiler can add an implicit cast
@@ -5269,41 +5368,46 @@ private:
 };
 
 /** Concatenates two strings. */
-JUCE_API const String JUCE_CALLTYPE operator+  (const char* string1,	   const String& string2);
+JUCE_API const String JUCE_CALLTYPE operator+ (const char* string1,	 const String& string2);
 /** Concatenates two strings. */
-JUCE_API const String JUCE_CALLTYPE operator+  (const juce_wchar* string1, const String& string2);
+JUCE_API const String JUCE_CALLTYPE operator+ (const wchar_t* string1,  const String& string2);
 /** Concatenates two strings. */
-JUCE_API const String JUCE_CALLTYPE operator+  (char string1,		  const String& string2);
+JUCE_API const String JUCE_CALLTYPE operator+ (char string1,		const String& string2);
 /** Concatenates two strings. */
-JUCE_API const String JUCE_CALLTYPE operator+  (juce_wchar string1,	const String& string2);
-
-/** Concatenates two strings. */
-JUCE_API const String JUCE_CALLTYPE operator+  (String string1, const String& string2);
-/** Concatenates two strings. */
-JUCE_API const String JUCE_CALLTYPE operator+  (String string1, const char* string2);
-/** Concatenates two strings. */
-JUCE_API const String JUCE_CALLTYPE operator+  (String string1, const juce_wchar* string2);
-/** Concatenates two strings. */
-JUCE_API const String JUCE_CALLTYPE operator+  (String string1, char characterToAppend);
-/** Concatenates two strings. */
-JUCE_API const String JUCE_CALLTYPE operator+  (String string1, juce_wchar characterToAppend);
+JUCE_API const String JUCE_CALLTYPE operator+ (wchar_t string1,	 const String& string2);
 #if ! JUCE_NATIVE_WCHAR_IS_UTF32
 /** Concatenates two strings. */
-JUCE_API const String JUCE_CALLTYPE operator+  (String string1, wchar_t characterToAppend);
+JUCE_API const String JUCE_CALLTYPE operator+ (juce_wchar string1,	  const String& string2);
+#endif
+
 /** Concatenates two strings. */
-JUCE_API const String JUCE_CALLTYPE operator+  (String string1, const wchar_t* string2);
+JUCE_API const String JUCE_CALLTYPE operator+ (String string1, const String& string2);
 /** Concatenates two strings. */
-JUCE_API const String JUCE_CALLTYPE operator+  (const wchar_t* string1, const String& string2);
+JUCE_API const String JUCE_CALLTYPE operator+ (String string1, const char* string2);
+/** Concatenates two strings. */
+JUCE_API const String JUCE_CALLTYPE operator+ (String string1, const wchar_t* string2);
+/** Concatenates two strings. */
+JUCE_API const String JUCE_CALLTYPE operator+ (String string1, char characterToAppend);
+/** Concatenates two strings. */
+JUCE_API const String JUCE_CALLTYPE operator+ (String string1, wchar_t characterToAppend);
+#if ! JUCE_NATIVE_WCHAR_IS_UTF32
+/** Concatenates two strings. */
+JUCE_API const String JUCE_CALLTYPE operator+ (String string1, juce_wchar characterToAppend);
 #endif
 
 /** Appends a character at the end of a string. */
 JUCE_API String& JUCE_CALLTYPE operator<< (String& string1, char characterToAppend);
 /** Appends a character at the end of a string. */
+JUCE_API String& JUCE_CALLTYPE operator<< (String& string1, wchar_t characterToAppend);
+#if ! JUCE_NATIVE_WCHAR_IS_UTF32
+/** Appends a character at the end of a string. */
 JUCE_API String& JUCE_CALLTYPE operator<< (String& string1, juce_wchar characterToAppend);
+#endif
+
 /** Appends a string to the end of the first one. */
 JUCE_API String& JUCE_CALLTYPE operator<< (String& string1, const char* string2);
 /** Appends a string to the end of the first one. */
-JUCE_API String& JUCE_CALLTYPE operator<< (String& string1, const juce_wchar* string2);
+JUCE_API String& JUCE_CALLTYPE operator<< (String& string1, const wchar_t* string2);
 /** Appends a string to the end of the first one. */
 JUCE_API String& JUCE_CALLTYPE operator<< (String& string1, const String& string2);
 
@@ -5323,7 +5427,7 @@ JUCE_API bool JUCE_CALLTYPE operator== (const String& string1, const String& str
 /** Case-sensitive comparison of two strings. */
 JUCE_API bool JUCE_CALLTYPE operator== (const String& string1, const char* string2) throw();
 /** Case-sensitive comparison of two strings. */
-JUCE_API bool JUCE_CALLTYPE operator== (const String& string1, const juce_wchar* string2) throw();
+JUCE_API bool JUCE_CALLTYPE operator== (const String& string1, const wchar_t* string2) throw();
 /** Case-sensitive comparison of two strings. */
 JUCE_API bool JUCE_CALLTYPE operator== (const String& string1, const CharPointer_UTF8& string2) throw();
 /** Case-sensitive comparison of two strings. */
@@ -5335,7 +5439,7 @@ JUCE_API bool JUCE_CALLTYPE operator!= (const String& string1, const String& str
 /** Case-sensitive comparison of two strings. */
 JUCE_API bool JUCE_CALLTYPE operator!= (const String& string1, const char* string2) throw();
 /** Case-sensitive comparison of two strings. */
-JUCE_API bool JUCE_CALLTYPE operator!= (const String& string1, const juce_wchar* string2) throw();
+JUCE_API bool JUCE_CALLTYPE operator!= (const String& string1, const wchar_t* string2) throw();
 /** Case-sensitive comparison of two strings. */
 JUCE_API bool JUCE_CALLTYPE operator!= (const String& string1, const CharPointer_UTF8& string2) throw();
 /** Case-sensitive comparison of two strings. */
@@ -5457,7 +5561,7 @@ public:
 	{
 		if (--(getCounter().numObjects) < 0)
 		{
-			DBG ("*** Dangling pointer deletion! Class: " << OwnerClass::getLeakedObjectClassName());
+			DBG ("*** Dangling pointer deletion! Class: " << getLeakedObjectClassName());
 
 			/** If you hit this, then you've managed to delete more instances of this class than you've
 				created.. That indicates that you're deleting some dangling pointers.
@@ -5479,13 +5583,13 @@ private:
 	class LeakCounter
 	{
 	public:
-		LeakCounter() {}
+		LeakCounter() throw() {}
 
 		~LeakCounter()
 		{
 			if (numObjects.value > 0)
 			{
-				DBG ("*** Leaked objects detected: " << numObjects.value << " instance(s) of class " << OwnerClass::getLeakedObjectClassName());
+				DBG ("*** Leaked objects detected: " << numObjects.value << " instance(s) of class " << getLeakedObjectClassName());
 
 				/** If you hit this, then you've leaked one or more objects of the type specified by
 					the 'OwnerClass' template parameter - the name should have been printed by the line above.
@@ -5500,6 +5604,11 @@ private:
 
 		Atomic<int> numObjects;
 	};
+
+	static const char* getLeakedObjectClassName()
+	{
+		return OwnerClass::getLeakedObjectClassName();
+	}
 
 	static LeakCounter& getCounter() throw()
 	{
@@ -5970,6 +6079,15 @@ public:
 	void swapWith (HeapBlock <ElementType>& other) throw()
 	{
 		swapVariables (data, other.data);
+	}
+
+	/** This fills the block with zeros, up to the number of elements specified.
+		Since the block has no way of knowing its own size, you must make sure that the number of
+		elements you specify doesn't exceed the allocated size.
+	*/
+	void clear (size_t numElements) throw()
+	{
+		zeromem (data, sizeof (ElementType) * numElements);
 	}
 
 private:
@@ -6467,11 +6585,7 @@ template <typename ElementType,
 class Array
 {
 private:
-  #if JUCE_VC8_OR_EARLIER
-	typedef const ElementType& ParameterType;
-  #else
 	typedef PARAMETER_TYPE (ElementType) ParameterType;
-  #endif
 
 public:
 
@@ -6706,13 +6820,9 @@ public:
 		const ElementType* e = data.elements.getData();
 		const ElementType* const end = e + numUsed;
 
-		while (e != end)
-		{
+		for (; e != end; ++e)
 			if (elementToLookFor == *e)
 				return static_cast <int> (e - data.elements.getData());
-
-			++e;
-		}
 
 		return -1;
 	}
@@ -6728,13 +6838,9 @@ public:
 		const ElementType* e = data.elements.getData();
 		const ElementType* const end = e + numUsed;
 
-		while (e != end)
-		{
+		for (; e != end; ++e)
 			if (elementToLookFor == *e)
 				return true;
-
-			++e;
-		}
 
 		return false;
 	}
@@ -6999,13 +7105,16 @@ public:
 		@param comparator   the comparator to use to compare the elements - see the sort()
 							method for details about the form this object should take
 		@param newElement   the new element to insert to the array
+		@returns the index at which the new item was added
 		@see addUsingDefaultSort, add, sort
 	*/
 	template <class ElementComparator>
-	void addSorted (ElementComparator& comparator, ParameterType newElement)
+	int addSorted (ElementComparator& comparator, ParameterType newElement)
 	{
 		const ScopedLockType lock (getLock());
-		insert (findInsertIndexInSortedArray (comparator, data.elements.getData(), newElement, 0, numUsed), newElement);
+		const int index = findInsertIndexInSortedArray (comparator, data.elements.getData(), newElement, 0, numUsed);
+		insert (index, newElement);
+		return index;
 	}
 
 	/** Inserts a new element into the array, assuming that the array is sorted.
@@ -7117,17 +7226,15 @@ public:
 	void removeValue (ParameterType valueToRemove)
 	{
 		const ScopedLockType lock (getLock());
-		ElementType* e = data.elements;
+		ElementType* const e = data.elements;
 
-		for (int i = numUsed; --i >= 0;)
+		for (int i = 0; i < numUsed; ++i)
 		{
-			if (valueToRemove == *e)
+			if (valueToRemove == e[i])
 			{
-				remove (static_cast <int> (e - data.elements.getData()));
+				remove (i);
 				break;
 			}
-
-			++e;
 		}
 	}
 
@@ -7461,13 +7568,13 @@ public:
 		The pool will own all the pointers that it returns, deleting them when the pool itself
 		is deleted.
 	*/
-	const String::CharPointerType getPooledString (const juce_wchar* original);
+	const String::CharPointerType getPooledString (const wchar_t* original);
 
 	/** Returns the number of strings in the pool. */
 	int size() const throw();
 
 	/** Returns one of the strings in the pool, by index. */
-	const juce_wchar* operator[] (int index) const throw();
+	const String::CharPointerType operator[] (int index) const throw();
 
 private:
 	Array <String> strings;
@@ -7522,11 +7629,11 @@ public:
 	const String toString() const					   { return name; }
 
 	/** Returns this identifier's raw string pointer. */
-	operator const juce_wchar*() const throw()			  { return name; }
+	operator const String::CharPointerType() const throw()		  { return name; }
 
 private:
 
-	const juce_wchar* name;
+	String::CharPointerType name;
 
 	static StringPool& getPool();
 };
@@ -8300,7 +8407,7 @@ public:
 	var (bool value) throw();
 	var (double value) throw();
 	var (const char* value);
-	var (const juce_wchar* value);
+	var (const wchar_t* value);
 	var (const String& value);
 	var (DynamicObject* object);
 	var (MethodFunction method) throw();
@@ -8311,7 +8418,7 @@ public:
 	var& operator= (bool value);
 	var& operator= (double value);
 	var& operator= (const char* value);
-	var& operator= (const juce_wchar* value);
+	var& operator= (const wchar_t* value);
 	var& operator= (const String& value);
 	var& operator= (DynamicObject* object);
 	var& operator= (MethodFunction method);
@@ -8935,12 +9042,16 @@ private:
 };
 
 /**
-	Used to point to an object of type ReferenceCountedObject.
+	A smart-pointer class which points to a reference-counted object.
 
-	It's wise to use a typedef instead of typing out the templated name
-	each time - e.g.
+	The template parameter specifies the class of the object you want to point to - the easiest
+	way to make a class reference-countable is to simply make it inherit from ReferenceCountedObject,
+	but if you need to, you could roll your own reference-countable class by implementing a pair of
+	mathods called incReferenceCount() and decReferenceCount().
 
-	typedef ReferenceCountedObjectPtr<MyClass> MyClassPtr;
+	When using this class, you'll probably want to create a typedef to abbreviate the full
+	templated name - e.g.
+	@code typedef ReferenceCountedObjectPtr<MyClass> MyClassPtr;@endcode
 
 	@see ReferenceCountedObject, ReferenceCountedObjectArray
 */
@@ -9194,13 +9305,12 @@ private:
 #ifndef __JUCE_ELEMENTCOMPARATOR_JUCEHEADER__
 
 #endif
-#ifndef __JUCE_LINKEDLISTPOINTER_JUCEHEADER__
+#ifndef __JUCE_HASHMAP_JUCEHEADER__
 
-#endif
-#ifndef __JUCE_NAMEDVALUESET_JUCEHEADER__
+/*** Start of inlined file: juce_HashMap.h ***/
+#ifndef __JUCE_HASHMAP_JUCEHEADER__
+#define __JUCE_HASHMAP_JUCEHEADER__
 
-#endif
-#ifndef __JUCE_OWNEDARRAY_JUCEHEADER__
 
 /*** Start of inlined file: juce_OwnedArray.h ***/
 #ifndef __JUCE_OWNEDARRAY_JUCEHEADER__
@@ -9341,13 +9451,9 @@ public:
 		ObjectClass* const* e = data.elements.getData();
 		ObjectClass* const* const end = e + numUsed;
 
-		while (e != end)
-		{
+		for (; e != end; ++e)
 			if (objectToLookFor == *e)
 				return static_cast <int> (e - data.elements.getData());
-
-			++e;
-		}
 
 		return -1;
 	}
@@ -9363,13 +9469,9 @@ public:
 		ObjectClass* const* e = data.elements.getData();
 		ObjectClass* const* const end = e + numUsed;
 
-		while (e != end)
-		{
+		for (; e != end; ++e)
 			if (objectToLookFor == *e)
 				return true;
-
-			++e;
-		}
 
 		return false;
 	}
@@ -9589,16 +9691,18 @@ public:
 		@param comparator   the comparator to use to compare the elements - see the sort method
 							for details about this object's structure
 		@param newObject	the new object to insert to the array
+		@returns the index at which the new object was added
 		@see add, sort, indexOfSorted
 	*/
 	template <class ElementComparator>
-	void addSorted (ElementComparator& comparator,
-					ObjectClass* const newObject) throw()
+	int addSorted (ElementComparator& comparator, ObjectClass* const newObject) throw()
 	{
 		(void) comparator;  // if you pass in an object with a static compareElements() method, this
 							// avoids getting warning messages about the parameter being unused
 		const ScopedLockType lock (getLock());
-		insert (findInsertIndexInSortedArray (comparator, data.elements.getData(), newObject, 0, numUsed), newObject);
+		const int index = findInsertIndexInSortedArray (comparator, data.elements.getData(), newObject, 0, numUsed);
+		insert (index, newObject);
+		return index;
 	}
 
 	/** Finds the index of an object in the array, assuming that the array is sorted.
@@ -9733,17 +9837,15 @@ public:
 					   const bool deleteObject = true)
 	{
 		const ScopedLockType lock (getLock());
-		ObjectClass** e = data.elements.getData();
+		ObjectClass** const e = data.elements.getData();
 
-		for (int i = numUsed; --i >= 0;)
+		for (int i = 0; i < numUsed; ++i)
 		{
-			if (objectToRemove == *e)
+			if (objectToRemove == e[i])
 			{
-				remove (static_cast <int> (e - data.elements.getData()), deleteObject);
+				remove (i, deleteObject);
 				break;
 			}
-
-			++e;
 		}
 	}
 
@@ -9970,6 +10072,604 @@ private:
 /*** End of inlined file: juce_OwnedArray.h ***/
 
 
+/*** Start of inlined file: juce_ScopedPointer.h ***/
+#ifndef __JUCE_SCOPEDPOINTER_JUCEHEADER__
+#define __JUCE_SCOPEDPOINTER_JUCEHEADER__
+
+/**
+	This class holds a pointer which is automatically deleted when this object goes
+	out of scope.
+
+	Once a pointer has been passed to a ScopedPointer, it will make sure that the pointer
+	gets deleted when the ScopedPointer is deleted. Using the ScopedPointer on the stack or
+	as member variables is a good way to use RAII to avoid accidentally leaking dynamically
+	created objects.
+
+	A ScopedPointer can be used in pretty much the same way that you'd use a normal pointer
+	to an object. If you use the assignment operator to assign a different object to a
+	ScopedPointer, the old one will be automatically deleted.
+
+	A const ScopedPointer is guaranteed not to lose ownership of its object or change the
+	object to which it points during its lifetime. This means that making a copy of a const
+	ScopedPointer is impossible, as that would involve the new copy taking ownership from the
+	old one.
+
+	If you need to get a pointer out of a ScopedPointer without it being deleted, you
+	can use the release() method.
+*/
+template <class ObjectType>
+class ScopedPointer
+{
+public:
+
+	/** Creates a ScopedPointer containing a null pointer. */
+	inline ScopedPointer() throw()  : object (0)
+	{
+	}
+
+	/** Creates a ScopedPointer that owns the specified object. */
+	inline ScopedPointer (ObjectType* const objectToTakePossessionOf) throw()
+		: object (objectToTakePossessionOf)
+	{
+	}
+
+	/** Creates a ScopedPointer that takes its pointer from another ScopedPointer.
+
+		Because a pointer can only belong to one ScopedPointer, this transfers
+		the pointer from the other object to this one, and the other object is reset to
+		be a null pointer.
+	*/
+	ScopedPointer (ScopedPointer& objectToTransferFrom) throw()
+		: object (objectToTransferFrom.object)
+	{
+		objectToTransferFrom.object = 0;
+	}
+
+	/** Destructor.
+		This will delete the object that this ScopedPointer currently refers to.
+	*/
+	inline ~ScopedPointer()							 { delete object; }
+
+	/** Changes this ScopedPointer to point to a new object.
+
+		Because a pointer can only belong to one ScopedPointer, this transfers
+		the pointer from the other object to this one, and the other object is reset to
+		be a null pointer.
+
+		If this ScopedPointer already points to an object, that object
+		will first be deleted.
+	*/
+	ScopedPointer& operator= (ScopedPointer& objectToTransferFrom)
+	{
+		if (this != objectToTransferFrom.getAddress())
+		{
+			// Two ScopedPointers should never be able to refer to the same object - if
+			// this happens, you must have done something dodgy!
+			jassert (object == 0 || object != objectToTransferFrom.object);
+
+			ObjectType* const oldObject = object;
+			object = objectToTransferFrom.object;
+			objectToTransferFrom.object = 0;
+			delete oldObject;
+		}
+
+		return *this;
+	}
+
+	/** Changes this ScopedPointer to point to a new object.
+
+		If this ScopedPointer already points to an object, that object
+		will first be deleted.
+
+		The pointer that you pass is may be null.
+	*/
+	ScopedPointer& operator= (ObjectType* const newObjectToTakePossessionOf)
+	{
+		if (object != newObjectToTakePossessionOf)
+		{
+			ObjectType* const oldObject = object;
+			object = newObjectToTakePossessionOf;
+			delete oldObject;
+		}
+
+		return *this;
+	}
+
+	/** Returns the object that this ScopedPointer refers to. */
+	inline operator ObjectType*() const throw()					 { return object; }
+
+	/** Returns the object that this ScopedPointer refers to. */
+	inline ObjectType& operator*() const throw()					{ return *object; }
+
+	/** Lets you access methods and properties of the object that this ScopedPointer refers to. */
+	inline ObjectType* operator->() const throw()				   { return object; }
+
+	/** Removes the current object from this ScopedPointer without deleting it.
+		This will return the current object, and set the ScopedPointer to a null pointer.
+	*/
+	ObjectType* release() throw()						   { ObjectType* const o = object; object = 0; return o; }
+
+	/** Swaps this object with that of another ScopedPointer.
+		The two objects simply exchange their pointers.
+	*/
+	void swapWith (ScopedPointer <ObjectType>& other) throw()
+	{
+		// Two ScopedPointers should never be able to refer to the same object - if
+		// this happens, you must have done something dodgy!
+		jassert (object != other.object);
+
+		swapVariables (object, other.object);
+	}
+
+private:
+
+	ObjectType* object;
+
+	// (Required as an alternative to the overloaded & operator).
+	const ScopedPointer* getAddress() const throw()				 { return this; }
+
+  #if ! JUCE_MSVC  // (MSVC can't deal with multiple copy constructors)
+	/* This is private to stop people accidentally copying a const ScopedPointer (the compiler
+	   would let you do so by implicitly casting the source to its raw object pointer).
+
+	   A side effect of this is that you may hit a puzzling compiler error when you write something
+	   like this:
+
+		  ScopedPointer<MyClass> m = new MyClass();  // Compile error: copy constructor is private.
+
+	   Even though the compiler would normally ignore the assignment here, it can't do so when the
+	   copy constructor is private. It's very easy to fis though - just write it like this:
+
+		  ScopedPointer<MyClass> m (new MyClass());  // Compiles OK
+
+	   It's good practice to always use the latter form when writing your object declarations anyway,
+	   rather than writing them as assignments and assuming (or hoping) that the compiler will be
+	   smart enough to replace your construction + assignment with a single constructor.
+	*/
+	ScopedPointer (const ScopedPointer&);
+  #endif
+};
+
+/** Compares a ScopedPointer with another pointer.
+	This can be handy for checking whether this is a null pointer.
+*/
+template <class ObjectType>
+bool operator== (const ScopedPointer<ObjectType>& pointer1, ObjectType* const pointer2) throw()
+{
+	return static_cast <ObjectType*> (pointer1) == pointer2;
+}
+
+/** Compares a ScopedPointer with another pointer.
+	This can be handy for checking whether this is a null pointer.
+*/
+template <class ObjectType>
+bool operator!= (const ScopedPointer<ObjectType>& pointer1, ObjectType* const pointer2) throw()
+{
+	return static_cast <ObjectType*> (pointer1) != pointer2;
+}
+
+#endif   // __JUCE_SCOPEDPOINTER_JUCEHEADER__
+/*** End of inlined file: juce_ScopedPointer.h ***/
+
+/**
+	A simple class to generate hash functions for some primitive types, intended for
+	use with the HashMap class.
+	@see HashMap
+*/
+class DefaultHashFunctions
+{
+public:
+	/** Generates a simple hash from an integer. */
+	static int generateHash (const int key, const int upperLimit) throw()	 { return std::abs (key) % upperLimit; }
+	/** Generates a simple hash from a string. */
+	static int generateHash (const String& key, const int upperLimit) throw()	 { return key.hashCode() % upperLimit; }
+	/** Generates a simple hash from a variant. */
+	static int generateHash (const var& key, const int upperLimit) throw()	{ return generateHash (key.toString(), upperLimit); }
+};
+
+/**
+	Holds a set of mappings between some key/value pairs.
+
+	The types of the key and value objects are set as template parameters.
+	You can also specify a class to supply a hash function that converts a key value
+	into an hashed integer. This class must have the form:
+
+	@code
+	struct MyHashGenerator
+	{
+		static int generateHash (MyKeyType key, int upperLimit)
+		{
+			// The function must return a value 0 <= x < upperLimit
+			return someFunctionOfMyKeyType (key) % upperLimit;
+		}
+	};
+	@endcode
+
+	Like the Array class, the key and value types are expected to be copy-by-value types, so
+	if you define them to be pointer types, this class won't delete the objects that they
+	point to.
+
+	If you don't supply a class for the HashFunctionToUse template parameter, the
+	default one provides some simple mappings for strings and ints.
+
+	@code
+	HashMap<int, String> hash;
+	hash.set (1, "item1");
+	hash.set (2, "item2");
+
+	DBG (hash [1]); // prints "item1"
+	DBG (hash [2]); // prints "item2"
+
+	// This iterates the map, printing all of its key -> value pairs..
+	for (HashMap<int, String>::Iterator i (hash); i.next();)
+		DBG (i.getKey() << " -> " << i.getValue());
+	@endcode
+
+	@see CriticalSection, DefaultHashFunctions, NamedValueSet, SortedSet
+*/
+template <typename KeyType,
+		  typename ValueType,
+		  class HashFunctionToUse = DefaultHashFunctions,
+		  class TypeOfCriticalSectionToUse = DummyCriticalSection>
+class HashMap
+{
+private:
+	typedef PARAMETER_TYPE (KeyType)   KeyTypeParameter;
+	typedef PARAMETER_TYPE (ValueType) ValueTypeParameter;
+
+public:
+
+	/** Creates an empty hash-map.
+
+		The numberOfSlots parameter specifies the number of hash entries the map will use. This
+		will be the "upperLimit" parameter that is passed to your generateHash() function. The number
+		of hash slots will grow automatically if necessary, or it can be remapped manually using remapTable().
+	*/
+	HashMap (const int numberOfSlots = defaultHashTableSize)
+	   : totalNumItems (0)
+	{
+		slots.insertMultiple (0, 0, numberOfSlots);
+	}
+
+	/** Destructor. */
+	~HashMap()
+	{
+		clear();
+	}
+
+	/** Removes all values from the map.
+		Note that this will clear the content, but won't affect the number of slots (see
+		remapTable and getNumSlots).
+	*/
+	void clear()
+	{
+		const ScopedLockType sl (getLock());
+
+		for (int i = slots.size(); --i >= 0;)
+		{
+			HashEntry* h = slots.getUnchecked(i);
+
+			while (h != 0)
+			{
+				const ScopedPointer<HashEntry> deleter (h);
+				h = h->nextEntry;
+			}
+
+			slots.set (i, 0);
+		}
+
+		totalNumItems = 0;
+	}
+
+	/** Returns the current number of items in the map. */
+	inline int size() const throw()
+	{
+		return totalNumItems;
+	}
+
+	/** Returns the value corresponding to a given key.
+		If the map doesn't contain the key, a default instance of the value type is returned.
+		@param keyToLookFor	the key of the item being requested
+	*/
+	inline const ValueType operator[] (KeyTypeParameter keyToLookFor) const
+	{
+		const ScopedLockType sl (getLock());
+
+		for (const HashEntry* entry = slots [generateHashFor (keyToLookFor)]; entry != 0; entry = entry->nextEntry)
+			if (entry->key == keyToLookFor)
+				return entry->value;
+
+		return ValueType();
+	}
+
+	/** Returns true if the map contains an item with the specied key. */
+	bool contains (KeyTypeParameter keyToLookFor) const
+	{
+		const ScopedLockType sl (getLock());
+
+		for (const HashEntry* entry = slots [generateHashFor (keyToLookFor)]; entry != 0; entry = entry->nextEntry)
+			if (entry->key == keyToLookFor)
+				return true;
+
+		return false;
+	}
+
+	/** Returns true if the hash contains at least one occurrence of a given value. */
+	bool containsValue (ValueTypeParameter valueToLookFor) const
+	{
+		const ScopedLockType sl (getLock());
+
+		for (int i = getNumSlots(); --i >= 0;)
+			for (const HashEntry* entry = slots.getUnchecked(i); entry != 0; entry = entry->nextEntry)
+				if (entry->value == valueToLookFor)
+					return true;
+
+		return false;
+	}
+
+	/** Adds or replaces an element in the hash-map.
+		If there's already an item with the given key, this will replace its value. Otherwise, a new item
+		will be added to the map.
+	*/
+	void set (KeyTypeParameter newKey, ValueTypeParameter newValue)
+	{
+		const ScopedLockType sl (getLock());
+		const int hashIndex = generateHashFor (newKey);
+
+		if (isPositiveAndBelow (hashIndex, getNumSlots()))
+		{
+			HashEntry* const firstEntry = slots.getUnchecked (hashIndex);
+
+			for (HashEntry* entry = firstEntry; entry != 0; entry = entry->nextEntry)
+			{
+				if (entry->key == newKey)
+				{
+					entry->value = newValue;
+					return;
+				}
+			}
+
+			slots.set (hashIndex, new HashEntry (newKey, newValue, firstEntry));
+			++totalNumItems;
+
+			if (totalNumItems > (getNumSlots() * 3) / 2)
+				remapTable (getNumSlots() * 2);
+		}
+	}
+
+	/** Removes an item with the given key. */
+	void remove (KeyTypeParameter keyToRemove)
+	{
+		const ScopedLockType sl (getLock());
+		const int hashIndex = generateHashFor (keyToRemove);
+		HashEntry* entry = slots [hashIndex];
+		HashEntry* previous = 0;
+
+		while (entry != 0)
+		{
+			if (entry->key == keyToRemove)
+			{
+				const ScopedPointer<HashEntry> deleter (entry);
+
+				entry = entry->nextEntry;
+
+				if (previous != 0)
+					previous->nextEntry = entry;
+				else
+					slots.set (hashIndex, entry);
+
+				--totalNumItems;
+			}
+			else
+			{
+				previous = entry;
+				entry = entry->nextEntry;
+			}
+		}
+	}
+
+	/** Removes all items with the given value. */
+	void removeValue (ValueTypeParameter valueToRemove)
+	{
+		const ScopedLockType sl (getLock());
+
+		for (int i = getNumSlots(); --i >= 0;)
+		{
+			HashEntry* entry = slots.getUnchecked(i);
+			HashEntry* previous = 0;
+
+			while (entry != 0)
+			{
+				if (entry->value == valueToRemove)
+				{
+					const ScopedPointer<HashEntry> deleter (entry);
+
+					entry = entry->nextEntry;
+
+					if (previous != 0)
+						previous->nextEntry = entry;
+					else
+						slots.set (i, entry);
+
+					--totalNumItems;
+				}
+				else
+				{
+					previous = entry;
+					entry = entry->nextEntry;
+				}
+			}
+		}
+	}
+
+	/** Remaps the hash-map to use a different number of slots for its hash function.
+		Each slot corresponds to a single hash-code, and each one can contain multiple items.
+		@see getNumSlots()
+	*/
+	void remapTable (int newNumberOfSlots)
+	{
+		HashMap newTable (newNumberOfSlots);
+
+		for (int i = getNumSlots(); --i >= 0;)
+			for (const HashEntry* entry = slots.getUnchecked(i); entry != 0; entry = entry->nextEntry)
+				newTable.set (entry->key, entry->value);
+
+		swapWith (newTable);
+	}
+
+	/** Returns the number of slots which are available for hashing.
+		Each slot corresponds to a single hash-code, and each one can contain multiple items.
+		@see getNumSlots()
+	*/
+	inline int getNumSlots() const throw()
+	{
+		return slots.size();
+	}
+
+	/** Efficiently swaps the contents of two hash-maps. */
+	void swapWith (HashMap& otherHashMap) throw()
+	{
+		const ScopedLockType lock1 (getLock());
+		const ScopedLockType lock2 (otherHashMap.getLock());
+
+		slots.swapWithArray (otherHashMap.slots);
+		swapVariables (totalNumItems, otherHashMap.totalNumItems);
+	}
+
+	/** Returns the CriticalSection that locks this structure.
+		To lock, you can call getLock().enter() and getLock().exit(), or preferably use
+		an object of ScopedLockType as an RAII lock for it.
+	*/
+	inline const TypeOfCriticalSectionToUse& getLock() const throw()	   { return lock; }
+
+	/** Returns the type of scoped lock to use for locking this array */
+	typedef typename TypeOfCriticalSectionToUse::ScopedLockType ScopedLockType;
+
+private:
+
+	class HashEntry
+	{
+	public:
+		HashEntry (KeyTypeParameter key_, ValueTypeParameter value_, HashEntry* const nextEntry_)
+			: key (key_), value (value_), nextEntry (nextEntry_)
+		{}
+
+		const KeyType key;
+		ValueType value;
+		HashEntry* nextEntry;
+
+		JUCE_DECLARE_NON_COPYABLE (HashEntry);
+	};
+
+public:
+
+	/** Iterates over the items in a HashMap.
+
+		To use it, repeatedly call next() until it returns false, e.g.
+		@code
+		HashMap <String, String> myMap;
+
+		HashMap<String, String>::Iterator i (myMap);
+
+		while (i.next())
+		{
+			DBG (i.getKey() << " -> " << i.getValue());
+		}
+		@endcode
+
+		The order in which items are iterated bears no resemblence to the order in which
+		they were originally added!
+
+		Obviously as soon as you call any non-const methods on the original hash-map, any
+		iterators that were created beforehand will cease to be valid, and should not be used.
+
+		@see HashMap
+	*/
+	class Iterator
+	{
+	public:
+
+		Iterator (const HashMap& hashMapToIterate)
+			: hashMap (hashMapToIterate), entry (0), index (0)
+		{}
+
+		/** Moves to the next item, if one is available.
+			When this returns true, you can get the item's key and value using getKey() and
+			getValue(). If it returns false, the iteration has finished and you should stop.
+		*/
+		bool next()
+		{
+			if (entry != 0)
+				entry = entry->nextEntry;
+
+			while (entry == 0)
+			{
+				if (index >= hashMap.getNumSlots())
+					return false;
+
+				entry = hashMap.slots.getUnchecked (index++);
+			}
+
+			return true;
+		}
+
+		/** Returns the current item's key.
+			This should only be called when a call to next() has just returned true.
+		*/
+		const KeyType getKey() const
+		{
+			return entry != 0 ? entry->key : KeyType();
+		}
+
+		/** Returns the current item's value.
+			This should only be called when a call to next() has just returned true.
+		*/
+		const ValueType getValue() const
+		{
+			return entry != 0 ? entry->value : ValueType();
+		}
+
+	private:
+
+		const HashMap& hashMap;
+		HashEntry* entry;
+		int index;
+
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Iterator);
+	};
+
+private:
+
+	enum { defaultHashTableSize = 101 };
+	friend class Iterator;
+
+	Array <HashEntry*> slots;
+	int totalNumItems;
+	TypeOfCriticalSectionToUse lock;
+
+	int generateHashFor (KeyTypeParameter key) const
+	{
+		const int hash = HashFunctionToUse::generateHash (key, getNumSlots());
+		jassert (isPositiveAndBelow (hash, getNumSlots())); // your hash function is generating out-of-range numbers!
+		return hash;
+	}
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (HashMap);
+};
+
+#endif   // __JUCE_HASHMAP_JUCEHEADER__
+/*** End of inlined file: juce_HashMap.h ***/
+
+
+#endif
+#ifndef __JUCE_LINKEDLISTPOINTER_JUCEHEADER__
+
+#endif
+#ifndef __JUCE_NAMEDVALUESET_JUCEHEADER__
+
+#endif
+#ifndef __JUCE_OWNEDARRAY_JUCEHEADER__
+
 #endif
 #ifndef __JUCE_PROPERTYSET_JUCEHEADER__
 
@@ -10010,20 +10710,7 @@ public:
 								treated as empty strings
 		@param numberOfStrings  how many items there are in the array
 	*/
-	StringArray (const juce_wchar* const* strings, int numberOfStrings);
-
-	/** Creates a copy of an array of string literals.
-		@param strings	  an array of strings to add. Null pointers in the array will be
-								treated as empty strings
-		@param numberOfStrings  how many items there are in the array
-	*/
 	StringArray (const char* const* strings, int numberOfStrings);
-
-	/** Creates a copy of a null-terminated array of string literals.
-		Each item from the array passed-in is added, until it encounters a null pointer,
-		at which point it stops.
-	*/
-	explicit StringArray (const juce_wchar* const* strings);
 
 	/** Creates a copy of a null-terminated array of string literals.
 
@@ -10031,6 +10718,19 @@ public:
 		at which point it stops.
 	*/
 	explicit StringArray (const char* const* strings);
+
+	/** Creates a copy of a null-terminated array of string literals.
+		Each item from the array passed-in is added, until it encounters a null pointer,
+		at which point it stops.
+	*/
+	explicit StringArray (const wchar_t* const* strings);
+
+	/** Creates a copy of an array of string literals.
+		@param strings	  an array of strings to add. Null pointers in the array will be
+								treated as empty strings
+		@param numberOfStrings  how many items there are in the array
+	*/
+	StringArray (const wchar_t* const* strings, int numberOfStrings);
 
 	/** Destructor. */
 	~StringArray();
@@ -10926,189 +11626,6 @@ JUCE_API bool operator>= (const Time& time1, const Time& time2);
 
 #endif   // __JUCE_TIME_JUCEHEADER__
 /*** End of inlined file: juce_Time.h ***/
-
-
-/*** Start of inlined file: juce_ScopedPointer.h ***/
-#ifndef __JUCE_SCOPEDPOINTER_JUCEHEADER__
-#define __JUCE_SCOPEDPOINTER_JUCEHEADER__
-
-/**
-	This class holds a pointer which is automatically deleted when this object goes
-	out of scope.
-
-	Once a pointer has been passed to a ScopedPointer, it will make sure that the pointer
-	gets deleted when the ScopedPointer is deleted. Using the ScopedPointer on the stack or
-	as member variables is a good way to use RAII to avoid accidentally leaking dynamically
-	created objects.
-
-	A ScopedPointer can be used in pretty much the same way that you'd use a normal pointer
-	to an object. If you use the assignment operator to assign a different object to a
-	ScopedPointer, the old one will be automatically deleted.
-
-	A const ScopedPointer is guaranteed not to lose ownership of its object or change the
-	object to which it points during its lifetime. This means that making a copy of a const
-	ScopedPointer is impossible, as that would involve the new copy taking ownership from the
-	old one.
-
-	If you need to get a pointer out of a ScopedPointer without it being deleted, you
-	can use the release() method.
-*/
-template <class ObjectType>
-class ScopedPointer
-{
-public:
-
-	/** Creates a ScopedPointer containing a null pointer. */
-	inline ScopedPointer() throw()  : object (0)
-	{
-	}
-
-	/** Creates a ScopedPointer that owns the specified object. */
-	inline ScopedPointer (ObjectType* const objectToTakePossessionOf) throw()
-		: object (objectToTakePossessionOf)
-	{
-	}
-
-	/** Creates a ScopedPointer that takes its pointer from another ScopedPointer.
-
-		Because a pointer can only belong to one ScopedPointer, this transfers
-		the pointer from the other object to this one, and the other object is reset to
-		be a null pointer.
-	*/
-	ScopedPointer (ScopedPointer& objectToTransferFrom) throw()
-		: object (objectToTransferFrom.object)
-	{
-		objectToTransferFrom.object = 0;
-	}
-
-	/** Destructor.
-		This will delete the object that this ScopedPointer currently refers to.
-	*/
-	inline ~ScopedPointer()							 { delete object; }
-
-	/** Changes this ScopedPointer to point to a new object.
-
-		Because a pointer can only belong to one ScopedPointer, this transfers
-		the pointer from the other object to this one, and the other object is reset to
-		be a null pointer.
-
-		If this ScopedPointer already points to an object, that object
-		will first be deleted.
-	*/
-	ScopedPointer& operator= (ScopedPointer& objectToTransferFrom)
-	{
-		if (this != objectToTransferFrom.getAddress())
-		{
-			// Two ScopedPointers should never be able to refer to the same object - if
-			// this happens, you must have done something dodgy!
-			jassert (object == 0 || object != objectToTransferFrom.object);
-
-			ObjectType* const oldObject = object;
-			object = objectToTransferFrom.object;
-			objectToTransferFrom.object = 0;
-			delete oldObject;
-		}
-
-		return *this;
-	}
-
-	/** Changes this ScopedPointer to point to a new object.
-
-		If this ScopedPointer already points to an object, that object
-		will first be deleted.
-
-		The pointer that you pass is may be null.
-	*/
-	ScopedPointer& operator= (ObjectType* const newObjectToTakePossessionOf)
-	{
-		if (object != newObjectToTakePossessionOf)
-		{
-			ObjectType* const oldObject = object;
-			object = newObjectToTakePossessionOf;
-			delete oldObject;
-		}
-
-		return *this;
-	}
-
-	/** Returns the object that this ScopedPointer refers to.
-	*/
-	inline operator ObjectType*() const throw()					 { return object; }
-
-	/** Returns the object that this ScopedPointer refers to.
-	*/
-	inline ObjectType& operator*() const throw()					{ return *object; }
-
-	/** Lets you access methods and properties of the object that this ScopedPointer refers to. */
-	inline ObjectType* operator->() const throw()				   { return object; }
-
-	/** Removes the current object from this ScopedPointer without deleting it.
-
-		This will return the current object, and set the ScopedPointer to a null pointer.
-	*/
-	ObjectType* release() throw()						   { ObjectType* const o = object; object = 0; return o; }
-
-	/** Swaps this object with that of another ScopedPointer.
-		The two objects simply exchange their pointers.
-	*/
-	void swapWith (ScopedPointer <ObjectType>& other) throw()
-	{
-		// Two ScopedPointers should never be able to refer to the same object - if
-		// this happens, you must have done something dodgy!
-		jassert (object != other.object);
-
-		swapVariables (object, other.object);
-	}
-
-private:
-
-	ObjectType* object;
-
-	// (Required as an alternative to the overloaded & operator).
-	const ScopedPointer* getAddress() const throw()				 { return this; }
-
-  #if ! JUCE_MSVC  // (MSVC can't deal with multiple copy constructors)
-	/* This is private to stop people accidentally copying a const ScopedPointer (the compiler
-	   would let you do so by implicitly casting the source to its raw object pointer).
-
-	   A side effect of this is that you may hit a puzzling compiler error when you write something
-	   like this:
-
-		  ScopedPointer<MyClass> m = new MyClass();  // Compile error: copy constructor is private.
-
-	   Even though the compiler would normally ignore the assignment here, it can't do so when the
-	   copy constructor is private. It's very easy to fis though - just write it like this:
-
-		  ScopedPointer<MyClass> m (new MyClass());  // Compiles OK
-
-	   It's good practice to always use the latter form when writing your object declarations anyway,
-	   rather than writing them as assignments and assuming (or hoping) that the compiler will be
-	   smart enough to replace your construction + assignment with a single constructor.
-	*/
-	ScopedPointer (const ScopedPointer&);
-  #endif
-};
-
-/** Compares a ScopedPointer with another pointer.
-	This can be handy for checking whether this is a null pointer.
-*/
-template <class ObjectType>
-bool operator== (const ScopedPointer<ObjectType>& pointer1, ObjectType* const pointer2) throw()
-{
-	return static_cast <ObjectType*> (pointer1) == pointer2;
-}
-
-/** Compares a ScopedPointer with another pointer.
-	This can be handy for checking whether this is a null pointer.
-*/
-template <class ObjectType>
-bool operator!= (const ScopedPointer<ObjectType>& pointer1, ObjectType* const pointer2) throw()
-{
-	return static_cast <ObjectType*> (pointer1) != pointer2;
-}
-
-#endif   // __JUCE_SCOPEDPOINTER_JUCEHEADER__
-/*** End of inlined file: juce_ScopedPointer.h ***/
 
 class FileInputStream;
 class FileOutputStream;
@@ -12016,7 +12533,7 @@ private:
 */
 #define forEachXmlChildElement(parentXmlElement, childElementVariableName) \
 \
-	for (XmlElement* childElementVariableName = (parentXmlElement).getFirstChildElement(); \
+	for (JUCE_NAMESPACE::XmlElement* childElementVariableName = (parentXmlElement).getFirstChildElement(); \
 		 childElementVariableName != 0; \
 		 childElementVariableName = childElementVariableName->getNextElement())
 
@@ -12045,7 +12562,7 @@ private:
 */
 #define forEachXmlChildElementWithTagName(parentXmlElement, childElementVariableName, requiredTagName) \
 \
-	for (XmlElement* childElementVariableName = (parentXmlElement).getChildByName (requiredTagName); \
+	for (JUCE_NAMESPACE::XmlElement* childElementVariableName = (parentXmlElement).getChildByName (requiredTagName); \
 		 childElementVariableName != 0; \
 		 childElementVariableName = childElementVariableName->getNextElementWithTagName (requiredTagName))
 
@@ -13199,17 +13716,19 @@ public:
 		should go. If the array isn't sorted, the behaviour of this
 		method will be unpredictable.
 
-		@param comparator	   the comparator object to use to compare the elements - see the
-								sort() method for details about this object's form
+		@param comparator   the comparator object to use to compare the elements - see the
+							sort() method for details about this object's form
 		@param newObject	the new object to insert to the array
+		@returns the index at which the new object was added
 		@see add, sort
 	*/
 	template <class ElementComparator>
-	void addSorted (ElementComparator& comparator,
-					ObjectClass* newObject) throw()
+	int addSorted (ElementComparator& comparator, ObjectClass* newObject) throw()
 	{
 		const ScopedLockType lock (getLock());
-		insert (findInsertIndexInSortedArray (comparator, data.elements.getData(), newObject, 0, numUsed), newObject);
+		const int index = findInsertIndexInSortedArray (comparator, data.elements.getData(), newObject, 0, numUsed);
+		insert (index, newObject);
+		return index;
 	}
 
 	/** Inserts or replaces an object in the array, assuming it is sorted.
@@ -17315,8 +17834,6 @@ public:
 
 	/** Returns the current version of JUCE,
 
-		(just in case you didn't already know at compile-time.)
-
 		See also the JUCE_VERSION, JUCE_MAJOR_VERSION and JUCE_MINOR_VERSION macros.
 	*/
 	static const String getJUCEVersion();
@@ -18928,6 +19445,42 @@ public:
 						  const File& targetDirectory,
 						  bool shouldOverwriteFiles = true);
 
+	/** Used to create a new zip file.
+
+		Create a ZipFile::Builder object, and call its addFile() method to add some files,
+		then you can write it to a stream with write().
+
+		Currently this just stores the files with no compression.. That will be added
+		soon!
+	*/
+	class Builder
+	{
+	public:
+		Builder();
+		~Builder();
+
+		/** Adds a file while should be added to the archive.
+			The file isn't read immediately, all the files will be read later when the writeToStream()
+			method is called.
+
+			The compressionLevel can be between 0 (no compression), and 9 (maximum compression).
+			If the storedPathName parameter is specified, you can customise the partial pathname that
+			will be stored for this file.
+		*/
+		void addFile (const File& fileToAdd, int compressionLevel,
+					  const String& storedPathName = String::empty);
+
+		/** Generates the zip file, writing it to the specified stream. */
+		bool writeToStream (OutputStream& target) const;
+
+	private:
+		class Item;
+		friend class OwnedArray<Item>;
+		OwnedArray<Item> items;
+
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Builder);
+	};
+
 private:
 
 	class ZipInputStream;
@@ -20408,7 +20961,12 @@ private:
 #define __JUCE_RANDOM_JUCEHEADER__
 
 /**
-	A simple pseudo-random number generator.
+	A random number generator.
+
+	You can create a Random object and use it to generate a sequence of random numbers.
+	As a handy shortcut to avoid having to create and seed one yourself, you can call
+	Random::getSystemRandom() to return a global RNG that is seeded randomly when the
+	app launches.
 */
 class JUCE_API  Random
 {
@@ -23685,6 +24243,13 @@ public:
 	*/
 	const String getTextDescription() const;
 
+	/** Creates a textual description of the key combination, using unicode icon symbols if possible.
+
+		On OSX, this uses the Apple symbols for command, option, shift, etc, instead of the textual
+		modifier key descriptions that are returned by getTextDescription()
+	*/
+	const String getTextDescriptionWithIcons() const;
+
 	/** Checks whether the user is currently holding down the keys that make up this
 		KeyPress.
 
@@ -24103,7 +24668,7 @@ public:
 		const Point<ValueType> delta (end - start);
 		const double length = juce_hypot ((double) delta.getX(),
 										  (double) delta.getY());
-		if (length == 0)
+		if (length <= 0)
 			return start;
 
 		return Point<ValueType> (start.getX() + (ValueType) ((delta.getX() * distanceFromStart - delta.getY() * perpendicularDistance) / length),
@@ -24968,7 +25533,7 @@ public:
 	const String toString() const
 	{
 		String s;
-		s.preallocateStorage (16);
+		s.preallocateBytes (32);
 		s << x << ' ' << y << ' ' << w << ' ' << h;
 		return s;
 	}
@@ -25106,55 +25671,46 @@ public:
 		horizontallyJustified	   = 64,
 
 		/** Indicates that the item should be centred vertically and horizontally.
-
 			This is equivalent to (horizontallyCentred | verticallyCentred)
 		*/
 		centred			 = 36,
 
 		/** Indicates that the item should be centred vertically but placed on the left hand side.
-
 			This is equivalent to (left | verticallyCentred)
 		*/
 		centredLeft			 = 33,
 
 		/** Indicates that the item should be centred vertically but placed on the right hand side.
-
 			This is equivalent to (right | verticallyCentred)
 		*/
 		centredRight			= 34,
 
 		/** Indicates that the item should be centred horizontally and placed at the top.
-
 			This is equivalent to (horizontallyCentred | top)
 		*/
 		centredTop			  = 12,
 
 		/** Indicates that the item should be centred horizontally and placed at the bottom.
-
 			This is equivalent to (horizontallyCentred | bottom)
 		*/
 		centredBottom		   = 20,
 
 		/** Indicates that the item should be placed in the top-left corner.
-
 			This is equivalent to (left | top)
 		*/
 		topLeft			 = 9,
 
 		/** Indicates that the item should be placed in the top-right corner.
-
 			This is equivalent to (right | top)
 		*/
 		topRight			= 10,
 
 		/** Indicates that the item should be placed in the bottom-left corner.
-
 			This is equivalent to (left | bottom)
 		*/
 		bottomLeft			  = 17,
 
 		/** Indicates that the item should be placed in the bottom-left corner.
-
 			This is equivalent to (right | bottom)
 		*/
 		bottomRight			 = 18
@@ -25870,6 +26426,7 @@ private:
 /*** End of inlined file: juce_Path.h ***/
 
 class Font;
+class EdgeTable;
 
 /** A typeface represents a size-independent font.
 
@@ -25943,6 +26500,9 @@ public:
 		The path returned will be normalised to a font height of 1.0.
 	*/
 	virtual bool getOutlineForGlyph (int glyphNumber, Path& path) = 0;
+
+	/** Returns a new EdgeTable that contains the path for the givem glyph, with the specified transform applied. */
+	virtual EdgeTable* getEdgeTableForGlyph (int glyphNumber, const AffineTransform& transform) = 0;
 
 	/** Returns true if the typeface uses hinting. */
 	virtual bool isHinted() const			   { return false; }
@@ -26039,6 +26599,7 @@ public:
 	float getStringWidth (const String& text);
 	void getGlyphPositions (const String& text, Array <int>& glyphs, Array<float>& xOffsets);
 	bool getOutlineForGlyph (int glyphNumber, Path& path);
+	EdgeTable* getEdgeTableForGlyph (int glyphNumber, const AffineTransform& transform);
 	int getGlyphForCharacter (juce_wchar character);
 
 protected:
@@ -27692,8 +28253,8 @@ private:
 			: position (position_), colour (colour_)
 		{}
 
-		bool operator== (const ColourPoint& other) const throw()   { return position == other.position && colour == other.colour; }
-		bool operator!= (const ColourPoint& other) const throw()   { return position != other.position || colour != other.colour; }
+		bool operator== (const ColourPoint& other) const throw();
+		bool operator!= (const ColourPoint& other) const throw();
 
 		double position;
 		Colour colour;
@@ -29226,7 +29787,7 @@ public:
 	void setBottom (ValueType newBottomGap) throw()	 { bottom = newBottomGap; }
 
 	/** Changes the right gap. */
-	void setRight (ValueType newRightGap) throw()	{ right = newRightGap; }
+	void setRight (ValueType newRightGap) throw()	   { right = newRightGap; }
 
 	/** Returns a rectangle with these borders removed from it. */
 	const Rectangle<ValueType> subtractedFrom (const Rectangle<ValueType>& original) const throw()
@@ -30133,6 +30694,13 @@ public:
 		@see setBounds, RelativeRectangle::applyToComponent(), Expression
 	*/
 	void setBounds (const RelativeRectangle& newBounds);
+
+	/** Sets the component's bounds with an expression.
+		The string is parsed as a RelativeRectangle expression - see the notes for
+		Component::setBounds (const RelativeRectangle&) for more information. This method is
+		basically just a shortcut for writing setBounds (RelativeRectangle ("..."))
+	*/
+	void setBounds (const String& newBoundsExpression);
 
 	/** Changes the component's position and size in terms of fractions of its parent's size.
 
@@ -31755,6 +32323,13 @@ public:
 		/** Returns the component that this positioner controls. */
 		Component& getComponent() const throw()	 { return component; }
 
+		/** Attempts to set the component's position to the given rectangle.
+			Unlike simply calling Component::setBounds(), this may involve the positioner
+			being smart enough to adjust itself to fit the new bounds, e.g. a RelativeRectangle's
+			positioner may try to reverse the expressions used to make them fit these new coordinates.
+		*/
+		virtual void applyNewBounds (const Rectangle<int>& newBounds) = 0;
+
 	private:
 		Component& component;
 
@@ -33285,10 +33860,13 @@ private:
 
 	int getNumDisplayMonitors() const throw();
 	const Rectangle<int> getDisplayMonitorCoordinates (int index, bool clippedToWorkArea) const throw();
+	static void getCurrentMonitorPositions (Array <Rectangle<int> >& monitorCoords, const bool clipToWorkArea);
 
 	void addDesktopComponent (Component* c);
 	void removeDesktopComponent (Component* c);
 	void componentBroughtToFront (Component* c);
+
+	static void setKioskComponent (Component* kioskModeComponent, bool enableOrDisable, bool allowMenusAndBars);
 
 	void triggerFocusCallback();
 	void handleAsyncUpdate();
@@ -34074,8 +34652,8 @@ public:
 		inline void skip (int numSamples) throw()		   { data += numSamples; }
 		inline float getAsFloatLE() const throw()		   { return (float) ((1.0 / (1.0 + maxValue)) * (int16) ByteOrder::swapIfBigEndian (*data)); }
 		inline float getAsFloatBE() const throw()		   { return (float) ((1.0 / (1.0 + maxValue)) * (int16) ByteOrder::swapIfLittleEndian (*data)); }
-		inline void setAsFloatLE (float newValue) throw()	   { *data = ByteOrder::swapIfBigEndian ((uint16) jlimit ((int16) -maxValue, (int16) maxValue, (int16) roundToInt (newValue * (1.0 + maxValue)))); }
-		inline void setAsFloatBE (float newValue) throw()	   { *data = ByteOrder::swapIfLittleEndian ((uint16) jlimit ((int16) -maxValue, (int16) maxValue, (int16) roundToInt (newValue * (1.0 + maxValue)))); }
+		inline void setAsFloatLE (float newValue) throw()	   { *data = ByteOrder::swapIfBigEndian ((uint16) jlimit ((int) -maxValue, (int) maxValue, roundToInt (newValue * (1.0 + maxValue)))); }
+		inline void setAsFloatBE (float newValue) throw()	   { *data = ByteOrder::swapIfLittleEndian ((uint16) jlimit ((int) -maxValue, (int) maxValue, roundToInt (newValue * (1.0 + maxValue)))); }
 		inline int32 getAsInt32LE() const throw()		   { return (int32) (ByteOrder::swapIfBigEndian ((uint16) *data) << 16); }
 		inline int32 getAsInt32BE() const throw()		   { return (int32) (ByteOrder::swapIfLittleEndian ((uint16) *data) << 16); }
 		inline void setAsInt32LE (int32 newValue) throw()	   { *data = ByteOrder::swapIfBigEndian ((uint16) (newValue >> 16)); }
@@ -38167,6 +38745,8 @@ public:
 	static AudioIODeviceType* createAudioIODeviceType_ALSA();
 	/** Creates a JACK device type if it's available on this platform, or returns null. */
 	static AudioIODeviceType* createAudioIODeviceType_JACK();
+	/** Creates an Android device type if it's available on this platform, or returns null. */
+	static AudioIODeviceType* createAudioIODeviceType_Android();
 
 protected:
 	explicit AudioIODeviceType (const String& typeName);
@@ -38398,6 +38978,7 @@ public:
 
 		@param channel	  the midi channel, in the range 1 to 16
 		@param noteNumber   the key number, 0 to 127
+		@param velocity	 in the range 0 to 127
 		@see isNoteOff
 	*/
 	static const MidiMessage noteOff (int channel, int noteNumber, uint8 velocity = 0) throw();
@@ -39052,7 +39633,7 @@ private:
 class MidiInput;
 
 /**
-	Receives midi messages from a midi input device.
+	Receives incoming messages from a physical MIDI input device.
 
 	This class is overridden to handle incoming midi messages. See the MidiInput
 	class for more details.
@@ -39415,10 +39996,10 @@ private:
 /*** End of inlined file: juce_MidiBuffer.h ***/
 
 /**
-	Represents a midi output device.
+	Controls a physical MIDI output device.
 
-	To create one of these, use the static getDevices() method to find out what
-	outputs are available, then use the openDevice() method to try to open one.
+	To create one of these, use the static getDevices() method to get a list of the
+	available output devices, then use the openDevice() method to try to open one.
 
 	@see MidiInput
 */
@@ -39453,7 +40034,7 @@ public:
 	*/
 	static MidiOutput* openDevice (int deviceIndex);
 
-#if JUCE_LINUX || JUCE_MAC || DOXYGEN
+   #if JUCE_LINUX || JUCE_MAC || DOXYGEN
 	/** This will try to create a new midi output device (Not available on Windows).
 
 		This will attempt to create a new midi output device that other apps can connect
@@ -39464,7 +40045,7 @@ public:
 		@param deviceName   the name to use for the new device
 	*/
 	static MidiOutput* createNewDevice (const String& deviceName);
-#endif
+   #endif
 
 	/** Destructor. */
 	virtual ~MidiOutput();
@@ -39529,7 +40110,7 @@ protected:
 
 	struct PendingMessage
 	{
-		PendingMessage (const uint8* data, int len, double sampleNumber);
+		PendingMessage (const void* data, int len, double timeStamp);
 
 		MidiMessage message;
 		PendingMessage* next;
@@ -40516,18 +41097,21 @@ public:
 
 	/** Sets the component that this viewport will contain and scroll around.
 
-		This will add the given component to this Viewport and position it at
-		(0, 0).
+		This will add the given component to this Viewport and position it at (0, 0).
 
 		(Don't add or remove any child components directly using the normal
 		Component::addChildComponent() methods).
 
-		@param newViewedComponent	   the component to add to this viewport (this pointer
-										may be null). The component passed in will be deleted
-										by the Viewport when it's no longer needed
+		@param newViewedComponent   the component to add to this viewport, or null to remove
+									the current component.
+		@param deleteComponentWhenNoLongerNeeded	if true, the component will be deleted
+									automatically when the viewport is deleted or when a different
+									component is added. If false, the caller must manage the lifetime
+									of the component
 		@see getViewedComponent
 	*/
-	void setViewedComponent (Component* newViewedComponent);
+	void setViewedComponent (Component* newViewedComponent,
+							 bool deleteComponentWhenNoLongerNeeded = true);
 
 	/** Returns the component that's currently being used inside the Viewport.
 
@@ -40706,7 +41290,7 @@ private:
 	Rectangle<int> lastVisibleArea;
 	int scrollBarThickness;
 	int singleStepX, singleStepY;
-	bool showHScrollbar, showVScrollbar;
+	bool showHScrollbar, showVScrollbar, deleteContent;
 	Component contentHolder;
 	ScrollBar verticalScrollBar;
 	ScrollBar horizontalScrollBar;
@@ -41135,9 +41719,9 @@ public:
 		*/
 		bool isItemHighlighted() const throw()		  { return isHighlighted; }
 
-		/** @internal. */
+		/** @internal */
 		bool isTriggeredAutomatically() const throw()	   { return triggeredAutomatically; }
-		/** @internal. */
+		/** @internal */
 		void setHighlighted (bool shouldBeHighlighted);
 
 	private:
@@ -41190,8 +41774,9 @@ private:
 #ifndef __JUCE_TEXTINPUTTARGET_JUCEHEADER__
 #define __JUCE_TEXTINPUTTARGET_JUCEHEADER__
 
-/** An abstract base class that is implemented by components that wish to be used
-	as text editors.
+/**
+	An abstract base class which can be implemented by components that function as
+	text editors.
 
 	This class allows different types of text editor component to provide a uniform
 	interface, which can be used by things like OS-specific input methods, on-screen
@@ -41217,20 +41802,81 @@ public:
 	*/
 	virtual const Range<int> getHighlightedRegion() const = 0;
 
-	/** Sets the currently-selected text region.
-	*/
+	/** Sets the currently-selected text region. */
 	virtual void setHighlightedRegion (const Range<int>& newRange) = 0;
 
-	/** Returns a specified sub-section of the text.
+	/** Sets a number of temporarily underlined sections.
+		This is needed by MS Windows input method UI.
 	*/
+	virtual void setTemporaryUnderlining (const Array <Range<int> >& underlinedRegions) = 0;
+
+	/** Returns a specified sub-section of the text. */
 	virtual const String getTextInRange (const Range<int>& range) const = 0;
 
 	/** Inserts some text, overwriting the selected text region, if there is one. */
 	virtual void insertTextAtCaret (const String& textToInsert) = 0;
+
+	/** Returns the position of the caret, relative to the component's origin. */
+	virtual const Rectangle<int> getCaretRectangle() = 0;
 };
 
 #endif   // __JUCE_TEXTINPUTTARGET_JUCEHEADER__
 /*** End of inlined file: juce_TextInputTarget.h ***/
+
+
+/*** Start of inlined file: juce_CaretComponent.h ***/
+#ifndef __JUCE_CARETCOMPONENT_JUCEHEADER__
+#define __JUCE_CARETCOMPONENT_JUCEHEADER__
+
+/**
+*/
+class JUCE_API  CaretComponent   : public Component,
+								   public Timer
+{
+public:
+
+	/** Creates the caret component.
+		The keyFocusOwner is an optional component which the caret will check, making
+		itself visible only when the keyFocusOwner has keyboard focus.
+	*/
+	CaretComponent (Component* keyFocusOwner);
+
+	/** Destructor. */
+	~CaretComponent();
+
+	/** Sets the caret's position to place it next to the given character.
+		The area is the rectangle containing the entire character that the caret is
+		positioned on, so by default a vertical-line caret may choose to just show itself
+		at the left of this area. You can override this method to customise its size.
+		This method will also force the caret to reset its timer and become visible (if
+		appropriate), so that as it moves, you can see where it is.
+	*/
+	virtual void setCaretPosition (const Rectangle<int>& characterArea);
+
+	/** A set of colour IDs to use to change the colour of various aspects of the caret.
+		These constants can be used either via the Component::setColour(), or LookAndFeel::setColour()
+		methods.
+		@see Component::setColour, Component::findColour, LookAndFeel::setColour, LookAndFeel::findColour
+	*/
+	enum ColourIds
+	{
+		caretColourId	= 0x1000204, /**< The colour with which to draw the caret. */
+	};
+
+	/** @internal */
+	void paint (Graphics& g);
+	/** @internal */
+	void timerCallback();
+
+private:
+	Component* owner;
+	bool shouldBeShown() const;
+
+	JUCE_DECLARE_NON_COPYABLE (CaretComponent);
+};
+
+#endif   // __JUCE_CARETCOMPONENT_JUCEHEADER__
+/*** End of inlined file: juce_CaretComponent.h ***/
 
 /**
 	A component containing text that can be edited.
@@ -41323,9 +41969,7 @@ public:
 	bool isReadOnly() const;
 
 	/** Makes the caret visible or invisible.
-
 		By default the caret is visible.
-
 		@see setCaretColour, setCaretPosition
 	*/
 	void setCaretVisible (bool shouldBeVisible);
@@ -41333,7 +41977,7 @@ public:
 	/** Returns true if the caret is enabled.
 		@see setCaretVisible
 	*/
-	bool isCaretVisible() const				 { return caretVisible; }
+	bool isCaretVisible() const				 { return caret != 0; }
 
 	/** Enables/disables a vertical scrollbar.
 
@@ -41406,8 +42050,6 @@ public:
 												   highlighting.*/
 
 		highlightedTextColourId  = 0x1000203, /**< The colour with which to draw the text in highlighted sections. */
-
-		caretColourId		= 0x1000204, /**< The colour with which to draw the caret. */
 
 		outlineColourId	  = 0x1000205, /**< If this is non-transparent, it will be used to draw a box around
 												   the edge of the component. */
@@ -41553,7 +42195,7 @@ public:
 	*/
 	Value& getTextValue();
 
-	/** Inserts some text at the current cursor position.
+	/** Inserts some text at the current caret position.
 
 		If a section of the text is highlighted, it will be replaced by
 		this string, otherwise it will be inserted.
@@ -41568,20 +42210,18 @@ public:
 	/** Deletes all the text from the editor. */
 	void clear();
 
-	/** Deletes the currently selected region, and puts it on the clipboard.
-
+	/** Deletes the currently selected region.
+		This doesn't copy the deleted section to the clipboard - if you need to do that, call copy() first.
 		@see copy, paste, SystemClipboard
 	*/
 	void cut();
 
-	/** Copies any currently selected region to the clipboard.
-
+	/** Copies the currently selected region to the clipboard.
 		@see cut, paste, SystemClipboard
 	*/
 	void copy();
 
-	/** Pastes the contents of the clipboard into the editor at the cursor position.
-
+	/** Pastes the contents of the clipboard into the editor at the caret position.
 		@see cut, copy, SystemClipboard
 	*/
 	void paste();
@@ -41675,12 +42315,12 @@ public:
 	*/
 	const BorderSize<int> getBorder() const;
 
-	/** Used to disable the auto-scrolling which keeps the cursor visible.
+	/** Used to disable the auto-scrolling which keeps the caret visible.
 
-		If true (the default), the editor will scroll when the cursor moves offscreen. If
+		If true (the default), the editor will scroll when the caret moves offscreen. If
 		set to false, it won't.
 	*/
-	void setScrollToShowCursor (bool shouldScrollToShowCursor);
+	void setScrollToShowCursor (bool shouldScrollToShowCaret);
 
 	/** @internal */
 	void paint (Graphics& g);
@@ -41711,7 +42351,11 @@ public:
 	/** @internal */
 	void colourChanged();
 	/** @internal */
+	void lookAndFeelChanged();
+	/** @internal */
 	bool isTextInputActive() const;
+	/** @internal */
+	void setTemporaryUnderlining (const Array <Range<int> >&);
 
 	/** This adds the items to the popup menu.
 
@@ -41759,13 +42403,12 @@ protected:
 	void moveCaret (int newCaretPos);
 
 	/** @internal */
-	void moveCursorTo (int newPosition, bool isSelecting);
+	void moveCaretTo (int newPosition, bool isSelecting);
 
 	/** Used internally to dispatch a text-change message. */
 	void textChanged();
 
-	/** Begins a new transaction in the UndoManager.
-	*/
+	/** Begins a new transaction in the UndoManager. */
 	void newTransaction();
 
 	/** Used internally to trigger an undo or redo. */
@@ -41798,19 +42441,17 @@ private:
 	bool multiline		  : 1;
 	bool wordWrap		   : 1;
 	bool returnKeyStartsNewLine	 : 1;
-	bool caretVisible		   : 1;
 	bool popupMenuEnabled	   : 1;
 	bool selectAllTextWhenFocused   : 1;
 	bool scrollbarVisible	   : 1;
 	bool wasFocused		 : 1;
-	bool caretFlashState		: 1;
-	bool keepCursorOnScreen	 : 1;
+	bool keepCaretOnScreen	  : 1;
 	bool tabKeyUsed		 : 1;
 	bool menuActive		 : 1;
 	bool valueTextNeedsUpdating	 : 1;
 
 	UndoManager undoManager;
-	float cursorX, cursorY, cursorHeight;
+	ScopedPointer<CaretComponent> caret;
 	int maxTextLength;
 	Range<int> selection;
 	int leftIndent, topIndent;
@@ -41833,6 +42474,7 @@ private:
 
 	String allowedCharacters;
 	ListenerList <Listener> listeners;
+	Array <Range<int> > underlinedSections;
 
 	void coalesceSimilarSections();
 	void splitSection (int sectionIndex, int charToSplitAt);
@@ -41854,7 +42496,6 @@ private:
 	void updateTextHolderSize();
 	float getWordWrapWidth() const;
 	void timerCallbackInt();
-	void repaintCaret();
 	void repaintText (const Range<int>& range);
 	UndoManager* getUndoManager() throw();
 
@@ -42827,8 +43468,7 @@ public:
 
 		@see addMidiInputCallback, isMidiInputEnabled
 	*/
-	void setMidiInputEnabled (const String& midiInputDeviceName,
-							  bool enabled);
+	void setMidiInputEnabled (const String& midiInputDeviceName, bool enabled);
 
 	/** Returns true if a given midi input device is being used.
 
@@ -42972,33 +43612,22 @@ private:
 							 public MidiInputCallback
 	{
 	public:
-		AudioDeviceManager* owner;
-
-		void audioDeviceIOCallback (const float** inputChannelData,
-									int totalNumInputChannels,
-									float** outputChannelData,
-									int totalNumOutputChannels,
-									int numSamples);
-
+		void audioDeviceIOCallback (const float**, int, float**, int, int);
 		void audioDeviceAboutToStart (AudioIODevice*);
-
 		void audioDeviceStopped();
+		void handleIncomingMidiMessage (MidiInput*, const MidiMessage&);
 
-		void handleIncomingMidiMessage (MidiInput* source, const MidiMessage& message);
+		AudioDeviceManager* owner;
 	};
 
 	CallbackHandler callbackHandler;
 	friend class CallbackHandler;
 
-	void audioDeviceIOCallbackInt (const float** inputChannelData,
-								   int totalNumInputChannels,
-								   float** outputChannelData,
-								   int totalNumOutputChannels,
-								   int numSamples);
-	void audioDeviceAboutToStartInt (AudioIODevice* device);
+	void audioDeviceIOCallbackInt (const float** inputChannelData, int totalNumInputChannels,
+								   float** outputChannelData, int totalNumOutputChannels, int numSamples);
+	void audioDeviceAboutToStartInt (AudioIODevice*);
 	void audioDeviceStoppedInt();
-
-	void handleIncomingMidiMessageInt (MidiInput* source, const MidiMessage& message);
+	void handleIncomingMidiMessageInt (MidiInput*, const MidiMessage&);
 
 	const String restartDevice (int blockSizeToUse, double sampleRateToUse,
 								const BigInteger& ins, const BigInteger& outs);
@@ -43027,12 +43656,6 @@ private:
 
 #endif
 #ifndef __JUCE_AUDIOIODEVICETYPE_JUCEHEADER__
-
-#endif
-#ifndef __JUCE_MIDIINPUT_JUCEHEADER__
-
-#endif
-#ifndef __JUCE_MIDIOUTPUT_JUCEHEADER__
 
 #endif
 #ifndef __JUCE_AUDIODATACONVERTERS_JUCEHEADER__
@@ -43077,7 +43700,7 @@ public:
 	static Type gainToDecibels (const Type gain,
 								const Type minusInfinityDb = (Type) defaultMinusInfinitydB)
 	{
-		return gain > Type() ? jmax (minusInfinityDb, (Type) std::log (gain) * (Type) 20.0)
+		return gain > Type() ? jmax (minusInfinityDb, (Type) std::log10 (gain) * (Type) 20.0)
 							 : minusInfinityDb;
 	}
 
@@ -43536,6 +44159,9 @@ private:
 
 
 #endif
+#ifndef __JUCE_MIDIINPUT_JUCEHEADER__
+
+#endif
 #ifndef __JUCE_MIDIKEYBOARDSTATE_JUCEHEADER__
 
 /*** Start of inlined file: juce_MidiKeyboardState.h ***/
@@ -43800,6 +44426,9 @@ private:
 
 #endif
 #ifndef __JUCE_MIDIMESSAGESEQUENCE_JUCEHEADER__
+
+#endif
+#ifndef __JUCE_MIDIOUTPUT_JUCEHEADER__
 
 #endif
 #ifndef __JUCE_AUDIOUNITPLUGINFORMAT_JUCEHEADER__
@@ -47941,16 +48570,16 @@ private:
 	bool quitMessagePosted, quitMessageReceived;
 	Thread::ThreadID messageThreadId;
 
-	static void* exitModalLoopCallback (void*);
-
-	void postMessageToQueue (Message* message);
-
-	static void doPlatformSpecificInitialisation();
-	static void doPlatformSpecificShutdown();
-
 	friend class MessageManagerLock;
 	Thread::ThreadID volatile threadWithLock;
 	CriticalSection lockingLock;
+
+	void postMessageToQueue (Message* message);
+	static bool postMessageToSystemQueue (Message*);
+	static void* exitModalLoopCallback (void*);
+	static void doPlatformSpecificInitialisation();
+	static void doPlatformSpecificShutdown();
+	static bool dispatchNextMessageOnSystemQueue (bool returnIfNoPendingMessages);
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MessageManager);
 };
@@ -49124,6 +49753,11 @@ protected:
 		{
 			ComponentScope scope (getComponent());
 			owner.recalculateCoordinates (&scope);
+		}
+
+		void applyNewBounds (const Rectangle<int>&)
+		{
+			jassertfalse; // drawables can't be resized directly!
 		}
 
 	private:
@@ -50806,7 +51440,7 @@ public:
 
 	private:
 		CodeDocument* document;
-		CodeDocumentLine* currentLine;
+		mutable String::CharPointerType charPointer;
 		int line, position;
 	};
 
@@ -50947,6 +51581,9 @@ public:
 	/** Returns the current caret position. */
 	const CodeDocument::Position getCaretPos() const		{ return caretPos; }
 
+	/** Returns the position of the caret, relative to the editor's origin. */
+	const Rectangle<int> getCaretRectangle();
+
 	/** Moves the caret.
 		If selecting is true, the section of the document between the current
 		caret position and the new one will become selected. If false, any currently
@@ -51057,7 +51694,6 @@ public:
 	enum ColourIds
 	{
 		backgroundColourId	  = 0x1004500,  /**< A colour to use to fill the editor's background. */
-		caretColourId		   = 0x1004501,  /**< The colour to draw the caret. */
 		highlightColourId	   = 0x1004502,  /**< The colour to use for the highlighted background under
 													   selected text. */
 		defaultTextColourId	 = 0x1004503   /**< The colour to use for text when no syntax colouring is
@@ -51101,6 +51737,8 @@ public:
 							  const CodeDocument::Position& affectedTextEnd);
 	/** @internal */
 	bool isTextInputActive() const;
+	/** @internal */
+	void setTemporaryUnderlining (const Array <Range<int> >&);
 
 private:
 
@@ -51117,8 +51755,6 @@ private:
 	CodeDocument::Position caretPos;
 	CodeDocument::Position selectionStart, selectionEnd;
 
-	class CaretComponent;
-	friend class ScopedPointer <CaretComponent>;
 	ScopedPointer<CaretComponent> caret;
 	ScrollBar verticalScrollBar, horizontalScrollBar;
 
@@ -51144,6 +51780,7 @@ private:
 	void getIteratorForPosition (int position, CodeDocument::Iterator& result);
 	void moveLineDelta (int delta, bool selecting);
 
+	void updateCaretPosition();
 	void updateScrollBars();
 	void scrollToLineInternal (int line);
 	void scrollToColumnInternal (double column);
@@ -52112,7 +52749,11 @@ private:
 	bool scrollWheelEnabled : 1, snapsToMousePos : 1;
 	ScopedPointer<Label> valueBox;
 	ScopedPointer<Button> incButton, decButton;
-	ScopedPointer <Component> popupDisplay;
+
+	class PopupDisplayComponent;
+	friend class PopupDisplayComponent;
+	friend class ScopedPointer <PopupDisplayComponent>;
+	ScopedPointer <PopupDisplayComponent> popupDisplay;
 	Component* parentForPopupDisplay;
 
 	float getLinearSliderPos (double value);
@@ -55072,7 +55713,7 @@ private:
 #define __JUCE_RESIZABLEBORDERCOMPONENT_JUCEHEADER__
 
 /**
-	A component that resizes its parent window when dragged.
+	A component that resizes its parent component when dragged.
 
 	This component forms a frame around the edge of a component, allowing it to
 	be dragged by the edges or corners to resize it - like the way windows are
@@ -55240,7 +55881,7 @@ private:
 #ifndef __JUCE_RESIZABLECORNERCOMPONENT_JUCEHEADER__
 #define __JUCE_RESIZABLECORNERCOMPONENT_JUCEHEADER__
 
-/** A component that resizes a parent window when dragged.
+/** A component that resizes a parent component when dragged.
 
 	This is the small triangular stripey resizer component you get in the bottom-right
 	of windows (more commonly on the Mac than Windows). Put one in the corner of
@@ -57127,6 +57768,9 @@ private:
 #ifndef __JUCE_MODALCOMPONENTMANAGER_JUCEHEADER__
 
 #endif
+#ifndef __JUCE_CARETCOMPONENT_JUCEHEADER__
+
+#endif
 #ifndef __JUCE_KEYBOARDFOCUSTRAVERSER_JUCEHEADER__
 
 #endif
@@ -58786,6 +59430,85 @@ private:
 #ifndef __JUCE_RESIZABLECORNERCOMPONENT_JUCEHEADER__
 
 #endif
+#ifndef __JUCE_RESIZABLEEDGECOMPONENT_JUCEHEADER__
+
+/*** Start of inlined file: juce_ResizableEdgeComponent.h ***/
+#ifndef __JUCE_RESIZABLEEDGECOMPONENT_JUCEHEADER__
+#define __JUCE_RESIZABLEEDGECOMPONENT_JUCEHEADER__
+
+/**
+	A component that resizes its parent component when dragged.
+
+	This component forms a bar along one edge of a component, allowing it to
+	be dragged by that edges to resize it.
+
+	To use it, just add it to your component, positioning it along the appropriate
+	edge. Make sure you reposition the resizer component each time the parent's size
+	changes, to keep it in the correct position.
+
+	@see ResizbleBorderComponent, ResizableCornerComponent
+*/
+class JUCE_API  ResizableEdgeComponent  : public Component
+{
+public:
+
+	enum Edge
+	{
+		leftEdge,   /**< Indicates a vertical bar that can be dragged left/right to move the component's left-hand edge. */
+		rightEdge,  /**< Indicates a vertical bar that can be dragged left/right to move the component's right-hand edge. */
+		topEdge,	/**< Indicates a horizontal bar that can be dragged up/down to move the top of the component. */
+		bottomEdge  /**< Indicates a horizontal bar that can be dragged up/down to move the bottom of the component. */
+	};
+
+	/** Creates a resizer bar.
+
+		Pass in the target component which you want to be resized when this one is
+		dragged. The target component will usually be this component's parent, but this
+		isn't mandatory.
+
+		Remember that when the target component is resized, it'll need to move and
+		resize this component to keep it in place, as this won't happen automatically.
+
+		If the constrainer parameter is non-zero, then this object will be used to enforce
+		limits on the size and position that the component can be stretched to. Make sure
+		that the constrainer isn't deleted while still in use by this object.
+
+		@see ComponentBoundsConstrainer
+	*/
+	ResizableEdgeComponent (Component* componentToResize,
+							ComponentBoundsConstrainer* constrainer,
+							Edge edgeToResize);
+
+	/** Destructor. */
+	~ResizableEdgeComponent();
+
+	bool isVertical() const throw();
+
+protected:
+
+	/** @internal */
+	void paint (Graphics& g);
+	/** @internal */
+	void mouseDown (const MouseEvent& e);
+	/** @internal */
+	void mouseDrag (const MouseEvent& e);
+	/** @internal */
+	void mouseUp (const MouseEvent& e);
+
+private:
+	WeakReference<Component> component;
+	ComponentBoundsConstrainer* constrainer;
+	Rectangle<int> originalBounds;
+	const Edge edge;
+
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ResizableEdgeComponent);
+};
+
+#endif   // __JUCE_RESIZABLEEDGECOMPONENT_JUCEHEADER__
+/*** End of inlined file: juce_ResizableEdgeComponent.h ***/
+
+
+#endif
 #ifndef __JUCE_SCROLLBAR_JUCEHEADER__
 
 #endif
@@ -59215,6 +59938,7 @@ class FilePreviewComponent;
 class ImageButton;
 class CallOutBox;
 class Drawable;
+class CaretComponent;
 
 /**
 	LookAndFeel objects define the appearance of all the JUCE widgets, and subclasses
@@ -59435,6 +60159,8 @@ public:
 
 	virtual void fillTextEditorBackground (Graphics& g, int width, int height, TextEditor& textEditor);
 	virtual void drawTextEditorOutline (Graphics& g, int width, int height, TextEditor& textEditor);
+
+	virtual CaretComponent* createCaretComponent (Component* keyFocusOwner);
 
 	// These return a pointer to an internally cached drawable - make sure you don't keep
 	// a copy of this pointer anywhere, as it may become invalid in the future.
@@ -59724,7 +60450,7 @@ public:
 
 	virtual const Rectangle<int> getPropertyComponentContentPosition (PropertyComponent& component);
 
-	void drawCallOutBoxBackground (CallOutBox& box, Graphics& g, const Path& path);
+	virtual void drawCallOutBoxBackground (CallOutBox& box, Graphics& g, const Path& path);
 
 	virtual void drawLevelMeter (Graphics& g, int width, int height, float level);
 
@@ -63347,7 +64073,6 @@ private:
 	Image background;
 
 	void refreshPath();
-	void drawCallOutBoxBackground (Graphics& g, const Path& outline, int width, int height);
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (CallOutBox);
 };
@@ -63366,11 +64091,13 @@ private:
 class ComponentBoundsConstrainer;
 
 /**
-	The base class for window objects that wrap a component as a real operating
-	system object.
+	The Component class uses a ComponentPeer internally to create and manage a real
+	operating-system window.
 
-	This is an abstract base class - the platform specific code contains default
-	implementations of it that create and manage windows.
+	This is an abstract base class - the platform specific code contains implementations of
+	it for the various platforms.
+
+	User-code should very rarely need to have any involvement with this class.
 
 	@see Component::createNewPeer
 */
@@ -63573,13 +64300,6 @@ public:
 	/** Tries to give the window keyboard focus. */
 	virtual void grabFocus() = 0;
 
-	/** Tells the window that text input may be required at the given position.
-
-		This may cause things like a virtual on-screen keyboard to appear, depending
-		on the OS.
-	*/
-	virtual void textInputRequired (const Point<int>& position) = 0;
-
 	/** Called when the window gains keyboard focus. */
 	void handleFocusGain();
 	/** Called when the window loses keyboard focus. */
@@ -63601,6 +64321,15 @@ public:
 
 	/** Called whenever a modifier key is pressed or released. */
 	void handleModifierKeysChange();
+
+	/** Tells the window that text input may be required at the given position.
+		This may cause things like a virtual on-screen keyboard to appear, depending
+		on the OS.
+	*/
+	virtual void textInputRequired (const Point<int>& position) = 0;
+
+	/** If there's some kind of OS input-method in progress, this should dismiss it. */
+	virtual void dismissPendingTextInput();
 
 	/** Returns the currently focused TextInputTarget, or null if none is found. */
 	TextInputTarget* findCurrentTextInputTarget();
@@ -63667,7 +64396,7 @@ public:
 	static bool isValidPeer (const ComponentPeer* peer) throw();
 
 	virtual const StringArray getAvailableRenderingEngines();
-	virtual int getCurrentRenderingEngine() throw();
+	virtual int getCurrentRenderingEngine() const;
 	virtual void setCurrentRenderingEngine (int index);
 
 protected:
@@ -63829,7 +64558,7 @@ public:
 		@param useBottomRightCornerResizer	 if shouldBeResizable is true, this indicates whether
 									to use a border or corner resizer component. See ResizableWindow::setResizable()
 	*/
-   #if JUCE_MODAL_LOOPS_PERMITTED
+   #if JUCE_MODAL_LOOPS_PERMITTED || DOXYGEN
 	static int showModalDialog (const String& dialogTitle,
 								Component* contentComponent,
 								Component* componentToCentreAround,
@@ -64168,16 +64897,13 @@ public:
 			   const Path& pathToAdd,
 			   const AffineTransform& transform);
 
-	/** Creates an edge table containing a rectangle.
-	*/
+	/** Creates an edge table containing a rectangle. */
 	EdgeTable (const Rectangle<int>& rectangleToAdd);
 
-	/** Creates an edge table containing a rectangle list.
-	*/
+	/** Creates an edge table containing a rectangle list. */
 	EdgeTable (const RectangleList& rectanglesToAdd);
 
-	/** Creates an edge table containing a rectangle.
-	*/
+	/** Creates an edge table containing a rectangle. */
 	EdgeTable (const Rectangle<float>& rectangleToAdd);
 
 	/** Creates a copy of another edge table. */
@@ -64341,6 +65067,7 @@ private:
 class JUCE_API  FillType
 {
 public:
+
 	/** Creates a default fill type, of solid black. */
 	FillType() throw();
 
@@ -64404,9 +65131,6 @@ public:
 	/** Returns true if this fill type is completely transparent. */
 	bool isInvisible() const throw();
 
-	bool operator== (const FillType& other) const;
-	bool operator!= (const FillType& other) const;
-
 	/** The solid colour being used.
 
 		If the fill type is not a solid colour, the alpha channel of this colour indicates
@@ -64427,9 +65151,11 @@ public:
 	*/
 	Image image;
 
-	/** The transform that should be applied to the image or gradient that's being drawn.
-	*/
+	/** The transform that should be applied to the image or gradient that's being drawn. */
 	AffineTransform transform;
+
+	bool operator== (const FillType& other) const;
+	bool operator!= (const FillType& other) const;
 
 private:
 	JUCE_LEAK_DETECTOR (FillType);
@@ -64904,7 +65630,7 @@ public:
 	/** @internal */
 	void paint (Graphics& g);
 	/** @internal */
-	bool hitTest (int x, int y) const;
+	bool hitTest (int x, int y);
 	/** @internal */
 	Drawable* createCopy() const;
 	/** @internal */
@@ -65588,8 +66314,7 @@ public:
 	int subPathIndex;
 
 	/** Returns true if the current segment is the last in the current sub-path. */
-	bool isLastInSubpath() const throw()	{ return stackPos == stackBase.getData()
-														   && (index >= path.numElements || points [index] == Path::moveMarker); }
+	bool isLastInSubpath() const throw();
 
 	/** This is the default value that should be used for the tolerance value (see the constructor parameters). */
 	static const float defaultTolerance;
@@ -66462,6 +67187,9 @@ public:
 	*/
 	void addFile (const File& file);
 
+	/** Removes a file from the list. */
+	void removeFile (const File& file);
+
 	/** Checks each of the files in the list, removing any that don't exist.
 
 		You might want to call this after reloading a list of files, or before putting them
@@ -66912,6 +67640,7 @@ END_JUCE_NAMESPACE
 #pragma comment(lib, "ws2_32.lib")
 #pragma comment(lib, "version.lib")
 #pragma comment(lib, "shlwapi.lib")
+#pragma comment(lib, "imm32.lib")
 
 #ifdef _NATIVE_WCHAR_T_DEFINED
  #ifdef _DEBUG

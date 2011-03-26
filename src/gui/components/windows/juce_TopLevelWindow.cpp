@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -288,7 +288,7 @@ void TopLevelWindow::centreAroundComponent (Component* c, const int width, const
     if (c == 0)
         c = TopLevelWindow::getActiveTopLevelWindow();
 
-    if (c == 0)
+    if (c == 0 || c->getBounds().isEmpty())
     {
         centreWithSize (width, height);
     }

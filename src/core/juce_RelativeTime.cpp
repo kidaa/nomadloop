@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -68,7 +68,7 @@ const String RelativeTime::getDescription (const String& returnValueForZeroTime)
         return returnValueForZeroTime;
 
     String result;
-    result.preallocateStorage (16);
+    result.preallocateBytes (32);
 
     if (seconds < 0)
         result << '-';

@@ -2,7 +2,7 @@
   ==============================================================================
 
    This file is part of the JUCE library - "Jules' Utility Class Extensions"
-   Copyright 2004-10 by Raw Material Software Ltd.
+   Copyright 2004-11 by Raw Material Software Ltd.
 
   ------------------------------------------------------------------------------
 
@@ -26,7 +26,7 @@
 #ifndef __JUCE_MIDIMESSAGECOLLECTOR_JUCEHEADER__
 #define __JUCE_MIDIMESSAGECOLLECTOR_JUCEHEADER__
 
-#include "../devices/juce_MidiInput.h"
+#include "juce_MidiInput.h"
 #include "juce_MidiKeyboardState.h"
 
 //==============================================================================
