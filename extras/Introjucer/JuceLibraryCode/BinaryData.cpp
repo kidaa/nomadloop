@@ -1,6 +1,6 @@
 /* ==================================== JUCER_BINARY_RESOURCE ====================================
 
-   This is an auto-generated file, created by The Jucer V3.0.0
+   This is an auto-generated file, created by The Introjucer 3.0.0
    Do not edit anything in this file!
 
 */
@@ -653,11 +653,6 @@ static const unsigned char temp_794304c3[] =
 "//==============================================================================\r\n"
 "int main (int argc, char* argv[])\r\n"
 "{\r\n"
-"    // This object makes sure that Juce is initialised and shut down correctly\r\n"
-"    // for the scope of this function call. Make sure this declaration is the\r\n"
-"    // first statement of this function.\r\n"
-"    const ScopedJuceInitialiser_NonGUI juceSystemInitialiser;\r\n"
-"\r\n"
 "\r\n"
 "    // ..your code goes here!\r\n"
 "\r\n"

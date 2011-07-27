@@ -28,7 +28,6 @@
 
 #include "juce_WaitableEvent.h"
 #include "juce_CriticalSection.h"
-#include "../containers/juce_Array.h"
 
 
 //==============================================================================
@@ -249,13 +248,18 @@ public:
 
         @see getCurrentThreadId
     */
-    ThreadID getThreadId() const throw()                            { return threadId_; }
+    ThreadID getThreadId() const noexcept                           { return threadId_; }
 
     /** Returns the name of the thread.
 
         This is the name that gets set in the constructor.
     */
-    const String getThreadName() const                              { return threadName_; }
+    const String& getThreadName() const                             { return threadName_; }
+
+    /** Changes the name of the caller thread.
+        Different OSes may place different length or content limits on this name.
+    */
+    static void setCurrentThreadName (const String& newThreadName);
 
     //==============================================================================
     /** Returns the number of currently-running threads.
@@ -292,7 +296,6 @@ private:
     void closeThreadHandle();
     void killThread();
     void threadEntryPoint();
-    static void setCurrentThreadName (const String& name);
     static bool setThreadPriority (void* handle, int priority);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Thread);

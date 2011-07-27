@@ -43,9 +43,8 @@ GroupTreeViewItem::~GroupTreeViewItem()
 
 void GroupTreeViewItem::addNewGroup()
 {
-    Project::Item group (item.getProject().createNewGroup());
-    item.addChild (group, 0);
-    triggerAsyncRename (group);
+    Project::Item newGroup (item.addNewSubGroup ("New Group", 0));
+    triggerAsyncRename (newGroup);
 }
 
 bool GroupTreeViewItem::acceptsDragItems (const OwnedArray <Project::Item>& selectedNodes)
@@ -79,7 +78,7 @@ void GroupTreeViewItem::checkFileStatus()
     {
         ProjectTreeViewBase* p = dynamic_cast <ProjectTreeViewBase*> (getSubItem(i));
 
-        if (p != 0)
+        if (p != nullptr)
             p->checkFileStatus();
     }
 }
@@ -100,7 +99,7 @@ void GroupTreeViewItem::showDocument()
 {
     ProjectContentComponent* pcc = getProjectContentComponent();
 
-    if (pcc != 0)
+    if (pcc != nullptr)
     {
         if (isRoot())
             pcc->setEditorComponent (new ProjectInformationComponent (item.getProject()), 0);
@@ -164,12 +163,12 @@ SourceFileTreeViewItem::~SourceFileTreeViewItem()
 {
 }
 
-const String SourceFileTreeViewItem::getDisplayName() const
+String SourceFileTreeViewItem::getDisplayName() const
 {
     return getFile().getFileName();
 }
 
-static const File findCorrespondingHeaderOrCpp (const File& f)
+static File findCorrespondingHeaderOrCpp (const File& f)
 {
     if (f.hasFileExtension (sourceFileExtensions))
         return f.withFileExtension (".h");
@@ -237,7 +236,7 @@ void SourceFileTreeViewItem::showDocument()
     ProjectContentComponent* pcc = getProjectContentComponent();
     const File f (getFile());
 
-    if (pcc != 0 && f.exists())
+    if (pcc != nullptr && f.exists())
         pcc->showEditorForFile (f);
 }
 
@@ -247,7 +246,7 @@ void SourceFileTreeViewItem::showPopupMenu()
 
     PopupMenu m;
 
-    if (parentGroup != 0)
+    if (parentGroup != nullptr)
     {
         parentGroup->addCreateFileMenuItems (m);
         m.addSeparator();
@@ -274,7 +273,7 @@ void SourceFileTreeViewItem::showPopupMenu()
         case 4:     triggerAsyncRename (item); break;
 
         default:
-            if (parentGroup != 0)
+            if (parentGroup != nullptr)
                 parentGroup->processCreateFileMenuItem (res);
 
             break;

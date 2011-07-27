@@ -50,12 +50,6 @@ public:
         if (getTargetLocation().toString().isEmpty())
             getTargetLocation() = getDefaultBuildsRootFolder() + (iPhone ? "iOS" : "MacOSX");
 
-        if (getVSTFolder().toString().isEmpty())
-            getVSTFolder() = "~/SDKs/vstsdk2.4";
-
-        if (getRTASFolder().toString().isEmpty())
-            getRTASFolder() = "~/SDKs/PT_80_SDK";
-
         if (getSettings() ["objCExtraSuffix"].isVoid())
             getObjCSuffix() = createAlphaNumericUID();
     }
@@ -73,17 +67,27 @@ public:
     //==============================================================================
     Value getObjCSuffix()       { return getSetting ("objCExtraSuffix"); }
 
-    bool isDefaultFormatForCurrentOS()
+    int getLaunchPreferenceOrderForCurrentOS()
     {
-      #if JUCE_MAC
-        return ! iPhone;
-      #else
-        return false;
-      #endif
+       #if JUCE_MAC
+        return iPhone ? 1 : 2;
+       #else
+        return 0;
+       #endif
     }
 
-    bool isPossibleForCurrentProject()      { return project.isGUIApplication() || ! iPhone; }
+    bool isAvailableOnCurrentOS()
+    {
+       #if JUCE_MAC
+        return true;
+       #else
+        return false;
+       #endif
+    }
+
+    bool isPossibleForCurrentProject()      { return projectType.isGUIApplication() || ! iPhone; }
     bool usesMMFiles() const                { return true; }
+    bool isXcode() const                    { return true; }
 
     void createPropertyEditors (Array <PropertyComponent*>& props)
     {
@@ -93,7 +97,7 @@ public:
         props.getLast()->setTooltip ("Because objective-C linkage is done by string-matching, you can get horrible linkage mix-ups when different modules containing the "
                                      "same class-names are loaded simultaneously. This setting lets you provide a unique string that will be used in naming the obj-C classes in your executable to avoid this.");
 
-        if (project.isGUIApplication() && ! iPhone)
+        if (projectType.isGUIApplication() && ! iPhone)
         {
             props.add (new TextPropertyComponent (getSetting ("documentExtensions"), "Document file extensions", 128, false));
             props.getLast()->setTooltip ("A comma-separated list of file extensions for documents that your app can open.");
@@ -137,14 +141,14 @@ public:
     }
 
 private:
-    OwnedArray<ValueTree> pbxBuildFiles, pbxFileReferences, groups, misc, projectConfigs, targetConfigs;
+    OwnedArray<ValueTree> pbxBuildFiles, pbxFileReferences, pbxGroups, misc, projectConfigs, targetConfigs;
     StringArray buildPhaseIDs, resourceIDs, sourceIDs, frameworkIDs;
     StringArray frameworkFileIDs, rezFileIDs, resourceFileRefs;
     File infoPlistFile, iconFile;
     int64 projectIDSalt;
     const bool iPhone;
 
-    static const String sanitisePath (const String& path)
+    static String sanitisePath (const String& path)
     {
         if (path.startsWithChar ('~'))
             return "$(HOME)" + path.substring (1);
@@ -152,55 +156,71 @@ private:
         return path;
     }
 
-    const File getProjectBundle() const         { return getTargetFolder().getChildFile (project.getProjectFilenameRoot()).withFileExtension (".xcodeproj"); }
-
-    bool hasPList() const                               { return ! (project.isLibrary() || project.isCommandLineApp()); }
-    const String getAudioPluginBundleExtension() const  { return "component"; }
+    File getProjectBundle() const                 { return getTargetFolder().getChildFile (project.getProjectFilenameRoot()).withFileExtension (".xcodeproj"); }
 
     //==============================================================================
     void createObjects()
     {
-        if (! project.isLibrary())
-            addFrameworks();
+        addFrameworks();
+        addMainBuildProduct();
 
-        const String productName (project.getConfiguration (0).getTargetBinaryName().toString());
-
-        if (project.isGUIApplication())         addBuildProduct ("wrapper.application", productName + ".app");
-        else if (project.isCommandLineApp())    addBuildProduct ("compiled.mach-o.executable", productName);
-        else if (project.isLibrary())           addBuildProduct ("archive.ar", getLibbedFilename (productName));
-        else if (project.isAudioPlugin())       addBuildProduct ("wrapper.cfbundle", productName + "." + getAudioPluginBundleExtension());
-        else if (project.isBrowserPlugin())     addBuildProduct ("wrapper.cfbundle", productName + ".plugin");
-        else jassert (productName.isEmpty());
-
-        if (hasPList())
+        if (xcodeCreatePList)
         {
             RelativePath plistPath (infoPlistFile, getTargetFolder(), RelativePath::buildTargetFolder);
-            addFileReference (plistPath);
+            addFileReference (plistPath.toUnixStyle());
             resourceFileRefs.add (createID (plistPath));
         }
 
         if (iconFile.exists())
         {
             RelativePath iconPath (iconFile, getTargetFolder(), RelativePath::buildTargetFolder);
-            addFileReference (iconPath);
+            addFileReference (iconPath.toUnixStyle());
             resourceIDs.add (addBuildFile (iconPath, false, false));
             resourceFileRefs.add (createID (iconPath));
         }
 
-        addProjectItem (project.getMainGroup());
-
-        for (int i = 0; i < project.getNumConfigurations(); ++i)
         {
-            Project::BuildConfiguration config (project.getConfiguration (i));
+            StringArray topLevelGroupIDs;
+
+            for (int i = 0; i < groups.size(); ++i)
+                if (groups.getReference(i).getNumChildren() > 0)
+                    topLevelGroupIDs.add (addProjectItem (groups.getReference(i)));
+
+            { // Add 'resources' group
+                String resourcesGroupID (createID ("__resources"));
+                addGroup (resourcesGroupID, "Resources", resourceFileRefs);
+                topLevelGroupIDs.add (resourcesGroupID);
+            }
+
+            { // Add 'frameworks' group
+                String frameworksGroupID (createID ("__frameworks"));
+                addGroup (frameworksGroupID, "Frameworks", frameworkFileIDs);
+                topLevelGroupIDs.add (frameworksGroupID);
+            }
+
+            { // Add 'products' group
+                String productsGroupID (createID ("__products"));
+                StringArray products;
+                products.add (createID ("__productFileID"));
+                addGroup (productsGroupID, "Products", products);
+                topLevelGroupIDs.add (productsGroupID);
+            }
+
+            addGroup (createID ("__mainsourcegroup"), "Source", topLevelGroupIDs);
+        }
+
+        for (int i = 0; i < configs.size(); ++i)
+        {
+            const Project::BuildConfiguration& config = configs.getReference(i);
 
             addProjectConfig (config.getName().getValue(), getProjectSettings (config));
-            addTargetConfig (config.getName().getValue(), getTargetSettings (config));
+            addTargetConfig  (config.getName().getValue(), getTargetSettings (config));
         }
 
         addConfigList (projectConfigs, createID ("__projList"));
         addConfigList (targetConfigs, createID ("__configList"));
 
-        if (! project.isLibrary())
+        if (! projectType.isLibrary())
             addBuildPhase ("PBXResourcesBuildPhase", resourceIDs);
 
         if (rezFileIDs.size() > 0)
@@ -208,17 +228,16 @@ private:
 
         addBuildPhase ("PBXSourcesBuildPhase", sourceIDs);
 
-        if (! project.isLibrary())
+        if (! projectType.isLibrary())
             addBuildPhase ("PBXFrameworksBuildPhase", frameworkIDs);
 
-        if (project.isAudioPlugin())
-            addPluginShellScriptPhase();
+        addShellScriptPhase();
 
         addTargetObject();
         addProjectObject();
     }
 
-    static const Image fixMacIconImageSize (Image& image)
+    static Image fixMacIconImageSize (Image& image)
     {
         const int w = image.getWidth();
         const int h = image.getHeight();
@@ -226,7 +245,7 @@ private:
         if (w != h || (w != 16 && w != 32 && w != 48 && w != 64))
         {
             const int newSize = w >= 128 ? 128 : (w >= 64 ? 64 : (w >= 32 ? 32 : 16));
-            Image newIm (Image::ARGB, newSize, newSize, true);
+            Image newIm (Image::ARGB, newSize, newSize, true, Image::SoftwareImage);
             Graphics g (newIm);
             g.drawImageWithin (image, 0, 0, newSize, newSize,
                                RectanglePlacement::centred | RectanglePlacement::onlyReduceInSize, false);
@@ -247,8 +266,8 @@ private:
             const int w = image.getWidth();
             const int h = image.getHeight();
 
-            const char* type = 0;
-            const char* maskType = 0;
+            const char* type = nullptr;
+            const char* maskType = nullptr;
 
             if (w == h)
             {
@@ -258,7 +277,7 @@ private:
                 if (w == 128) { type = "it32"; maskType = "t8mk"; }
             }
 
-            if (type != 0)
+            if (type != nullptr)
             {
                 data.write (type, 4);
                 data.writeIntBigEndian (8 + 4 * w * h);
@@ -323,7 +342,7 @@ private:
 
     void writeInfoPlistFile()
     {
-        if (! hasPList())
+        if (! xcodeCreatePList)
             return;
 
         XmlElement plist ("plist");
@@ -335,19 +354,9 @@ private:
         addPlistDictionaryKey (dict, "CFBundleExecutable",          "${EXECUTABLE_NAME}");
         addPlistDictionaryKey (dict, "CFBundleIconFile",            iconFile.exists() ? iconFile.getFileName() : String::empty);
         addPlistDictionaryKey (dict, "CFBundleIdentifier",          project.getBundleIdentifier().toString());
-        addPlistDictionaryKey (dict, "CFBundleName",                project.getProjectName().toString());
-
-        if (project.isAudioPlugin())
-        {
-            addPlistDictionaryKey (dict, "CFBundlePackageType",     "TDMw");
-            addPlistDictionaryKey (dict, "CFBundleSignature",       "PTul");
-        }
-        else
-        {
-            addPlistDictionaryKey (dict, "CFBundlePackageType",     "APPL");
-            addPlistDictionaryKey (dict, "CFBundleSignature",       "????");
-        }
-
+        addPlistDictionaryKey (dict, "CFBundleName",                projectName);
+        addPlistDictionaryKey (dict, "CFBundlePackageType",         xcodePackageType);
+        addPlistDictionaryKey (dict, "CFBundleSignature",           xcodeBundleSignature);
         addPlistDictionaryKey (dict, "CFBundleShortVersionString",  project.getVersion().toString());
         addPlistDictionaryKey (dict, "CFBundleVersion",             project.getVersion().toString());
 
@@ -388,66 +397,17 @@ private:
         overwriteFileIfDifferentOrThrow (infoPlistFile, mo);
     }
 
-    const StringArray getHeaderSearchPaths (const Project::BuildConfiguration& config)
+    StringArray getHeaderSearchPaths (const Project::BuildConfiguration& config)
     {
         StringArray searchPaths (config.getHeaderSearchPaths());
 
-        if (project.shouldAddVSTFolderToPath() && getVSTFolder().toString().isNotEmpty())
-            searchPaths.add (rebaseFromProjectFolderToBuildTarget (RelativePath (getVSTFolder().toString(), RelativePath::projectFolder)).toUnixStyle());
-
-        if (project.isAudioPlugin())
-        {
-            if (isAU())
-            {
-                searchPaths.add ("$(DEVELOPER_DIR)/Extras/CoreAudio/PublicUtility");
-                searchPaths.add ("$(DEVELOPER_DIR)/Extras/CoreAudio/AudioUnits/AUPublic/Utility");
-            }
-
-            if (isRTAS())
-            {
-                searchPaths.add ("/Developer/Headers/FlatCarbon");
-
-                static const char* rtasIncludePaths[] = { "AlturaPorts/TDMPlugIns/PlugInLibrary/Controls",
-                                                          "AlturaPorts/TDMPlugIns/PlugInLibrary/CoreClasses",
-                                                          "AlturaPorts/TDMPlugIns/PlugInLibrary/DSPClasses",
-                                                          "AlturaPorts/TDMPlugIns/PlugInLibrary/EffectClasses",
-                                                          "AlturaPorts/TDMPlugIns/PlugInLibrary/MacBuild",
-                                                          "AlturaPorts/TDMPlugIns/PlugInLibrary/Meters",
-                                                          "AlturaPorts/TDMPlugIns/PlugInLibrary/ProcessClasses",
-                                                          "AlturaPorts/TDMPlugIns/PlugInLibrary/ProcessClasses/Interfaces",
-                                                          "AlturaPorts/TDMPlugIns/PlugInLibrary/RTASP_Adapt",
-                                                          "AlturaPorts/TDMPlugIns/PlugInLibrary/Utilities",
-                                                          "AlturaPorts/TDMPlugIns/PlugInLibrary/ViewClasses",
-                                                          "AlturaPorts/TDMPlugIns/DSPManager/**",
-                                                          "AlturaPorts/TDMPlugIns/SupplementalPlugInLib/Encryption",
-                                                          "AlturaPorts/TDMPlugIns/SupplementalPlugInLib/GraphicsExtensions",
-                                                          "AlturaPorts/TDMPlugIns/common",
-                                                          "AlturaPorts/TDMPlugIns/common/PI_LibInterface",
-                                                          "AlturaPorts/TDMPlugIns/PACEProtection/**",
-                                                          "AlturaPorts/TDMPlugIns/SignalProcessing/**",
-                                                          "AlturaPorts/OMS/Headers",
-                                                          "AlturaPorts/Fic/Interfaces/**",
-                                                          "AlturaPorts/Fic/Source/SignalNets",
-                                                          "AlturaPorts/DSIPublicInterface/PublicHeaders",
-                                                          "DAEWin/Include",
-                                                          "AlturaPorts/DigiPublic/Interfaces",
-                                                          "AlturaPorts/DigiPublic",
-                                                          "AlturaPorts/NewFileLibs/DOA",
-                                                          "AlturaPorts/NewFileLibs/Cmn",
-                                                          "xplat/AVX/avx2/avx2sdk/inc",
-                                                          "xplat/AVX/avx2/avx2sdk/utils" };
-
-                RelativePath sdkFolder (getRTASFolder().toString(), RelativePath::projectFolder);
-
-                for (int i = 0; i < numElementsInArray (rtasIncludePaths); ++i)
-                    searchPaths.add (rebaseFromProjectFolderToBuildTarget (sdkFolder.getChildFile (rtasIncludePaths[i])).toUnixStyle());
-            }
-        }
+        for (int i = 0; i < libraryModules.size(); ++i)
+            libraryModules.getUnchecked(i)->addExtraSearchPaths (*this, searchPaths);
 
         return searchPaths;
     }
 
-    void getLinkerFlagsForStaticLibrary (const RelativePath& library, StringArray& flags, StringArray& librarySearchPaths)
+    static void getLinkerFlagsForStaticLibrary (const RelativePath& library, StringArray& flags, StringArray& librarySearchPaths)
     {
         jassert (library.getFileNameWithoutExtension().substring (0, 3) == "lib");
 
@@ -462,18 +422,14 @@ private:
 
     void getLinkerFlags (const Project::BuildConfiguration& config, StringArray& flags, StringArray& librarySearchPaths)
     {
-        if (project.isAudioPlugin())
-        {
+        if (xcodeIsBundle)
             flags.add ("-bundle");
 
-            if (isRTAS() && getRTASFolder().toString().isNotEmpty())
-            {
-                getLinkerFlagsForStaticLibrary (RelativePath (getRTASFolder().toString(), RelativePath::buildTargetFolder)
-                                                    .getChildFile (config.isDebug().getValue() ? "MacBag/Libs/Debug/libPluginLibrary.a"
-                                                                                               : "MacBag/Libs/Release/libPluginLibrary.a"),
-                                                flags, librarySearchPaths);
-            }
-        }
+        const Array<RelativePath>& extraLibs = config.isDebug().getValue() ? xcodeExtraLibrariesDebug
+                                                                           : xcodeExtraLibrariesRelease;
+
+        for (int i = 0; i < extraLibs.size(); ++i)
+            getLinkerFlagsForStaticLibrary (extraLibs.getReference(i), flags, librarySearchPaths);
 
         if (project.getJuceLinkageMode() == Project::useLinkedJuce)
         {
@@ -486,7 +442,7 @@ private:
         flags.removeEmptyStrings (true);
     }
 
-    const StringArray getProjectSettings (const Project::BuildConfiguration& config)
+    StringArray getProjectSettings (const Project::BuildConfiguration& config)
     {
         StringArray s;
         s.add ("ALWAYS_SEARCH_USER_PATHS = NO");
@@ -500,7 +456,7 @@ private:
         s.add ("WARNING_CFLAGS = -Wreorder");
         s.add ("GCC_MODEL_TUNING = G5");
 
-        if (project.isLibrary() || project.getJuceLinkageMode() == Project::useLinkedJuce)
+        if (projectType.isLibrary() || project.getJuceLinkageMode() == Project::useLinkedJuce)
         {
             s.add ("GCC_INLINES_ARE_PRIVATE_EXTERN = NO");
             s.add ("GCC_SYMBOLS_PRIVATE_EXTERN = NO");
@@ -519,14 +475,14 @@ private:
 
         s.add ("ZERO_LINK = NO");
 
-        if (! isRTAS())   // (dwarf seems to be incompatible with the RTAS libs)
+        if (xcodeCanUseDwarf)
             s.add ("DEBUG_INFORMATION_FORMAT = \"dwarf\"");
 
         s.add ("PRODUCT_NAME = \"" + config.getTargetBinaryName().toString() + "\"");
         return s;
     }
 
-    const StringArray getTargetSettings (const Project::BuildConfiguration& config)
+    StringArray getTargetSettings (const Project::BuildConfiguration& config)
     {
         StringArray s;
 
@@ -545,31 +501,25 @@ private:
         if (extraFlags.isNotEmpty())
             s.add ("OTHER_CPLUSPLUSFLAGS = " + extraFlags);
 
-        if (project.isGUIApplication())
-        {
-            s.add ("INSTALL_PATH = \"$(HOME)/Applications\"");
-        }
-        else if (project.isAudioPlugin())
+        if (xcodeProductInstallPath.isNotEmpty())
+            s.add ("INSTALL_PATH = \"" + xcodeProductInstallPath + "\"");
+
+        if (xcodeIsBundle)
         {
             s.add ("LIBRARY_STYLE = Bundle");
-            s.add ("INSTALL_PATH = \"$(HOME)/Library/Audio/Plug-Ins/Components/\"");
-            s.add ("WRAPPER_EXTENSION = " + getAudioPluginBundleExtension());
+            s.add ("WRAPPER_EXTENSION = " + xcodeBundleExtension.substring (1));
             s.add ("GENERATE_PKGINFO_FILE = YES");
-            s.add ("OTHER_REZFLAGS = \"-d ppc_$ppc -d i386_$i386 -d ppc64_$ppc64 -d x86_64_$x86_64"
-                   " -I /System/Library/Frameworks/CoreServices.framework/Frameworks/CarbonCore.framework/Versions/A/Headers"
-                   " -I \\\"$(DEVELOPER_DIR)/Extras/CoreAudio/AudioUnits/AUPublic/AUBase\\\"\"");
         }
-        else if (project.isBrowserPlugin())
-        {
-            s.add ("LIBRARY_STYLE = Bundle");
-            s.add ("INSTALL_PATH = \"/Library/Internet Plug-Ins/\"");
-        }
-        else if (project.isLibrary())
+
+        if (xcodeOtherRezFlags.isNotEmpty())
+            s.add ("OTHER_REZFLAGS = \"" + xcodeOtherRezFlags + "\"");
+
+        if (projectType.isLibrary())
         {
             if (config.getTargetBinaryRelativePath().toString().isNotEmpty())
             {
                 RelativePath binaryPath (config.getTargetBinaryRelativePath().toString(), RelativePath::projectFolder);
-                binaryPath = binaryPath.rebased (project.getFile().getParentDirectory(), getTargetFolder(), RelativePath::buildTargetFolder);
+                binaryPath = binaryPath.rebased (projectFolder, getTargetFolder(), RelativePath::buildTargetFolder);
 
                 s.add ("DSTROOT = " + sanitisePath (binaryPath.toUnixStyle()));
                 s.add ("SYMROOT = " + sanitisePath (binaryPath.toUnixStyle()));
@@ -577,13 +527,6 @@ private:
 
             s.add ("CONFIGURATION_BUILD_DIR = \"$(BUILD_DIR)\"");
             s.add ("DEPLOYMENT_LOCATION = YES");
-        }
-        else if (project.isCommandLineApp())
-        {
-        }
-        else
-        {
-            jassertfalse;
         }
 
         if (! iPhone)
@@ -678,24 +621,19 @@ private:
 
     void addFrameworks()
     {
-        StringArray s;
-
-        if (iPhone)
+        if (! projectType.isLibrary())
         {
-            s.addTokens ("UIKit Foundation CoreGraphics AudioToolbox QuartzCore OpenGLES", false);
-        }
-        else
-        {
-            s.addTokens ("Cocoa Carbon IOKit CoreAudio CoreMIDI WebKit DiscRecording OpenGL QuartzCore QTKit QuickTime", false);
+            StringArray s (xcodeFrameworks);
 
-            if (isAU())
-                s.addTokens ("AudioUnit CoreAudioKit AudioToolbox", false);
-            else if (project.getJuceConfigFlag ("JUCE_PLUGINHOST_AU").toString() == Project::configFlagEnabled)
-                s.addTokens ("AudioUnit CoreAudioKit", false);
-        }
+            s.addTokens (iPhone ? "UIKit Foundation CoreGraphics CoreText AudioToolbox QuartzCore OpenGLES"
+                                : "Cocoa Carbon IOKit CoreAudio CoreMIDI WebKit DiscRecording OpenGL QuartzCore QTKit QuickTime AudioToolbox", false);
 
-        for (int i = 0; i < s.size(); ++i)
-            addFramework (s[i]);
+            s.removeDuplicates (true);
+            s.sort (true);
+
+            for (int i = 0; i < s.size(); ++i)
+                addFramework (s[i]);
+        }
     }
 
     //==============================================================================
@@ -710,7 +648,7 @@ private:
         Array <ValueTree*> objects;
         objects.addArray (pbxBuildFiles);
         objects.addArray (pbxFileReferences);
-        objects.addArray (groups);
+        objects.addArray (pbxGroups);
         objects.addArray (targetConfigs);
         objects.addArray (projectConfigs);
         objects.addArray (misc);
@@ -725,7 +663,7 @@ private:
                 const Identifier propertyName (o.getPropertyName(j));
                 String val (o.getProperty (propertyName).toString());
 
-                if (val.isEmpty() || (val.containsAnyOf (" \t;<>()=,-\r\n")
+                if (val.isEmpty() || (val.containsAnyOf (" \t;<>()=,&+-_\r\n")
                                         && ! (val.trimStart().startsWithChar ('(')
                                                 || val.trimStart().startsWithChar ('{'))))
                     val = val.quoted();
@@ -751,9 +689,9 @@ private:
         xml->createNewChildElement (value ? "true" : "false");
     }
 
-    const String addBuildFile (const RelativePath& path, const String& fileRefID, bool addToSourceBuildPhase, bool inhibitWarnings)
+    String addBuildFile (const String& path, const String& fileRefID, bool addToSourceBuildPhase, bool inhibitWarnings)
     {
-        String fileID (createID (path.toUnixStyle() + "buildref"));
+        String fileID (createID (path + "buildref"));
 
         if (addToSourceBuildPhase)
             sourceIDs.add (fileID);
@@ -769,34 +707,40 @@ private:
         return fileID;
     }
 
-    const String addBuildFile (const RelativePath& path, bool addToSourceBuildPhase, bool inhibitWarnings)
+    String addBuildFile (const RelativePath& path, bool addToSourceBuildPhase, bool inhibitWarnings)
     {
-        return addBuildFile (path, createID (path), addToSourceBuildPhase, inhibitWarnings);
+        return addBuildFile (path.toUnixStyle(), createID (path), addToSourceBuildPhase, inhibitWarnings);
     }
 
-    void addFileReference (const RelativePath& path, const String& sourceTree, const String& lastKnownFileType, const String& fileRefID)
+    String addFileReference (String pathString)
     {
+        String sourceTree ("SOURCE_ROOT");
+        RelativePath path (pathString, RelativePath::unknown);
+
+        if (pathString.startsWith ("${"))
+        {
+            sourceTree = pathString.substring (2).upToFirstOccurrenceOf ("}", false, false);
+            pathString = pathString.fromFirstOccurrenceOf ("}/", false, false);
+        }
+        else if (path.isAbsolute())
+        {
+            sourceTree = "<absolute>";
+        }
+
+        const String fileRefID (createID (pathString));
+
         ValueTree* v = new ValueTree (fileRefID);
         v->setProperty ("isa", "PBXFileReference", 0);
-        v->setProperty ("lastKnownFileType", lastKnownFileType, 0);
-        v->setProperty (Ids::name, path.getFileName(), 0);
-        v->setProperty ("path", sanitisePath (path.toUnixStyle()), 0);
+        v->setProperty ("lastKnownFileType", getFileType (path), 0);
+        v->setProperty (Ids::name, pathString.fromLastOccurrenceOf ("/", false, false), 0);
+        v->setProperty ("path", sanitisePath (pathString), 0);
         v->setProperty ("sourceTree", sourceTree, 0);
         pbxFileReferences.add (v);
-    }
-
-    const String addFileReference (const RelativePath& path)
-    {
-        const String fileRefID (createID (path));
-
-        jassert (path.isAbsolute() || path.getRoot() == RelativePath::buildTargetFolder);
-        addFileReference (path, path.isAbsolute() ? "<absolute>" : "SOURCE_ROOT",
-                          getFileType (path), fileRefID);
 
         return fileRefID;
     }
 
-    static const String getFileType (const RelativePath& file)
+    static String getFileType (const RelativePath& file)
     {
         if (file.hasFileExtension ("cpp;cc;cxx"))                return "sourcecode.cpp.cpp";
         else if (file.hasFileExtension (".mm"))                  return "sourcecode.cpp.objcpp";
@@ -816,17 +760,20 @@ private:
         return "file" + file.getFileExtension();
     }
 
-    const String addFile (const RelativePath& path, bool shouldBeCompiled, bool inhibitWarnings)
+    String addFile (const RelativePath& path, bool shouldBeCompiled, bool inhibitWarnings)
     {
         if (shouldBeCompiled)
-            addBuildFile (path, true, inhibitWarnings);
-        else if (path.hasFileExtension (".r"))
-            rezFileIDs.add (addBuildFile (path, false, inhibitWarnings));
+        {
+            if (path.hasFileExtension (".r"))
+                rezFileIDs.add (addBuildFile (path, false, inhibitWarnings));
+            else
+                addBuildFile (path, true, inhibitWarnings);
+        }
 
-        return addFileReference (path);
+        return addFileReference (path.toUnixStyle());
     }
 
-    const String addProjectItem (const Project::Item& projectItem)
+    String addProjectItem (const Project::Item& projectItem)
     {
         if (projectItem.isGroup())
         {
@@ -845,8 +792,19 @@ private:
         {
             if (projectItem.shouldBeAddedToTargetProject())
             {
-                const RelativePath path (projectItem.getFile(), getTargetFolder(), RelativePath::buildTargetFolder);
-                return addFile (path, projectItem.shouldBeCompiled(), false);
+                String itemPath (projectItem.getFilePath());
+                bool inhibitWarnings = projectItem.getShouldInhibitWarningsValue().getValue();
+
+                if (itemPath.startsWith ("${"))
+                {
+                    const RelativePath path (itemPath, RelativePath::unknown);
+                    return addFile (path, projectItem.shouldBeCompiled(), inhibitWarnings);
+                }
+                else
+                {
+                    const RelativePath path (projectItem.getFile(), getTargetFolder(), RelativePath::buildTargetFolder);
+                    return addFile (path, projectItem.shouldBeCompiled(), inhibitWarnings);
+                }
             }
         }
 
@@ -855,9 +813,9 @@ private:
 
     void addFramework (const String& frameworkName)
     {
-        const RelativePath path ("System/Library/Frameworks/" + frameworkName + ".framework", RelativePath::unknown);
+        const String path ("System/Library/Frameworks/" + frameworkName + ".framework");
         const String fileRefID (createID (path));
-        addFileReference (path, "SDKROOT", getFileType (path), fileRefID);
+        addFileReference ("${SDKROOT}/" + path);
         frameworkIDs.add (addBuildFile (path, fileRefID, false, false));
         frameworkFileIDs.add (fileRefID);
     }
@@ -869,69 +827,29 @@ private:
         v->setProperty ("children", "(" + indentList (childIDs, ",") + " )", 0);
         v->setProperty (Ids::name, groupName, 0);
         v->setProperty ("sourceTree", "<group>", 0);
-        groups.add (v);
+        pbxGroups.add (v);
     }
 
-    const String createGroup (const Array<RelativePath>& files, const String& groupName, const String& groupIDName, bool inhibitWarnings)
+    String addGroup (const Project::Item& item, StringArray& childIDs)
     {
-        StringArray fileIDs;
-
-        for (int i = 0; i < files.size(); ++i)
-        {
-            addFile (files.getReference(i), shouldFileBeCompiledByDefault (files.getReference(i)), inhibitWarnings);
-            fileIDs.add (createID (files.getReference(i)));
-        }
-
-        const String groupID (createID (groupIDName));
-        addGroup (groupID, groupName, fileIDs);
-        return groupID;
-    }
-
-    const String addGroup (const Project::Item& item, StringArray& childIDs)
-    {
-        String groupName (item.getName().toString());
-
-        if (item.isMainGroup())
-        {
-            groupName = "Source";
-
-            // Add 'Juce Library Code' group
-            if (juceWrapperFiles.size() > 0)
-                childIDs.add (createGroup (juceWrapperFiles, project.getJuceCodeGroupName(), "__jucelibfiles", false));
-
-            if (isVST())
-                childIDs.add (createGroup (getVSTFilesRequired(), "Juce VST Wrapper", "__jucevstfiles", false));
-
-            if (isAU())
-                childIDs.add (createAUWrappersGroup());
-
-            if (isRTAS())
-                childIDs.add (createGroup (getRTASFilesRequired(), "Juce RTAS Wrapper", "__jucertasfiles", true));
-
-            { // Add 'resources' group
-                String resourcesGroupID (createID ("__resources"));
-                addGroup (resourcesGroupID, "Resources", resourceFileRefs);
-                childIDs.add (resourcesGroupID);
-            }
-
-            { // Add 'frameworks' group
-                String frameworksGroupID (createID ("__frameworks"));
-                addGroup (frameworksGroupID, "Frameworks", frameworkFileIDs);
-                childIDs.add (frameworksGroupID);
-            }
-
-            { // Add 'products' group
-                String productsGroupID (createID ("__products"));
-                StringArray products;
-                products.add (createID ("__productFileID"));
-                addGroup (productsGroupID, "Products", products);
-                childIDs.add (productsGroupID);
-            }
-        }
-
-        String groupID (getIDForGroup (item));
+        const String groupName (item.getName().toString());
+        const String groupID (getIDForGroup (item));
         addGroup (groupID, groupName, childIDs);
         return groupID;
+    }
+
+    void addMainBuildProduct()
+    {
+        jassert (xcodeFileType.isNotEmpty());
+        jassert (xcodeBundleExtension.isEmpty() || xcodeBundleExtension.startsWithChar('.'));
+        String productName (configs.getReference(0).getTargetBinaryName().toString());
+
+        if (xcodeFileType == "archive.ar")
+            productName = getLibbedFilename (productName);
+        else
+            productName += xcodeBundleExtension;
+
+        addBuildProduct (xcodeFileType, productName);
     }
 
     void addBuildProduct (const String& fileType, const String& binaryName)
@@ -975,7 +893,7 @@ private:
         v->setProperty ("buildConfigurations", "(" + indentList (configIDs, ",") + " )", 0);
         v->setProperty ("defaultConfigurationIsVisible", (int) 0, 0);
 
-        if (configsToUse[0] != 0)
+        if (configsToUse[0] != nullptr)
             v->setProperty ("defaultConfigurationName", configsToUse[0]->getProperty (Ids::name), 0);
 
         misc.add (v);
@@ -997,69 +915,55 @@ private:
 
     void addTargetObject()
     {
-        ValueTree* v = new ValueTree (createID ("__target"));
+        ValueTree* const v = new ValueTree (createID ("__target"));
         v->setProperty ("isa", "PBXNativeTarget", 0);
         v->setProperty ("buildConfigurationList", createID ("__configList"), 0);
         v->setProperty ("buildPhases", "(" + indentList (buildPhaseIDs, ",") + " )", 0);
         v->setProperty ("buildRules", "( )", 0);
         v->setProperty ("dependencies", "( )", 0);
-        v->setProperty (Ids::name, project.getDocumentTitle(), 0);
-        v->setProperty ("productName", project.getDocumentTitle(), 0);
+        v->setProperty (Ids::name, projectName, 0);
+        v->setProperty ("productName", projectName, 0);
         v->setProperty ("productReference", createID ("__productFileID"), 0);
 
-        if (project.isGUIApplication())
-        {
-            v->setProperty ("productInstallPath", "$(HOME)/Applications", 0);
-            v->setProperty ("productType", "com.apple.product-type.application", 0);
-        }
-        else if (project.isCommandLineApp())
-        {
-            v->setProperty ("productInstallPath", "/usr/bin", 0);
-            v->setProperty ("productType", "com.apple.product-type.tool", 0);
-        }
-        else if (project.isAudioPlugin() || project.isBrowserPlugin())
-        {
-            v->setProperty ("productInstallPath", "$(HOME)/Library/Audio/Plug-Ins/Components/", 0);
-            v->setProperty ("productType", "com.apple.product-type.bundle", 0);
-        }
-        else if (project.isLibrary())
-        {
-            v->setProperty ("productType", "com.apple.product-type.library.static", 0);
-        }
-        else
-            jassertfalse; //xxx
+        if (xcodeProductInstallPath.isNotEmpty())
+            v->setProperty ("productInstallPath", xcodeProductInstallPath, 0);
+
+        jassert (xcodeProductType.isNotEmpty());
+        v->setProperty ("productType", xcodeProductType, 0);
 
         misc.add (v);
     }
 
     void addProjectObject()
     {
-        ValueTree* v = new ValueTree (createID ("__root"));
+        ValueTree* const v = new ValueTree (createID ("__root"));
         v->setProperty ("isa", "PBXProject", 0);
         v->setProperty ("buildConfigurationList", createID ("__projList"), 0);
         v->setProperty ("compatibilityVersion", "Xcode 3.1", 0);
         v->setProperty ("hasScannedForEncodings", (int) 0, 0);
-        v->setProperty ("mainGroup", getIDForGroup (project.getMainGroup()), 0);
+        v->setProperty ("mainGroup", createID ("__mainsourcegroup"), 0);
         v->setProperty ("projectDirPath", "\"\"", 0);
         v->setProperty ("projectRoot", "\"\"", 0);
         v->setProperty ("targets", "( " + createID ("__target") + " )", 0);
         misc.add (v);
     }
 
-    void addPluginShellScriptPhase()
+    void addShellScriptPhase()
     {
-        ValueTree* v = addBuildPhase ("PBXShellScriptBuildPhase", StringArray());
-        v->setProperty (Ids::name, "Copy to the different plugin folders", 0);
-        v->setProperty ("shellPath", "/bin/sh", 0);
-        v->setProperty ("shellScript", String::fromUTF8 (BinaryData::AudioPluginXCodeScript_txt, BinaryData::AudioPluginXCodeScript_txtSize)
-                                            .replace ("\\", "\\\\")
-                                            .replace ("\"", "\\\"")
-                                            .replace ("\r\n", "\\n")
-                                            .replace ("\n", "\\n"), 0);
+        if (xcodeShellScript.isNotEmpty())
+        {
+            ValueTree* const v = addBuildPhase ("PBXShellScriptBuildPhase", StringArray());
+            v->setProperty (Ids::name, xcodeShellScriptTitle, 0);
+            v->setProperty ("shellPath", "/bin/sh", 0);
+            v->setProperty ("shellScript", xcodeShellScript.replace ("\\", "\\\\")
+                                                           .replace ("\"", "\\\"")
+                                                           .replace ("\r\n", "\\n")
+                                                           .replace ("\n", "\\n"), 0);
+        }
     }
 
     //==============================================================================
-    static const String indentList (const StringArray& list, const String& separator)
+    static String indentList (const StringArray& list, const String& separator)
     {
         if (list.size() == 0)
             return " ";
@@ -1068,24 +972,27 @@ private:
                   + (separator == ";" ? separator : String::empty);
     }
 
-    const String createID (const RelativePath& path) const
+    String createID (const RelativePath& path) const
     {
         return createID (path.toUnixStyle());
     }
 
-    const String createID (const String& rootString) const
+    String createID (String rootString) const
     {
+        if (rootString.startsWith ("${"))
+            rootString = rootString.fromFirstOccurrenceOf ("}/", false, false);
+
         static const char digits[] = "0123456789ABCDEF";
         char n[24];
         Random ran (projectIDSalt + hashCode64 (rootString));
 
         for (int i = 0; i < numElementsInArray (n); ++i)
-            n[i] = digits [ran.nextInt (16)];
+            n[i] = digits [ran.nextInt() & 15];
 
         return String (n, numElementsInArray (n));
     }
 
-    const String getIDForGroup (const Project::Item& item) const
+    String getIDForGroup (const Project::Item& item) const
     {
         return createID (item.getID());
     }
@@ -1093,118 +1000,6 @@ private:
     bool shouldFileBeCompiledByDefault (const RelativePath& file) const
     {
         return file.hasFileExtension (sourceFileExtensions);
-    }
-
-    //==============================================================================
-    const Array<RelativePath> getRTASFilesRequired() const
-    {
-        Array<RelativePath> s;
-        if (isRTAS())
-        {
-            const char* files[] = { "extras/audio plugins/wrapper/RTAS/juce_RTAS_DigiCode1.cpp",
-                                    "extras/audio plugins/wrapper/RTAS/juce_RTAS_DigiCode2.cpp",
-                                    "extras/audio plugins/wrapper/RTAS/juce_RTAS_DigiCode3.cpp",
-                                    "extras/audio plugins/wrapper/RTAS/juce_RTAS_DigiCode_Header.h",
-                                    "extras/audio plugins/wrapper/RTAS/juce_RTAS_MacResources.r",
-                                    "extras/audio plugins/wrapper/RTAS/juce_RTAS_MacUtilities.mm",
-                                    "extras/audio plugins/wrapper/RTAS/juce_RTAS_Wrapper.cpp" };
-
-            for (int i = 0; i < numElementsInArray (files); ++i)
-                s.add (getJucePathFromTargetFolder().getChildFile (files[i]));
-        }
-
-        return s;
-    }
-
-    const String createAUWrappersGroup()
-    {
-        Array<RelativePath> auWrappers;
-
-        const char* files[] = { "extras/audio plugins/wrapper/AU/juce_AU_Resources.r",
-                                "extras/audio plugins/wrapper/AU/juce_AU_Wrapper.mm" };
-        int i;
-        for (i = 0; i < numElementsInArray (files); ++i)
-            auWrappers.add (getJucePathFromTargetFolder().getChildFile (files[i]));
-
-        const char* appleAUFiles[] = {  "Extras/CoreAudio/PublicUtility/CADebugMacros.h",
-                                        "Extras/CoreAudio/PublicUtility/CAAUParameter.cpp",
-                                        "Extras/CoreAudio/PublicUtility/CAAUParameter.h",
-                                        "Extras/CoreAudio/PublicUtility/CAAudioChannelLayout.cpp",
-                                        "Extras/CoreAudio/PublicUtility/CAAudioChannelLayout.h",
-                                        "Extras/CoreAudio/PublicUtility/CAMutex.cpp",
-                                        "Extras/CoreAudio/PublicUtility/CAMutex.h",
-                                        "Extras/CoreAudio/PublicUtility/CAStreamBasicDescription.cpp",
-                                        "Extras/CoreAudio/PublicUtility/CAStreamBasicDescription.h",
-                                        "Extras/CoreAudio/PublicUtility/CAVectorUnitTypes.h",
-                                        "Extras/CoreAudio/PublicUtility/CAVectorUnit.cpp",
-                                        "Extras/CoreAudio/PublicUtility/CAVectorUnit.h",
-                                        "Extras/CoreAudio/AudioUnits/AUPublic/AUViewBase/AUViewLocalizedStringKeys.h",
-                                        "Extras/CoreAudio/AudioUnits/AUPublic/AUCarbonViewBase/AUCarbonViewDispatch.cpp",
-                                        "Extras/CoreAudio/AudioUnits/AUPublic/AUCarbonViewBase/AUCarbonViewControl.cpp",
-                                        "Extras/CoreAudio/AudioUnits/AUPublic/AUCarbonViewBase/AUCarbonViewControl.h",
-                                        "Extras/CoreAudio/AudioUnits/AUPublic/AUCarbonViewBase/CarbonEventHandler.cpp",
-                                        "Extras/CoreAudio/AudioUnits/AUPublic/AUCarbonViewBase/CarbonEventHandler.h",
-                                        "Extras/CoreAudio/AudioUnits/AUPublic/AUCarbonViewBase/AUCarbonViewBase.cpp",
-                                        "Extras/CoreAudio/AudioUnits/AUPublic/AUCarbonViewBase/AUCarbonViewBase.h",
-                                        "Extras/CoreAudio/AudioUnits/AUPublic/AUBase/AUBase.cpp",
-                                        "Extras/CoreAudio/AudioUnits/AUPublic/AUBase/AUBase.h",
-                                        "Extras/CoreAudio/AudioUnits/AUPublic/AUBase/AUDispatch.cpp",
-                                        "Extras/CoreAudio/AudioUnits/AUPublic/AUBase/AUDispatch.h",
-                                        "Extras/CoreAudio/AudioUnits/AUPublic/AUBase/AUInputElement.cpp",
-                                        "Extras/CoreAudio/AudioUnits/AUPublic/AUBase/AUInputElement.h",
-                                        "Extras/CoreAudio/AudioUnits/AUPublic/AUBase/AUOutputElement.cpp",
-                                        "Extras/CoreAudio/AudioUnits/AUPublic/AUBase/AUOutputElement.h",
-                                        "Extras/CoreAudio/AudioUnits/AUPublic/AUBase/AUResources.r",
-                                        "Extras/CoreAudio/AudioUnits/AUPublic/AUBase/AUScopeElement.cpp",
-                                        "Extras/CoreAudio/AudioUnits/AUPublic/AUBase/AUScopeElement.h",
-                                        "Extras/CoreAudio/AudioUnits/AUPublic/AUBase/ComponentBase.cpp",
-                                        "Extras/CoreAudio/AudioUnits/AUPublic/AUBase/ComponentBase.h",
-                                        "Extras/CoreAudio/AudioUnits/AUPublic/OtherBases/AUMIDIBase.cpp",
-                                        "Extras/CoreAudio/AudioUnits/AUPublic/OtherBases/AUMIDIBase.h",
-                                        "Extras/CoreAudio/AudioUnits/AUPublic/OtherBases/AUMIDIEffectBase.cpp",
-                                        "Extras/CoreAudio/AudioUnits/AUPublic/OtherBases/AUMIDIEffectBase.h",
-                                        "Extras/CoreAudio/AudioUnits/AUPublic/OtherBases/AUOutputBase.cpp",
-                                        "Extras/CoreAudio/AudioUnits/AUPublic/OtherBases/AUOutputBase.h",
-                                        "Extras/CoreAudio/AudioUnits/AUPublic/OtherBases/MusicDeviceBase.cpp",
-                                        "Extras/CoreAudio/AudioUnits/AUPublic/OtherBases/MusicDeviceBase.h",
-                                        "Extras/CoreAudio/AudioUnits/AUPublic/OtherBases/AUEffectBase.cpp",
-                                        "Extras/CoreAudio/AudioUnits/AUPublic/OtherBases/AUEffectBase.h",
-                                        "Extras/CoreAudio/AudioUnits/AUPublic/Utility/AUBuffer.cpp",
-                                        "Extras/CoreAudio/AudioUnits/AUPublic/Utility/AUBuffer.h",
-                                        "Extras/CoreAudio/AudioUnits/AUPublic/Utility/AUDebugDispatcher.cpp",
-                                        "Extras/CoreAudio/AudioUnits/AUPublic/Utility/AUDebugDispatcher.h",
-                                        "Extras/CoreAudio/AudioUnits/AUPublic/Utility/AUInputFormatConverter.h",
-                                        "Extras/CoreAudio/AudioUnits/AUPublic/Utility/AUSilentTimeout.h",
-                                        "Extras/CoreAudio/AudioUnits/AUPublic/Utility/AUTimestampGenerator.h" };
-
-        StringArray fileIDs, appleFileIDs;
-
-        for (i = 0; i < auWrappers.size(); ++i)
-        {
-            addFile (auWrappers.getReference(i), shouldFileBeCompiledByDefault (auWrappers.getReference(i)), false);
-            fileIDs.add (createID (auWrappers.getReference(i)));
-        }
-
-        for (i = 0; i < numElementsInArray (appleAUFiles); ++i)
-        {
-            RelativePath file (appleAUFiles[i], RelativePath::unknown);
-            const String fileRefID (createID (file));
-
-            addFileReference (file, "DEVELOPER_DIR", getFileType (file), fileRefID);
-
-            if (shouldFileBeCompiledByDefault (file))
-                addBuildFile (file, fileRefID, true, true);
-
-            appleFileIDs.add (fileRefID);
-        }
-
-        const String appleGroupID (createID ("__juceappleaufiles"));
-        addGroup (appleGroupID, "Apple AU Files", appleFileIDs);
-        fileIDs.add (appleGroupID);
-
-        const String groupID (createID ("__juceaufiles"));
-        addGroup (groupID, "Juce AU Wrapper", fileIDs);
-        return groupID;
     }
 };
 

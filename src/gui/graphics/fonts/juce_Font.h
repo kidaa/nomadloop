@@ -81,7 +81,7 @@ public:
     Font (const String& typefaceName, float fontHeight, int styleFlags);
 
     /** Creates a copy of another Font object. */
-    Font (const Font& other) throw();
+    Font (const Font& other) noexcept;
 
     /** Creates a font for a typeface. */
     Font (const Typeface::Ptr& typeface);
@@ -95,13 +95,13 @@ public:
     Font();
 
     /** Copies this font from another one. */
-    Font& operator= (const Font& other) throw();
+    Font& operator= (const Font& other) noexcept;
 
-    bool operator== (const Font& other) const throw();
-    bool operator!= (const Font& other) const throw();
+    bool operator== (const Font& other) const noexcept;
+    bool operator!= (const Font& other) const noexcept;
 
     /** Destructor. */
-    ~Font() throw();
+    ~Font() noexcept;
 
     //==============================================================================
     /** Changes the name of the typeface family.
@@ -129,7 +129,7 @@ public:
         If you need to know the exact typeface name being used, you can call
         Font::getTypeface()->getTypefaceName(), which will give you the platform-specific name.
     */
-    const String& getTypefaceName() const throw()               { return font->typefaceName; }
+    const String& getTypefaceName() const noexcept              { return font->typefaceName; }
 
     //==============================================================================
     /** Returns a typeface name that represents the default sans-serif font.
@@ -143,7 +143,7 @@ public:
 
         @see setTypefaceName, getDefaultSerifFontName, getDefaultMonospacedFontName
     */
-    static const String getDefaultSansSerifFontName();
+    static const String& getDefaultSansSerifFontName();
 
     /** Returns a typeface name that represents the default sans-serif font.
 
@@ -153,7 +153,7 @@ public:
 
         @see setTypefaceName, getDefaultSansSerifFontName, getDefaultMonospacedFontName
     */
-    static const String getDefaultSerifFontName();
+    static const String& getDefaultSerifFontName();
 
     /** Returns a typeface name that represents the default sans-serif font.
 
@@ -163,7 +163,7 @@ public:
 
         @see setTypefaceName, getDefaultSansSerifFontName, getDefaultSerifFontName
     */
-    static const String getDefaultMonospacedFontName();
+    static const String& getDefaultMonospacedFontName();
 
     /** Returns the typeface names of the default fonts on the current platform. */
     static void getPlatformDefaultFontNames (String& defaultSans, String& defaultSerif, String& defaultFixed, String& defaultFallback);
@@ -176,7 +176,7 @@ public:
 
         @see setHeight, setHeightWithoutChangingWidth, getAscent
     */
-    float getHeight() const throw()                             { return font->height; }
+    float getHeight() const noexcept                            { return font->height; }
 
     /** Changes the font's height.
 
@@ -214,7 +214,7 @@ public:
 
         @see FontStyleFlags
     */
-    int getStyleFlags() const throw()                           { return font->styleFlags; }
+    int getStyleFlags() const noexcept                          { return font->styleFlags; }
 
     /** Changes the font's style.
 
@@ -228,21 +228,21 @@ public:
     /** Makes the font bold or non-bold. */
     void setBold (bool shouldBeBold);
     /** Returns a copy of this font with the bold attribute set. */
-    const Font boldened() const;
+    Font boldened() const;
     /** Returns true if the font is bold. */
-    bool isBold() const throw();
+    bool isBold() const noexcept;
 
     /** Makes the font italic or non-italic. */
     void setItalic (bool shouldBeItalic);
     /** Returns a copy of this font with the italic attribute set. */
-    const Font italicised() const;
+    Font italicised() const;
     /** Returns true if the font is italic. */
-    bool isItalic() const throw();
+    bool isItalic() const noexcept;
 
     /** Makes the font underlined or non-underlined. */
     void setUnderline (bool shouldBeUnderlined);
     /** Returns true if the font is underlined. */
-    bool isUnderlined() const throw();
+    bool isUnderlined() const noexcept;
 
     //==============================================================================
     /** Changes the font's horizontal scale factor.
@@ -259,7 +259,7 @@ public:
 
         @see setHorizontalScale
     */
-    float getHorizontalScale() const throw()                { return font->horizontalScale; }
+    float getHorizontalScale() const noexcept               { return font->horizontalScale; }
 
     /** Changes the font's kerning.
 
@@ -278,7 +278,7 @@ public:
         A value of zero is normal spacing, positive values will spread the letters
         out more, and negative values make them closer together.
     */
-    float getExtraKerningFactor() const throw()             { return font->kerning; }
+    float getExtraKerningFactor() const noexcept            { return font->kerning; }
 
 
     //==============================================================================
@@ -332,13 +332,13 @@ public:
         You can use this instead of findFonts() if you only need their names, and not
         font objects.
     */
-    static const StringArray findAllTypefaceNames();
+    static StringArray findAllTypefaceNames();
 
     //==============================================================================
     /** Returns the name of the typeface to be used for rendering glyphs that aren't found
         in the requested typeface.
     */
-    static const String getFallbackFontName();
+    static const String& getFallbackFontName();
 
     /** Sets the (platform-specific) name of the typeface to use to find glyphs that aren't
         available in whatever font you're trying to use.
@@ -350,13 +350,13 @@ public:
         The string will contain information to describe the font's typeface, size, and
         style. To recreate the font from this string, use fromString().
     */
-    const String toString() const;
+    String toString() const;
 
     /** Recreates a font from its stringified encoding.
         This method takes a string that was created by toString(), and recreates the
         original font.
     */
-    static const Font fromString (const String& fontDescription);
+    static Font fromString (const String& fontDescription);
 
 
 private:
@@ -364,15 +364,15 @@ private:
     friend class FontGlyphAlphaMap;
     friend class TypefaceCache;
 
-    class SharedFontInternal  : public ReferenceCountedObject
+    class SharedFontInternal  : public SingleThreadedReferenceCountedObject
     {
     public:
-        SharedFontInternal (float height, int styleFlags) throw();
-        SharedFontInternal (const String& typefaceName, float height, int styleFlags) throw();
-        SharedFontInternal (const Typeface::Ptr& typeface) throw();
-        SharedFontInternal (const SharedFontInternal& other) throw();
+        SharedFontInternal (float height, int styleFlags) noexcept;
+        SharedFontInternal (const String& typefaceName, float height, int styleFlags) noexcept;
+        SharedFontInternal (const Typeface::Ptr& typeface) noexcept;
+        SharedFontInternal (const SharedFontInternal& other) noexcept;
 
-        bool operator== (const SharedFontInternal&) const throw();
+        bool operator== (const SharedFontInternal&) const noexcept;
 
         String typefaceName;
         float height, horizontalScale, kerning, ascent;

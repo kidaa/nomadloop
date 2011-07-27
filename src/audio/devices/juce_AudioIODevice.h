@@ -28,7 +28,6 @@
 
 #include "../../text/juce_StringArray.h"
 #include "../../maths/juce_BigInteger.h"
-#include "../../containers/juce_OwnedArray.h"
 class AudioIODevice;
 
 
@@ -107,9 +106,14 @@ public:
     */
     virtual void audioDeviceAboutToStart (AudioIODevice* device) = 0;
 
-    /** Called to indicate that the device has stopped.
-    */
+    /** Called to indicate that the device has stopped. */
     virtual void audioDeviceStopped() = 0;
+
+    /** This can be overridden to be told if the device generates an error while operating.
+        Be aware that this could be called by any thread! And not all devices perform
+        this callback.
+    */
+    virtual void audioDeviceError (const String& errorMessage);
 };
 
 
@@ -136,24 +140,24 @@ public:
 
     //==============================================================================
     /** Returns the device's name, (as set in the constructor). */
-    const String& getName() const throw()                           { return name; }
+    const String& getName() const noexcept                          { return name; }
 
     /** Returns the type of the device.
 
         E.g. "CoreAudio", "ASIO", etc. - this comes from the AudioIODeviceType that created it.
     */
-    const String& getTypeName() const throw()                       { return typeName; }
+    const String& getTypeName() const noexcept                      { return typeName; }
 
     //==============================================================================
     /** Returns the names of all the available output channels on this device.
         To find out which of these are currently in use, call getActiveOutputChannels().
     */
-    virtual const StringArray getOutputChannelNames() = 0;
+    virtual StringArray getOutputChannelNames() = 0;
 
     /** Returns the names of all the available input channels on this device.
         To find out which of these are currently in use, call getActiveInputChannels().
     */
-    virtual const StringArray getInputChannelNames() = 0;
+    virtual StringArray getInputChannelNames() = 0;
 
     //==============================================================================
     /** Returns the number of sample-rates this device supports.

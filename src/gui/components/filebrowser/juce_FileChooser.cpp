@@ -74,12 +74,12 @@ bool FileChooser::browseForMultipleFilesOrDirectories (FilePreviewComponent* pre
 
 bool FileChooser::browseForFileToSave (const bool warnAboutOverwritingExistingFiles)
 {
-    return showDialog (false, true, true, warnAboutOverwritingExistingFiles, false, 0);
+    return showDialog (false, true, true, warnAboutOverwritingExistingFiles, false, nullptr);
 }
 
 bool FileChooser::browseForDirectory()
 {
-    return showDialog (true, false, false, false, false, 0);
+    return showDialog (true, false, false, false, false, nullptr);
 }
 
 bool FileChooser::showDialog (const bool selectsDirectories,
@@ -94,16 +94,16 @@ bool FileChooser::showDialog (const bool selectsDirectories,
     results.clear();
 
     // the preview component needs to be the right size before you pass it in here..
-    jassert (previewComponent == 0 || (previewComponent->getWidth() > 10
-                                        && previewComponent->getHeight() > 10));
+    jassert (previewComponent == nullptr || (previewComponent->getWidth() > 10
+                                               && previewComponent->getHeight() > 10));
 
-#if JUCE_WINDOWS
+   #if JUCE_WINDOWS
     if (useNativeDialogBox && ! (selectsFiles && selectsDirectories))
-#elif JUCE_MAC
-    if (useNativeDialogBox && (previewComponent == 0))
-#else
+   #elif JUCE_MAC
+    if (useNativeDialogBox && (previewComponent == nullptr))
+   #else
     if (false)
-#endif
+   #endif
     {
         showPlatformDialog (results, title, startingFile, filters,
                             selectsDirectories, selectsFiles, isSave,
@@ -148,14 +148,14 @@ bool FileChooser::showDialog (const bool selectsDirectories,
         }
     }
 
-    if (previouslyFocused != 0)
+    if (previouslyFocused != nullptr)
         previouslyFocused->grabKeyboardFocus();
 
     return results.size() > 0;
 }
 #endif
 
-const File FileChooser::getResult() const
+File FileChooser::getResult() const
 {
     // if you've used a multiple-file select, you should use the getResults() method
     // to retrieve all the files that were chosen.

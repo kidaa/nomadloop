@@ -30,55 +30,57 @@ BEGIN_JUCE_NAMESPACE
 #include "juce_AudioThumbnail.h"
 #include "juce_AudioThumbnailCache.h"
 #include "../../events/juce_MessageManager.h"
+#include "../../io/streams/juce_BufferedInputStream.h"
 
 
 //==============================================================================
 struct AudioThumbnail::MinMaxValue
 {
-    char minValue;
-    char maxValue;
-
-    MinMaxValue() : minValue (0), maxValue (0)
+    MinMaxValue() noexcept
     {
+        values[0] = 0;
+        values[1] = 0;
     }
 
-    inline void set (const char newMin, const char newMax) throw()
+    inline void set (const char newMin, const char newMax) noexcept
     {
-        minValue = newMin;
-        maxValue = newMax;
+        values[0] = newMin;
+        values[1] = newMax;
     }
 
-    inline void setFloat (const float newMin, const float newMax) throw()
-    {
-        minValue = (char) jlimit (-128, 127, roundFloatToInt (newMin * 127.0f));
-        maxValue = (char) jlimit (-128, 127, roundFloatToInt (newMax * 127.0f));
+    inline char getMinValue() const noexcept        { return values[0]; }
+    inline char getMaxValue() const noexcept        { return values[1]; }
 
-        if (maxValue == minValue)
-            maxValue = (char) jmin (127, maxValue + 1);
+    inline void setFloat (const float newMin, const float newMax) noexcept
+    {
+        values[0] = (char) jlimit (-128, 127, roundFloatToInt (newMin * 127.0f));
+        values[1] = (char) jlimit (-128, 127, roundFloatToInt (newMax * 127.0f));
+
+        if (values[0] == values[1])
+        {
+            if (values[1] == 127)
+                values[0]--;
+            else
+                values[1]++;
+        }
     }
 
-    inline bool isNonZero() const throw()
+    inline bool isNonZero() const noexcept
     {
-        return maxValue > minValue;
+        return values[1] > values[0];
     }
 
-    inline int getPeak() const throw()
+    inline int getPeak() const noexcept
     {
-        return jmax (std::abs ((int) minValue),
-                     std::abs ((int) maxValue));
+        return jmax (std::abs ((int) values[0]),
+                     std::abs ((int) values[1]));
     }
 
-    inline void read (InputStream& input)
-    {
-        minValue = input.readByte();
-        maxValue = input.readByte();
-    }
+    inline void read (InputStream& input)      { input.read (values, 2); }
+    inline void write (OutputStream& output)   { output.write (values, 2); }
 
-    inline void write (OutputStream& output)
-    {
-        output.writeByte (minValue);
-        output.writeByte (maxValue);
-    }
+private:
+    char values[2];
 };
 
 //==============================================================================
@@ -112,14 +114,14 @@ public:
 
         createReader();
 
-        if (reader != 0)
+        if (reader != nullptr)
         {
             lengthInSamples = reader->lengthInSamples;
             numChannels = reader->numChannels;
             sampleRate = reader->sampleRate;
 
             if (lengthInSamples <= 0 || isFullyLoaded())
-                reader = 0;
+                reader = nullptr;
             else
                 owner.cache.addTimeSliceClient (this);
         }
@@ -129,15 +131,15 @@ public:
     {
         const ScopedLock sl (readerLock);
 
-        if (reader == 0)
+        if (reader == nullptr)
         {
             createReader();
 
-            if (reader != 0)
+            if (reader != nullptr)
                 owner.cache.addTimeSliceClient (this);
         }
 
-        if (reader != 0)
+        if (reader != nullptr)
         {
             float l[4] = { 0 };
             reader->readMaxLevels (startSample, numSamples, l[0], l[1], l[2], l[3]);
@@ -150,14 +152,14 @@ public:
     void releaseResources()
     {
         const ScopedLock sl (readerLock);
-        reader = 0;
+        reader = nullptr;
     }
 
     int useTimeSlice()
     {
         if (isFullyLoaded())
         {
-            if (reader != 0 && source != 0)
+            if (reader != nullptr && source != nullptr)
                 releaseResources();
 
             return -1;
@@ -170,7 +172,7 @@ public:
 
             createReader();
 
-            if (reader != 0)
+            if (reader != nullptr)
             {
                 if (! readNextBlock())
                     return 0;
@@ -185,12 +187,12 @@ public:
         return timeBeforeDeletingReader;
     }
 
-    bool isFullyLoaded() const throw()
+    bool isFullyLoaded() const noexcept
     {
         return numSamplesFinished >= lengthInSamples;
     }
 
-    inline int sampleToThumbSample (const int64 originalSample) const throw()
+    inline int sampleToThumbSample (const int64 originalSample) const noexcept
     {
         return (int) (originalSample / owner.samplesPerThumbSample);
     }
@@ -208,18 +210,18 @@ private:
 
     void createReader()
     {
-        if (reader == 0 && source != 0)
+        if (reader == nullptr && source != nullptr)
         {
             InputStream* audioFileStream = source->createInputStream();
 
-            if (audioFileStream != 0)
+            if (audioFileStream != nullptr)
                 reader = owner.formatManagerToUse.createReaderFor (audioFileStream);
         }
     }
 
     bool readNextBlock()
     {
-        jassert (reader != 0);
+        jassert (reader != nullptr);
 
         if (! isFullyLoaded())
         {
@@ -270,18 +272,18 @@ public:
         ensureSize (numThumbSamples);
     }
 
-    inline MinMaxValue* getData (const int thumbSampleIndex) throw()
+    inline MinMaxValue* getData (const int thumbSampleIndex) noexcept
     {
         jassert (thumbSampleIndex < data.size());
         return data.getRawDataPointer() + thumbSampleIndex;
     }
 
-    int getSize() const throw()
+    int getSize() const noexcept
     {
         return data.size();
     }
 
-    void getMinMax (int startSample, int endSample, MinMaxValue& result) throw()
+    void getMinMax (int startSample, int endSample, MinMaxValue& result) const noexcept
     {
         if (startSample >= 0)
         {
@@ -294,8 +296,8 @@ public:
             {
                 const MinMaxValue& v = data.getReference (startSample);
 
-                if (v.minValue < mn)  mn = v.minValue;
-                if (v.maxValue > mx)  mx = v.maxValue;
+                if (v.getMinValue() < mn)  mn = v.getMinValue();
+                if (v.getMaxValue() > mx)  mx = v.getMaxValue();
 
                 ++startSample;
             }
@@ -323,12 +325,12 @@ public:
             dest[i] = source[i];
     }
 
-    void resetPeak()
+    void resetPeak() noexcept
     {
         peakLevel = -1;
     }
 
-    int getPeak()
+    int getPeak() noexcept
     {
         if (peakLevel < 0)
         {
@@ -397,8 +399,8 @@ public:
                 for (int w = clip.getWidth(); --w >= 0;)
                 {
                     if (cacheData->isNonZero())
-                        g.drawVerticalLine (x, jmax (midY - cacheData->maxValue * vscale - 0.3f, topY),
-                                               jmin (midY - cacheData->minValue * vscale + 0.3f, bottomY));
+                        g.drawVerticalLine (x, jmax (midY - cacheData->getMaxValue() * vscale - 0.3f, topY),
+                                               jmin (midY - cacheData->getMinValue() * vscale + 0.3f, bottomY));
 
                     ++x;
                     ++cacheData;
@@ -442,7 +444,7 @@ private:
 
         ensureSize (numSamples);
 
-        if (timePerPixel * sampleRate <= samplesPerThumbSample && levelData != 0)
+        if (timePerPixel * sampleRate <= samplesPerThumbSample && levelData != nullptr)
         {
             int sample = roundToInt (startTime * sampleRate);
             Array<float> levels;
@@ -500,7 +502,7 @@ private:
         }
     }
 
-    MinMaxValue* getData (const int channelNum, const int cacheIndex) throw()
+    MinMaxValue* getData (const int channelNum, const int cacheIndex) noexcept
     {
         jassert (isPositiveAndBelow (channelNum, numChannelsCached) && isPositiveAndBelow (cacheIndex, data.size()));
 
@@ -538,8 +540,12 @@ AudioThumbnail::~AudioThumbnail()
 
 void AudioThumbnail::clear()
 {
-    source = 0;
+    source = nullptr;
+    clearChannelData();
+}
 
+void AudioThumbnail::clearChannelData()
+{
     const ScopedLock sl (lock);
     window->invalidate();
     channels.clear();
@@ -568,9 +574,11 @@ void AudioThumbnail::createChannels (const int length)
 }
 
 //==============================================================================
-void AudioThumbnail::loadFrom (InputStream& input)
+void AudioThumbnail::loadFrom (InputStream& rawInput)
 {
-    clear();
+    clearChannelData();
+
+    BufferedInputStream input (rawInput, 4096);
 
     if (input.readByte() != 'j' || input.readByte() != 'a' || input.readByte() != 't' || input.readByte() != 'm')
         return;
@@ -581,7 +589,7 @@ void AudioThumbnail::loadFrom (InputStream& input)
     int32 numThumbnailSamples = input.readInt();  // Number of samples in the thumbnail data.
     numChannels = input.readInt();                // Number of audio channels.
     sampleRate = input.readInt();                 // Source sample rate.
-    input.skipNextBytes (16);                           // reserved area
+    input.skipNextBytes (16);                     // (reserved)
 
     createChannels (numThumbnailSamples);
 
@@ -648,20 +656,20 @@ bool AudioThumbnail::setSource (InputSource* const newSource)
 {
     clear();
 
-    return newSource != 0 && setDataSource (new LevelDataSource (*this, newSource));
+    return newSource != nullptr && setDataSource (new LevelDataSource (*this, newSource));
 }
 
 void AudioThumbnail::setReader (AudioFormatReader* newReader, int64 hash)
 {
     clear();
 
-    if (newReader != 0)
+    if (newReader != nullptr)
         setDataSource (new LevelDataSource (*this, newReader, hash));
 }
 
 int64 AudioThumbnail::getHashCode() const
 {
-    return source == 0 ? 0 : source->hashCode;
+    return source == nullptr ? 0 : source->hashCode;
 }
 
 void AudioThumbnail::addBlock (const int64 startSample, const AudioSampleBuffer& incoming,
@@ -706,29 +714,34 @@ void AudioThumbnail::setLevels (const MinMaxValue* const* values, int thumbIndex
     for (int i = jmin (numChans, channels.size()); --i >= 0;)
         channels.getUnchecked(i)->write (values[i], thumbIndex, numValues);
 
-    numSamplesFinished = jmax (numSamplesFinished, (thumbIndex + numValues) * (int64) samplesPerThumbSample);
+    const int64 start = thumbIndex * (int64) samplesPerThumbSample;
+    const int64 end = (thumbIndex + numValues) * (int64) samplesPerThumbSample;
+
+    if (numSamplesFinished >= start && end > numSamplesFinished)
+        numSamplesFinished = end;
+
     totalSamples = jmax (numSamplesFinished, totalSamples);
     window->invalidate();
     sendChangeMessage();
 }
 
 //==============================================================================
-int AudioThumbnail::getNumChannels() const throw()
+int AudioThumbnail::getNumChannels() const noexcept
 {
     return numChannels;
 }
 
-double AudioThumbnail::getTotalLength() const throw()
+double AudioThumbnail::getTotalLength() const noexcept
 {
     return sampleRate > 0 ? (totalSamples / sampleRate) : 0;
 }
 
-bool AudioThumbnail::isFullyLoaded() const throw()
+bool AudioThumbnail::isFullyLoaded() const noexcept
 {
     return numSamplesFinished >= totalSamples - samplesPerThumbSample;
 }
 
-int64 AudioThumbnail::getNumSamplesFinished() const throw()
+int64 AudioThumbnail::getNumSamplesFinished() const noexcept
 {
     return numSamplesFinished;
 }
@@ -741,6 +754,24 @@ float AudioThumbnail::getApproximatePeak() const
         peak = jmax (peak, channels.getUnchecked(i)->getPeak());
 
     return jlimit (0, 127, peak) / 127.0f;
+}
+
+void AudioThumbnail::getApproximateMinMax (const double startTime, const double endTime, const int channelIndex,
+                                           float& minValue, float& maxValue) const noexcept
+{
+    MinMaxValue result;
+    const ThumbData* const data = channels [channelIndex];
+
+    if (data != nullptr && sampleRate > 0)
+    {
+        const int firstThumbIndex = (int) ((startTime * sampleRate) / samplesPerThumbSample);
+        const int lastThumbIndex  = (int) (((endTime * sampleRate) + samplesPerThumbSample - 1) / samplesPerThumbSample);
+
+        data->getMinMax (jmax (0, firstThumbIndex), lastThumbIndex, result);
+    }
+
+    minValue = result.getMinValue() / 128.0f;
+    maxValue = result.getMaxValue() / 128.0f;
 }
 
 void AudioThumbnail::drawChannel (Graphics& g, const Rectangle<int>& area, double startTime,

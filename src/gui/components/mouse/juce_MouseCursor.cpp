@@ -31,7 +31,7 @@ BEGIN_JUCE_NAMESPACE
 #include "../juce_Component.h"
 #include "../lookandfeel/juce_LookAndFeel.h"
 #include "../mouse/juce_MouseInputSource.h"
-#include "../../../threads/juce_ScopedLock.h"
+#include "../../../threads/juce_SpinLock.h"
 
 
 //==============================================================================
@@ -61,7 +61,7 @@ public:
 
     static SharedCursorHandle* createStandard (const MouseCursor::StandardCursorType type)
     {
-        const ScopedLock sl (getLock());
+        const SpinLock::ScopedLockType sl (lock);
 
         for (int i = 0; i < getCursors().size(); ++i)
         {
@@ -76,7 +76,7 @@ public:
         return sc;
     }
 
-    SharedCursorHandle* retain() throw()
+    SharedCursorHandle* retain() noexcept
     {
         ++refCount;
         return this;
@@ -88,7 +88,7 @@ public:
         {
             if (isStandard)
             {
-                const ScopedLock sl (getLock());
+                const SpinLock::ScopedLockType sl (lock);
                 getCursors().removeValue (this);
             }
 
@@ -96,7 +96,7 @@ public:
         }
     }
 
-    void* getHandle() const throw()         { return handle; }
+    void* getHandle() const noexcept        { return handle; }
 
 
 private:
@@ -105,12 +105,7 @@ private:
     Atomic <int> refCount;
     const MouseCursor::StandardCursorType standardType;
     const bool isStandard;
-
-    static CriticalSection& getLock()
-    {
-        static CriticalSection lock;
-        return lock;
-    }
+    static SpinLock lock;
 
     static Array <SharedCursorHandle*>& getCursors()
     {
@@ -121,9 +116,11 @@ private:
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SharedCursorHandle);
 };
 
+SpinLock MouseCursor::SharedCursorHandle::lock;
+
 //==============================================================================
 MouseCursor::MouseCursor()
-    : cursorHandle (0)
+    : cursorHandle (nullptr)
 {
 }
 
@@ -138,41 +135,41 @@ MouseCursor::MouseCursor (const Image& image, const int hotSpotX, const int hotS
 }
 
 MouseCursor::MouseCursor (const MouseCursor& other)
-    : cursorHandle (other.cursorHandle == 0 ? 0 : other.cursorHandle->retain())
+    : cursorHandle (other.cursorHandle == nullptr ? nullptr : other.cursorHandle->retain())
 {
 }
 
 MouseCursor::~MouseCursor()
 {
-    if (cursorHandle != 0)
+    if (cursorHandle != nullptr)
         cursorHandle->release();
 }
 
 MouseCursor& MouseCursor::operator= (const MouseCursor& other)
 {
-    if (other.cursorHandle != 0)
+    if (other.cursorHandle != nullptr)
         other.cursorHandle->retain();
 
-    if (cursorHandle != 0)
+    if (cursorHandle != nullptr)
         cursorHandle->release();
 
     cursorHandle = other.cursorHandle;
     return *this;
 }
 
-bool MouseCursor::operator== (const MouseCursor& other) const throw()
+bool MouseCursor::operator== (const MouseCursor& other) const noexcept
 {
     return getHandle() == other.getHandle();
 }
 
-bool MouseCursor::operator!= (const MouseCursor& other) const throw()
+bool MouseCursor::operator!= (const MouseCursor& other) const noexcept
 {
     return getHandle() != other.getHandle();
 }
 
-void* MouseCursor::getHandle() const throw()
+void* MouseCursor::getHandle() const noexcept
 {
-    return cursorHandle != 0 ? cursorHandle->getHandle() : 0;
+    return cursorHandle != nullptr ? cursorHandle->getHandle() : nullptr;
 }
 
 void MouseCursor::showWaitCursor()

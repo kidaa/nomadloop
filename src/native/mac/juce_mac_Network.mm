@@ -30,11 +30,11 @@
 //==============================================================================
 void MACAddress::findAllAddresses (Array<MACAddress>& result)
 {
-    ifaddrs* addrs = 0;
+    ifaddrs* addrs = nullptr;
 
     if (getifaddrs (&addrs) == 0)
     {
-        for (const ifaddrs* cursor = addrs; cursor != 0; cursor = cursor->ifa_next)
+        for (const ifaddrs* cursor = addrs; cursor != nullptr; cursor = cursor->ifa_next)
         {
             sockaddr_storage* sto = (sockaddr_storage*) cursor->ifa_addr;
             if (sto->ss_family == AF_LINK)
@@ -55,17 +55,17 @@ void MACAddress::findAllAddresses (Array<MACAddress>& result)
 }
 
 //==============================================================================
-bool PlatformUtilities::launchEmailWithAttachments (const String& targetEmailAddress,
-                                                    const String& emailSubject,
-                                                    const String& bodyText,
-                                                    const StringArray& filesToAttach)
+bool Process::openEmailWithAttachments (const String& targetEmailAddress,
+                                        const String& emailSubject,
+                                        const String& bodyText,
+                                        const StringArray& filesToAttach)
 {
-#if JUCE_IOS
+  #if JUCE_IOS
     //xxx probably need to use MFMailComposeViewController
     jassertfalse;
     return false;
-#else
-    const ScopedAutoReleasePool pool;
+  #else
+    JUCE_AUTORELEASEPOOL
 
     String script;
     script << "tell application \"Mail\"\r\n"
@@ -93,14 +93,13 @@ bool PlatformUtilities::launchEmailWithAttachments (const String& targetEmailAdd
     script << "end tell\r\n"
               "end tell\r\n";
 
-    NSAppleScript* s = [[NSAppleScript alloc]
-                            initWithSource: juceStringToNS (script)];
-    NSDictionary* error = 0;
+    NSAppleScript* s = [[NSAppleScript alloc] initWithSource: juceStringToNS (script)];
+    NSDictionary* error = nil;
     const bool ok = [s executeAndReturnError: &error] != nil;
     [s release];
 
     return ok;
-#endif
+  #endif
 }
 
 //==============================================================================
@@ -160,7 +159,7 @@ public:
 
         while (! threadShouldExit())
         {
-            const ScopedAutoReleasePool pool;
+            JUCE_AUTORELEASEPOOL
             [[NSRunLoop currentRunLoop] runUntilDate: [NSDate dateWithTimeIntervalSinceNow: 0.01]];
         }
     }
@@ -181,19 +180,19 @@ private:
     [request retain];
     data = [[NSMutableData data] retain];
     dataLock = [[NSLock alloc] init];
-    connection = 0;
+    connection = nil;
     initialised = false;
     hasFailed = false;
     hasFinished = false;
     contentLength = -1;
-    headers = 0;
+    headers = nil;
 
     runLoopThread = new JuceURLConnectionMessageThread (self);
     runLoopThread->startThread();
 
     while (runLoopThread->isThreadRunning() && ! initialised)
     {
-        if (callback != 0)
+        if (callback != nullptr)
             callback (context, -1, (int) [[request HTTPBody] length]);
 
         Thread::sleep (1);
@@ -238,7 +237,7 @@ private:
     contentLength = [response expectedContentLength];
 
     [headers release];
-    headers = 0;
+    headers = nil;
 
     if ([response isKindOfClass: [NSHTTPURLResponse class]])
         headers = [[((NSHTTPURLResponse*) response) allHeaderFields] retain];
@@ -251,7 +250,7 @@ private:
     hasFailed = true;
     initialised = true;
 
-    if (runLoopThread != 0)
+    if (runLoopThread != nullptr)
         runLoopThread->signalThreadShouldExit();
 }
 
@@ -270,13 +269,13 @@ private:
     hasFinished = true;
     initialised = true;
 
-    if (runLoopThread != 0)
+    if (runLoopThread != nullptr)
         runLoopThread->signalThreadShouldExit();
 }
 
 - (BOOL) isOpen
 {
-    return connection != 0 && ! hasFailed;
+    return connection != nil && ! hasFailed;
 }
 
 - (int) readPosition
@@ -320,7 +319,7 @@ private:
 {
     [connection cancel];
 
-    if (runLoopThread != 0)
+    if (runLoopThread != nullptr)
         runLoopThread->stopThread (10000);
 }
 
@@ -343,7 +342,7 @@ public:
         JUCE_AUTORELEASEPOOL
         connection = createConnection (progressCallback, progressCallbackContext);
 
-        if (responseHeaders != 0 && connection != 0 && connection->headers != 0)
+        if (responseHeaders != nullptr && connection != nil && connection->headers != nil)
         {
             NSEnumerator* enumerator = [connection->headers keyEnumerator];
             NSString* key;
@@ -428,9 +427,9 @@ private:
                                                         timeoutInterval: timeOutMs <= 0 ? 60.0 : (timeOutMs / 1000.0)];
 
         if (req == nil)
-            return 0;
+            return nil;
 
-        [req setHTTPMethod: isPost ? @"POST" : @"GET"];
+        [req setHTTPMethod: nsStringLiteral (isPost ? "POST" : "GET")];
         //[req setCachePolicy: NSURLRequestReloadIgnoringLocalAndRemoteCacheData];
 
         StringArray headerLines;
@@ -458,7 +457,7 @@ private:
             return s;
 
         [s release];
-        return 0;
+        return nil;
     }
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (WebInputStream);
@@ -472,7 +471,7 @@ InputStream* URL::createNativeStream (const String& address, bool isPost, const 
                                                            progressCallback, progressCallbackContext,
                                                            headers, timeOutMs, responseHeaders));
 
-    return wi->isError() ? 0 : wi.release();
+    return wi->isError() ? nullptr : wi.release();
 }
 
 

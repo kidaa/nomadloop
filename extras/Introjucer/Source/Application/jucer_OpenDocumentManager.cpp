@@ -60,9 +60,9 @@ public:
     bool isForFile (const File& file) const             { return modDetector.getFile() == file; }
     bool isForNode (const ValueTree& node) const        { return false; }
     bool refersToProject (Project& project) const       { return false; }
-    const String getName() const                        { return modDetector.getFile().getFileName(); }
-    const String getType() const                        { return modDetector.getFile().getFileExtension() + " file"; }
-    bool needsSaving() const                            { return codeDoc != 0 && codeDoc->hasChangedSinceSavePoint(); }
+    String getName() const                              { return modDetector.getFile().getFileName(); }
+    String getType() const                              { return modDetector.getFile().getFileExtension() + " file"; }
+    bool needsSaving() const                            { return codeDoc != nullptr && codeDoc->hasChangedSinceSavePoint(); }
     bool hasFileBeenModifiedExternally()                { return modDetector.hasBeenModified(); }
     void fileHasBeenRenamed (const File& newFile)       { modDetector.fileHasBeenRenamed (newFile); }
 
@@ -72,7 +72,7 @@ public:
 
         ScopedPointer <InputStream> in (modDetector.getFile().createInputStream());
 
-        if (in != 0)
+        if (in != nullptr)
             codeDoc->loadFromStream (*in);
     }
 
@@ -81,10 +81,10 @@ public:
         TemporaryFile temp (modDetector.getFile());
         ScopedPointer <FileOutputStream> out (temp.getFile().createOutputStream());
 
-        if (out == 0 || ! codeDoc->writeToStream (*out))
+        if (out == nullptr || ! codeDoc->writeToStream (*out))
             return false;
 
-        out = 0;
+        out = nullptr;
         if (! temp.overwriteTargetFileWithTemporary())
             return false;
 
@@ -94,7 +94,7 @@ public:
 
     Component* createEditor()
     {
-        CodeTokeniser* tokeniser = 0;
+        CodeTokeniser* tokeniser = nullptr;
 
         if (SourceCodeEditor::isCppFile (modDetector.getFile()))
             tokeniser = &cppTokeniser;
@@ -142,12 +142,12 @@ public:
     bool save()                                     { return true; }
     bool hasFileBeenModifiedExternally()            { return fileModificationTime != file.getLastModificationTime(); }
     void reloadFromFile()                           { fileModificationTime = file.getLastModificationTime(); }
-    const String getName() const                    { return file.getFileName(); }
+    String getName() const                          { return file.getFileName(); }
     Component* createEditor()                       { return new ItemPreviewComponent (file); }
     Component* createViewer()                       { return createEditor(); }
     void fileHasBeenRenamed (const File& newFile)   { file = newFile; }
 
-    const String getType() const
+    String getType() const
     {
         if (file.getFileExtension().isNotEmpty())
             return file.getFileExtension() + " file";
@@ -212,20 +212,20 @@ OpenDocumentManager::Document* OpenDocumentManager::getDocumentForFile (Project*
         if (documents.getUnchecked(i)->isForFile (file))
             return documents.getUnchecked(i);
 
-    Document* d = 0;
+    Document* d = nullptr;
 
-    for (int i = types.size(); --i >= 0 && d == 0;)
+    for (int i = types.size(); --i >= 0 && d == nullptr;)
     {
         if (types.getUnchecked(i)->canOpenFile (file))
         {
             d = types.getUnchecked(i)->openFile (project, file);
-            jassert (d != 0);
+            jassert (d != nullptr);
         }
     }
 
-    jassert (d != 0);
+    jassert (d != nullptr);
 
-    if (d != 0)
+    if (d != nullptr)
         documents.add (d);
 
     commandManager->commandStatusChanged();
@@ -288,7 +288,7 @@ bool OpenDocumentManager::closeDocument (int index, bool saveIfNeeded)
 {
     Document* doc = documents [index];
 
-    if (doc != 0)
+    if (doc != nullptr)
     {
         if (saveIfNeeded)
         {

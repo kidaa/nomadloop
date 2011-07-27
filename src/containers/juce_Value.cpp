@@ -49,7 +49,7 @@ void Value::ValueSource::sendChangeMessage (const bool synchronous)
         {
             Value* const v = valuesWithListeners[i];
 
-            if (v != 0)
+            if (v != nullptr)
                 v->callListeners();
         }
     }
@@ -77,7 +77,7 @@ public:
     {
     }
 
-    const var getValue() const
+    var getValue() const
     {
         return value;
     }
@@ -107,7 +107,7 @@ Value::Value()
 Value::Value (ValueSource* const value_)
     : value (value_)
 {
-    jassert (value_ != 0);
+    jassert (value_ != nullptr);
 }
 
 Value::Value (const var& initialValue)
@@ -133,12 +133,12 @@ Value::~Value()
 }
 
 //==============================================================================
-const var Value::getValue() const
+var Value::getValue() const
 {
     return value->getValue();
 }
 
-Value::operator const var() const
+Value::operator var() const
 {
     return getValue();
 }
@@ -148,7 +148,7 @@ void Value::setValue (const var& newValue)
     value->setValue (newValue);
 }
 
-const String Value::toString() const
+String Value::toString() const
 {
     return value->getValue().toString();
 }
@@ -192,7 +192,7 @@ bool Value::operator!= (const Value& other) const
 //==============================================================================
 void Value::addListener (ValueListener* const listener)
 {
-    if (listener != 0)
+    if (listener != nullptr)
     {
         if (listeners.size() == 0)
             value->valuesWithListeners.add (this);

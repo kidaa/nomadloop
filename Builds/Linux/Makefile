@@ -53,6 +53,7 @@ OBJECTS := \
   $(OBJDIR)/juce_AudioSubsectionReader_65f61a0a.o \
   $(OBJDIR)/juce_AudioThumbnail_cb99b4b4.o \
   $(OBJDIR)/juce_AudioThumbnailCache_89a7c678.o \
+  $(OBJDIR)/juce_CoreAudioFormat_1ce243da.o \
   $(OBJDIR)/juce_FlacAudioFormat_19c048f1.o \
   $(OBJDIR)/juce_OggVorbisAudioFormat_3f214fc9.o \
   $(OBJDIR)/juce_QuickTimeAudioFormat_8ad67271.o \
@@ -65,6 +66,7 @@ OBJECTS := \
   $(OBJDIR)/juce_IIRFilterAudioSource_807ee8aa.o \
   $(OBJDIR)/juce_MixerAudioSource_bc6f772b.o \
   $(OBJDIR)/juce_ResamplingAudioSource_8511875e.o \
+  $(OBJDIR)/juce_ReverbAudioSource_3ae42aa6.o \
   $(OBJDIR)/juce_ToneGeneratorAudioSource_77f504b3.o \
   $(OBJDIR)/juce_AudioDeviceManager_c24db832.o \
   $(OBJDIR)/juce_AudioIODevice_f7da876b.o \
@@ -79,14 +81,13 @@ OBJECTS := \
   $(OBJDIR)/juce_MidiMessageCollector_108abdc4.o \
   $(OBJDIR)/juce_MidiMessageSequence_a577dcb4.o \
   $(OBJDIR)/juce_MidiOutput_3cc0f43f.o \
-  $(OBJDIR)/juce_VSTPluginFormat_e4d590ea.o \
-  $(OBJDIR)/juce_AudioPluginFormat_a7021cd6.o \
-  $(OBJDIR)/juce_AudioPluginFormatManager_259e5a81.o \
-  $(OBJDIR)/juce_AudioPluginInstance_905077f4.o \
-  $(OBJDIR)/juce_KnownPluginList_18bb712a.o \
-  $(OBJDIR)/juce_PluginDescription_23011f1f.o \
-  $(OBJDIR)/juce_PluginDirectoryScanner_e732ab58.o \
-  $(OBJDIR)/juce_PluginListComponent_ea775c22.o \
+  $(OBJDIR)/juce_VSTPluginFormat_af341d6.o \
+  $(OBJDIR)/juce_AudioPluginFormat_5dc1eec2.o \
+  $(OBJDIR)/juce_AudioPluginFormatManager_c336c715.o \
+  $(OBJDIR)/juce_KnownPluginList_cadece16.o \
+  $(OBJDIR)/juce_PluginDescription_d9c0f10b.o \
+  $(OBJDIR)/juce_PluginDirectoryScanner_c7652cec.o \
+  $(OBJDIR)/juce_PluginListComponent_f08a630e.o \
   $(OBJDIR)/juce_AudioProcessor_babd0919.o \
   $(OBJDIR)/juce_AudioProcessorEditor_82a32d26.o \
   $(OBJDIR)/juce_AudioProcessorGraph_76dcb4ff.o \
@@ -102,10 +103,10 @@ OBJECTS := \
   $(OBJDIR)/juce_ValueTree_f822be84.o \
   $(OBJDIR)/juce_Variant_4f31c35a.o \
   $(OBJDIR)/juce_FileLogger_7858478e.o \
-  $(OBJDIR)/juce_Initialisation_fec765a9.o \
   $(OBJDIR)/juce_Logger_4f4f7f72.o \
   $(OBJDIR)/juce_PerformanceCounter_6422080e.o \
   $(OBJDIR)/juce_RelativeTime_bc5ef35b.o \
+  $(OBJDIR)/juce_Result_d8f437f.o \
   $(OBJDIR)/juce_SystemStats_c00d8758.o \
   $(OBJDIR)/juce_Time_16acdd6f.o \
   $(OBJDIR)/juce_Uuid_f277575d.o \
@@ -113,6 +114,7 @@ OBJECTS := \
   $(OBJDIR)/juce_MD5_56896819.o \
   $(OBJDIR)/juce_Primes_32e6603.o \
   $(OBJDIR)/juce_RSAKey_b60982ae.o \
+  $(OBJDIR)/juce_SHA256_cb4da0d6.o \
   $(OBJDIR)/juce_ActionBroadcaster_7f997786.o \
   $(OBJDIR)/juce_AsyncUpdater_a7e1cb89.o \
   $(OBJDIR)/juce_ChangeBroadcaster_3eb8fecc.o \
@@ -140,6 +142,7 @@ OBJECTS := \
   $(OBJDIR)/juce_CodeEditorComponent_6fe4a170.o \
   $(OBJDIR)/juce_CPlusPlusCodeTokeniser_6b8548a9.o \
   $(OBJDIR)/juce_ComboBox_bcb5e365.o \
+  $(OBJDIR)/juce_ImageComponent_1f90572a.o \
   $(OBJDIR)/juce_Label_7af0aab6.o \
   $(OBJDIR)/juce_ListBox_d4a8704f.o \
   $(OBJDIR)/juce_ProgressBar_38bc3ba8.o \
@@ -235,7 +238,7 @@ OBJECTS := \
   $(OBJDIR)/juce_Colours_89de9488.o \
   $(OBJDIR)/juce_EdgeTable_6a5fefda.o \
   $(OBJDIR)/juce_FillType_5805677e.o \
-  $(OBJDIR)/juce_Graphics_27754bac.o \
+  $(OBJDIR)/juce_GraphicsContext_119e43ed.o \
   $(OBJDIR)/juce_Justification_dc284c3b.o \
   $(OBJDIR)/juce_LowLevelGraphicsPostScriptRenderer_2e8a92a.o \
   $(OBJDIR)/juce_LowLevelGraphicsSoftwareRenderer_97263906.o \
@@ -250,6 +253,7 @@ OBJECTS := \
   $(OBJDIR)/juce_SVGParser_b79416c5.o \
   $(OBJDIR)/juce_DropShadowEffect_da52d75.o \
   $(OBJDIR)/juce_GlowEffect_c0959893.o \
+  $(OBJDIR)/juce_CustomTypeface_b93a3eff.o \
   $(OBJDIR)/juce_Font_fa88db26.o \
   $(OBJDIR)/juce_GlyphArrangement_f0797295.o \
   $(OBJDIR)/juce_TextLayout_d18f700e.o \
@@ -302,6 +306,7 @@ OBJECTS := \
   $(OBJDIR)/juce_linux_Midi_4bad86cb.o \
   $(OBJDIR)/juce_linux_NativeCode_8a61cd0e.o \
   $(OBJDIR)/juce_linux_Network_f47a1c4e.o \
+  $(OBJDIR)/juce_linux_OpenGLComponent_ba2f042e.o \
   $(OBJDIR)/juce_linux_SystemStats_9f6d6b50.o \
   $(OBJDIR)/juce_linux_Threads_dc4a4049.o \
   $(OBJDIR)/juce_linux_WebBrowserComponent_358c0a49.o \
@@ -314,19 +319,18 @@ OBJECTS := \
   $(OBJDIR)/juce_win32_AudioCDReader_66c7252.o \
   $(OBJDIR)/juce_win32_CameraDevice_ea35306d.o \
   $(OBJDIR)/juce_win32_Direct2DGraphicsContext_9f1b6be1.o \
+  $(OBJDIR)/juce_win32_DirectShowComponent_e4030c4f.o \
   $(OBJDIR)/juce_win32_DirectSound_3462415e.o \
-  $(OBJDIR)/juce_win32_DynamicLibraryLoader_2df0d241.o \
   $(OBJDIR)/juce_win32_FileChooser_18a257.o \
   $(OBJDIR)/juce_win32_Files_f3e9a2ef.o \
   $(OBJDIR)/juce_win32_Fonts_e695d7fc.o \
   $(OBJDIR)/juce_win32_Messaging_926ab77c.o \
   $(OBJDIR)/juce_win32_Midi_fac3cfb3.o \
-  $(OBJDIR)/juce_win32_Misc_1407f3fe.o \
   $(OBJDIR)/juce_win32_NativeCode_c247c7f6.o \
   $(OBJDIR)/juce_win32_Network_6c84a66.o \
   $(OBJDIR)/juce_win32_OpenGLComponent_d0d99a46.o \
-  $(OBJDIR)/juce_win32_PlatformUtils_73e7e1f6.o \
   $(OBJDIR)/juce_win32_QuickTimeMovieComponent_be08e5f.o \
+  $(OBJDIR)/juce_win32_Registry_86da784f.o \
   $(OBJDIR)/juce_win32_SystemStats_6446cd68.o \
   $(OBJDIR)/juce_win32_Threads_ee986e61.o \
   $(OBJDIR)/juce_win32_WASAPI_c7c6c3c3.o \
@@ -350,6 +354,7 @@ OBJECTS := \
   $(OBJDIR)/juce_android_Windowing_2a620a72.o \
   $(OBJDIR)/juce_CharacterFunctions_b1a5ac62.o \
   $(OBJDIR)/juce_Identifier_e99ee619.o \
+  $(OBJDIR)/juce_JSON_bbf64af8.o \
   $(OBJDIR)/juce_LocalisedStrings_3ddfa55e.o \
   $(OBJDIR)/juce_String_80587b01.o \
   $(OBJDIR)/juce_StringArray_4aaa67a2.o \
@@ -453,6 +458,11 @@ $(OBJDIR)/juce_AudioThumbnailCache_89a7c678.o: ../../src/audio/audio_file_format
 	@echo "Compiling juce_AudioThumbnailCache.cpp"
 	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 
+$(OBJDIR)/juce_CoreAudioFormat_1ce243da.o: ../../src/audio/audio_file_formats/juce_CoreAudioFormat.cpp
+	-@mkdir -p $(OBJDIR)
+	@echo "Compiling juce_CoreAudioFormat.cpp"
+	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
+
 $(OBJDIR)/juce_FlacAudioFormat_19c048f1.o: ../../src/audio/audio_file_formats/juce_FlacAudioFormat.cpp
 	-@mkdir -p $(OBJDIR)
 	@echo "Compiling juce_FlacAudioFormat.cpp"
@@ -511,6 +521,11 @@ $(OBJDIR)/juce_MixerAudioSource_bc6f772b.o: ../../src/audio/audio_sources/juce_M
 $(OBJDIR)/juce_ResamplingAudioSource_8511875e.o: ../../src/audio/audio_sources/juce_ResamplingAudioSource.cpp
 	-@mkdir -p $(OBJDIR)
 	@echo "Compiling juce_ResamplingAudioSource.cpp"
+	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
+
+$(OBJDIR)/juce_ReverbAudioSource_3ae42aa6.o: ../../src/audio/audio_sources/juce_ReverbAudioSource.cpp
+	-@mkdir -p $(OBJDIR)
+	@echo "Compiling juce_ReverbAudioSource.cpp"
 	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 
 $(OBJDIR)/juce_ToneGeneratorAudioSource_77f504b3.o: ../../src/audio/audio_sources/juce_ToneGeneratorAudioSource.cpp
@@ -583,42 +598,37 @@ $(OBJDIR)/juce_MidiOutput_3cc0f43f.o: ../../src/audio/midi/juce_MidiOutput.cpp
 	@echo "Compiling juce_MidiOutput.cpp"
 	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 
-$(OBJDIR)/juce_VSTPluginFormat_e4d590ea.o: ../../src/audio/plugins/formats/juce_VSTPluginFormat.cpp
+$(OBJDIR)/juce_VSTPluginFormat_af341d6.o: ../../src/audio/plugin_host/formats/juce_VSTPluginFormat.cpp
 	-@mkdir -p $(OBJDIR)
 	@echo "Compiling juce_VSTPluginFormat.cpp"
 	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 
-$(OBJDIR)/juce_AudioPluginFormat_a7021cd6.o: ../../src/audio/plugins/juce_AudioPluginFormat.cpp
+$(OBJDIR)/juce_AudioPluginFormat_5dc1eec2.o: ../../src/audio/plugin_host/juce_AudioPluginFormat.cpp
 	-@mkdir -p $(OBJDIR)
 	@echo "Compiling juce_AudioPluginFormat.cpp"
 	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 
-$(OBJDIR)/juce_AudioPluginFormatManager_259e5a81.o: ../../src/audio/plugins/juce_AudioPluginFormatManager.cpp
+$(OBJDIR)/juce_AudioPluginFormatManager_c336c715.o: ../../src/audio/plugin_host/juce_AudioPluginFormatManager.cpp
 	-@mkdir -p $(OBJDIR)
 	@echo "Compiling juce_AudioPluginFormatManager.cpp"
 	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 
-$(OBJDIR)/juce_AudioPluginInstance_905077f4.o: ../../src/audio/plugins/juce_AudioPluginInstance.cpp
-	-@mkdir -p $(OBJDIR)
-	@echo "Compiling juce_AudioPluginInstance.cpp"
-	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
-
-$(OBJDIR)/juce_KnownPluginList_18bb712a.o: ../../src/audio/plugins/juce_KnownPluginList.cpp
+$(OBJDIR)/juce_KnownPluginList_cadece16.o: ../../src/audio/plugin_host/juce_KnownPluginList.cpp
 	-@mkdir -p $(OBJDIR)
 	@echo "Compiling juce_KnownPluginList.cpp"
 	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 
-$(OBJDIR)/juce_PluginDescription_23011f1f.o: ../../src/audio/plugins/juce_PluginDescription.cpp
+$(OBJDIR)/juce_PluginDescription_d9c0f10b.o: ../../src/audio/plugin_host/juce_PluginDescription.cpp
 	-@mkdir -p $(OBJDIR)
 	@echo "Compiling juce_PluginDescription.cpp"
 	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 
-$(OBJDIR)/juce_PluginDirectoryScanner_e732ab58.o: ../../src/audio/plugins/juce_PluginDirectoryScanner.cpp
+$(OBJDIR)/juce_PluginDirectoryScanner_c7652cec.o: ../../src/audio/plugin_host/juce_PluginDirectoryScanner.cpp
 	-@mkdir -p $(OBJDIR)
 	@echo "Compiling juce_PluginDirectoryScanner.cpp"
 	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 
-$(OBJDIR)/juce_PluginListComponent_ea775c22.o: ../../src/audio/plugins/juce_PluginListComponent.cpp
+$(OBJDIR)/juce_PluginListComponent_f08a630e.o: ../../src/audio/plugin_host/juce_PluginListComponent.cpp
 	-@mkdir -p $(OBJDIR)
 	@echo "Compiling juce_PluginListComponent.cpp"
 	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
@@ -698,11 +708,6 @@ $(OBJDIR)/juce_FileLogger_7858478e.o: ../../src/core/juce_FileLogger.cpp
 	@echo "Compiling juce_FileLogger.cpp"
 	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 
-$(OBJDIR)/juce_Initialisation_fec765a9.o: ../../src/core/juce_Initialisation.cpp
-	-@mkdir -p $(OBJDIR)
-	@echo "Compiling juce_Initialisation.cpp"
-	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
-
 $(OBJDIR)/juce_Logger_4f4f7f72.o: ../../src/core/juce_Logger.cpp
 	-@mkdir -p $(OBJDIR)
 	@echo "Compiling juce_Logger.cpp"
@@ -716,6 +721,11 @@ $(OBJDIR)/juce_PerformanceCounter_6422080e.o: ../../src/core/juce_PerformanceCou
 $(OBJDIR)/juce_RelativeTime_bc5ef35b.o: ../../src/core/juce_RelativeTime.cpp
 	-@mkdir -p $(OBJDIR)
 	@echo "Compiling juce_RelativeTime.cpp"
+	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
+
+$(OBJDIR)/juce_Result_d8f437f.o: ../../src/core/juce_Result.cpp
+	-@mkdir -p $(OBJDIR)
+	@echo "Compiling juce_Result.cpp"
 	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 
 $(OBJDIR)/juce_SystemStats_c00d8758.o: ../../src/core/juce_SystemStats.cpp
@@ -751,6 +761,11 @@ $(OBJDIR)/juce_Primes_32e6603.o: ../../src/cryptography/juce_Primes.cpp
 $(OBJDIR)/juce_RSAKey_b60982ae.o: ../../src/cryptography/juce_RSAKey.cpp
 	-@mkdir -p $(OBJDIR)
 	@echo "Compiling juce_RSAKey.cpp"
+	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
+
+$(OBJDIR)/juce_SHA256_cb4da0d6.o: ../../src/cryptography/juce_SHA256.cpp
+	-@mkdir -p $(OBJDIR)
+	@echo "Compiling juce_SHA256.cpp"
 	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 
 $(OBJDIR)/juce_ActionBroadcaster_7f997786.o: ../../src/events/juce_ActionBroadcaster.cpp
@@ -886,6 +901,11 @@ $(OBJDIR)/juce_CPlusPlusCodeTokeniser_6b8548a9.o: ../../src/gui/components/code_
 $(OBJDIR)/juce_ComboBox_bcb5e365.o: ../../src/gui/components/controls/juce_ComboBox.cpp
 	-@mkdir -p $(OBJDIR)
 	@echo "Compiling juce_ComboBox.cpp"
+	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
+
+$(OBJDIR)/juce_ImageComponent_1f90572a.o: ../../src/gui/components/controls/juce_ImageComponent.cpp
+	-@mkdir -p $(OBJDIR)
+	@echo "Compiling juce_ImageComponent.cpp"
 	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 
 $(OBJDIR)/juce_Label_7af0aab6.o: ../../src/gui/components/controls/juce_Label.cpp
@@ -1363,9 +1383,9 @@ $(OBJDIR)/juce_FillType_5805677e.o: ../../src/gui/graphics/contexts/juce_FillTyp
 	@echo "Compiling juce_FillType.cpp"
 	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 
-$(OBJDIR)/juce_Graphics_27754bac.o: ../../src/gui/graphics/contexts/juce_Graphics.cpp
+$(OBJDIR)/juce_GraphicsContext_119e43ed.o: ../../src/gui/graphics/contexts/juce_GraphicsContext.cpp
 	-@mkdir -p $(OBJDIR)
-	@echo "Compiling juce_Graphics.cpp"
+	@echo "Compiling juce_GraphicsContext.cpp"
 	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 
 $(OBJDIR)/juce_Justification_dc284c3b.o: ../../src/gui/graphics/contexts/juce_Justification.cpp
@@ -1436,6 +1456,11 @@ $(OBJDIR)/juce_DropShadowEffect_da52d75.o: ../../src/gui/graphics/effects/juce_D
 $(OBJDIR)/juce_GlowEffect_c0959893.o: ../../src/gui/graphics/effects/juce_GlowEffect.cpp
 	-@mkdir -p $(OBJDIR)
 	@echo "Compiling juce_GlowEffect.cpp"
+	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
+
+$(OBJDIR)/juce_CustomTypeface_b93a3eff.o: ../../src/gui/graphics/fonts/juce_CustomTypeface.cpp
+	-@mkdir -p $(OBJDIR)
+	@echo "Compiling juce_CustomTypeface.cpp"
 	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 
 $(OBJDIR)/juce_Font_fa88db26.o: ../../src/gui/graphics/fonts/juce_Font.cpp
@@ -1698,6 +1723,11 @@ $(OBJDIR)/juce_linux_Network_f47a1c4e.o: ../../src/native/linux/juce_linux_Netwo
 	@echo "Compiling juce_linux_Network.cpp"
 	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 
+$(OBJDIR)/juce_linux_OpenGLComponent_ba2f042e.o: ../../src/native/linux/juce_linux_OpenGLComponent.cpp
+	-@mkdir -p $(OBJDIR)
+	@echo "Compiling juce_linux_OpenGLComponent.cpp"
+	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
+
 $(OBJDIR)/juce_linux_SystemStats_9f6d6b50.o: ../../src/native/linux/juce_linux_SystemStats.cpp
 	-@mkdir -p $(OBJDIR)
 	@echo "Compiling juce_linux_SystemStats.cpp"
@@ -1758,14 +1788,14 @@ $(OBJDIR)/juce_win32_Direct2DGraphicsContext_9f1b6be1.o: ../../src/native/window
 	@echo "Compiling juce_win32_Direct2DGraphicsContext.cpp"
 	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 
+$(OBJDIR)/juce_win32_DirectShowComponent_e4030c4f.o: ../../src/native/windows/juce_win32_DirectShowComponent.cpp
+	-@mkdir -p $(OBJDIR)
+	@echo "Compiling juce_win32_DirectShowComponent.cpp"
+	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
+
 $(OBJDIR)/juce_win32_DirectSound_3462415e.o: ../../src/native/windows/juce_win32_DirectSound.cpp
 	-@mkdir -p $(OBJDIR)
 	@echo "Compiling juce_win32_DirectSound.cpp"
-	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
-
-$(OBJDIR)/juce_win32_DynamicLibraryLoader_2df0d241.o: ../../src/native/windows/juce_win32_DynamicLibraryLoader.cpp
-	-@mkdir -p $(OBJDIR)
-	@echo "Compiling juce_win32_DynamicLibraryLoader.cpp"
 	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 
 $(OBJDIR)/juce_win32_FileChooser_18a257.o: ../../src/native/windows/juce_win32_FileChooser.cpp
@@ -1793,11 +1823,6 @@ $(OBJDIR)/juce_win32_Midi_fac3cfb3.o: ../../src/native/windows/juce_win32_Midi.c
 	@echo "Compiling juce_win32_Midi.cpp"
 	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 
-$(OBJDIR)/juce_win32_Misc_1407f3fe.o: ../../src/native/windows/juce_win32_Misc.cpp
-	-@mkdir -p $(OBJDIR)
-	@echo "Compiling juce_win32_Misc.cpp"
-	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
-
 $(OBJDIR)/juce_win32_NativeCode_c247c7f6.o: ../../src/native/windows/juce_win32_NativeCode.cpp
 	-@mkdir -p $(OBJDIR)
 	@echo "Compiling juce_win32_NativeCode.cpp"
@@ -1813,14 +1838,14 @@ $(OBJDIR)/juce_win32_OpenGLComponent_d0d99a46.o: ../../src/native/windows/juce_w
 	@echo "Compiling juce_win32_OpenGLComponent.cpp"
 	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 
-$(OBJDIR)/juce_win32_PlatformUtils_73e7e1f6.o: ../../src/native/windows/juce_win32_PlatformUtils.cpp
-	-@mkdir -p $(OBJDIR)
-	@echo "Compiling juce_win32_PlatformUtils.cpp"
-	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
-
 $(OBJDIR)/juce_win32_QuickTimeMovieComponent_be08e5f.o: ../../src/native/windows/juce_win32_QuickTimeMovieComponent.cpp
 	-@mkdir -p $(OBJDIR)
 	@echo "Compiling juce_win32_QuickTimeMovieComponent.cpp"
+	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
+
+$(OBJDIR)/juce_win32_Registry_86da784f.o: ../../src/native/windows/juce_win32_Registry.cpp
+	-@mkdir -p $(OBJDIR)
+	@echo "Compiling juce_win32_Registry.cpp"
 	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 
 $(OBJDIR)/juce_win32_SystemStats_6446cd68.o: ../../src/native/windows/juce_win32_SystemStats.cpp
@@ -1936,6 +1961,11 @@ $(OBJDIR)/juce_CharacterFunctions_b1a5ac62.o: ../../src/text/juce_CharacterFunct
 $(OBJDIR)/juce_Identifier_e99ee619.o: ../../src/text/juce_Identifier.cpp
 	-@mkdir -p $(OBJDIR)
 	@echo "Compiling juce_Identifier.cpp"
+	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
+
+$(OBJDIR)/juce_JSON_bbf64af8.o: ../../src/text/juce_JSON.cpp
+	-@mkdir -p $(OBJDIR)
+	@echo "Compiling juce_JSON.cpp"
 	@$(CXX) $(CXXFLAGS) -o "$@" -c "$<"
 
 $(OBJDIR)/juce_LocalisedStrings_3ddfa55e.o: ../../src/text/juce_LocalisedStrings.cpp

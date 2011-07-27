@@ -35,51 +35,49 @@ namespace ActiveXHelpers
     public:
         JuceIStorage() {}
 
-        HRESULT __stdcall CreateStream (const WCHAR*, DWORD, DWORD, DWORD, IStream**)           { return E_NOTIMPL; }
-        HRESULT __stdcall OpenStream (const WCHAR*, void*, DWORD, DWORD, IStream**)             { return E_NOTIMPL; }
-        HRESULT __stdcall CreateStorage (const WCHAR*, DWORD, DWORD, DWORD, IStorage**)         { return E_NOTIMPL; }
-        HRESULT __stdcall OpenStorage (const WCHAR*, IStorage*, DWORD, SNB, DWORD, IStorage**)  { return E_NOTIMPL; }
-        HRESULT __stdcall CopyTo (DWORD, IID const*, SNB, IStorage*)                            { return E_NOTIMPL; }
-        HRESULT __stdcall MoveElementTo (const OLECHAR*,IStorage*, const OLECHAR*, DWORD)       { return E_NOTIMPL; }
-        HRESULT __stdcall Commit (DWORD)                                                        { return E_NOTIMPL; }
-        HRESULT __stdcall Revert()                                                              { return E_NOTIMPL; }
-        HRESULT __stdcall EnumElements (DWORD, void*, DWORD, IEnumSTATSTG**)                    { return E_NOTIMPL; }
-        HRESULT __stdcall DestroyElement (const OLECHAR*)                                       { return E_NOTIMPL; }
-        HRESULT __stdcall RenameElement (const WCHAR*, const WCHAR*)                            { return E_NOTIMPL; }
-        HRESULT __stdcall SetElementTimes (const WCHAR*, FILETIME const*, FILETIME const*, FILETIME const*)    { return E_NOTIMPL; }
-        HRESULT __stdcall SetClass (REFCLSID)                                                   { return S_OK; }
-        HRESULT __stdcall SetStateBits (DWORD, DWORD)                                           { return E_NOTIMPL; }
-        HRESULT __stdcall Stat (STATSTG*, DWORD)                                                { return E_NOTIMPL; }
+        JUCE_COMRESULT CreateStream (const WCHAR*, DWORD, DWORD, DWORD, IStream**)           { return E_NOTIMPL; }
+        JUCE_COMRESULT OpenStream (const WCHAR*, void*, DWORD, DWORD, IStream**)             { return E_NOTIMPL; }
+        JUCE_COMRESULT CreateStorage (const WCHAR*, DWORD, DWORD, DWORD, IStorage**)         { return E_NOTIMPL; }
+        JUCE_COMRESULT OpenStorage (const WCHAR*, IStorage*, DWORD, SNB, DWORD, IStorage**)  { return E_NOTIMPL; }
+        JUCE_COMRESULT CopyTo (DWORD, IID const*, SNB, IStorage*)                            { return E_NOTIMPL; }
+        JUCE_COMRESULT MoveElementTo (const OLECHAR*,IStorage*, const OLECHAR*, DWORD)       { return E_NOTIMPL; }
+        JUCE_COMRESULT Commit (DWORD)                                                        { return E_NOTIMPL; }
+        JUCE_COMRESULT Revert()                                                              { return E_NOTIMPL; }
+        JUCE_COMRESULT EnumElements (DWORD, void*, DWORD, IEnumSTATSTG**)                    { return E_NOTIMPL; }
+        JUCE_COMRESULT DestroyElement (const OLECHAR*)                                       { return E_NOTIMPL; }
+        JUCE_COMRESULT RenameElement (const WCHAR*, const WCHAR*)                            { return E_NOTIMPL; }
+        JUCE_COMRESULT SetElementTimes (const WCHAR*, FILETIME const*, FILETIME const*, FILETIME const*)    { return E_NOTIMPL; }
+        JUCE_COMRESULT SetClass (REFCLSID)                                                   { return S_OK; }
+        JUCE_COMRESULT SetStateBits (DWORD, DWORD)                                           { return E_NOTIMPL; }
+        JUCE_COMRESULT Stat (STATSTG*, DWORD)                                                { return E_NOTIMPL; }
     };
 
     //==============================================================================
     class JuceOleInPlaceFrame   : public ComBaseClassHelper <IOleInPlaceFrame>
     {
-        HWND window;
-
     public:
         JuceOleInPlaceFrame (HWND window_)   : window (window_) {}
 
-        HRESULT __stdcall GetWindow (HWND* lphwnd)                      { *lphwnd = window; return S_OK; }
-        HRESULT __stdcall ContextSensitiveHelp (BOOL)                   { return E_NOTIMPL; }
-        HRESULT __stdcall GetBorder (LPRECT)                            { return E_NOTIMPL; }
-        HRESULT __stdcall RequestBorderSpace (LPCBORDERWIDTHS)          { return E_NOTIMPL; }
-        HRESULT __stdcall SetBorderSpace (LPCBORDERWIDTHS)              { return E_NOTIMPL; }
-        HRESULT __stdcall SetActiveObject (IOleInPlaceActiveObject*, LPCOLESTR)     { return S_OK; }
-        HRESULT __stdcall InsertMenus (HMENU, LPOLEMENUGROUPWIDTHS)     { return E_NOTIMPL; }
-        HRESULT __stdcall SetMenu (HMENU, HOLEMENU, HWND)               { return S_OK; }
-        HRESULT __stdcall RemoveMenus (HMENU)                           { return E_NOTIMPL; }
-        HRESULT __stdcall SetStatusText (LPCOLESTR)                     { return S_OK; }
-        HRESULT __stdcall EnableModeless (BOOL)                         { return S_OK; }
-        HRESULT __stdcall TranslateAccelerator(LPMSG, WORD)             { return E_NOTIMPL; }
+        JUCE_COMRESULT GetWindow (HWND* lphwnd)                      { *lphwnd = window; return S_OK; }
+        JUCE_COMRESULT ContextSensitiveHelp (BOOL)                   { return E_NOTIMPL; }
+        JUCE_COMRESULT GetBorder (LPRECT)                            { return E_NOTIMPL; }
+        JUCE_COMRESULT RequestBorderSpace (LPCBORDERWIDTHS)          { return E_NOTIMPL; }
+        JUCE_COMRESULT SetBorderSpace (LPCBORDERWIDTHS)              { return E_NOTIMPL; }
+        JUCE_COMRESULT SetActiveObject (IOleInPlaceActiveObject*, LPCOLESTR)     { return S_OK; }
+        JUCE_COMRESULT InsertMenus (HMENU, LPOLEMENUGROUPWIDTHS)     { return E_NOTIMPL; }
+        JUCE_COMRESULT SetMenu (HMENU, HOLEMENU, HWND)               { return S_OK; }
+        JUCE_COMRESULT RemoveMenus (HMENU)                           { return E_NOTIMPL; }
+        JUCE_COMRESULT SetStatusText (LPCOLESTR)                     { return S_OK; }
+        JUCE_COMRESULT EnableModeless (BOOL)                         { return S_OK; }
+        JUCE_COMRESULT TranslateAccelerator (LPMSG, WORD)            { return E_NOTIMPL; }
+
+    private:
+        HWND window;
     };
 
     //==============================================================================
     class JuceIOleInPlaceSite   : public ComBaseClassHelper <IOleInPlaceSite>
     {
-        HWND window;
-        JuceOleInPlaceFrame* frame;
-
     public:
         JuceIOleInPlaceSite (HWND window_)
             : window (window_),
@@ -91,19 +89,19 @@ namespace ActiveXHelpers
             frame->Release();
         }
 
-        HRESULT __stdcall GetWindow (HWND* lphwnd)      { *lphwnd = window; return S_OK; }
-        HRESULT __stdcall ContextSensitiveHelp (BOOL)   { return E_NOTIMPL; }
-        HRESULT __stdcall CanInPlaceActivate()          { return S_OK; }
-        HRESULT __stdcall OnInPlaceActivate()           { return S_OK; }
-        HRESULT __stdcall OnUIActivate()                { return S_OK; }
+        JUCE_COMRESULT GetWindow (HWND* lphwnd)      { *lphwnd = window; return S_OK; }
+        JUCE_COMRESULT ContextSensitiveHelp (BOOL)   { return E_NOTIMPL; }
+        JUCE_COMRESULT CanInPlaceActivate()          { return S_OK; }
+        JUCE_COMRESULT OnInPlaceActivate()           { return S_OK; }
+        JUCE_COMRESULT OnUIActivate()                { return S_OK; }
 
-        HRESULT __stdcall GetWindowContext (LPOLEINPLACEFRAME* lplpFrame, LPOLEINPLACEUIWINDOW* lplpDoc, LPRECT, LPRECT, LPOLEINPLACEFRAMEINFO lpFrameInfo)
+        JUCE_COMRESULT GetWindowContext (LPOLEINPLACEFRAME* lplpFrame, LPOLEINPLACEUIWINDOW* lplpDoc, LPRECT, LPRECT, LPOLEINPLACEFRAMEINFO lpFrameInfo)
         {
             /* Note: if you call AddRef on the frame here, then some types of object (e.g. web browser control) cause leaks..
                If you don't call AddRef then others crash (e.g. QuickTime).. Bit of a catch-22, so letting it leak is probably preferable.
             */
-            if (lplpFrame != 0) { frame->AddRef(); *lplpFrame = frame; }
-            if (lplpDoc != 0)   *lplpDoc = 0;
+            if (lplpFrame != nullptr) { frame->AddRef(); *lplpFrame = frame; }
+            if (lplpDoc != nullptr)   *lplpDoc = 0;
             lpFrameInfo->fMDIApp = FALSE;
             lpFrameInfo->hwndFrame = window;
             lpFrameInfo->haccel = 0;
@@ -111,19 +109,21 @@ namespace ActiveXHelpers
             return S_OK;
         }
 
-        HRESULT __stdcall Scroll (SIZE)                 { return E_NOTIMPL; }
-        HRESULT __stdcall OnUIDeactivate (BOOL)         { return S_OK; }
-        HRESULT __stdcall OnInPlaceDeactivate()         { return S_OK; }
-        HRESULT __stdcall DiscardUndoState()            { return E_NOTIMPL; }
-        HRESULT __stdcall DeactivateAndUndo()           { return E_NOTIMPL; }
-        HRESULT __stdcall OnPosRectChange (LPCRECT)     { return S_OK; }
+        JUCE_COMRESULT Scroll (SIZE)                 { return E_NOTIMPL; }
+        JUCE_COMRESULT OnUIDeactivate (BOOL)         { return S_OK; }
+        JUCE_COMRESULT OnInPlaceDeactivate()         { return S_OK; }
+        JUCE_COMRESULT DiscardUndoState()            { return E_NOTIMPL; }
+        JUCE_COMRESULT DeactivateAndUndo()           { return E_NOTIMPL; }
+        JUCE_COMRESULT OnPosRectChange (LPCRECT)     { return S_OK; }
+
+    private:
+        HWND window;
+        JuceOleInPlaceFrame* frame;
     };
 
     //==============================================================================
     class JuceIOleClientSite  : public ComBaseClassHelper <IOleClientSite>
     {
-        JuceIOleInPlaceSite* inplaceSite;
-
     public:
         JuceIOleClientSite (HWND window)
             : inplaceSite (new JuceIOleInPlaceSite (window))
@@ -134,7 +134,7 @@ namespace ActiveXHelpers
             inplaceSite->Release();
         }
 
-        HRESULT __stdcall QueryInterface (REFIID type, void** result)
+        JUCE_COMRESULT QueryInterface (REFIID type, void** result)
         {
             if (type == IID_IOleInPlaceSite)
             {
@@ -146,25 +146,28 @@ namespace ActiveXHelpers
             return ComBaseClassHelper <IOleClientSite>::QueryInterface (type, result);
         }
 
-        HRESULT __stdcall SaveObject()                                  { return E_NOTIMPL; }
-        HRESULT __stdcall GetMoniker (DWORD, DWORD, IMoniker**)         { return E_NOTIMPL; }
-        HRESULT __stdcall GetContainer (LPOLECONTAINER* ppContainer)    { *ppContainer = 0; return E_NOINTERFACE; }
-        HRESULT __stdcall ShowObject()                                  { return S_OK; }
-        HRESULT __stdcall OnShowWindow (BOOL)                           { return E_NOTIMPL; }
-        HRESULT __stdcall RequestNewObjectLayout()                      { return E_NOTIMPL; }
+        JUCE_COMRESULT SaveObject()                                  { return E_NOTIMPL; }
+        JUCE_COMRESULT GetMoniker (DWORD, DWORD, IMoniker**)         { return E_NOTIMPL; }
+        JUCE_COMRESULT GetContainer (LPOLECONTAINER* ppContainer)    { *ppContainer = 0; return E_NOINTERFACE; }
+        JUCE_COMRESULT ShowObject()                                  { return S_OK; }
+        JUCE_COMRESULT OnShowWindow (BOOL)                           { return E_NOTIMPL; }
+        JUCE_COMRESULT RequestNewObjectLayout()                      { return E_NOTIMPL; }
+
+    private:
+        JuceIOleInPlaceSite* inplaceSite;
     };
 
     //==============================================================================
     static Array<ActiveXControlComponent*> activeXComps;
 
-    static HWND getHWND (const ActiveXControlComponent* const component)
+    HWND getHWND (const ActiveXControlComponent* const component)
     {
         HWND hwnd = 0;
 
         const IID iid = IID_IOleWindow;
         IOleWindow* const window = (IOleWindow*) component->queryInterface (&iid);
 
-        if (window != 0)
+        if (window != nullptr)
         {
             window->GetWindow (&hwnd);
             window->Release();
@@ -173,7 +176,7 @@ namespace ActiveXHelpers
         return hwnd;
     }
 
-    static void offerActiveXMouseEventToPeer (ComponentPeer* const peer, HWND hwnd, UINT message, LPARAM lParam)
+    void offerActiveXMouseEventToPeer (ComponentPeer* const peer, HWND hwnd, UINT message, LPARAM lParam)
     {
         RECT activeXRect, peerRect;
         GetWindowRect (hwnd, &activeXRect);
@@ -214,13 +217,13 @@ public:
           controlHWND (0),
           storage (new ActiveXHelpers::JuceIStorage()),
           clientSite (new ActiveXHelpers::JuceIOleClientSite (hwnd)),
-          control (0)
+          control (nullptr)
     {
     }
 
     ~Pimpl()
     {
-        if (control != 0)
+        if (control != nullptr)
         {
             control->Close (OLECLOSE_NOSAVE);
             control->Release();
@@ -235,7 +238,7 @@ public:
     {
         Component* const topComp = owner.getTopLevelComponent();
 
-        if (topComp->getPeer() != 0)
+        if (topComp->getPeer() != nullptr)
         {
             const Point<int> pos (topComp->getLocalPoint (&owner, Point<int>()));
             owner.setControlBounds (Rectangle<int> (pos.getX(), pos.getY(), owner.getWidth(), owner.getHeight()));
@@ -260,7 +263,7 @@ public:
         {
             const ActiveXControlComponent* const ax = ActiveXHelpers::activeXComps.getUnchecked(i);
 
-            if (ax->control != 0 && ax->control->controlHWND == hwnd)
+            if (ax->control != nullptr && ax->control->controlHWND == hwnd)
             {
                 switch (message)
                 {
@@ -278,7 +281,7 @@ public:
                     {
                         ComponentPeer* const peer = ax->getPeer();
 
-                        if (peer != 0)
+                        if (peer != nullptr)
                         {
                             ActiveXHelpers::offerActiveXMouseEventToPeer (peer, hwnd, message, lParam);
 
@@ -309,6 +312,7 @@ public:
     IOleObject* control;
 };
 
+//==============================================================================
 ActiveXControlComponent::ActiveXControlComponent()
     : originalWndProc (0),
       mouseEventsAllowed (true)
@@ -324,7 +328,7 @@ ActiveXControlComponent::~ActiveXControlComponent()
 
 void ActiveXControlComponent::paint (Graphics& g)
 {
-    if (control == 0)
+    if (control == nullptr)
         g.fillAll (Colours::lightgrey);
 }
 
@@ -334,9 +338,9 @@ bool ActiveXControlComponent::createControl (const void* controlIID)
     ComponentPeer* const peer = getPeer();
 
     // the component must have already been added to a real window when you call this!
-    jassert (dynamic_cast <Win32ComponentPeer*> (peer) != 0);
+    jassert (dynamic_cast <Win32ComponentPeer*> (peer) != nullptr);
 
-    if (dynamic_cast <Win32ComponentPeer*> (peer) != 0)
+    if (dynamic_cast <Win32ComponentPeer*> (peer) != nullptr)
     {
         const Point<int> pos (getTopLevelComponent()->getLocalPoint (this, Point<int>()));
         HWND hwnd = (HWND) peer->getNativeHandle();
@@ -382,19 +386,19 @@ bool ActiveXControlComponent::createControl (const void* controlIID)
 
 void ActiveXControlComponent::deleteControl()
 {
-    control = 0;
+    control = nullptr;
     originalWndProc = 0;
 }
 
 void* ActiveXControlComponent::queryInterface (const void* iid) const
 {
-    void* result = 0;
+    void* result = nullptr;
 
-    if (control != 0 && control->control != 0
+    if (control != nullptr && control->control != nullptr
          && SUCCEEDED (control->control->QueryInterface (*(const IID*) iid, &result)))
         return result;
 
-    return 0;
+    return nullptr;
 }
 
 void ActiveXControlComponent::setControlBounds (const Rectangle<int>& newBounds) const

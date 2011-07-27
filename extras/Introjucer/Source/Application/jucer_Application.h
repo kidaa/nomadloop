@@ -59,7 +59,6 @@ public:
 
         menuModel = new MainMenuModel();
 
-        MainWindow* main = createNewMainWindow (false);
         doExtraInitialisation();
 
         ImageCache::setCacheTimeout (30 * 1000);
@@ -76,19 +75,20 @@ public:
                 openFile (projects.getReference(i));
         }
 
+        if (mainWindows.size() == 0)
+            createNewMainWindow()->makeVisible();
+
       #if JUCE_MAC
         MenuBarModel::setMacMainMenu (menuModel);
       #endif
-
-        main->setVisible (true);
     }
 
     void shutdown()
     {
       #if JUCE_MAC
-        MenuBarModel::setMacMainMenu (0);
+        MenuBarModel::setMacMainMenu (nullptr);
       #endif
-        menuModel = 0;
+        menuModel = nullptr;
 
         StoredSettings::deleteInstance();
         mainWindows.clear();
@@ -127,7 +127,7 @@ public:
     //==============================================================================
     const String getApplicationName()
     {
-        return "The Jucer V" + getApplicationVersion();
+        return String (ProjectInfo::projectName) + " " + getApplicationVersion();
     }
 
     const String getApplicationVersion()
@@ -273,7 +273,10 @@ public:
             else if (menuItemID >= 300 && menuItemID < 400)
             {
                 OpenDocumentManager::Document* doc = OpenDocumentManager::getInstance()->getOpenDocument (menuItemID - 300);
-                getApp()->getOrCreateFrontmostWindow (true)->getProjectContentComponent()->showDocument (doc);
+
+                MainWindow* w = getApp()->getOrCreateFrontmostWindow();
+                w->makeVisible();
+                w->getProjectContentComponent()->showDocument (doc);
             }
         }
 
@@ -362,13 +365,13 @@ public:
 
     void createNewProject()
     {
-        MainWindow* mw = createNewMainWindow (false);
+        MainWindow* mw = createNewMainWindow();
         ScopedPointer <Project> newProj (NewProjectWizard::runNewProjectWizard (mw));
 
-        if (newProj != 0)
+        if (newProj != nullptr)
         {
             mw->setProject (newProj.release());
-            mw->setVisible (true);
+            mw->makeVisible();
         }
         else
         {
@@ -388,7 +391,7 @@ public:
     {
         for (int j = mainWindows.size(); --j >= 0;)
         {
-            if (mainWindows.getUnchecked(j)->getProject() != 0
+            if (mainWindows.getUnchecked(j)->getProject() != nullptr
                  && mainWindows.getUnchecked(j)->getProject()->getFile() == file)
             {
                 mainWindows.getUnchecked(j)->toFront (true);
@@ -400,19 +403,21 @@ public:
         {
             ScopedPointer <Project> newDoc (new Project (file));
 
-            if (file == File::nonexistent ? newDoc->loadFromUserSpecifiedFile (true)
-                                          : newDoc->loadFrom (file, true))
+            if (newDoc->loadFrom (file, true))
             {
-                MainWindow* w = getOrCreateEmptyWindow (false);
+                MainWindow* w = getOrCreateEmptyWindow();
                 w->setProject (newDoc.release());
-                w->restoreWindowPosition();
-                w->setVisible (true);
+                w->makeVisible();
                 return true;
             }
         }
         else if (file.exists())
         {
-            return getOrCreateFrontmostWindow (true)->openFile (file);
+            MainWindow* w = getOrCreateFrontmostWindow();
+
+            const bool ok = w->openFile (file);
+            w->makeVisible();
+            return ok;
         }
 
         return false;
@@ -442,7 +447,7 @@ public:
         {
             MainWindow* mw = mainWindows[i];
 
-            if (mw != 0 && mw->getProject() != 0)
+            if (mw != nullptr && mw->getProject() != nullptr)
                 projects.add (mw->getProject()->getFile());
         }
 
@@ -454,7 +459,7 @@ public:
 private:
     OwnedArray <MainWindow> mainWindows;
 
-    MainWindow* createNewMainWindow (bool makeVisible)
+    MainWindow* createNewMainWindow()
     {
         MainWindow* mw = new MainWindow();
 
@@ -463,18 +468,14 @@ private:
                 mw->setBounds (mw->getBounds().translated (20, 20));
 
         mainWindows.add (mw);
-
-        if (makeVisible)
-            mw->setVisible (true);
-
         mw->restoreWindowPosition();
         return mw;
     }
 
-    MainWindow* getOrCreateFrontmostWindow (bool makeVisible)
+    MainWindow* getOrCreateFrontmostWindow()
     {
         if (mainWindows.size() == 0)
-            return createNewMainWindow (makeVisible);
+            return createNewMainWindow();
 
         for (int i = Desktop::getInstance().getNumComponents(); --i >= 0;)
         {
@@ -486,19 +487,19 @@ private:
         return mainWindows.getLast();
     }
 
-    MainWindow* getOrCreateEmptyWindow (bool makeVisible)
+    MainWindow* getOrCreateEmptyWindow()
     {
         if (mainWindows.size() == 0)
-            return createNewMainWindow (makeVisible);
+            return createNewMainWindow();
 
         for (int i = Desktop::getInstance().getNumComponents(); --i >= 0;)
         {
             MainWindow* mw = dynamic_cast <MainWindow*> (Desktop::getInstance().getComponent (i));
-            if (mainWindows.contains (mw) && mw->getProject() == 0)
+            if (mainWindows.contains (mw) && mw->getProject() == nullptr)
                 return mw;
         }
 
-        return createNewMainWindow (makeVisible);
+        return createNewMainWindow();
     }
 };
 

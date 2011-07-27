@@ -92,11 +92,11 @@
 #ifndef __JUCE_PLATFORMDEFS_JUCEHEADER__
  #include "core/juce_PlatformDefs.h"
 #endif
-#ifndef __JUCE_PLATFORMUTILITIES_JUCEHEADER__
- #include "core/juce_PlatformUtilities.h"
-#endif
 #ifndef __JUCE_RELATIVETIME_JUCEHEADER__
  #include "core/juce_RelativeTime.h"
+#endif
+#ifndef __JUCE_RESULT_JUCEHEADER__
+ #include "core/juce_Result.h"
 #endif
 #ifndef __JUCE_SINGLETON_JUCEHEADER__
  #include "core/juce_Singleton.h"
@@ -128,6 +128,9 @@
 #ifndef __JUCE_RSAKEY_JUCEHEADER__
  #include "cryptography/juce_RSAKey.h"
 #endif
+#ifndef __JUCE_SHA256_JUCEHEADER__
+ #include "cryptography/juce_SHA256.h"
+#endif
 #ifndef __JUCE_DIRECTORYITERATOR_JUCEHEADER__
  #include "io/files/juce_DirectoryIterator.h"
 #endif
@@ -142,6 +145,9 @@
 #endif
 #ifndef __JUCE_FILESEARCHPATH_JUCEHEADER__
  #include "io/files/juce_FileSearchPath.h"
+#endif
+#ifndef __JUCE_MEMORYMAPPEDFILE_JUCEHEADER__
+ #include "io/files/juce_MemoryMappedFile.h"
 #endif
 #ifndef __JUCE_NAMEDPIPE_JUCEHEADER__
  #include "io/files/juce_NamedPipe.h"
@@ -254,6 +260,9 @@
 #ifndef __JUCE_IDENTIFIER_JUCEHEADER__
  #include "text/juce_Identifier.h"
 #endif
+#ifndef __JUCE_JSON_JUCEHEADER__
+ #include "text/juce_JSON.h"
+#endif
 #ifndef __JUCE_LOCALISEDSTRINGS_JUCEHEADER__
  #include "text/juce_LocalisedStrings.h"
 #endif
@@ -281,6 +290,9 @@
 #ifndef __JUCE_CRITICALSECTION_JUCEHEADER__
  #include "threads/juce_CriticalSection.h"
 #endif
+#ifndef __JUCE_DYNAMICLIBRARY_JUCEHEADER__
+ #include "threads/juce_DynamicLibrary.h"
+#endif
 #ifndef __JUCE_INTERPROCESSLOCK_JUCEHEADER__
  #include "threads/juce_InterProcessLock.h"
 #endif
@@ -296,11 +308,11 @@
 #ifndef __JUCE_SCOPEDREADLOCK_JUCEHEADER__
  #include "threads/juce_ScopedReadLock.h"
 #endif
-#ifndef __JUCE_SCOPEDTRYLOCK_JUCEHEADER__
- #include "threads/juce_ScopedTryLock.h"
-#endif
 #ifndef __JUCE_SCOPEDWRITELOCK_JUCEHEADER__
  #include "threads/juce_ScopedWriteLock.h"
+#endif
+#ifndef __JUCE_SPINLOCK_JUCEHEADER__
+ #include "threads/juce_SpinLock.h"
 #endif
 #ifndef __JUCE_THREAD_JUCEHEADER__
  #include "threads/juce_Thread.h"

@@ -26,7 +26,7 @@
 #ifndef __JUCE_LOOKANDFEEL_JUCEHEADER__
 #define __JUCE_LOOKANDFEEL_JUCEHEADER__
 
-#include "../../graphics/contexts/juce_Graphics.h"
+#include "../../graphics/contexts/juce_GraphicsContext.h"
 #include "../../graphics/effects/juce_DropShadowEffect.h"
 #include "../controls/juce_Slider.h"
 #include "../layout/juce_TabbedComponent.h"
@@ -83,17 +83,17 @@ public:
 
         @see setDefaultLookAndFeel
     */
-    static LookAndFeel& getDefaultLookAndFeel() throw();
+    static LookAndFeel& getDefaultLookAndFeel() noexcept;
 
     /** Changes the default look-and-feel.
 
         @param newDefaultLookAndFeel    the new look-and-feel object to use - if this is
-                                        set to 0, it will revert to using the default one. The
+                                        set to null, it will revert to using the default one. The
                                         object passed-in must be deleted by the caller when
                                         it's no longer needed.
         @see getDefaultLookAndFeel
     */
-    static void setDefaultLookAndFeel (LookAndFeel* newDefaultLookAndFeel) throw();
+    static void setDefaultLookAndFeel (LookAndFeel* newDefaultLookAndFeel) noexcept;
 
 
     //==============================================================================
@@ -114,7 +114,7 @@ public:
 
         @see setColour, Component::findColour, Component::setColour
     */
-    const Colour findColour (int colourId) const throw();
+    const Colour findColour (int colourId) const noexcept;
 
     /** Registers a colour to be used for a particular purpose.
 
@@ -122,12 +122,12 @@ public:
 
         @see findColour, Component::findColour, Component::setColour
     */
-    void setColour (int colourId, const Colour& colour) throw();
+    void setColour (int colourId, const Colour& colour) noexcept;
 
     /** Returns true if the specified colour ID has been explicitly set using the
         setColour() method.
     */
-    bool isColourSpecified (int colourId) const throw();
+    bool isColourSpecified (int colourId) const noexcept;
 
 
     //==============================================================================
@@ -202,6 +202,9 @@ public:
 
     virtual const Font getAlertWindowMessageFont();
     virtual const Font getAlertWindowFont();
+
+    void setUsingNativeAlertWindows (bool shouldUseNativeAlerts);
+    bool isUsingNativeAlertWindows();
 
     /** Draws a progress bar.
 
@@ -613,7 +616,7 @@ public:
     virtual void drawKeymapChangeButton (Graphics& g, int width, int height, Button& button, const String& keyDescription);
 
     //==============================================================================
-    /**
+    /** Plays the system's default 'beep' noise, to alert the user about something very important.
     */
     virtual void playAlertSound();
 
@@ -623,13 +626,13 @@ public:
                                  float x, float y,
                                  float diameter,
                                  const Colour& colour,
-                                 float outlineThickness) throw();
+                                 float outlineThickness) noexcept;
 
     static void drawGlassPointer (Graphics& g,
                                   float x, float y,
                                   float diameter,
                                   const Colour& colour, float outlineThickness,
-                                  int direction) throw();
+                                  int direction) noexcept;
 
     /** Utility function to draw a shiny, glassy oblong (for text buttons). */
     static void drawGlassLozenge (Graphics& g,
@@ -639,15 +642,16 @@ public:
                                   float outlineThickness,
                                   float cornerSize,
                                   bool flatOnLeft, bool flatOnRight,
-                                  bool flatOnTop, bool flatOnBottom) throw();
+                                  bool flatOnTop, bool flatOnBottom) noexcept;
 
     static Drawable* loadDrawableFromData (const void* data, size_t numBytes);
 
 
 private:
     //==============================================================================
-    friend JUCE_API void JUCE_CALLTYPE shutdownJuce_GUI();
-    static void clearDefaultLookAndFeel() throw(); // called at shutdown
+    friend class WeakReference<LookAndFeel>;
+    WeakReference<LookAndFeel>::Master weakReferenceMaster;
+    const WeakReference<LookAndFeel>::SharedRef& getWeakReference();
 
     Array <int> colourIds;
     Array <Colour> colours;
@@ -657,6 +661,7 @@ private:
 
     ScopedPointer<Drawable> folderImage, documentImage;
 
+    bool useNativeAlertWindows;
 
     void drawShinyButtonShape (Graphics& g,
                                float x, float y, float w, float h, float maxCornerSize,
@@ -665,7 +670,7 @@ private:
                                bool flatOnLeft,
                                bool flatOnRight,
                                bool flatOnTop,
-                               bool flatOnBottom) throw();
+                               bool flatOnBottom) noexcept;
 
     // This has been deprecated - see the new parameter list..
     virtual int drawFileBrowserRow (Graphics&, int, int, const String&, Image*, const String&, const String&, bool, bool, int) { return 0; }

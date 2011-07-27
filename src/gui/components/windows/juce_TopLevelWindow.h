@@ -76,7 +76,7 @@ public:
 
         @see activeWindowStatusChanged
     */
-    bool isActiveWindow() const throw()                     { return windowIsActive_; }
+    bool isActiveWindow() const noexcept                    { return windowIsActive_; }
 
     //==============================================================================
     /** This will set the bounds of the window so that it's centred in front of another
@@ -97,6 +97,9 @@ public:
     /** Turns the drop-shadow on and off. */
     void setDropShadowEnabled (bool useShadow);
 
+    /** True if drop-shadowing is enabled. */
+    bool isDropShadowEnabled() const noexcept               { return useDropShadow; }
+
     /** Sets whether an OS-native title bar will be used, or a Juce one.
 
         @see isUsingNativeTitleBar
@@ -107,31 +110,31 @@ public:
 
         @see setUsingNativeTitleBar
     */
-    bool isUsingNativeTitleBar() const throw()              { return useNativeTitleBar && isOnDesktop(); }
+    bool isUsingNativeTitleBar() const noexcept             { return useNativeTitleBar && isOnDesktop(); }
 
     //==============================================================================
     /** Returns the number of TopLevelWindow objects currently in use.
 
         @see getTopLevelWindow
     */
-    static int getNumTopLevelWindows() throw();
+    static int getNumTopLevelWindows() noexcept;
 
     /** Returns one of the TopLevelWindow objects currently in use.
 
         The index is 0 to (getNumTopLevelWindows() - 1).
     */
-    static TopLevelWindow* getTopLevelWindow (int index) throw();
+    static TopLevelWindow* getTopLevelWindow (int index) noexcept;
 
     /** Returns the currently-active top level window.
 
         There might not be one, of course, so this can return 0.
     */
-    static TopLevelWindow* getActiveTopLevelWindow() throw();
+    static TopLevelWindow* getActiveTopLevelWindow() noexcept;
 
 
     //==============================================================================
     /** @internal */
-    virtual void addToDesktop (int windowStyleFlags, void* nativeWindowToAttachTo = 0);
+    virtual void addToDesktop (int windowStyleFlags, void* nativeWindowToAttachTo = nullptr);
 
 protected:
     //==============================================================================

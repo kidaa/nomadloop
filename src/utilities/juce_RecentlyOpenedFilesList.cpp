@@ -45,8 +45,7 @@ void RecentlyOpenedFilesList::setMaxNumberOfItems (const int newMaxNumber)
 {
     maxNumberOfItems = jmax (1, newMaxNumber);
 
-    while (getNumFiles() > maxNumberOfItems)
-        files.remove (getNumFiles() - 1);
+    files.removeRange (maxNumberOfItems, getNumFiles());
 }
 
 int RecentlyOpenedFilesList::getNumFiles() const
@@ -54,7 +53,7 @@ int RecentlyOpenedFilesList::getNumFiles() const
     return files.size();
 }
 
-const File RecentlyOpenedFilesList::getFile (const int index) const
+File RecentlyOpenedFilesList::getFile (const int index) const
 {
     return File (files [index]);
 }
@@ -66,10 +65,8 @@ void RecentlyOpenedFilesList::clear()
 
 void RecentlyOpenedFilesList::addFile (const File& file)
 {
-    const String path (file.getFullPathName());
-
-    files.removeString (path, true);
-    files.insert (0, path);
+    removeFile (file);
+    files.insert (0, file.getFullPathName());
 
     setMaxNumberOfItems (maxNumberOfItems);
 }
@@ -103,9 +100,9 @@ int RecentlyOpenedFilesList::createPopupMenuItems (PopupMenu& menuToAddTo,
         {
             bool needsAvoiding = false;
 
-            if (filesToAvoid != 0)
+            if (filesToAvoid != nullptr)
             {
-                for (const File** avoid = filesToAvoid; *avoid != 0; ++avoid)
+                for (const File** avoid = filesToAvoid; *avoid != nullptr; ++avoid)
                 {
                     if (f == **avoid)
                     {
@@ -129,7 +126,7 @@ int RecentlyOpenedFilesList::createPopupMenuItems (PopupMenu& menuToAddTo,
 }
 
 //==============================================================================
-const String RecentlyOpenedFilesList::toString() const
+String RecentlyOpenedFilesList::toString() const
 {
     return files.joinIntoString ("\n");
 }

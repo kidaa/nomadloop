@@ -54,17 +54,17 @@ RSAKey::~RSAKey()
 {
 }
 
-bool RSAKey::operator== (const RSAKey& other) const throw()
+bool RSAKey::operator== (const RSAKey& other) const noexcept
 {
     return part1 == other.part1 && part2 == other.part2;
 }
 
-bool RSAKey::operator!= (const RSAKey& other) const throw()
+bool RSAKey::operator!= (const RSAKey& other) const noexcept
 {
     return ! operator== (other);
 }
 
-const String RSAKey::toString() const
+String RSAKey::toString() const
 {
     return part1.toString (16) + "," + part2.toString (16);
 }
@@ -96,7 +96,7 @@ bool RSAKey::applyToValue (BigInteger& value) const
     return true;
 }
 
-const BigInteger RSAKey::findBestCommonDivisor (const BigInteger& p, const BigInteger& q)
+BigInteger RSAKey::findBestCommonDivisor (const BigInteger& p, const BigInteger& q)
 {
     // try 3, 5, 9, 17, etc first because these only contain 2 bits and so
     // are fast to divide + multiply
@@ -123,7 +123,7 @@ void RSAKey::createKeyPair (RSAKey& publicKey, RSAKey& privateKey,
     jassert (numRandomSeeds == 0 || numRandomSeeds >= 2); // you need to provide plenty of seeds here!
 
     BigInteger p (Primes::createProbablePrime (numBits / 2, 30, randomSeeds, numRandomSeeds / 2));
-    BigInteger q (Primes::createProbablePrime (numBits - numBits / 2, 30, randomSeeds == 0 ? 0 : (randomSeeds + numRandomSeeds / 2), numRandomSeeds - numRandomSeeds / 2));
+    BigInteger q (Primes::createProbablePrime (numBits - numBits / 2, 30, randomSeeds == nullptr ? 0 : (randomSeeds + numRandomSeeds / 2), numRandomSeeds - numRandomSeeds / 2));
 
     const BigInteger n (p * q);
     const BigInteger m (--p * --q);

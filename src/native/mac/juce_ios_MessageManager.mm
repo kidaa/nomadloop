@@ -27,6 +27,43 @@
 // compiled on its own).
 #if JUCE_INCLUDED_FILE
 
+//==============================================================================
+END_JUCE_NAMESPACE
+
+@interface JuceAppStartupDelegate : NSObject <UIApplicationDelegate>
+{
+}
+
+- (void) applicationDidFinishLaunching: (UIApplication*) application;
+- (void) applicationWillTerminate: (UIApplication*) application;
+
+@end
+
+@implementation JuceAppStartupDelegate
+
+- (void) applicationDidFinishLaunching: (UIApplication*) application
+{
+    initialiseJuce_GUI();
+
+    if (! JUCEApplication::createInstance()->initialiseApp (String::empty))
+        exit (0);
+}
+
+- (void) applicationWillTerminate: (UIApplication*) application
+{
+    JUCEApplication::appWillTerminateByForce();
+}
+
+@end
+
+BEGIN_JUCE_NAMESPACE
+
+int juce_iOSMain (int argc, const char* argv[])
+{
+    return UIApplicationMain (argc, const_cast<char**> (argv), nil, @"JuceAppStartupDelegate");
+}
+
+//==============================================================================
 struct CallbackMessagePayload
 {
     MessageCallbackFunction* function;
@@ -55,7 +92,7 @@ END_JUCE_NAMESPACE
     {
         JUCE_NAMESPACE::CallbackMessagePayload* pl = (JUCE_NAMESPACE::CallbackMessagePayload*) [((NSData*) info) bytes];
 
-        if (pl != 0)
+        if (pl != nullptr)
         {
             pl->result = (*pl->function) (pl->parameter);
             pl->hasBeenExecuted = true;
@@ -86,7 +123,7 @@ void MessageManager::stopDispatchLoop()
 
 bool MessageManager::runDispatchLoopUntil (int millisecondsToRunFor)
 {
-    const ScopedAutoReleasePool pool;
+    JUCE_AUTORELEASEPOOL
     jassert (isThisTheMessageThread()); // must only be called by the message thread
 
     uint32 endTime = Time::getMillisecondCounter() + millisecondsToRunFor;
@@ -94,7 +131,7 @@ bool MessageManager::runDispatchLoopUntil (int millisecondsToRunFor)
 
     while (! quitMessagePosted)
     {
-        const ScopedAutoReleasePool pool;
+        JUCE_AUTORELEASEPOOL
 
         [[NSRunLoop currentRunLoop] runMode: NSDefaultRunLoopMode
                                  beforeDate: endDate];
@@ -110,7 +147,7 @@ bool MessageManager::runDispatchLoopUntil (int millisecondsToRunFor)
 struct MessageDispatchSystem
 {
     MessageDispatchSystem()
-        : juceCustomMessageHandler (0)
+        : juceCustomMessageHandler (nil)
     {
         juceCustomMessageHandler = [[JuceCustomMessageHandler alloc] init];
     }
@@ -125,22 +162,22 @@ struct MessageDispatchSystem
     MessageQueue messageQueue;
 };
 
-static MessageDispatchSystem* dispatcher = 0;
+static ScopedPointer<MessageDispatchSystem> dispatcher;
 
 void MessageManager::doPlatformSpecificInitialisation()
 {
-    if (dispatcher == 0)
+    if (dispatcher == nullptr)
         dispatcher = new MessageDispatchSystem();
 }
 
 void MessageManager::doPlatformSpecificShutdown()
 {
-    deleteAndZero (dispatcher);
+    dispatcher = nullptr;
 }
 
 bool MessageManager::postMessageToSystemQueue (Message* message)
 {
-    if (dispatcher != 0)
+    if (dispatcher != nullptr)
         dispatcher->messageQueue.post (message);
 
     return true;
@@ -158,14 +195,14 @@ void* MessageManager::callFunctionOnMessageThread (MessageCallbackFunction* call
     }
     else
     {
-        jassert (dispatcher != 0); // trying to call this when the juce system isn't initialised..
+        jassert (dispatcher != nullptr); // trying to call this when the juce system isn't initialised..
 
         // If a thread has a MessageManagerLock and then tries to call this method, it'll
         // deadlock because the message manager is blocked from running, so can never
         // call your function..
         jassert (! MessageManager::getInstance()->currentThreadHasLockedMessageManager());
 
-        const ScopedAutoReleasePool pool;
+        JUCE_AUTORELEASEPOOL
 
         CallbackMessagePayload cmp;
         cmp.function = callback;

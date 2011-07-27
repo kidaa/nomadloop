@@ -104,7 +104,7 @@ void Drawable::setBoundsToEnclose (const Rectangle<float>& area)
 {
     Drawable* const parent = getParent();
     Point<int> parentOrigin;
-    if (parent != 0)
+    if (parent != nullptr)
         parentOrigin = parent->originRelativeToComponent;
 
     const Rectangle<int> newBounds (area.getSmallestIntegerContainer() + parentOrigin);
@@ -127,7 +127,7 @@ void Drawable::setTransformToFit (const Rectangle<float>& area, const RectangleP
 //==============================================================================
 Drawable* Drawable::createFromImageData (const void* data, const size_t numBytes)
 {
-    Drawable* result = 0;
+    Drawable* result = nullptr;
 
     Image image (ImageFileFormat::loadFrom (data, (int) numBytes));
 
@@ -144,11 +144,11 @@ Drawable* Drawable::createFromImageData (const void* data, const size_t numBytes
         XmlDocument doc (asString);
         ScopedPointer <XmlElement> outer (doc.getDocumentElement (true));
 
-        if (outer != 0 && outer->hasTagName ("svg"))
+        if (outer != nullptr && outer->hasTagName ("svg"))
         {
             ScopedPointer <XmlElement> svg (doc.getDocumentElement());
 
-            if (svg != 0)
+            if (svg != nullptr)
                 result = Drawable::createFromSVG (*svg);
         }
     }
@@ -168,7 +168,7 @@ Drawable* Drawable::createFromImageFile (const File& file)
 {
     const ScopedPointer <FileInputStream> fin (file.createInputStream());
 
-    return fin != 0 ? createFromImageDataStream (*fin) : 0;
+    return fin != nullptr ? createFromImageDataStream (*fin) : nullptr;
 }
 
 //==============================================================================
@@ -185,7 +185,7 @@ public:
     {
         DrawableClass* const d = new DrawableClass();
 
-        if (parent != 0)
+        if (parent != nullptr)
             parent->addAndMakeVisible (d);
 
         updateComponentFromState (d, state);
@@ -195,7 +195,7 @@ public:
     void updateComponentFromState (Component* component, const ValueTree& state)
     {
         DrawableClass* const d = dynamic_cast <DrawableClass*> (component);
-        jassert (d != 0);
+        jassert (d != nullptr);
         d->refreshFromValueTree (state, *this->getBuilder());
     }
 };
@@ -218,7 +218,7 @@ Drawable* Drawable::createFromValueTree (const ValueTree& tree, ComponentBuilder
     ScopedPointer<Component> comp (builder.createComponent());
     Drawable* const d = dynamic_cast<Drawable*> (static_cast <Component*> (comp));
 
-    if (d != 0)
+    if (d != nullptr)
         comp.release();
 
     return d;
@@ -230,7 +230,7 @@ Drawable::ValueTreeWrapperBase::ValueTreeWrapperBase (const ValueTree& state_)
 {
 }
 
-const String Drawable::ValueTreeWrapperBase::getID() const
+String Drawable::ValueTreeWrapperBase::getID() const
 {
     return state [ComponentBuilder::idProperty];
 }
@@ -238,9 +238,9 @@ const String Drawable::ValueTreeWrapperBase::getID() const
 void Drawable::ValueTreeWrapperBase::setID (const String& newID)
 {
     if (newID.isEmpty())
-        state.removeProperty (ComponentBuilder::idProperty, 0);
+        state.removeProperty (ComponentBuilder::idProperty, nullptr);
     else
-        state.setProperty (ComponentBuilder::idProperty, newID, 0);
+        state.setProperty (ComponentBuilder::idProperty, newID, nullptr);
 }
 
 

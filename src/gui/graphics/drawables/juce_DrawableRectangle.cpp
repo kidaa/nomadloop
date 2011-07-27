@@ -87,12 +87,12 @@ void DrawableRectangle::rebuildPath()
     }
 }
 
-bool DrawableRectangle::registerCoordinates (RelativeCoordinatePositionerBase& positioner)
+bool DrawableRectangle::registerCoordinates (RelativeCoordinatePositionerBase& pos)
 {
-    bool ok = positioner.addPoint (bounds.topLeft);
-    ok = positioner.addPoint (bounds.topRight) && ok;
-    ok = positioner.addPoint (bounds.bottomLeft) && ok;
-    return positioner.addPoint (cornerSize) && ok;
+    bool ok = pos.addPoint (bounds.topLeft);
+    ok = pos.addPoint (bounds.topRight) && ok;
+    ok = pos.addPoint (bounds.bottomLeft) && ok;
+    return pos.addPoint (cornerSize) && ok;
 }
 
 void DrawableRectangle::recalculateCoordinates (Expression::Scope* scope)
@@ -138,7 +138,7 @@ DrawableRectangle::ValueTreeWrapper::ValueTreeWrapper (const ValueTree& state_)
     jassert (state.hasType (valueTreeType));
 }
 
-const RelativeParallelogram DrawableRectangle::ValueTreeWrapper::getRectangle() const
+RelativeParallelogram DrawableRectangle::ValueTreeWrapper::getRectangle() const
 {
     return RelativeParallelogram (state.getProperty (topLeft, "0, 0"),
                                   state.getProperty (topRight, "100, 0"),
@@ -157,7 +157,7 @@ void DrawableRectangle::ValueTreeWrapper::setCornerSize (const RelativePoint& ne
     state.setProperty (cornerSize, newSize.toString(), undoManager);
 }
 
-const RelativePoint DrawableRectangle::ValueTreeWrapper::getCornerSize() const
+RelativePoint DrawableRectangle::ValueTreeWrapper::getCornerSize() const
 {
     return RelativePoint (state [cornerSize]);
 }
@@ -179,15 +179,15 @@ void DrawableRectangle::refreshFromValueTree (const ValueTree& tree, ComponentBu
     setCornerSize (v.getCornerSize());
 }
 
-const ValueTree DrawableRectangle::createValueTree (ComponentBuilder::ImageProvider* imageProvider) const
+ValueTree DrawableRectangle::createValueTree (ComponentBuilder::ImageProvider* imageProvider) const
 {
     ValueTree tree (valueTreeType);
     ValueTreeWrapper v (tree);
 
     v.setID (getComponentID());
-    writeTo (v, imageProvider, 0);
-    v.setRectangle (bounds, 0);
-    v.setCornerSize (cornerSize, 0);
+    writeTo (v, imageProvider, nullptr);
+    v.setRectangle (bounds, nullptr);
+    v.setCornerSize (cornerSize, nullptr);
 
     return tree;
 }

@@ -27,7 +27,6 @@
 #define __JUCE_AUDIOFORMATMANAGER_JUCEHEADER__
 
 #include "juce_AudioFormat.h"
-#include "../../core/juce_Singleton.h"
 #include "../../containers/juce_OwnedArray.h"
 
 
@@ -36,9 +35,8 @@
     A class for keeping a list of available audio formats, and for deciding which
     one to use to open a given file.
 
-    You can either use this class as a singleton object, or create instances of it
-    yourself. Once created, use its registerFormat() method to tell it which
-    formats it should use.
+    After creating an AudioFormatManager object, you should call registerFormat()
+    or registerBasicFormats() to give it a list of format types that it can use.
 
     @see AudioFormat
 */
@@ -106,7 +104,7 @@ public:
 
         E.g. if might return "*.wav;*.aiff" if it just knows about wavs and aiffs.
     */
-    const String getWildcardForAllFormats() const;
+    String getWildcardForAllFormats() const;
 
     //==============================================================================
     /** Searches through the known formats to try to create a suitable reader for

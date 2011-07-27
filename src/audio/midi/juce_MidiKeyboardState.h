@@ -27,7 +27,6 @@
 #define __JUCE_MIDIKEYBOARDSTATE_JUCEHEADER__
 
 #include "juce_MidiBuffer.h"
-#include "../../threads/juce_ScopedLock.h"
 #include "../../containers/juce_Array.h"
 class MidiKeyboardState;
 
@@ -42,7 +41,7 @@ class JUCE_API  MidiKeyboardStateListener
 {
 public:
     //==============================================================================
-    MidiKeyboardStateListener() throw()         {}
+    MidiKeyboardStateListener() noexcept        {}
     virtual ~MidiKeyboardStateListener()        {}
 
     //==============================================================================
@@ -108,7 +107,7 @@ public:
         The channel number must be between 1 and 16. If you want to see if any notes are
         on for a range of channels, use the isNoteOnForChannels() method.
     */
-    bool isNoteOn (int midiChannel, int midiNoteNumber) const throw();
+    bool isNoteOn (int midiChannel, int midiNoteNumber) const noexcept;
 
     /** Returns true if the given midi key is currently held down on any of a set of midi channels.
 
@@ -117,7 +116,7 @@ public:
 
         If a note is on for at least one of the specified channels, this returns true.
     */
-    bool isNoteOnForChannels (int midiChannelMask, int midiNoteNumber) const throw();
+    bool isNoteOnForChannels (int midiChannelMask, int midiNoteNumber) const noexcept;
 
     /** Turns a specified note on.
 

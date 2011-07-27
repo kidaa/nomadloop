@@ -29,11 +29,13 @@
 #if JUCE_QUICKTIME && ! (JUCE_64BIT || JUCE_IOS)
 
 #if ! JUCE_WINDOWS
+ #define Point CarbonDummyPointName // (workaround to avoid definition of "Point" by old Carbon headers)
  #include <QuickTime/Movies.h>
  #include <QuickTime/QTML.h>
  #include <QuickTime/QuickTimeComponents.h>
  #include <QuickTime/MediaHandlers.h>
  #include <QuickTime/ImageCodec.h>
+ #undef Point
 #else
  #if JUCE_MSVC
   #pragma warning (push)
@@ -46,14 +48,16 @@
     Alternatively, if you don't need any QuickTime services, just turn off the JUCE_QUICKTIME
     flag in juce_Config.h
  */
+ #undef SIZE_MAX
  #include <Movies.h>
  #include <QTML.h>
  #include <QuickTimeComponents.h>
  #include <MediaHandlers.h>
  #include <ImageCodec.h>
+ #undef SIZE_MAX
 
  #if JUCE_MSVC
-   #pragma warning (pop)
+  #pragma warning (pop)
  #endif
 #endif
 
@@ -66,7 +70,6 @@ BEGIN_JUCE_NAMESPACE
 #include "../../threads/juce_Thread.h"
 #include "../../io/network/juce_URL.h"
 #include "../../memory/juce_ScopedPointer.h"
-#include "../../core/juce_PlatformUtilities.h"
 
 bool juce_OpenQuickTimeMovieFromStream (InputStream* input, Movie& movie, Handle& dataHandle);
 
@@ -90,10 +93,11 @@ public:
         JUCE_AUTORELEASEPOOL
         bufferList.calloc (256, 1);
 
-#if JUCE_WINDOWS
+       #if JUCE_WINDOWS
         if (InitializeQTML (0) != noErr)
             return;
-#endif
+       #endif
+
         if (EnterMovies() != noErr)
             return;
 
@@ -216,20 +220,20 @@ public:
         JUCE_AUTORELEASEPOOL
         checkThreadIsAttached();
 
-        if (dataHandle != 0)
+        if (dataHandle != nullptr)
             DisposeHandle (dataHandle);
 
-        if (extractor != 0)
+        if (extractor != nullptr)
         {
             MovieAudioExtractionEnd (extractor);
-            extractor = 0;
+            extractor = nullptr;
         }
 
         DisposeMovie (movie);
 
-#if JUCE_MAC
+       #if JUCE_MAC
         ExitMoviesOnThread ();
-#endif
+       #endif
     }
 
     bool readSamples (int** destSamples, int numDestChannels, int startOffsetInDestBuffer,
@@ -278,7 +282,7 @@ public:
 
             for (int j = numDestChannels; --j >= 0;)
             {
-                if (destSamples[j] != 0)
+                if (destSamples[j] != nullptr)
                 {
                     const short* src = ((const short*) bufferList->mBuffers[0].mData) + j;
 
@@ -297,7 +301,7 @@ public:
             if (((outFlags & kQTMovieAudioExtractionComplete) != 0 || samplesReceived == 0) && numSamples > 0)
             {
                 for (int j = numDestChannels; --j >= 0;)
-                    if (destSamples[j] != 0)
+                    if (destSamples[j] != nullptr)
                         zeromem (destSamples[j] + startOffsetInDestBuffer, sizeof (int) * numSamples);
 
                 break;
@@ -328,18 +332,18 @@ private:
     //==============================================================================
     void checkThreadIsAttached()
     {
-#if JUCE_MAC
+       #if JUCE_MAC
         if (Thread::getCurrentThreadId() != lastThreadId)
             EnterMoviesOnThread (0);
         AttachMovieToCurrentThread (movie);
-#endif
+       #endif
     }
 
     void detachThread()
     {
-#if JUCE_MAC
+       #if JUCE_MAC
         DetachMovieFromCurrentThread (movie);
-#endif
+       #endif
     }
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (QTAudioReader);
@@ -374,7 +378,7 @@ AudioFormatReader* QuickTimeAudioFormat::createReaderFor (InputStream* sourceStr
     if (! deleteStreamIfOpeningFails)
         r->input = 0;
 
-    return 0;
+    return nullptr;
 }
 
 AudioFormatWriter* QuickTimeAudioFormat::createWriterFor (OutputStream* /*streamToWriteTo*/,
@@ -385,7 +389,7 @@ AudioFormatWriter* QuickTimeAudioFormat::createWriterFor (OutputStream* /*stream
                                                           int /*qualityOptionIndex*/)
 {
     jassertfalse; // not yet implemented!
-    return 0;
+    return nullptr;
 }
 
 END_JUCE_NAMESPACE

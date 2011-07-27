@@ -73,10 +73,9 @@ public:
         findParentDragContainerFor() is a handy method to call to find the
         drag container to use for a component.
 
-        @param sourceDescription    a string to use as the description of the thing being
-                                    dragged - this will be passed to the objects that might be
-                                    dropped-onto so they can decide if they want to handle it or
-                                    not
+        @param sourceDescription    a string or value to use as the description of the thing being dragged -
+                                    this will be passed to the objects that might be dropped-onto so they can
+                                    decide whether they want to handle it
         @param sourceComponent      the component that is being dragged
         @param dragImage            the image to drag around underneath the mouse. If this is a null image,
                                     a snapshot of the sourceComponent will be used instead.
@@ -88,11 +87,11 @@ public:
                                     specified, then the image will be centred around the mouse. If
                                     an image hasn't been passed-in, this will be ignored.
     */
-    void startDragging (const String& sourceDescription,
+    void startDragging (const var& sourceDescription,
                         Component* sourceComponent,
                         const Image& dragImage = Image::null,
                         bool allowDraggingToOtherJuceWindows = false,
-                        const Point<int>* imageOffsetFromMouse = 0);
+                        const Point<int>* imageOffsetFromMouse = nullptr);
 
     /** Returns true if something is currently being dragged. */
     bool isDragAndDropActive() const;
@@ -104,7 +103,7 @@ public:
 
         @see startDragging
     */
-    const String getCurrentDragDescription() const;
+    String getCurrentDragDescription() const;
 
     /** Utility to find the DragAndDropContainer for a given Component.
 
@@ -160,24 +159,22 @@ protected:
         and if you want it to then perform a file drag-and-drop, add the filenames you want
         to the array passed in, and return true.
 
-        @param dragSourceDescription        the description passed into the startDrag() call when the drag began
-        @param dragSourceComponent          the component passed into the startDrag() call when the drag began
-        @param files                        on return, the filenames you want to drag
-        @param canMoveFiles                 on return, true if it's ok for the receiver to move the files; false if
-                                            it must make a copy of them (see the performExternalDragDropOfFiles()
-                                            method)
+        @param sourceDetails    information about the source of the drag operation
+        @param files            on return, the filenames you want to drag
+        @param canMoveFiles     on return, true if it's ok for the receiver to move the files; false if
+                                it must make a copy of them (see the performExternalDragDropOfFiles() method)
         @see performExternalDragDropOfFiles
     */
-    virtual bool shouldDropFilesWhenDraggedExternally (const String& dragSourceDescription,
-                                                       Component* dragSourceComponent,
-                                                       StringArray& files,
-                                                       bool& canMoveFiles);
+    virtual bool shouldDropFilesWhenDraggedExternally (const DragAndDropTarget::SourceDetails& sourceDetails,
+                                                       StringArray& files, bool& canMoveFiles);
 
 private:
     //==============================================================================
     friend class DragImageComponent;
     ScopedPointer <Component> dragImageComponent;
     String currentDragDesc;
+
+    JUCE_DEPRECATED (virtual bool shouldDropFilesWhenDraggedExternally (const String&, Component*, StringArray&, bool&)) { return false; }
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (DragAndDropContainer);
 };

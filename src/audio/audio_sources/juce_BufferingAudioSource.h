@@ -29,6 +29,7 @@
 #include "juce_PositionableAudioSource.h"
 #include "../../threads/juce_Thread.h"
 #include "../dsp/juce_AudioSampleBuffer.h"
+#include "../../memory/juce_OptionalScopedPointer.h"
 
 
 //==============================================================================
@@ -51,10 +52,12 @@ public:
         @param deleteSourceWhenDeleted  if true, then the input source object will
                                         be deleted when this object is deleted
         @param numberOfSamplesToBuffer  the size of buffer to use for reading ahead
+        @param numberOfChannels         the number of channels that will be played
     */
     BufferingAudioSource (PositionableAudioSource* source,
                           bool deleteSourceWhenDeleted,
-                          int numberOfSamplesToBuffer);
+                          int numberOfSamplesToBuffer,
+                          int numberOfChannels = 2);
 
     /** Destructor.
 
@@ -88,14 +91,13 @@ public:
 
 private:
     //==============================================================================
-    PositionableAudioSource* source;
-    bool deleteSourceWhenDeleted;
-    int numberOfSamplesToBuffer;
+    OptionalScopedPointer<PositionableAudioSource> source;
+    int numberOfSamplesToBuffer, numberOfChannels;
     AudioSampleBuffer buffer;
     CriticalSection bufferStartPosLock;
     int64 volatile bufferValidStart, bufferValidEnd, nextPlayPos;
-    bool wasSourceLooping;
     double volatile sampleRate;
+    bool wasSourceLooping;
 
     friend class SharedBufferingAudioSourceThread;
     bool readNextBufferChunk();

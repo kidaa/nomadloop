@@ -39,7 +39,6 @@
   #define APPCOMMAND_MEDIA_PREVIOUSTRACK    12
   #define APPCOMMAND_MEDIA_STOP             13
   #define APPCOMMAND_MEDIA_PLAY_PAUSE       14
-  #define WM_APPCOMMAND                     0x0319
 #endif
 
 extern void juce_repeatLastProcessPriority(); // in juce_win32_Threads.cpp
@@ -62,7 +61,7 @@ static bool shouldDeactivateTitleBar = true;
 typedef BOOL (WINAPI* UpdateLayeredWinFunc) (HWND, HDC, POINT*, SIZE*, HDC, POINT*, COLORREF, BLENDFUNCTION*, DWORD);
 static UpdateLayeredWinFunc updateLayeredWindow = 0;
 
-bool Desktop::canUseSemiTransparentWindows() throw()
+bool Desktop::canUseSemiTransparentWindows() noexcept
 {
     if (updateLayeredWindow == 0)
     {
@@ -226,7 +225,7 @@ public:
     void blitToWindow (HWND hwnd, HDC dc, const bool transparent,
                        const int x, const int y,
                        const RectangleList& maskedRegion,
-                       const uint8 updateLayeredWindowAlpha) throw()
+                       const uint8 updateLayeredWindowAlpha) noexcept
     {
         static HDRAWDIB hdd = 0;
         static bool needToCreateDrawDib = true;
@@ -248,25 +247,6 @@ public:
 
         if (transparent)
         {
-            POINT p, pos;
-            SIZE size;
-
-            RECT windowBounds;
-            GetWindowRect (hwnd, &windowBounds);
-
-            p.x = -x;
-            p.y = -y;
-            pos.x = windowBounds.left;
-            pos.y = windowBounds.top;
-            size.cx = windowBounds.right - windowBounds.left;
-            size.cy = windowBounds.bottom - windowBounds.top;
-
-            BLENDFUNCTION bf;
-            bf.AlphaFormat = AC_SRC_ALPHA;
-            bf.BlendFlags = 0;
-            bf.BlendOp = AC_SRC_OVER;
-            bf.SourceConstantAlpha = updateLayeredWindowAlpha;
-
             if (! maskedRegion.isEmpty())
             {
                 for (RectangleList::Iterator i (maskedRegion); i.next();)
@@ -275,6 +255,20 @@ public:
                     ExcludeClipRect (hdc, r.getX(), r.getY(), r.getRight(), r.getBottom());
                 }
             }
+
+            RECT windowBounds;
+            GetWindowRect (hwnd, &windowBounds);
+
+            POINT p = { -x, -y };
+            POINT pos = { windowBounds.left, windowBounds.top };
+            SIZE size = { windowBounds.right - windowBounds.left,
+                          windowBounds.bottom - windowBounds.top };
+
+            BLENDFUNCTION bf;
+            bf.AlphaFormat = AC_SRC_ALPHA;
+            bf.BlendFlags = 0;
+            bf.BlendOp = AC_SRC_OVER;
+            bf.SourceConstantAlpha = updateLayeredWindowAlpha;
 
             updateLayeredWindow (hwnd, 0, &pos, &size, hdc, &p, 0, &bf, ULW_ALPHA);
         }
@@ -328,7 +322,7 @@ private:
 
 namespace IconConverters
 {
-    const Image createImageFromHBITMAP (HBITMAP bitmap)
+    Image createImageFromHBITMAP (HBITMAP bitmap)
     {
         Image im;
 
@@ -367,7 +361,7 @@ namespace IconConverters
         return im;
     }
 
-    const Image createImageFromHICON (HICON icon)
+    Image createImageFromHICON (HICON icon)
     {
         ICONINFO info;
 
@@ -422,10 +416,6 @@ namespace IconConverters
 }
 
 //==============================================================================
-long improbableWindowNumber = 0xf965aa01; // also referenced by messaging.cpp
-
-
-//==============================================================================
 class Win32ComponentPeer  : public ComponentPeer
 {
 public:
@@ -448,7 +438,7 @@ public:
           hasCreatedCaret (false),
           constrainerIsResizing (false),
           currentWindowIcon (0),
-          dropTarget (0),
+          dropTarget (nullptr),
           parentToAddTo (parentToAddTo_),
           updateLayeredWindowAlpha (255)
     {
@@ -461,7 +451,7 @@ public:
         {
             shadower = component->getLookAndFeel().createDropShadowerForComponent (component);
 
-            if (shadower != 0)
+            if (shadower != nullptr)
                 shadower->setOwner (component);
         }
     }
@@ -469,26 +459,26 @@ public:
     ~Win32ComponentPeer()
     {
         setTaskBarIcon (Image());
-        shadower = 0;
+        shadower = nullptr;
 
         // do this before the next bit to avoid messages arriving for this window
         // before it's destroyed
-        SetWindowLongPtr (hwnd, GWLP_USERDATA, 0);
+        JuceWindowIdentifier::setAsJUCEWindow (hwnd, false);
 
         callFunctionIfNotLocked (&destroyWindowCallback, (void*) hwnd);
 
         if (currentWindowIcon != 0)
             DestroyIcon (currentWindowIcon);
 
-        if (dropTarget != 0)
+        if (dropTarget != nullptr)
         {
             dropTarget->Release();
-            dropTarget = 0;
+            dropTarget = nullptr;
         }
 
-      #if JUCE_DIRECT2D
-        direct2DContext = 0;
-      #endif
+       #if JUCE_DIRECT2D
+        direct2DContext = nullptr;
+       #endif
     }
 
     //==============================================================================
@@ -542,7 +532,7 @@ public:
         }
 
       #if JUCE_DIRECT2D
-        if (direct2DContext != 0)
+        if (direct2DContext != nullptr)
             direct2DContext->resized();
       #endif
     }
@@ -654,7 +644,7 @@ public:
     {
         setMinimised (false);
 
-        if (fullScreen != shouldBeFullScreen)
+        if (isFullScreen() != shouldBeFullScreen)
         {
             fullScreen = shouldBeFullScreen;
             const WeakReference<Component> deletionChecker (component);
@@ -683,7 +673,7 @@ public:
                     SendMessageW (hwnd, WM_SETTINGCHANGE, 0, 0);
             }
 
-            if (deletionChecker != 0)
+            if (deletionChecker != nullptr)
                 handleMovedOrResized();
         }
     }
@@ -709,9 +699,8 @@ public:
         RECT r;
         GetWindowRect (hwnd, &r);
 
-        POINT p;
-        p.x = position.getX() + r.left + windowBorder.getLeft();
-        p.y = position.getY() + r.top + windowBorder.getTop();
+        POINT p = { position.getX() + r.left + windowBorder.getLeft(),
+                    position.getY() + r.top  + windowBorder.getTop() };
 
         HWND w = WindowFromPoint (p);
         return w == hwnd || (trueIfInAChildWindow && (IsChild (hwnd, w) != 0));
@@ -733,7 +722,7 @@ public:
 
         shouldDeactivateTitleBar = oldDeactivate;
 
-        if (shadower != 0)
+        if (shadower != nullptr)
             shadower->componentBroughtToFront (*component);
 
         return true;
@@ -761,9 +750,9 @@ public:
     {
         Win32ComponentPeer* const otherPeer = dynamic_cast <Win32ComponentPeer*> (other);
 
-        jassert (otherPeer != 0); // wrong type of window?
+        jassert (otherPeer != nullptr); // wrong type of window?
 
-        if (otherPeer != 0)
+        if (otherPeer != nullptr)
         {
             setMinimised (false);
 
@@ -825,12 +814,12 @@ public:
     }
 
     //==============================================================================
-    static Win32ComponentPeer* getOwnerOfWindow (HWND h) throw()
+    static Win32ComponentPeer* getOwnerOfWindow (HWND h) noexcept
     {
-        if (h != 0 && GetWindowLongPtr (h, GWLP_USERDATA) == improbableWindowNumber)
+        if (h != 0 && JuceWindowIdentifier::isJUCEWindow (h))
             return (Win32ComponentPeer*) (pointer_sized_int) GetWindowLongPtr (h, 8);
 
-        return 0;
+        return nullptr;
     }
 
     //==============================================================================
@@ -870,7 +859,7 @@ public:
             taskBarIcon->uFlags = 0;
             Shell_NotifyIcon (NIM_DELETE, taskBarIcon);
             DestroyIcon (taskBarIcon->hIcon);
-            taskBarIcon = 0;
+            taskBarIcon = nullptr;
         }
     }
 
@@ -893,7 +882,7 @@ public:
             {
                 Component* const current = Component::getCurrentlyModalComponent();
 
-                if (current != 0)
+                if (current != nullptr)
                     current->inputAttemptWhenModal();
             }
         }
@@ -934,15 +923,15 @@ public:
     }
 
     //==============================================================================
-    bool isInside (HWND h) const throw()
+    bool isInside (HWND h) const noexcept
     {
         return GetAncestor (hwnd, GA_ROOT) == h;
     }
 
     //==============================================================================
-    static bool isKeyDown (const int key) throw()   { return (GetAsyncKeyState (key) & 0x8000) != 0; }
+    static bool isKeyDown (const int key) noexcept  { return (GetAsyncKeyState (key) & 0x8000) != 0; }
 
-    static void updateKeyModifiers() throw()
+    static void updateKeyModifiers() noexcept
     {
         int keyMods = 0;
         if (isKeyDown (VK_SHIFT))   keyMods |= ModifierKeys::shiftModifier;
@@ -1041,7 +1030,7 @@ private:
             String windowClassName ("JUCE_");
             windowClassName << (int) (Time::currentTimeMillis() & 0x7fffffff);
 
-            HINSTANCE moduleHandle = (HINSTANCE) PlatformUtilities::getCurrentModuleInstanceHandle();
+            HINSTANCE moduleHandle = (HINSTANCE) Process::getCurrentModuleInstanceHandle();
 
             TCHAR moduleFile [1024] = { 0 };
             GetModuleFileName (moduleHandle, moduleFile, 1024);
@@ -1065,12 +1054,12 @@ private:
         ~WindowClassHolder()
         {
             if (ComponentPeer::getNumPeers() == 0)
-                UnregisterClass (getWindowClassName(), (HINSTANCE) PlatformUtilities::getCurrentModuleInstanceHandle());
+                UnregisterClass (getWindowClassName(), (HINSTANCE) Process::getCurrentModuleInstanceHandle());
 
             clearSingletonInstance();
         }
 
-        LPCTSTR getWindowClassName() const throw()      { return (LPCTSTR) MAKELONG (atom, 0); }
+        LPCTSTR getWindowClassName() const noexcept     { return (LPCTSTR) MAKELONG (atom, 0); }
 
         juce_DeclareSingleton_SingleThreaded_Minimal (WindowClassHolder);
 
@@ -1084,7 +1073,7 @@ private:
     static void* createWindowCallback (void* userData)
     {
         static_cast <Win32ComponentPeer*> (userData)->createWindow();
-        return 0;
+        return nullptr;
     }
 
     void createWindow()
@@ -1123,21 +1112,16 @@ private:
         else
             exstyle |= WS_EX_APPWINDOW;
 
-        if ((styleFlags & windowHasMinimiseButton) != 0)
-            type |= WS_MINIMIZEBOX;
-
-        if ((styleFlags & windowHasMaximiseButton) != 0)
-            type |= WS_MAXIMIZEBOX;
-
-        if ((styleFlags & windowIgnoresMouseClicks) != 0)
-            exstyle |= WS_EX_TRANSPARENT;
+        if ((styleFlags & windowHasMinimiseButton) != 0)    type |= WS_MINIMIZEBOX;
+        if ((styleFlags & windowHasMaximiseButton) != 0)    type |= WS_MAXIMIZEBOX;
+        if ((styleFlags & windowIgnoresMouseClicks) != 0)   exstyle |= WS_EX_TRANSPARENT;
 
         if ((styleFlags & windowIsSemiTransparent) != 0 && Desktop::canUseSemiTransparentWindows())
             exstyle |= WS_EX_LAYERED;
 
         hwnd = CreateWindowEx (exstyle, WindowClassHolder::getInstance()->getWindowClassName(),
                                L"", type, 0, 0, 0, 0, parentToAddTo, 0,
-                               (HINSTANCE) PlatformUtilities::getCurrentModuleInstanceHandle(), 0);
+                               (HINSTANCE) Process::getCurrentModuleInstanceHandle(), 0);
 
        #if JUCE_DIRECT2D
         setCurrentRenderingEngine (1);
@@ -1147,9 +1131,9 @@ private:
         {
             SetWindowLongPtr (hwnd, 0, 0);
             SetWindowLongPtr (hwnd, 8, (LONG_PTR) this);
-            SetWindowLongPtr (hwnd, GWLP_USERDATA, improbableWindowNumber);
+            JuceWindowIdentifier::setAsJUCEWindow (hwnd, true);
 
-            if (dropTarget == 0)
+            if (dropTarget == nullptr)
                 dropTarget = new JuceDropTarget (this);
 
             RegisterDragDrop (hwnd, dropTarget);
@@ -1174,25 +1158,25 @@ private:
     {
         RevokeDragDrop ((HWND) handle);
         DestroyWindow ((HWND) handle);
-        return 0;
+        return nullptr;
     }
 
     static void* toFrontCallback1 (void* h)
     {
         SetForegroundWindow ((HWND) h);
-        return 0;
+        return nullptr;
     }
 
     static void* toFrontCallback2 (void* h)
     {
         SetWindowPos ((HWND) h, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOSENDCHANGING);
-        return 0;
+        return nullptr;
     }
 
     static void* setFocusCallback (void* h)
     {
         SetFocus ((HWND) h);
-        return 0;
+        return nullptr;
     }
 
     static void* getFocusCallback (void*)
@@ -1221,7 +1205,7 @@ private:
         return ! component->isOpaque();
     }
 
-    inline bool hasTitleBar() const throw()         { return (styleFlags & windowHasTitleBar) != 0; }
+    inline bool hasTitleBar() const noexcept        { return (styleFlags & windowHasTitleBar) != 0; }
 
 
     void setIcon (const Image& newIcon)
@@ -1244,7 +1228,7 @@ private:
     void handlePaintMessage()
     {
        #if JUCE_DIRECT2D
-        if (direct2DContext != 0)
+        if (direct2DContext != nullptr)
         {
             RECT r;
 
@@ -1396,7 +1380,7 @@ private:
         handleMouseEvent (0, position, currentModifiers, getMouseEventTime());
     }
 
-    const StringArray getAvailableRenderingEngines()
+    StringArray getAvailableRenderingEngines()
     {
         StringArray s (ComponentPeer::getAvailableRenderingEngines());
 
@@ -1434,6 +1418,14 @@ private:
        #endif
     }
 
+    static int getMinTimeBetweenMouseMoves()
+    {
+        if (SystemStats::getOperatingSystemType() >= SystemStats::WinVista)
+            return 0;
+
+        return 1000 / 60;  // Throttling the incoming mouse-events seems to still be needed in XP..
+    }
+
     void doMouseMove (const Point<int>& position)
     {
         if (! isMouseOver)
@@ -1458,12 +1450,11 @@ private:
                 return;
         }
 
-        // (Throttling the incoming queue of mouse-events seems to still be required in XP..)
         static uint32 lastMouseTime = 0;
+        static int minTimeBetweenMouses = getMinTimeBetweenMouseMoves();
         const uint32 now = Time::getMillisecondCounter();
-        const int maxMouseMovesPerSecond = 60;
 
-        if (now > lastMouseTime + 1000 / maxMouseMovesPerSecond)
+        if (now >= lastMouseTime + minTimeBetweenMouses)
         {
             lastMouseTime = now;
             doMouseEvent (position);
@@ -1499,7 +1490,7 @@ private:
     {
         if (constrainerIsResizing)
         {
-            if (constrainer != 0)
+            if (constrainer != nullptr)
                 constrainer->resizeEnd();
 
             constrainerIsResizing = false;
@@ -1515,15 +1506,22 @@ private:
         doMouseEvent (getCurrentMousePos());
     }
 
-    void doMouseWheel (const Point<int>& position, const WPARAM wParam, const bool isVertical)
+    void doMouseWheel (const Point<int>& globalPos, const WPARAM wParam, const bool isVertical)
     {
         updateKeyModifiers();
-
         const float amount = jlimit (-1000.0f, 1000.0f, 0.75f * (short) HIWORD (wParam));
 
-        handleMouseWheel (0, position, getMouseEventTime(),
-                          isVertical ? 0.0f : amount,
-                          isVertical ? amount : 0.0f);
+        // Because win32 stupidly sends all wheel events to the window with the keyboard
+        // focus, we have to redirect them here according to the mouse pos..
+        POINT p = { globalPos.getX(), globalPos.getY() };
+        Win32ComponentPeer* peer = getOwnerOfWindow (WindowFromPoint (p));
+
+        if (peer == nullptr)
+            peer = this;
+
+        peer->handleMouseWheel (0, peer->globalToLocal (globalPos), getMouseEventTime(),
+                                isVertical ? 0.0f : -amount,
+                                isVertical ? amount : 0.0f);
     }
 
     //==============================================================================
@@ -1561,7 +1559,7 @@ private:
         }
 
         return handleKeyUpOrDown (false)
-                || Component::getCurrentlyModalComponent() != 0;
+                || Component::getCurrentlyModalComponent() != nullptr;
     }
 
     bool doKeyDown (const WPARAM key)
@@ -1647,7 +1645,7 @@ private:
                 break;
         }
 
-        if (Component::getCurrentlyModalComponent() != 0)
+        if (Component::getCurrentlyModalComponent() != nullptr)
             used = true;
 
         return used;
@@ -1665,20 +1663,20 @@ private:
         {
             switch (virtualScanCode)  // check for a numeric keypad scan-code
             {
-            case 0x52:
-            case 0x4f:
-            case 0x50:
-            case 0x51:
-            case 0x4b:
-            case 0x4c:
-            case 0x4d:
-            case 0x47:
-            case 0x48:
-            case 0x49:
-                key = (key - '0') + KeyPress::numberPad0;
-                break;
-            default:
-                break;
+                case 0x52:
+                case 0x4f:
+                case 0x50:
+                case 0x51:
+                case 0x4b:
+                case 0x4c:
+                case 0x4d:
+                case 0x47:
+                case 0x48:
+                case 0x49:
+                    key = (key - '0') + KeyPress::numberPad0;
+                    break;
+                default:
+                    break;
             }
         }
         else
@@ -1736,7 +1734,7 @@ private:
 
     bool isConstrainedNativeWindow() const
     {
-        return constrainer != 0
+        return constrainer != nullptr
                 && (styleFlags & (windowHasTitleBar | windowIsResizable)) == (windowHasTitleBar | windowIsResizable);
     }
 
@@ -1748,10 +1746,10 @@ private:
 
             constrainer->checkBounds (pos, windowBorder.addedTo (component->getBounds()),
                                       Desktop::getInstance().getAllMonitorDisplayAreas().getBounds(),
-                                      wParam == WMSZ_TOP || wParam == WMSZ_TOPLEFT || wParam == WMSZ_TOPRIGHT,
-                                      wParam == WMSZ_LEFT || wParam == WMSZ_TOPLEFT || wParam == WMSZ_BOTTOMLEFT,
+                                      wParam == WMSZ_TOP    || wParam == WMSZ_TOPLEFT    || wParam == WMSZ_TOPRIGHT,
+                                      wParam == WMSZ_LEFT   || wParam == WMSZ_TOPLEFT    || wParam == WMSZ_BOTTOMLEFT,
                                       wParam == WMSZ_BOTTOM || wParam == WMSZ_BOTTOMLEFT || wParam == WMSZ_BOTTOMRIGHT,
-                                      wParam == WMSZ_RIGHT || wParam == WMSZ_TOPRIGHT || wParam == WMSZ_BOTTOMRIGHT);
+                                      wParam == WMSZ_RIGHT  || wParam == WMSZ_TOPRIGHT   || wParam == WMSZ_BOTTOMRIGHT);
             r->left = pos.getX();
             r->top = pos.getY();
             r->right = pos.getRight();
@@ -1801,19 +1799,21 @@ private:
                 return;
         }
 
-        if (LOWORD (wParam) == WA_CLICKACTIVE && component->isCurrentlyBlockedByAnotherModalComponent())
-        {
-            Component* const underMouse = component->getComponentAt (component->getMouseXYRelative());
+        Component* underMouse = component->getComponentAt (component->getMouseXYRelative());
 
-            if (underMouse != 0 && underMouse->isCurrentlyBlockedByAnotherModalComponent())
+        if (underMouse == nullptr)
+            underMouse = component;
+
+        if (underMouse->isCurrentlyBlockedByAnotherModalComponent())
+        {
+            if (LOWORD (wParam) == WA_CLICKACTIVE)
                 Component::getCurrentlyModalComponent()->inputAttemptWhenModal();
+            else
+                ModalComponentManager::getInstance()->bringModalComponentsToFront();
         }
         else
         {
             handleBroughtToFront();
-
-            if (component->isCurrentlyBlockedByAnotherModalComponent())
-                Component::getCurrentlyModalComponent()->toFront (true);
         }
     }
 
@@ -1854,38 +1854,57 @@ private:
         {
         }
 
-        HRESULT __stdcall DragEnter (IDataObject* pDataObject, DWORD /*grfKeyState*/, POINTL mousePos, DWORD* pdwEffect)
+        JUCE_COMRESULT DragEnter (IDataObject* pDataObject, DWORD /*grfKeyState*/, POINTL mousePos, DWORD* pdwEffect)
         {
             updateFileList (pDataObject);
-            owner->handleFileDragMove (files, owner->globalToLocal (Point<int> (mousePos.x, mousePos.y)));
-            *pdwEffect = DROPEFFECT_COPY;
-            return S_OK;
+            const bool wasWanted = owner->handleFileDragMove (files, owner->globalToLocal (Point<int> (mousePos.x, mousePos.y)));
+            *pdwEffect = wasWanted ? DROPEFFECT_COPY : DROPEFFECT_NONE;
+            return wasWanted ? S_OK : S_FALSE;
         }
 
-        HRESULT __stdcall DragLeave()
+        JUCE_COMRESULT DragLeave()
         {
             owner->handleFileDragExit (files);
             return S_OK;
         }
 
-        HRESULT __stdcall DragOver (DWORD /*grfKeyState*/, POINTL mousePos, DWORD* pdwEffect)
+        JUCE_COMRESULT DragOver (DWORD /*grfKeyState*/, POINTL mousePos, DWORD* pdwEffect)
         {
-            owner->handleFileDragMove (files, owner->globalToLocal (Point<int> (mousePos.x, mousePos.y)));
-            *pdwEffect = DROPEFFECT_COPY;
-            return S_OK;
+            const bool wasWanted = owner->handleFileDragMove (files, owner->globalToLocal (Point<int> (mousePos.x, mousePos.y)));
+            *pdwEffect = wasWanted ? DROPEFFECT_COPY : DROPEFFECT_NONE;
+            return wasWanted ? S_OK : S_FALSE;
         }
 
-        HRESULT __stdcall Drop (IDataObject* pDataObject, DWORD /*grfKeyState*/, POINTL mousePos, DWORD* pdwEffect)
+        JUCE_COMRESULT Drop (IDataObject* pDataObject, DWORD /*grfKeyState*/, POINTL mousePos, DWORD* pdwEffect)
         {
             updateFileList (pDataObject);
-            owner->handleFileDragDrop (files, owner->globalToLocal (Point<int> (mousePos.x, mousePos.y)));
-            *pdwEffect = DROPEFFECT_COPY;
-            return S_OK;
+            const bool wasWanted = owner->handleFileDragDrop (files, owner->globalToLocal (Point<int> (mousePos.x, mousePos.y)));
+            *pdwEffect = wasWanted ? DROPEFFECT_COPY : DROPEFFECT_NONE;
+            return wasWanted ? S_OK : S_FALSE;
         }
 
     private:
         Win32ComponentPeer* const owner;
         StringArray files;
+
+        template <typename CharType>
+        void parseFileList (const CharType* names, const SIZE_T totalLen)
+        {
+            unsigned int i = 0;
+
+            for (;;)
+            {
+                unsigned int len = 0;
+                while (i + len < totalLen && names [i + len] != 0)
+                    ++len;
+
+                if (len == 0)
+                    break;
+
+                files.add (String (names + i, len));
+                i += len + 1;
+            }
+        }
 
         void updateFileList (IDataObject* const pDataObject)
         {
@@ -1897,43 +1916,13 @@ private:
             if (pDataObject->GetData (&format, &medium) == S_OK)
             {
                 const SIZE_T totalLen = GlobalSize (medium.hGlobal);
-                const LPDROPFILES pDropFiles = (const LPDROPFILES) GlobalLock (medium.hGlobal);
-                unsigned int i = 0;
+                const LPDROPFILES dropFiles = (const LPDROPFILES) GlobalLock (medium.hGlobal);
+                const void* const names = addBytesToPointer (dropFiles, sizeof (DROPFILES));
 
-                if (pDropFiles->fWide)
-                {
-                    const WCHAR* const fname = (WCHAR*) addBytesToPointer (pDropFiles, sizeof (DROPFILES));
-
-                    for (;;)
-                    {
-                        unsigned int len = 0;
-                        while (i + len < totalLen && fname [i + len] != 0)
-                            ++len;
-
-                        if (len == 0)
-                            break;
-
-                        files.add (String (fname + i, len));
-                        i += len + 1;
-                    }
-                }
+                if (dropFiles->fWide)
+                    parseFileList (static_cast <const WCHAR*> (names), totalLen);
                 else
-                {
-                    const char* const fname = (const char*) addBytesToPointer (pDropFiles, sizeof (DROPFILES));
-
-                    for (;;)
-                    {
-                        unsigned int len = 0;
-                        while (i + len < totalLen && fname [i + len] != 0)
-                            ++len;
-
-                        if (len == 0)
-                            break;
-
-                        files.add (String (fname + i, len));
-                        i += len + 1;
-                    }
-                }
+                    parseFileList (static_cast <const char*> (names), totalLen);
 
                 GlobalUnlock (medium.hGlobal);
             }
@@ -1961,7 +1950,7 @@ public:
     {
         Win32ComponentPeer* const peer = getOwnerOfWindow (h);
 
-        if (peer != 0)
+        if (peer != nullptr)
         {
             jassert (isValidPeer (peer));
             return peer->peerWindowProc (h, message, wParam, lParam);
@@ -1979,19 +1968,21 @@ private:
             return MessageManager::getInstance()->callFunctionOnMessageThread (callback, userData);
     }
 
-    static const Point<int> getPointFromLParam (LPARAM lParam) throw()
+    static const Point<int> getPointFromLParam (LPARAM lParam) noexcept
     {
         return Point<int> (GET_X_LPARAM (lParam), GET_Y_LPARAM (lParam));
     }
 
-    const Point<int> getCurrentMousePos() throw()
+    static const Point<int> getCurrentMousePosGlobal() noexcept
     {
-        RECT wr;
-        GetWindowRect (hwnd, &wr);
         const DWORD mp = GetMessagePos();
+        return Point<int> (GET_X_LPARAM (mp),
+                           GET_Y_LPARAM (mp));
+    }
 
-        return Point<int> (GET_X_LPARAM (mp) - wr.left - windowBorder.getLeft(),
-                           GET_Y_LPARAM (mp) - wr.top - windowBorder.getTop());
+    const Point<int> getCurrentMousePos() noexcept
+    {
+        return globalToLocal (getCurrentMousePosGlobal());
     }
 
     LRESULT peerWindowProc (HWND h, UINT message, WPARAM wParam, LPARAM lParam)
@@ -2061,7 +2052,7 @@ private:
 
             case 0x020A: /* WM_MOUSEWHEEL */
             case 0x020E: /* WM_MOUSEHWHEEL */
-                doMouseWheel (getCurrentMousePos(), wParam, message == 0x020A);
+                doMouseWheel (getCurrentMousePosGlobal(), wParam, message == 0x020A);
                 return 0;
 
             //==============================================================================
@@ -2140,7 +2131,7 @@ private:
                 if (wParam != FALSE)
                     juce_repeatLastProcessPriority();
                 else
-                    Desktop::getInstance().setKioskModeComponent (0); // turn kiosk mode off if we lose focus
+                    Desktop::getInstance().setKioskModeComponent (nullptr); // turn kiosk mode off if we lose focus
 
                 juce_CheckCurrentlyFocusedTopLevelWindow();
                 modifiersAtLastCallback = -1;
@@ -2182,7 +2173,7 @@ private:
                 return 0;
 
             case WM_QUERYENDSESSION:
-                if (JUCEApplication::getInstance() != 0)
+                if (JUCEApplication::getInstance() != nullptr)
                 {
                     JUCEApplication::getInstance()->systemRequestedQuit();
                     return MessageManager::getInstance()->hasStopMessageBeenSent();
@@ -2305,7 +2296,7 @@ private:
                 return DLGC_WANTALLKEYS;
 
             default:
-                if (taskBarIcon != 0)
+                if (taskBarIcon != nullptr)
                 {
                     static const DWORD taskbarCreatedMessage = RegisterWindowMessage (TEXT("TaskbarCreated"));
 
@@ -2328,7 +2319,7 @@ private:
         {
             Component* const current = Component::getCurrentlyModalComponent();
 
-            if (current != 0)
+            if (current != nullptr)
                 current->inputAttemptWhenModal();
 
             return true;
@@ -2366,7 +2357,7 @@ private:
             reset();
             TextInputTarget* const target = owner.findCurrentTextInputTarget();
 
-            if (target != 0)
+            if (target != nullptr)
                 target->insertTextAtCaret (String::empty);
         }
 
@@ -2377,7 +2368,7 @@ private:
                 // If this occurs, the user has cancelled the composition, so clear their changes..
                 TextInputTarget* const target = owner.findCurrentTextInputTarget();
 
-                if (target != 0)
+                if (target != nullptr)
                 {
                     target->setHighlightedRegion (compositionRange);
                     target->insertTextAtCaret (String::empty);
@@ -2404,7 +2395,7 @@ private:
             TextInputTarget* const target = owner.findCurrentTextInputTarget();
             HIMC hImc = ImmGetContext (hWnd);
 
-            if (target == 0 || hImc == 0)
+            if (target == nullptr || hImc == 0)
                 return;
 
             if (compositionRange.getStart() < 0)
@@ -2446,7 +2437,7 @@ private:
             compositionInProgress = false;
         }
 
-        const String getCompositionString (HIMC hImc, const DWORD type) const
+        String getCompositionString (HIMC hImc, const DWORD type) const
         {
             jassert (hImc != 0);
 
@@ -2481,7 +2472,7 @@ private:
 
         // Get selected/highlighted range while doing composition:
         // returned range is relative to beginning of TextInputTarget, not composition string
-        const Range<int> getCompositionSelection (HIMC hImc, LPARAM lParam) const
+        Range<int> getCompositionSelection (HIMC hImc, LPARAM lParam) const
         {
             jassert (hImc != 0);
             int selectionStart = 0;
@@ -2522,7 +2513,7 @@ private:
             target->setHighlightedRegion (newSelection);
         }
 
-        const Array<Range<int> > getCompositionUnderlines (HIMC hImc, LPARAM lParam) const
+        Array<Range<int> > getCompositionUnderlines (HIMC hImc, LPARAM lParam) const
         {
             Array<Range<int> > result;
 
@@ -2548,7 +2539,7 @@ private:
         {
             Component* const targetComp = dynamic_cast <Component*> (target);
 
-            if (targetComp != 0)
+            if (targetComp != nullptr)
             {
                 const Rectangle<int> area (peer.getComponent()
                                               ->getLocalArea (targetComp, target->getCaretRectangle()));
@@ -2579,12 +2570,12 @@ juce_ImplementSingleton_SingleThreaded (Win32ComponentPeer::WindowClassHolder);
 
 
 //==============================================================================
-void ModifierKeys::updateCurrentModifiers() throw()
+void ModifierKeys::updateCurrentModifiers() noexcept
 {
     currentModifiers = Win32ComponentPeer::currentModifiers;
 }
 
-const ModifierKeys ModifierKeys::getCurrentModifiersRealtime() throw()
+ModifierKeys ModifierKeys::getCurrentModifiersRealtime() noexcept
 {
     Win32ComponentPeer::updateKeyModifiers();
 
@@ -2631,7 +2622,7 @@ void SystemTrayIconComponent::setIconImage (const Image& newImage)
 {
     Win32ComponentPeer* const wp = dynamic_cast <Win32ComponentPeer*> (getPeer());
 
-    if (wp != 0)
+    if (wp != nullptr)
         wp->setTaskBarIcon (newImage);
 }
 
@@ -2639,12 +2630,12 @@ void SystemTrayIconComponent::setIconTooltip (const String& tooltip)
 {
     Win32ComponentPeer* const wp = dynamic_cast <Win32ComponentPeer*> (getPeer());
 
-    if (wp != 0)
+    if (wp != nullptr)
         wp->setTaskBarIconToolTip (tooltip);
 }
 
 //==============================================================================
-void juce_setWindowStyleBit (HWND h, const int styleType, const int feature, const bool bitIsSet) throw()
+void juce_setWindowStyleBit (HWND h, const int styleType, const int feature, const bool bitIsSet) noexcept
 {
     DWORD val = GetWindowLong (h, styleType);
 
@@ -2677,7 +2668,7 @@ bool Process::isForegroundProcess()
     {
         Win32ComponentPeer* const wp = dynamic_cast <Win32ComponentPeer*> (ComponentPeer::getPeer (i));
 
-        if (wp != 0 && wp->isInside (fg))
+        if (wp != nullptr && wp->isInside (fg))
             return true;
     }
 
@@ -2685,15 +2676,108 @@ bool Process::isForegroundProcess()
 }
 
 //==============================================================================
-bool AlertWindow::showNativeDialogBox (const String& title,
-                                       const String& bodyText,
-                                       bool isOkCancel)
+class Win32MessageBox  : public AsyncUpdater
 {
-    return MessageBox (0, bodyText.toWideCharPointer(), title.toWideCharPointer(),
-                       MB_SETFOREGROUND | (isOkCancel ? MB_OKCANCEL
-                                                      : MB_OK)) == IDOK;
+public:
+    Win32MessageBox (AlertWindow::AlertIconType iconType,
+                     const String& title_, const String& message_,
+                     Component* associatedComponent,
+                     UINT extraFlags,
+                     ModalComponentManager::Callback* callback_,
+                     const bool runAsync)
+        : flags (extraFlags | getMessageBoxFlags (iconType)),
+          owner (getWindowForMessageBox (associatedComponent)),
+          title (title_), message (message_), callback (callback_)
+    {
+        if (runAsync)
+            triggerAsyncUpdate();
+    }
+
+    int getResult() const
+    {
+        const int r = MessageBox (owner, message.toWideCharPointer(), title.toWideCharPointer(), flags);
+        return (r == IDYES || r == IDOK) ? 1 : (r == IDNO ? 2 : 0);
+    }
+
+    void handleAsyncUpdate()
+    {
+        const int result = getResult();
+
+        if (callback != nullptr)
+            callback->modalStateFinished (result);
+
+        delete this;
+    }
+
+private:
+    UINT flags;
+    HWND owner;
+    String title, message;
+    ModalComponentManager::Callback* callback;
+
+    static UINT getMessageBoxFlags (AlertWindow::AlertIconType iconType) noexcept
+    {
+        UINT flags = MB_TASKMODAL | MB_SETFOREGROUND;
+
+        switch (iconType)
+        {
+            case AlertWindow::QuestionIcon:  flags |= MB_ICONQUESTION; break;
+            case AlertWindow::WarningIcon:   flags |= MB_ICONWARNING; break;
+            case AlertWindow::InfoIcon:      flags |= MB_ICONINFORMATION; break;
+            default: break;
+        }
+
+        return flags;
+    }
+
+    static HWND getWindowForMessageBox (Component* associatedComponent)
+    {
+        return associatedComponent != nullptr ? (HWND) associatedComponent->getWindowHandle() : 0;
+    }
+};
+
+void JUCE_CALLTYPE NativeMessageBox::showMessageBox (AlertWindow::AlertIconType iconType,
+                                                     const String& title, const String& message,
+                                                     Component* associatedComponent)
+{
+    Win32MessageBox box (iconType, title, message, associatedComponent, MB_OK, 0, false);
+    (void) box.getResult();
 }
 
+void JUCE_CALLTYPE NativeMessageBox::showMessageBoxAsync (AlertWindow::AlertIconType iconType,
+                                                          const String& title, const String& message,
+                                                          Component* associatedComponent)
+{
+    new Win32MessageBox (iconType, title, message, associatedComponent, MB_OK, 0, true);
+}
+
+bool JUCE_CALLTYPE NativeMessageBox::showOkCancelBox (AlertWindow::AlertIconType iconType,
+                                                      const String& title, const String& message,
+                                                      Component* associatedComponent,
+                                                      ModalComponentManager::Callback* callback)
+{
+    ScopedPointer<Win32MessageBox> mb (new Win32MessageBox (iconType, title, message, associatedComponent,
+                                                            MB_OKCANCEL, callback, callback != nullptr));
+    if (callback == nullptr)
+        return mb->getResult() != 0;
+
+    mb.release();
+    return false;
+}
+
+int JUCE_CALLTYPE NativeMessageBox::showYesNoCancelBox (AlertWindow::AlertIconType iconType,
+                                                        const String& title, const String& message,
+                                                        Component* associatedComponent,
+                                                        ModalComponentManager::Callback* callback)
+{
+    ScopedPointer<Win32MessageBox> mb (new Win32MessageBox (iconType, title, message, associatedComponent,
+                                                            MB_YESNOCANCEL, callback, callback != nullptr));
+    if (callback == nullptr)
+        return mb->getResult();
+
+    mb.release();
+    return 0;
+}
 
 //==============================================================================
 void Desktop::createMouseInputSources()
@@ -2701,7 +2785,7 @@ void Desktop::createMouseInputSources()
     mouseSources.add (new MouseInputSource (0, true));
 }
 
-const Point<int> MouseInputSource::getCurrentMousePosition()
+Point<int> MouseInputSource::getCurrentMousePosition()
 {
     POINT mousePos;
     GetCursorPos (&mousePos);
@@ -2720,8 +2804,7 @@ Image::SharedImage* Image::SharedImage::createNativeImage (PixelFormat format, i
 }
 
 //==============================================================================
-class ScreenSaverDefeater   : public Timer,
-                              public DeletedAtShutdown
+class ScreenSaverDefeater   : public Timer
 {
 public:
     ScreenSaverDefeater()
@@ -2751,13 +2834,13 @@ public:
     }
 };
 
-static ScreenSaverDefeater* screenSaverDefeater = 0;
+static ScopedPointer<ScreenSaverDefeater> screenSaverDefeater;
 
 void Desktop::setScreenSaverEnabled (const bool isEnabled)
 {
     if (isEnabled)
-        deleteAndZero (screenSaverDefeater);
-    else if (screenSaverDefeater == 0)
+        screenSaverDefeater = nullptr;
+    else if (screenSaverDefeater == nullptr)
         screenSaverDefeater = new ScreenSaverDefeater();
 }
 
@@ -2771,18 +2854,82 @@ bool Desktop::isScreenSaverEnabled()
 
 static bool juce_screenSaverEnabled = true;
 
-void Desktop::setScreenSaverEnabled (const bool isEnabled) throw()
+void Desktop::setScreenSaverEnabled (const bool isEnabled) noexcept
 {
     juce_screenSaverEnabled = isEnabled;
     SetThreadExecutionState (isEnabled ? ES_CONTINUOUS
                                        : (ES_DISPLAY_REQUIRED | ES_CONTINUOUS));
 }
 
-bool Desktop::isScreenSaverEnabled() throw()
+bool Desktop::isScreenSaverEnabled() noexcept
 {
     return juce_screenSaverEnabled;
 }
 */
+
+//==============================================================================
+void LookAndFeel::playAlertSound()
+{
+    MessageBeep (MB_OK);
+}
+
+//==============================================================================
+void SystemClipboard::copyTextToClipboard (const String& text)
+{
+    if (OpenClipboard (0) != 0)
+    {
+        if (EmptyClipboard() != 0)
+        {
+            const int bytesNeeded = CharPointer_UTF16::getBytesRequiredFor (text.getCharPointer()) + 4;
+
+            if (bytesNeeded > 0)
+            {
+                HGLOBAL bufH = GlobalAlloc (GMEM_MOVEABLE | GMEM_DDESHARE | GMEM_ZEROINIT, bytesNeeded + sizeof (WCHAR));
+
+                if (bufH != 0)
+                {
+                    WCHAR* const data = static_cast <WCHAR*> (GlobalLock (bufH));
+
+                    if (data != nullptr)
+                    {
+                        text.copyToUTF16 (data, bytesNeeded);
+                        GlobalUnlock (bufH);
+
+                        SetClipboardData (CF_UNICODETEXT, bufH);
+                    }
+                }
+            }
+        }
+
+        CloseClipboard();
+    }
+}
+
+String SystemClipboard::getTextFromClipboard()
+{
+    String result;
+
+    if (OpenClipboard (0) != 0)
+    {
+        HANDLE bufH = GetClipboardData (CF_UNICODETEXT);
+
+        if (bufH != 0)
+        {
+            const WCHAR* const data = (const WCHAR*) GlobalLock (bufH);
+
+            if (data != nullptr)
+            {
+                result = String (data, (int) (GlobalSize (bufH) / sizeof (WCHAR)));
+
+                GlobalUnlock (bufH);
+            }
+        }
+
+        CloseClipboard();
+    }
+
+    return result;
+}
 
 //==============================================================================
 void Desktop::setKioskComponent (Component* kioskModeComponent, bool enableOrDisable, bool /*allowMenusAndBars*/)
@@ -2833,12 +2980,12 @@ void Desktop::getCurrentMonitorPositions (Array <Rectangle<int> >& monitorCoords
 }
 
 //==============================================================================
-const Image juce_createIconForFile (const File& file)
+Image juce_createIconForFile (const File& file)
 {
     Image image;
     WORD iconNum = 0;
 
-    HICON icon = ExtractAssociatedIcon ((HINSTANCE) PlatformUtilities::getCurrentModuleInstanceHandle(),
+    HICON icon = ExtractAssociatedIcon ((HINSTANCE) Process::getCurrentModuleInstanceHandle(),
                                         const_cast <WCHAR*> (file.getFullPathName().toWideCharPointer()), &iconNum);
 
     if (icon != 0)
@@ -2871,7 +3018,7 @@ void* MouseCursor::createMouseCursorFromImage (const Image& image, int hotspotX,
 
 void MouseCursor::deleteMouseCursor (void* const cursorHandle, const bool isStandard)
 {
-    if (cursorHandle != 0 && ! isStandard)
+    if (cursorHandle != nullptr && ! isStandard)
         DestroyCursor ((HCURSOR) cursorHandle);
 }
 
@@ -2912,9 +3059,9 @@ void* MouseCursor::createStandardMouseCursor (const MouseCursor::StandardCursorT
 
         case DraggingHandCursor:
         {
-            static void* dragHandCursor = 0;
+            static void* dragHandCursor = nullptr;
 
-            if (dragHandCursor == 0)
+            if (dragHandCursor == nullptr)
             {
                 static const unsigned char dragHandData[] =
                     { 71,73,70,56,57,97,16,0,16,0,145,2,0,0,0,0,255,255,255,0,0,0,0,0,0,33,249,4,1,0,0,2,0,44,0,0,0,0,16,0,
@@ -2954,7 +3101,7 @@ void MouseCursor::showInWindow (ComponentPeer*) const
 
 void MouseCursor::showInAllWindows() const
 {
-    showInWindow (0);
+    showInWindow (nullptr);
 }
 
 //==============================================================================
@@ -2964,7 +3111,7 @@ class JuceDropSource   : public ComBaseClassHelper <IDropSource>
 public:
     JuceDropSource() {}
 
-    HRESULT __stdcall QueryContinueDrag (BOOL escapePressed, DWORD keys)
+    JUCE_COMRESULT QueryContinueDrag (BOOL escapePressed, DWORD keys)
     {
         if (escapePressed)
             return DRAGDROP_S_CANCEL;
@@ -2975,7 +3122,7 @@ public:
         return S_OK;
     }
 
-    HRESULT __stdcall GiveFeedback (DWORD)
+    JUCE_COMRESULT GiveFeedback (DWORD)
     {
         return DRAGDROP_S_USEDEFAULTCURSORS;
     }
@@ -2991,7 +3138,7 @@ public:
     {
     }
 
-    HRESULT __stdcall Clone (IEnumFORMATETC** result)
+    JUCE_COMRESULT Clone (IEnumFORMATETC** result)
     {
         if (result == 0)
             return E_POINTER;
@@ -3003,9 +3150,9 @@ public:
         return S_OK;
     }
 
-    HRESULT __stdcall Next (ULONG celt, LPFORMATETC lpFormatEtc, ULONG* pceltFetched)
+    JUCE_COMRESULT Next (ULONG celt, LPFORMATETC lpFormatEtc, ULONG* pceltFetched)
     {
-        if (pceltFetched != 0)
+        if (pceltFetched != nullptr)
             *pceltFetched = 0;
         else if (celt != 1)
             return S_FALSE;
@@ -3015,7 +3162,7 @@ public:
             copyFormatEtc (lpFormatEtc [0], *format);
             ++index;
 
-            if (pceltFetched != 0)
+            if (pceltFetched != nullptr)
                 *pceltFetched = 1;
 
             return S_OK;
@@ -3024,7 +3171,7 @@ public:
         return S_FALSE;
     }
 
-    HRESULT __stdcall Skip (ULONG celt)
+    JUCE_COMRESULT Skip (ULONG celt)
     {
         if (index + (int) celt >= 1)
             return S_FALSE;
@@ -3033,7 +3180,7 @@ public:
         return S_OK;
     }
 
-    HRESULT __stdcall Reset()
+    JUCE_COMRESULT Reset()
     {
         index = 0;
         return S_OK;
@@ -3074,7 +3221,7 @@ public:
         jassert (refCount == 0);
     }
 
-    HRESULT __stdcall GetData (FORMATETC* pFormatEtc, STGMEDIUM* pMedium)
+    JUCE_COMRESULT GetData (FORMATETC* pFormatEtc, STGMEDIUM* pMedium)
     {
         if ((pFormatEtc->tymed & format->tymed) != 0
              && pFormatEtc->cfFormat == format->cfFormat
@@ -3101,7 +3248,7 @@ public:
         return DV_E_FORMATETC;
     }
 
-    HRESULT __stdcall QueryGetData (FORMATETC* f)
+    JUCE_COMRESULT QueryGetData (FORMATETC* f)
     {
         if (f == 0)
             return E_INVALIDARG;
@@ -3114,13 +3261,13 @@ public:
         return DV_E_FORMATETC;
     }
 
-    HRESULT __stdcall GetCanonicalFormatEtc (FORMATETC*, FORMATETC* pFormatEtcOut)
+    JUCE_COMRESULT GetCanonicalFormatEtc (FORMATETC*, FORMATETC* pFormatEtcOut)
     {
         pFormatEtcOut->ptd = 0;
         return E_NOTIMPL;
     }
 
-    HRESULT __stdcall EnumFormatEtc (DWORD direction, IEnumFORMATETC** result)
+    JUCE_COMRESULT EnumFormatEtc (DWORD direction, IEnumFORMATETC** result)
     {
         if (result == 0)
             return E_POINTER;
@@ -3135,11 +3282,11 @@ public:
         return E_NOTIMPL;
     }
 
-    HRESULT __stdcall GetDataHere (FORMATETC*, STGMEDIUM*)                  { return DATA_E_FORMATETC; }
-    HRESULT __stdcall SetData (FORMATETC*, STGMEDIUM*, BOOL)                { return E_NOTIMPL; }
-    HRESULT __stdcall DAdvise (FORMATETC*, DWORD, IAdviseSink*, DWORD*)     { return OLE_E_ADVISENOTSUPPORTED; }
-    HRESULT __stdcall DUnadvise (DWORD)                                     { return E_NOTIMPL; }
-    HRESULT __stdcall EnumDAdvise (IEnumSTATDATA**)                         { return OLE_E_ADVISENOTSUPPORTED; }
+    JUCE_COMRESULT GetDataHere (FORMATETC*, STGMEDIUM*)                  { return DATA_E_FORMATETC; }
+    JUCE_COMRESULT SetData (FORMATETC*, STGMEDIUM*, BOOL)                { return E_NOTIMPL; }
+    JUCE_COMRESULT DAdvise (FORMATETC*, DWORD, IAdviseSink*, DWORD*)     { return OLE_E_ADVISENOTSUPPORTED; }
+    JUCE_COMRESULT DUnadvise (DWORD)                                     { return E_NOTIMPL; }
+    JUCE_COMRESULT EnumDAdvise (IEnumSTATDATA**)                         { return OLE_E_ADVISENOTSUPPORTED; }
 
 private:
     JuceDropSource* const dropSource;

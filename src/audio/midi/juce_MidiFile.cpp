@@ -55,7 +55,7 @@ namespace MidiFileHelpers
         }
     }
 
-    bool parseMidiHeader (const uint8* &data, short& timeFormat, short& fileType, short& numberOfTracks) throw()
+    bool parseMidiHeader (const uint8* &data, short& timeFormat, short& fileType, short& numberOfTracks) noexcept
     {
         unsigned int ch = (int) ByteOrder::bigEndianInt (data);
         data += 4;
@@ -164,18 +164,14 @@ namespace MidiFileHelpers
     struct Sorter
     {
         static int compareElements (const MidiMessageSequence::MidiEventHolder* const first,
-                                    const MidiMessageSequence::MidiEventHolder* const second) throw()
+                                    const MidiMessageSequence::MidiEventHolder* const second) noexcept
         {
             const double diff = (first->message.getTimeStamp() - second->message.getTimeStamp());
 
-            if (diff > 0)
-                return 1;
-            else if (diff < 0)
-                return -1;
-            else if (first->message.isNoteOff() && second->message.isNoteOn())
-                return -1;
-            else if (first->message.isNoteOn() && second->message.isNoteOff())
-                return 1;
+            if (diff > 0) return 1;
+            if (diff < 0) return -1;
+            if (first->message.isNoteOff() && second->message.isNoteOn())   return -1;
+            if (first->message.isNoteOn()  && second->message.isNoteOff())  return 1;
 
             return 0;
         }
@@ -199,12 +195,12 @@ void MidiFile::clear()
 }
 
 //==============================================================================
-int MidiFile::getNumTracks() const throw()
+int MidiFile::getNumTracks() const noexcept
 {
     return tracks.size();
 }
 
-const MidiMessageSequence* MidiFile::getTrack (const int index) const throw()
+const MidiMessageSequence* MidiFile::getTrack (const int index) const noexcept
 {
     return tracks [index];
 }
@@ -215,18 +211,18 @@ void MidiFile::addTrack (const MidiMessageSequence& trackSequence)
 }
 
 //==============================================================================
-short MidiFile::getTimeFormat() const throw()
+short MidiFile::getTimeFormat() const noexcept
 {
     return timeFormat;
 }
 
-void MidiFile::setTicksPerQuarterNote (const int ticks) throw()
+void MidiFile::setTicksPerQuarterNote (const int ticks) noexcept
 {
     timeFormat = (short) ticks;
 }
 
 void MidiFile::setSmpteTimeFormat (const int framesPerSecond,
-                                   const int subframeResolution) throw()
+                                   const int subframeResolution) noexcept
 {
     timeFormat = (short) (((-framesPerSecond) << 8) | subframeResolution);
 }
@@ -397,7 +393,6 @@ bool MidiFile::writeTo (OutputStream& out)
         writeTrack (out, i);
 
     out.flush();
-
     return true;
 }
 
@@ -443,7 +438,7 @@ void MidiFile::writeTrack (OutputStream& mainOut, const int trackNum)
 
     mainOut.writeIntBigEndian ((int) ByteOrder::bigEndianInt ("MTrk"));
     mainOut.writeIntBigEndian ((int) out.getDataSize());
-    mainOut.write (out.getData(), (int) out.getDataSize());
+    mainOut << out;
 }
 
 END_JUCE_NAMESPACE

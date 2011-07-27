@@ -34,8 +34,7 @@ BEGIN_JUCE_NAMESPACE
 
 //==============================================================================
 DrawableImage::DrawableImage()
-    : image (0),
-      opacity (1.0f),
+    : opacity (1.0f),
       overlayColour (0x00000000)
 {
     bounds.topRight = RelativePoint (Point<float> (1.0f, 0.0f));
@@ -63,7 +62,7 @@ void DrawableImage::setImage (const Image& imageToUse)
     bounds.topLeft = RelativePoint (Point<float> (0.0f, 0.0f));
     bounds.topRight = RelativePoint (Point<float> ((float) image.getWidth(), 0.0f));
     bounds.bottomLeft = RelativePoint (Point<float> (0.0f, (float) image.getHeight()));
-    recalculateCoordinates (0);
+    recalculateCoordinates (nullptr);
 
     repaint();
 }
@@ -92,18 +91,18 @@ void DrawableImage::setBoundingBox (const RelativeParallelogram& newBounds)
         }
         else
         {
-            setPositioner (0);
-            recalculateCoordinates (0);
+            setPositioner (nullptr);
+            recalculateCoordinates (nullptr);
         }
     }
 }
 
 //==============================================================================
-bool DrawableImage::registerCoordinates (RelativeCoordinatePositionerBase& positioner)
+bool DrawableImage::registerCoordinates (RelativeCoordinatePositionerBase& pos)
 {
-    bool ok = positioner.addPoint (bounds.topLeft);
-    ok = positioner.addPoint (bounds.topRight) && ok;
-    return positioner.addPoint (bounds.bottomLeft) && ok;
+    bool ok = pos.addPoint (bounds.topLeft);
+    ok = pos.addPoint (bounds.topRight) && ok;
+    return pos.addPoint (bounds.bottomLeft) && ok;
 }
 
 void DrawableImage::recalculateCoordinates (Expression::Scope* scope)
@@ -146,7 +145,7 @@ void DrawableImage::paint (Graphics& g)
     }
 }
 
-const Rectangle<float> DrawableImage::getDrawableBounds() const
+Rectangle<float> DrawableImage::getDrawableBounds() const
 {
     return image.getBounds().toFloat();
 }
@@ -178,7 +177,7 @@ DrawableImage::ValueTreeWrapper::ValueTreeWrapper (const ValueTree& state_)
     jassert (state.hasType (valueTreeType));
 }
 
-const var DrawableImage::ValueTreeWrapper::getImageIdentifier() const
+var DrawableImage::ValueTreeWrapper::getImageIdentifier() const
 {
     return state [image];
 }
@@ -229,7 +228,7 @@ Value DrawableImage::ValueTreeWrapper::getOverlayColourValue (UndoManager* undoM
     return state.getPropertyAsValue (overlay, undoManager);
 }
 
-const RelativeParallelogram DrawableImage::ValueTreeWrapper::getBoundingBox() const
+RelativeParallelogram DrawableImage::ValueTreeWrapper::getBoundingBox() const
 {
     return RelativeParallelogram (state.getProperty (topLeft, "0, 0"),
                                   state.getProperty (topRight, "100, 0"),
@@ -259,7 +258,7 @@ void DrawableImage::refreshFromValueTree (const ValueTree& tree, ComponentBuilde
 
     jassert (builder.getImageProvider() != 0 || imageIdentifier.isVoid()); // if you're using images, you need to provide something that can load and save them!
 
-    if (builder.getImageProvider() != 0)
+    if (builder.getImageProvider() != nullptr)
         newImage = builder.getImageProvider()->getImageForIdentifier (imageIdentifier);
 
     const RelativeParallelogram newBounds (controller.getBoundingBox());
@@ -278,22 +277,22 @@ void DrawableImage::refreshFromValueTree (const ValueTree& tree, ComponentBuilde
     }
 }
 
-const ValueTree DrawableImage::createValueTree (ComponentBuilder::ImageProvider* imageProvider) const
+ValueTree DrawableImage::createValueTree (ComponentBuilder::ImageProvider* imageProvider) const
 {
     ValueTree tree (valueTreeType);
     ValueTreeWrapper v (tree);
 
     v.setID (getComponentID());
-    v.setOpacity (opacity, 0);
-    v.setOverlayColour (overlayColour, 0);
-    v.setBoundingBox (bounds, 0);
+    v.setOpacity (opacity, nullptr);
+    v.setOverlayColour (overlayColour, nullptr);
+    v.setBoundingBox (bounds, nullptr);
 
     if (image.isValid())
     {
-        jassert (imageProvider != 0); // if you're using images, you need to provide something that can load and save them!
+        jassert (imageProvider != nullptr); // if you're using images, you need to provide something that can load and save them!
 
-        if (imageProvider != 0)
-            v.setImageIdentifier (imageProvider->getIdentifierForImage (image), 0);
+        if (imageProvider != nullptr)
+            v.setImageIdentifier (imageProvider->getIdentifierForImage (image), nullptr);
     }
 
     return tree;

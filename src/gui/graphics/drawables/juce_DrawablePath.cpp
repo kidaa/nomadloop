@@ -40,7 +40,7 @@ DrawablePath::DrawablePath()
 DrawablePath::DrawablePath (const DrawablePath& other)
     : DrawableShape (other)
 {
-    if (other.relativePath != 0)
+    if (other.relativePath != nullptr)
         setPath (*other.relativePath);
     else
         setPath (other.path);
@@ -98,7 +98,7 @@ public:
     {
         bool ok = true;
 
-        jassert (owner.relativePath != 0);
+        jassert (owner.relativePath != nullptr);
         const RelativePointPath& path = *owner.relativePath;
 
         for (int i = 0; i < path.elements.size(); ++i)
@@ -117,7 +117,7 @@ public:
 
     void applyToComponentBounds()
     {
-        jassert (owner.relativePath != 0);
+        jassert (owner.relativePath != nullptr);
 
         ComponentScope scope (getComponent());
         owner.applyRelativePath (*owner.relativePath, &scope);
@@ -138,7 +138,7 @@ void DrawablePath::setPath (const RelativePointPath& newRelativePath)
 {
     if (newRelativePath.containsAnyDynamicPoints())
     {
-        if (relativePath == 0 || newRelativePath != *relativePath)
+        if (relativePath == nullptr || newRelativePath != *relativePath)
         {
             relativePath = new RelativePointPath (newRelativePath);
 
@@ -149,8 +149,8 @@ void DrawablePath::setPath (const RelativePointPath& newRelativePath)
     }
     else
     {
-        relativePath = 0;
-        applyRelativePath (newRelativePath, 0);
+        relativePath = nullptr;
+        applyRelativePath (newRelativePath, nullptr);
     }
 }
 
@@ -171,7 +171,7 @@ DrawablePath::ValueTreeWrapper::ValueTreeWrapper (const ValueTree& state_)
 
 ValueTree DrawablePath::ValueTreeWrapper::getPathState()
 {
-    return state.getOrCreateChildWithName (path, 0);
+    return state.getOrCreateChildWithName (path, nullptr);
 }
 
 bool DrawablePath::ValueTreeWrapper::usesNonZeroWinding() const
@@ -210,16 +210,15 @@ void DrawablePath::ValueTreeWrapper::writeTo (RelativePointPath& relativePath) c
         for (int j = 0; j < numCps; ++j)
             points[j] = e.getControlPoint (j);
 
-        const Identifier type (e.getType());
-
         RelativePointPath::ElementBase* newElement = 0;
+        const Identifier t (e.getType());
 
-        if (type == Element::startSubPathElement)       newElement = new RelativePointPath::StartSubPath (points[0]);
-        else if (type == Element::closeSubPathElement)  newElement = new RelativePointPath::CloseSubPath();
-        else if (type == Element::lineToElement)        newElement = new RelativePointPath::LineTo (points[0]);
-        else if (type == Element::quadraticToElement)   newElement = new RelativePointPath::QuadraticTo (points[0], points[1]);
-        else if (type == Element::cubicToElement)       newElement = new RelativePointPath::CubicTo (points[0], points[1], points[2]);
-        else                                            jassertfalse;
+        if      (t == Element::startSubPathElement)  newElement = new RelativePointPath::StartSubPath (points[0]);
+        else if (t == Element::closeSubPathElement)  newElement = new RelativePointPath::CloseSubPath();
+        else if (t == Element::lineToElement)        newElement = new RelativePointPath::LineTo (points[0]);
+        else if (t == Element::quadraticToElement)   newElement = new RelativePointPath::QuadraticTo (points[0], points[1]);
+        else if (t == Element::cubicToElement)       newElement = new RelativePointPath::CubicTo (points[0], points[1], points[2]);
+        else                                         jassertfalse;
 
         relativePath.addElement (newElement);
     }
@@ -256,7 +255,7 @@ DrawablePath::ValueTreeWrapper::Element DrawablePath::ValueTreeWrapper::Element:
     return Element (state.getSibling (-1));
 }
 
-int DrawablePath::ValueTreeWrapper::Element::getNumControlPoints() const throw()
+int DrawablePath::ValueTreeWrapper::Element::getNumControlPoints() const noexcept
 {
     const Identifier i (state.getType());
     if (i == startSubPathElement || i == lineToElement) return 1;
@@ -265,7 +264,7 @@ int DrawablePath::ValueTreeWrapper::Element::getNumControlPoints() const throw()
     return 0;
 }
 
-const RelativePoint DrawablePath::ValueTreeWrapper::Element::getControlPoint (const int index) const
+RelativePoint DrawablePath::ValueTreeWrapper::Element::getControlPoint (const int index) const
 {
     jassert (index >= 0 && index < getNumControlPoints());
     return RelativePoint (state [index == 0 ? point1 : (index == 1 ? point2 : point3)].toString());
@@ -283,7 +282,7 @@ void DrawablePath::ValueTreeWrapper::Element::setControlPoint (const int index, 
     state.setProperty (index == 0 ? point1 : (index == 1 ? point2 : point3), point.toString(), undoManager);
 }
 
-const RelativePoint DrawablePath::ValueTreeWrapper::Element::getStartPoint() const
+RelativePoint DrawablePath::ValueTreeWrapper::Element::getStartPoint() const
 {
     const Identifier i (state.getType());
 
@@ -295,7 +294,7 @@ const RelativePoint DrawablePath::ValueTreeWrapper::Element::getStartPoint() con
     return getPreviousElement().getEndPoint();
 }
 
-const RelativePoint DrawablePath::ValueTreeWrapper::Element::getEndPoint() const
+RelativePoint DrawablePath::ValueTreeWrapper::Element::getEndPoint() const
 {
     const Identifier i (state.getType());
     if (i == startSubPathElement || i == lineToElement)  return getControlPoint (0);
@@ -333,7 +332,7 @@ float DrawablePath::ValueTreeWrapper::Element::getLength (Expression::Scope* sco
     return 0;
 }
 
-const String DrawablePath::ValueTreeWrapper::Element::getModeOfEndPoint() const
+String DrawablePath::ValueTreeWrapper::Element::getModeOfEndPoint() const
 {
     return state [mode].toString();
 }
@@ -393,7 +392,7 @@ void DrawablePath::ValueTreeWrapper::Element::convertToPathBreak (UndoManager* u
 
 namespace DrawablePathHelpers
 {
-    const Point<float> findCubicSubdivisionPoint (float proportion, const Point<float> points[4])
+    Point<float> findCubicSubdivisionPoint (float proportion, const Point<float> points[4])
     {
         const Point<float> mid1 (points[0] + (points[1] - points[0]) * proportion),
                            mid2 (points[1] + (points[2] - points[1]) * proportion),
@@ -405,7 +404,7 @@ namespace DrawablePathHelpers
         return newCp1 + (newCp2 - newCp1) * proportion;
     }
 
-    const Point<float> findQuadraticSubdivisionPoint (float proportion, const Point<float> points[3])
+    Point<float> findQuadraticSubdivisionPoint (float proportion, const Point<float> points[3])
     {
         const Point<float> mid1 (points[0] + (points[1] - points[0]) * proportion),
                            mid2 (points[1] + (points[2] - points[1]) * proportion);
@@ -498,9 +497,9 @@ ValueTree DrawablePath::ValueTreeWrapper::Element::insertPoint (const Point<floa
         setModeOfEndPoint (roundedMode, undoManager);
 
         Element newElement (newTree = ValueTree (cubicToElement));
-        newElement.setControlPoint (0, newCp2, 0);
-        newElement.setControlPoint (1, mid3, 0);
-        newElement.setControlPoint (2, rp4, 0);
+        newElement.setControlPoint (0, newCp2, nullptr);
+        newElement.setControlPoint (1, mid3, nullptr);
+        newElement.setControlPoint (2, rp4, nullptr);
 
         state.getParent().addChild (newTree, state.getParent().indexOf (state) + 1, undoManager);
     }
@@ -521,8 +520,8 @@ ValueTree DrawablePath::ValueTreeWrapper::Element::insertPoint (const Point<floa
         setModeOfEndPoint (roundedMode, undoManager);
 
         Element newElement (newTree = ValueTree (quadraticToElement));
-        newElement.setControlPoint (0, mid2, 0);
-        newElement.setControlPoint (1, rp3, 0);
+        newElement.setControlPoint (0, mid2, nullptr);
+        newElement.setControlPoint (1, rp3, nullptr);
 
         state.getParent().addChild (newTree, state.getParent().indexOf (state) + 1, undoManager);
     }
@@ -535,7 +534,7 @@ ValueTree DrawablePath::ValueTreeWrapper::Element::insertPoint (const Point<floa
         setControlPoint (0, newPoint, undoManager);
 
         Element newElement (newTree = ValueTree (lineToElement));
-        newElement.setControlPoint (0, rp2, 0);
+        newElement.setControlPoint (0, rp2, nullptr);
 
         state.getParent().addChild (newTree, state.getParent().indexOf (state) + 1, undoManager);
     }
@@ -565,18 +564,18 @@ void DrawablePath::refreshFromValueTree (const ValueTree& tree, ComponentBuilder
     setPath (newRelativePath);
 }
 
-const ValueTree DrawablePath::createValueTree (ComponentBuilder::ImageProvider* imageProvider) const
+ValueTree DrawablePath::createValueTree (ComponentBuilder::ImageProvider* imageProvider) const
 {
     ValueTree tree (valueTreeType);
     ValueTreeWrapper v (tree);
 
     v.setID (getComponentID());
-    writeTo (v, imageProvider, 0);
+    writeTo (v, imageProvider, nullptr);
 
-    if (relativePath != 0)
-        v.readFrom (*relativePath, 0);
+    if (relativePath != nullptr)
+        v.readFrom (*relativePath, nullptr);
     else
-        v.readFrom (RelativePointPath (path), 0);
+        v.readFrom (RelativePointPath (path), nullptr);
 
     return tree;
 }

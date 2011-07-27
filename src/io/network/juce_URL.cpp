@@ -28,10 +28,11 @@
 BEGIN_JUCE_NAMESPACE
 
 #include "juce_URL.h"
+#include "../streams/juce_InputStream.h"
 #include "../../maths/juce_Random.h"
-#include "../../core/juce_PlatformUtilities.h"
 #include "../../text/juce_XmlDocument.h"
 #include "../../io/streams/juce_MemoryOutputStream.h"
+#include "../../threads/juce_Process.h"
 
 
 //==============================================================================
@@ -99,7 +100,7 @@ URL::~URL()
 
 namespace URLHelpers
 {
-    const String getMangledParameters (const StringPairArray& parameters)
+    String getMangledParameters (const StringPairArray& parameters)
     {
         String p;
 
@@ -184,7 +185,7 @@ namespace URLHelpers
     }
 }
 
-const String URL::toString (const bool includeGetParameters) const
+String URL::toString (const bool includeGetParameters) const
 {
     if (includeGetParameters && parameters.size() > 0)
         return url + "?" + URLHelpers::getMangledParameters (parameters);
@@ -198,7 +199,7 @@ bool URL::isWellFormed() const
     return url.isNotEmpty();
 }
 
-const String URL::getDomain() const
+String URL::getDomain() const
 {
     int start = URLHelpers::findStartOfDomain (url);
     while (url[start] == '/')
@@ -213,7 +214,7 @@ const String URL::getDomain() const
     return url.substring (start, end);
 }
 
-const String URL::getSubPath() const
+String URL::getSubPath() const
 {
     int start = URLHelpers::findStartOfDomain (url);
     while (url[start] == '/')
@@ -225,7 +226,7 @@ const String URL::getSubPath() const
                             : url.substring (startOfPath);
 }
 
-const String URL::getScheme() const
+String URL::getScheme() const
 {
     return url.substring (0, URLHelpers::findStartOfDomain (url) - 1);
 }
@@ -312,7 +313,7 @@ bool URL::readEntireBinaryStream (MemoryBlock& destData,
 {
     const ScopedPointer <InputStream> in (createInputStream (usePostCommand));
 
-    if (in != 0)
+    if (in != nullptr)
     {
         in->readIntoMemoryBlock (destData);
         return true;
@@ -321,11 +322,11 @@ bool URL::readEntireBinaryStream (MemoryBlock& destData,
     return false;
 }
 
-const String URL::readEntireTextStream (const bool usePostCommand) const
+String URL::readEntireTextStream (const bool usePostCommand) const
 {
     const ScopedPointer <InputStream> in (createInputStream (usePostCommand));
 
-    if (in != 0)
+    if (in != nullptr)
         return in->readEntireStreamAsString();
 
     return String::empty;
@@ -380,7 +381,7 @@ const StringPairArray& URL::getMimeTypesOfUploadFiles() const
 }
 
 //==============================================================================
-const String URL::removeEscapeChars (const String& s)
+String URL::removeEscapeChars (const String& s)
 {
     String result (s.replaceCharacter ('+', ' '));
 
@@ -409,7 +410,7 @@ const String URL::removeEscapeChars (const String& s)
     return String::fromUTF8 (utf8.getRawDataPointer(), utf8.size());
 }
 
-const String URL::addEscapeChars (const String& s, const bool isParameter)
+String URL::addEscapeChars (const String& s, const bool isParameter)
 {
     const CharPointer_UTF8 legalChars (isParameter ? "_-.*!'()"
                                                    : ",$_-.*!'()");
@@ -449,7 +450,7 @@ bool URL::launchInDefaultBrowser() const
     if (u.containsChar ('@') && ! u.containsChar (':'))
         u = "mailto:" + u;
 
-    return PlatformUtilities::openDocument (u, String::empty);
+    return Process::openDocument (u, String::empty);
 }
 
 

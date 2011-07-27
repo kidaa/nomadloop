@@ -27,7 +27,7 @@
 #define __JUCER_PROJECTEXPORT_MSVC_JUCEHEADER__
 
 #include "jucer_ProjectExporter.h"
-
+#include "jucer_ProjectSaver.h"
 
 //==============================================================================
 class MSVCProjectExporterBase   : public ProjectExporter
@@ -40,12 +40,6 @@ public:
         if (getTargetLocation().toString().isEmpty())
             getTargetLocation() = getDefaultBuildsRootFolder() + folderName;
 
-        if (getVSTFolder().toString().isEmpty())
-            getVSTFolder() = "c:\\SDKs\\vstsdk2.4";
-
-        if (getRTASFolder().toString().isEmpty())
-            getRTASFolder() = "c:\\SDKs\\PT_80_SDK";
-
         if ((int) getLibraryType().getValue() <= 0)
             getLibraryType() = 1;
 
@@ -55,12 +49,13 @@ public:
     //==============================================================================
     bool isPossibleForCurrentProject()          { return true; }
     bool usesMMFiles() const                    { return false; }
+    bool isVisualStudio() const                 { return true; }
 
     void createPropertyEditors (Array <PropertyComponent*>& props)
     {
         ProjectExporter::createPropertyEditors (props);
 
-        if (project.isLibrary())
+        if (projectType.isLibrary())
         {
             const char* const libTypes[] = { "Static Library (.lib)", "Dynamic Library (.dll)", 0 };
             const int libTypeValues[] = { 1, 2, 0 };
@@ -79,63 +74,31 @@ protected:
     File rcFile, iconFile;
     bool hasIcon;
 
-    const File getProjectFile (const String& extension) const   { return getTargetFolder().getChildFile (project.getProjectFilenameRoot()).withFileExtension (extension); }
+    File getProjectFile (const String& extension) const   { return getTargetFolder().getChildFile (project.getProjectFilenameRoot()).withFileExtension (extension); }
 
     Value getLibraryType() const        { return getSetting (Ids::libraryType); }
-    bool isLibraryDLL() const           { return project.isLibrary() && getLibraryType() == 2; }
+    bool isLibraryDLL() const           { return projectType.isLibrary() && getLibraryType() == 2; }
 
     //==============================================================================
-    const Array<RelativePath> getRTASFilesRequired() const
-    {
-        Array<RelativePath> s;
-
-        if (isRTAS())
-        {
-            static const char* files[] = { "extras/audio plugins/wrapper/RTAS/juce_RTAS_DigiCode1.cpp",
-                                           "extras/audio plugins/wrapper/RTAS/juce_RTAS_DigiCode2.cpp",
-                                           "extras/audio plugins/wrapper/RTAS/juce_RTAS_DigiCode3.cpp",
-                                           "extras/audio plugins/wrapper/RTAS/juce_RTAS_DigiCode_Header.h",
-                                           "extras/audio plugins/wrapper/RTAS/juce_RTAS_WinUtilities.cpp",
-                                           "extras/audio plugins/wrapper/RTAS/juce_RTAS_Wrapper.cpp" };
-
-            for (int i = 0; i < numElementsInArray (files); ++i)
-                s.add (getJucePathFromTargetFolder().getChildFile (files[i]));
-        }
-
-        return s;
-    }
-
-    const String getIntermediatesPath (const Project::BuildConfiguration& config) const
+    String getIntermediatesPath (const Project::BuildConfiguration& config) const
     {
         return ".\\" + File::createLegalFileName (config.getName().toString().trim());
     }
 
-    const String getConfigTargetPath (const Project::BuildConfiguration& config) const
+    String getConfigTargetPath (const Project::BuildConfiguration& config) const
     {
         const String binaryPath (config.getTargetBinaryRelativePath().toString().trim());
         if (binaryPath.isEmpty())
             return getIntermediatesPath (config);
 
         return ".\\" + RelativePath (binaryPath, RelativePath::projectFolder)
-                             .rebased (project.getFile().getParentDirectory(), getTargetFolder(), RelativePath::buildTargetFolder)
+                             .rebased (projectFolder, getTargetFolder(), RelativePath::buildTargetFolder)
                              .toWindowsStyle();
     }
 
-    const String getTargetBinarySuffix() const
+    String getPreprocessorDefs (const Project::BuildConfiguration& config, const String& joinString) const
     {
-        if (project.isLibrary())
-            return ".lib";
-        else if (isRTAS())
-            return ".dpm";
-        else if (project.isAudioPlugin() || project.isBrowserPlugin())
-            return ".dll";
-
-        return ".exe";
-    }
-
-    const String getPreprocessorDefs (const Project::BuildConfiguration& config, const String& joinString) const
-    {
-        StringPairArray defines;
+        StringPairArray defines (msvcExtraPreprocessorDefs);
         defines.set ("WIN32", "");
         defines.set ("_WINDOWS", "");
 
@@ -147,19 +110,6 @@ protected:
         else
         {
             defines.set ("NDEBUG", "");
-        }
-
-        if (project.isCommandLineApp())
-            defines.set ("_CONSOLE", "");
-
-        if (project.isLibrary())
-            defines.set ("_LIB", "");
-
-        if (isRTAS())
-        {
-            RelativePath rtasFolder (getRTASFolder().toString(), RelativePath::unknown);
-            defines.set ("JucePlugin_WinBag_path", CodeHelpers::addEscapeChars (rtasFolder.getChildFile ("WinBag")
-                                                                                .toWindowsStyle().quoted()));
         }
 
         defines = mergePreprocessorDefs (defines, getAllPreprocessorDefs (config));
@@ -179,62 +129,27 @@ protected:
         return result.joinIntoString (joinString);
     }
 
-    const StringArray getHeaderSearchPaths (const Project::BuildConfiguration& config) const
+    StringArray getHeaderSearchPaths (const Project::BuildConfiguration& config) const
     {
         StringArray searchPaths (config.getHeaderSearchPaths());
 
-        if (project.shouldAddVSTFolderToPath() && getVSTFolder().toString().isNotEmpty())
-            searchPaths.add (rebaseFromProjectFolderToBuildTarget (RelativePath (getVSTFolder().toString(), RelativePath::projectFolder)).toWindowsStyle());
+        for (int i = 0; i < libraryModules.size(); ++i)
+            libraryModules.getUnchecked(i)->addExtraSearchPaths (*this, searchPaths);
 
-        if (project.isAudioPlugin())
-            searchPaths.add (juceWrapperFolder.toWindowsStyle());
-
-        if (isRTAS())
-        {
-            static const char* rtasIncludePaths[] = { "AlturaPorts/TDMPlugins/PluginLibrary/EffectClasses",
-                                                      "AlturaPorts/TDMPlugins/PluginLibrary/ProcessClasses",
-                                                      "AlturaPorts/TDMPlugins/PluginLibrary/ProcessClasses/Interfaces",
-                                                      "AlturaPorts/TDMPlugins/PluginLibrary/Utilities",
-                                                      "AlturaPorts/TDMPlugins/PluginLibrary/RTASP_Adapt",
-                                                      "AlturaPorts/TDMPlugins/PluginLibrary/CoreClasses",
-                                                      "AlturaPorts/TDMPlugins/PluginLibrary/Controls",
-                                                      "AlturaPorts/TDMPlugins/PluginLibrary/Meters",
-                                                      "AlturaPorts/TDMPlugins/PluginLibrary/ViewClasses",
-                                                      "AlturaPorts/TDMPlugins/PluginLibrary/DSPClasses",
-                                                      "AlturaPorts/TDMPlugins/PluginLibrary/Interfaces",
-                                                      "AlturaPorts/TDMPlugins/common",
-                                                      "AlturaPorts/TDMPlugins/common/Platform",
-                                                      "AlturaPorts/TDMPlugins/SignalProcessing/Public",
-                                                      "AlturaPorts/TDMPlugIns/DSPManager/Interfaces",
-                                                      "AlturaPorts/SADriver/Interfaces",
-                                                      "AlturaPorts/DigiPublic/Interfaces",
-                                                      "AlturaPorts/Fic/Interfaces/DAEClient",
-                                                      "AlturaPorts/NewFileLibs/Cmn",
-                                                      "AlturaPorts/NewFileLibs/DOA",
-                                                      "AlturaPorts/AlturaSource/PPC_H",
-                                                      "AlturaPorts/AlturaSource/AppSupport",
-                                                      "AvidCode/AVX2sdk/AVX/avx2/avx2sdk/inc",
-                                                      "xplat/AVX/avx2/avx2sdk/inc" };
-
-            RelativePath sdkFolder (getRTASFolder().toString(), RelativePath::projectFolder);
-
-            for (int i = 0; i < numElementsInArray (rtasIncludePaths); ++i)
-                searchPaths.add (rebaseFromProjectFolderToBuildTarget (sdkFolder.getChildFile (rtasIncludePaths[i])).toWindowsStyle());
-        }
-
+        searchPaths.removeDuplicates (false);
         return searchPaths;
     }
 
-    const String getBinaryFileForConfig (const Project::BuildConfiguration& config) const
+    String getBinaryFileForConfig (const Project::BuildConfiguration& config) const
     {
         const String targetBinary (getSetting (config.isDebug().getValue() ? Ids::libraryName_Debug : Ids::libraryName_Release).toString().trim());
         if (targetBinary.isNotEmpty())
             return targetBinary;
 
-        return config.getTargetBinaryName().toString() + getTargetBinarySuffix();
+        return config.getTargetBinaryName().toString() + msvcTargetSuffix;
     }
 
-    static const String createConfigName (const Project::BuildConfiguration& config)
+    static String createConfigName (const Project::BuildConfiguration& config)
     {
         return config.getName().toString() + "|Win32";
     }
@@ -243,25 +158,25 @@ protected:
     void writeSolutionFile (OutputStream& out, const String& versionString, const File& vcProject)
     {
         out << "Microsoft Visual Studio Solution File, Format Version " << versionString << newLine
-            << "Project(\"" << createGUID (project.getProjectName().toString() + "sln_guid") << "\") = \"" << project.getProjectName().toString() << "\", \""
+            << "Project(\"" << createGUID (projectName + "sln_guid") << "\") = \"" << projectName << "\", \""
             << vcProject.getFileName() << "\", \"" << projectGUID << '"' << newLine
             << "EndProject" << newLine
             << "Global" << newLine
             << "\tGlobalSection(SolutionConfigurationPlatforms) = preSolution" << newLine;
 
         int i;
-        for (i = 0; i < project.getNumConfigurations(); ++i)
+        for (i = 0; i < configs.size(); ++i)
         {
-            Project::BuildConfiguration config (project.getConfiguration (i));
+            const Project::BuildConfiguration& config = configs.getReference(i);
             out << "\t\t" << createConfigName (config) << " = " << createConfigName (config) << newLine;
         }
 
         out << "\tEndGlobalSection" << newLine
             << "\tGlobalSection(ProjectConfigurationPlatforms) = postSolution" << newLine;
 
-        for (i = 0; i < project.getNumConfigurations(); ++i)
+        for (i = 0; i < configs.size(); ++i)
         {
-            Project::BuildConfiguration config (project.getConfiguration (i));
+            const Project::BuildConfiguration& config = configs.getReference(i);
             out << "\t\t" << projectGUID << "." << createConfigName (config) << ".ActiveCfg = " << createConfigName (config) << newLine;
             out << "\t\t" << projectGUID << "." << createConfigName (config) << ".Build.0 = " << createConfigName (config) << newLine;
         }
@@ -381,19 +296,19 @@ protected:
     {
         Array<Image> images;
 
-        Image im (project.getBestIconForSize (16, true));
+        Image im (getBestIconForSize (16, true));
         if (im.isValid())
             images.add (im);
 
-        im = project.getBestIconForSize (32, true);
+        im = getBestIconForSize (32, true);
         if (im.isValid())
             images.add (im);
 
-        im = project.getBestIconForSize (48, true);
+        im = getBestIconForSize (48, true);
         if (im.isValid())
             images.add (im);
 
-        im = project.getBestIconForSize (128, true);
+        im = getBestIconForSize (128, true);
         if (im.isValid())
             images.add (im);
 
@@ -431,13 +346,13 @@ public:
 
     void launchProject()                            { getSLNFile().startAsProcess(); }
 
-    bool isDefaultFormatForCurrentOS()
+    int getLaunchPreferenceOrderForCurrentOS()
     {
-      #if JUCE_WINDOWS
-        return true;
-      #else
-        return false;
-      #endif
+       #if JUCE_WINDOWS
+        return 4;
+       #else
+        return 0;
+       #endif
     }
 
     static MSVCProjectExporterVC2008* createForSettings (Project& project, const ValueTree& settings)
@@ -455,8 +370,20 @@ public:
 
         if (hasIcon)
         {
-            juceWrapperFiles.add (RelativePath (iconFile.getFileName(), RelativePath::buildTargetFolder));
-            juceWrapperFiles.add (RelativePath (rcFile.getFileName(), RelativePath::buildTargetFolder));
+            for (int i = 0; i < groups.size(); ++i)
+            {
+                Project::Item& group = groups.getReference(i);
+
+                if (group.getID() == ProjectSaver::getGeneratedGroupID())
+                {
+                    group.addFile (iconFile, -1);
+                    group.addFile (rcFile, -1);
+
+                    group.findItemForFile (iconFile).getShouldAddToResourceValue() = false;
+                    group.findItemForFile (rcFile).getShouldAddToResourceValue() = false;
+                    break;
+                }
+            }
         }
 
         {
@@ -474,18 +401,18 @@ public:
     }
 
 protected:
-    virtual const String getProjectVersionString() const    { return "9.00"; }
-    virtual const String getSolutionVersionString() const   { return "10.00" + newLine + "# Visual C++ Express 2008"; }
+    virtual String getProjectVersionString() const    { return "9.00"; }
+    virtual String getSolutionVersionString() const   { return "10.00" + newLine + "# Visual C++ Express 2008"; }
 
-    const File getVCProjFile() const    { return getProjectFile (".vcproj"); }
-    const File getSLNFile() const       { return getProjectFile (".sln"); }
+    File getVCProjFile() const    { return getProjectFile (".vcproj"); }
+    File getSLNFile() const       { return getProjectFile (".sln"); }
 
     //==============================================================================
     void fillInProjectXml (XmlElement& projectXml)
     {
         projectXml.setAttribute ("ProjectType", "Visual C++");
         projectXml.setAttribute ("Version", getProjectVersionString());
-        projectXml.setAttribute ("Name", project.getProjectName().toString());
+        projectXml.setAttribute ("Name", projectName);
         projectXml.setAttribute ("ProjectGUID", projectGUID);
         projectXml.setAttribute ("TargetFrameworkVersion", "131072");
 
@@ -512,9 +439,9 @@ protected:
 
         if (excludeFromBuild || useStdcall)
         {
-            for (int i = 0; i < project.getNumConfigurations(); ++i)
+            for (int i = 0; i < configs.size(); ++i)
             {
-                Project::BuildConfiguration config (project.getConfiguration (i));
+                const Project::BuildConfiguration& config = configs.getReference(i);
 
                 XmlElement* fileConfig = fileXml->createNewChildElement ("FileConfiguration");
                 fileConfig->setAttribute ("Name", createConfigName (config));
@@ -546,39 +473,21 @@ protected:
             for (int i = 0; i < projectItem.getNumChildren(); ++i)
                 addFiles (projectItem.getChild(i), *filter);
         }
-        else
+        else if (projectItem.shouldBeAddedToTargetProject())
         {
-            if (projectItem.shouldBeAddedToTargetProject())
-            {
-                const RelativePath path (projectItem.getFile(), getTargetFolder(), RelativePath::buildTargetFolder);
+            const RelativePath path (projectItem.getFile(), getTargetFolder(), RelativePath::buildTargetFolder);
 
-                addFile (path, parent,
-                         projectItem.shouldBeAddedToBinaryResources() || (shouldFileBeCompiledByDefault (path) && ! projectItem.shouldBeCompiled()),
-                         false);
-            }
-        }
-    }
-
-    void addGroup (XmlElement& parent, const String& groupName, const Array<RelativePath>& files, const bool useStdcall)
-    {
-        if (files.size() > 0)
-        {
-            XmlElement* const group = createGroup (groupName, parent);
-
-            for (int i = 0; i < files.size(); ++i)
-                if (files.getReference(i).hasFileExtension ("cpp;c;cc;cxx;h;hpp;hxx;rc;ico"))
-                    addFile (files.getReference(i), *group, false,
-                             useStdcall && shouldFileBeCompiledByDefault (files.getReference(i)));
+            addFile (path, parent,
+                     projectItem.shouldBeAddedToBinaryResources() || (shouldFileBeCompiledByDefault (path) && ! projectItem.shouldBeCompiled()),
+                     shouldFileBeCompiledByDefault (path) && (bool) projectItem.getShouldUseStdCallValue().getValue());
         }
     }
 
     void createFiles (XmlElement& files)
     {
-        addFiles (project.getMainGroup(), files);
-
-        addGroup (files, project.getJuceCodeGroupName(), juceWrapperFiles, false);
-        addGroup (files, "Juce VST Wrapper", getVSTFilesRequired(), false);
-        addGroup (files, "Juce RTAS Wrapper", getRTASFilesRequired(), true);
+        for (int i = 0; i < groups.size(); ++i)
+            if (groups.getReference(i).getNumChildren() > 0)
+                addFiles (groups.getReference(i), files);
     }
 
     //==============================================================================
@@ -599,8 +508,7 @@ protected:
         xml.setAttribute ("Name", createConfigName (config));
         xml.setAttribute ("OutputDirectory", FileHelpers::windowsStylePath (binariesPath));
         xml.setAttribute ("IntermediateDirectory", FileHelpers::windowsStylePath (intermediatesPath));
-        xml.setAttribute ("ConfigurationType", (project.isAudioPlugin() || project.isBrowserPlugin() || isLibraryDLL())
-                                                    ? "2" : (project.isLibrary() ? "4" : "1"));
+        xml.setAttribute ("ConfigurationType", (msvcIsDLL || isLibraryDLL()) ? "2" : (projectType.isLibrary() ? "4" : "1"));
         xml.setAttribute ("UseOfMFC", "0");
         xml.setAttribute ("ATLMinimizesCRunTimeLibraryUsage", "false");
         xml.setAttribute ("CharacterSet", "2");
@@ -612,18 +520,16 @@ protected:
 
         XmlElement* customBuild = createToolElement (xml, "VCCustomBuildTool");
 
-        if (isRTAS())
-        {
-            RelativePath rsrFile (getJucePathFromTargetFolder().getChildFile ("extras/audio plugins/wrapper/RTAS/juce_RTAS_WinResources.rsr"));
+        if (msvcPostBuildCommand.isNotEmpty())
+            customBuild->setAttribute ("CommandLine", msvcPostBuildCommand);
 
-            customBuild->setAttribute ("CommandLine", "copy /Y \"" + rsrFile.toWindowsStyle() + "\" \"$(TargetPath)\".rsr");
-            customBuild->setAttribute ("Outputs", "\"$(TargetPath)\".rsr");
-        }
+        if (msvcPostBuildOutputs.isNotEmpty())
+            customBuild->setAttribute ("Outputs", msvcPostBuildOutputs);
 
         createToolElement (xml, "VCXMLDataGeneratorTool");
         createToolElement (xml, "VCWebServiceProxyGeneratorTool");
 
-        if (! project.isLibrary())
+        if (! projectType.isLibrary())
         {
             XmlElement* midl = createToolElement (xml, "VCMIDLTool");
             midl->setAttribute ("PreprocessorDefinitions", isDebug ? "_DEBUG" : "NDEBUG");
@@ -643,7 +549,7 @@ protected:
             if (isDebug)
             {
                 compiler->setAttribute ("BufferSecurityCheck", "");
-                compiler->setAttribute ("DebugInformationFormat", project.isLibrary() ? "3" : "4");
+                compiler->setAttribute ("DebugInformationFormat", projectType.isLibrary() ? "3" : "4");
             }
             else
             {
@@ -653,8 +559,8 @@ protected:
 
             compiler->setAttribute ("AdditionalIncludeDirectories", replacePreprocessorTokens (config, getHeaderSearchPaths (config).joinIntoString (";")));
             compiler->setAttribute ("PreprocessorDefinitions", getPreprocessorDefs (config, ";"));
-            compiler->setAttribute ("RuntimeLibrary", isRTAS() ? (isDebug ? 3 : 2) // MT DLL
-                                                               : (isDebug ? 1 : 0)); // MT static
+            compiler->setAttribute ("RuntimeLibrary", msvcNeedsDLLRuntimeLib ? (isDebug ? 3 : 2) // MT DLL
+                                                                             : (isDebug ? 1 : 0)); // MT static
             compiler->setAttribute ("RuntimeTypeInfo", "true");
             compiler->setAttribute ("UsePrecompiledHeader", "0");
             compiler->setAttribute ("PrecompiledHeaderFile", FileHelpers::windowsStylePath (intermediatesPath + "/" + binaryName + ".pch"));
@@ -680,7 +586,7 @@ protected:
 
         const String outputFileName (getBinaryFileForConfig (config));
 
-        if (! project.isLibrary())
+        if (! projectType.isLibrary())
         {
             XmlElement* linker = createToolElement (xml, "VCLinkerTool");
 
@@ -693,7 +599,7 @@ protected:
             linker->setAttribute ("IgnoreDefaultLibraryNames", isDebug ? "libcmt.lib, msvcrt.lib" : "");
             linker->setAttribute ("GenerateDebugInformation", isDebug ? "true" : "false");
             linker->setAttribute ("ProgramDatabaseFile", FileHelpers::windowsStylePath (intermediatesPath + "/" + binaryName + ".pdb"));
-            linker->setAttribute ("SubSystem", project.isCommandLineApp() ? "1" : "2");
+            linker->setAttribute ("SubSystem", msvcIsWindowsSubsystem ? "2" : "1");
 
             if (! isDebug)
             {
@@ -704,16 +610,16 @@ protected:
 
             linker->setAttribute ("TargetMachine", "1"); // (64-bit build = 5)
 
+            if (msvcDelayLoadedDLLs.isNotEmpty())
+                linker->setAttribute ("DelayLoadDLLs", msvcDelayLoadedDLLs);
+
+            if (msvcModuleDefinitionFile.isNotEmpty())
+                linker->setAttribute ("ModuleDefinitionFile", msvcModuleDefinitionFile);
+
             String extraLinkerOptions (getExtraLinkerFlags().toString());
 
-            if (isRTAS())
-            {
-                extraLinkerOptions += " /FORCE:multiple";
-                linker->setAttribute ("DelayLoadDLLs", "DAE.dll; DigiExt.dll; DSI.dll; PluginLib.dll; DSPManager.dll");
-                linker->setAttribute ("ModuleDefinitionFile", getJucePathFromTargetFolder()
-                                            .getChildFile ("extras/audio plugins/wrapper/RTAS/juce_RTAS_WinExports.def")
-                                            .toWindowsStyle());
-            }
+            if (msvcExtraLinkerOptions.isNotEmpty())
+                extraLinkerOptions << ' ' << msvcExtraLinkerOptions;
 
             if (extraLinkerOptions.isNotEmpty())
                 linker->setAttribute ("AdditionalOptions", replacePreprocessorTokens (config, extraLinkerOptions).trim());
@@ -752,19 +658,16 @@ protected:
 
         createToolElement (xml, "VCFxCopTool");
 
-        if (! project.isLibrary())
+        if (! projectType.isLibrary())
             createToolElement (xml, "VCAppVerifierTool");
 
         createToolElement (xml, "VCPostBuildEventTool");
     }
 
-    void createConfigs (XmlElement& configs)
+    void createConfigs (XmlElement& xml)
     {
-        for (int i = 0; i < project.getNumConfigurations(); ++i)
-        {
-            Project::BuildConfiguration config (project.getConfiguration (i));
-            createConfig (*configs.createNewChildElement ("Configuration"), config);
-        }
+        for (int i = 0; i < configs.size(); ++i)
+            createConfig (*xml.createNewChildElement ("Configuration"), configs.getReference(i));
     }
 
     //==============================================================================
@@ -785,7 +688,14 @@ public:
     static const char* getName()                    { return "Visual Studio 2005"; }
     static const char* getValueTreeTypeName()       { return "VS2005"; }
 
-    bool isDefaultFormatForCurrentOS()              { return false; }
+    int getLaunchPreferenceOrderForCurrentOS()
+    {
+       #if JUCE_WINDOWS
+        return 2;
+       #else
+        return 0;
+       #endif
+    }
 
     static MSVCProjectExporterVC2005* createForSettings (Project& project, const ValueTree& settings)
     {
@@ -796,8 +706,8 @@ public:
     }
 
 protected:
-    const String getProjectVersionString() const    { return "8.00"; }
-    const String getSolutionVersionString() const   { return "8.00" + newLine + "# Visual C++ Express 2005"; }
+    String getProjectVersionString() const    { return "8.00"; }
+    String getSolutionVersionString() const   { return "8.00" + newLine + "# Visual C++ Express 2005"; }
 
     JUCE_DECLARE_NON_COPYABLE (MSVCProjectExporterVC2005);
 };
@@ -817,7 +727,15 @@ public:
     static const char* getName()                   { return "Visual C++ 6.0"; }
     static const char* getValueTreeTypeName()      { return "MSVC6"; }
 
-    bool isDefaultFormatForCurrentOS()              { return false; }
+    int getLaunchPreferenceOrderForCurrentOS()
+    {
+       #if JUCE_WINDOWS
+        return 1;
+       #else
+        return 0;
+       #endif
+    }
+
     void launchProject()                            { getDSWFile().startAsProcess(); }
 
     static MSVCProjectExporterVC6* createForSettings (Project& project, const ValueTree& settings)
@@ -845,28 +763,27 @@ public:
     }
 
 private:
-    const File getDSPFile() const       { return getProjectFile (".dsp"); }
-    const File getDSWFile() const       { return getProjectFile (".dsw"); }
+    File getDSPFile() const       { return getProjectFile (".dsp"); }
+    File getDSWFile() const       { return getProjectFile (".dsw"); }
 
     //==============================================================================
-    const String createConfigName (const Project::BuildConfiguration& config) const
+    String createConfigName (const Project::BuildConfiguration& config) const
     {
-        return project.getProjectName().toString() + " - Win32 " + config.getName().toString();
+        return projectName + " - Win32 " + config.getName().toString();
     }
 
     void writeProject (OutputStream& out)
     {
-        const String defaultConfigName (createConfigName (project.getConfiguration (0)));
+        const String defaultConfigName (createConfigName (configs.getReference(0)));
 
-        const bool isDLL = project.isAudioPlugin() || project.isBrowserPlugin();
         String targetType, targetCode;
 
-        if (isDLL)                              { targetType = "\"Win32 (x86) Dynamic-Link Library\"";  targetCode = "0x0102"; }
-        else if (project.isLibrary())           { targetType = "\"Win32 (x86) Static Library\"";        targetCode = "0x0104"; }
-        else if (project.isCommandLineApp())    { targetType = "\"Win32 (x86) Console Application\"";   targetCode = "0x0103"; }
-        else                                    { targetType = "\"Win32 (x86) Application\"";           targetCode = "0x0101"; }
+        if (msvcIsDLL)                             { targetType = "\"Win32 (x86) Dynamic-Link Library\"";  targetCode = "0x0102"; }
+        else if (projectType.isLibrary())          { targetType = "\"Win32 (x86) Static Library\"";        targetCode = "0x0104"; }
+        else if (projectType.isCommandLineApp())   { targetType = "\"Win32 (x86) Console Application\"";   targetCode = "0x0103"; }
+        else                                       { targetType = "\"Win32 (x86) Application\"";           targetCode = "0x0101"; }
 
-        out << "# Microsoft Developer Studio Project File - Name=\"" << project.getProjectName()
+        out << "# Microsoft Developer Studio Project File - Name=\"" << projectName
             << "\" - Package Owner=<4>" << newLine
             << "# Microsoft Developer Studio Generated Build File, Format Version 6.00" << newLine
             << "# ** DO NOT EDIT **" << newLine
@@ -875,19 +792,19 @@ private:
             << "!MESSAGE This is not a valid makefile. To build this project using NMAKE," << newLine
             << "!MESSAGE use the Export Makefile command and run" << newLine
             << "!MESSAGE " << newLine
-            << "!MESSAGE NMAKE /f \"" << project.getProjectName() << ".mak.\"" << newLine
+            << "!MESSAGE NMAKE /f \"" << projectName << ".mak.\"" << newLine
             << "!MESSAGE " << newLine
             << "!MESSAGE You can specify a configuration when running NMAKE" << newLine
             << "!MESSAGE by defining the macro CFG on the command line. For example:" << newLine
             << "!MESSAGE " << newLine
-            << "!MESSAGE NMAKE /f \"" << project.getProjectName() << ".mak\" CFG=\"" << defaultConfigName << '"' << newLine
+            << "!MESSAGE NMAKE /f \"" << projectName << ".mak\" CFG=\"" << defaultConfigName << '"' << newLine
             << "!MESSAGE " << newLine
             << "!MESSAGE Possible choices for configuration are:" << newLine
             << "!MESSAGE " << newLine;
 
         int i;
-        for (i = 0; i < project.getNumConfigurations(); ++i)
-            out << "!MESSAGE \"" << createConfigName (project.getConfiguration (i)) << "\" (based on " << targetType << ")" << newLine;
+        for (i = 0; i < configs.size(); ++i)
+            out << "!MESSAGE \"" << createConfigName (configs.getReference (i)) << "\" (based on " << targetType << ")" << newLine;
 
         out << "!MESSAGE " << newLine
             << "# Begin Project" << newLine
@@ -900,9 +817,9 @@ private:
 
         String targetList;
 
-        for (i = 0; i < project.getNumConfigurations(); ++i)
+        for (i = 0; i < configs.size(); ++i)
         {
-            const Project::BuildConfiguration config (project.getConfiguration (i));
+            const Project::BuildConfiguration& config = configs.getReference(i);
             const String configName (createConfigName (config));
             targetList << "# Name \"" << configName << '"' << newLine;
 
@@ -935,7 +852,7 @@ private:
             if (! isDebug)
                 out << "# SUBTRACT CPP /YX" << newLine;
 
-            if (! project.isLibrary())
+            if (! projectType.isLibrary())
                 out << "# ADD BASE MTL /nologo /D " << defines << " /mktyplib203 /win32" << newLine
                     << "# ADD MTL /nologo /D " << defines << " /mktyplib203 /win32" << newLine;
 
@@ -945,7 +862,7 @@ private:
                 << "# ADD BASE BSC32 /nologo" << newLine
                 << "# ADD BSC32 /nologo" << newLine;
 
-            if (project.isLibrary())
+            if (projectType.isLibrary())
             {
                 out << "LIB32=link.exe -lib" << newLine
                     << "# ADD BASE LIB32 /nologo" << newLine
@@ -959,8 +876,8 @@ private:
                     << "kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib "
                     << (isDebug ? " /debug" : "")
                     << " /nologo /machine:I386 /out:\"" << targetBinary << "\" "
-                    << (isDLL ? "/dll" : (project.isCommandLineApp() ? "/subsystem:console "
-                                                                     : "/subsystem:windows "))
+                    << (msvcIsDLL ? "/dll" : (msvcIsWindowsSubsystem ? "/subsystem:windows "
+                                                                     : "/subsystem:console "))
                     << replacePreprocessorTokens (config, getExtraLinkerFlags().toString()).trim() << newLine;
             }
         }
@@ -969,9 +886,9 @@ private:
             << "# Begin Target"  << newLine
             << targetList;
 
-        writeFiles (out, project.getMainGroup());
-        writeGroup (out, project.getJuceCodeGroupName(), juceWrapperFiles);
-        writeGroup (out, "Juce VST Wrapper", getVSTFilesRequired());
+        for (int i = 0; i < groups.size(); ++i)
+            if (groups.getReference(i).getNumChildren() > 0)
+                writeFiles (out, groups.getReference(i));
 
         out << "# End Target" << newLine
             << "# End Project" << newLine;
@@ -1037,7 +954,7 @@ private:
                 << "}}}" << newLine;
         }
 
-        out << "Project: \"" << project.getProjectName() << "\" = .\\" << getDSPFile().getFileName() << " - Package Owner=<4>" << newLine
+        out << "Project: \"" << projectName << "\" = .\\" << getDSPFile().getFileName() << " - Package Owner=<4>" << newLine
             << "Package=<5>" << newLine
             << "{{{" << newLine
             << "}}}" << newLine
@@ -1078,7 +995,15 @@ public:
     static const char* getName()                    { return "Visual Studio 2010"; }
     static const char* getValueTreeTypeName()       { return "VS2010"; }
 
-    bool isDefaultFormatForCurrentOS()              { return false; }
+    int getLaunchPreferenceOrderForCurrentOS()
+    {
+       #if JUCE_WINDOWS
+        return 3;
+       #else
+        return 0;
+       #endif
+    }
+
     void launchProject()                            { getSLNFile().startAsProcess(); }
 
     static MSVCProjectExporterVC2010* createForSettings (Project& project, const ValueTree& settings)
@@ -1115,11 +1040,11 @@ public:
     }
 
 protected:
-    const File getVCProjFile() const            { return getProjectFile (".vcxproj"); }
-    const File getVCProjFiltersFile() const     { return getProjectFile (".vcxproj.filters"); }
-    const File getSLNFile() const               { return getProjectFile (".sln"); }
+    File getVCProjFile() const            { return getProjectFile (".vcxproj"); }
+    File getVCProjFiltersFile() const     { return getProjectFile (".vcxproj.filters"); }
+    File getSLNFile() const               { return getProjectFile (".sln"); }
 
-    static const String createConfigName (const Project::BuildConfiguration& config)
+    static String createConfigName (const Project::BuildConfiguration& config)
     {
         return config.getName().toString() + "|Win32";
     }
@@ -1140,9 +1065,9 @@ protected:
             XmlElement* configsGroup = projectXml.createNewChildElement ("ItemGroup");
             configsGroup->setAttribute ("Label", "ProjectConfigurations");
 
-            for (int i = 0; i < project.getNumConfigurations(); ++i)
+            for (int i = 0; i < configs.size(); ++i)
             {
-                Project::BuildConfiguration config (project.getConfiguration (i));
+                const Project::BuildConfiguration& config = configs.getReference(i);
 
                 XmlElement* e = configsGroup->createNewChildElement ("ProjectConfiguration");
                 e->setAttribute ("Include", createConfigName (config));
@@ -1162,9 +1087,9 @@ protected:
             imports->setAttribute ("Project", "$(VCTargetsPath)\\Microsoft.Cpp.Default.props");
         }
 
-        for (int i = 0; i < project.getNumConfigurations(); ++i)
+        for (int i = 0; i < configs.size(); ++i)
         {
-            Project::BuildConfiguration config (project.getConfiguration (i));
+            const Project::BuildConfiguration& config = configs.getReference(i);
 
             XmlElement* e = projectXml.createNewChildElement ("PropertyGroup");
             setConditionAttribute (*e, config);
@@ -1205,9 +1130,9 @@ protected:
             XmlElement* props = projectXml.createNewChildElement ("PropertyGroup");
             props->createNewChildElement ("_ProjectFileVersion")->addTextElement ("10.0.30319.1");
 
-            for (int i = 0; i < project.getNumConfigurations(); ++i)
+            for (int i = 0; i < configs.size(); ++i)
             {
-                Project::BuildConfiguration config (project.getConfiguration (i));
+                const Project::BuildConfiguration& config = configs.getReference(i);
 
                 XmlElement* outdir = props->createNewChildElement ("OutDir");
                 setConditionAttribute (*outdir, config);
@@ -1223,9 +1148,9 @@ protected:
             }
         }
 
-        for (int i = 0; i < project.getNumConfigurations(); ++i)
+        for (int i = 0; i < configs.size(); ++i)
         {
-            Project::BuildConfiguration config (project.getConfiguration (i));
+            const Project::BuildConfiguration& config = configs.getReference(i);
             String binariesPath (getConfigTargetPath (config));
             String intermediatesPath (getIntermediatesPath (config));
             const bool isDebug = (bool) config.isDebug().getValue();
@@ -1235,73 +1160,86 @@ protected:
             XmlElement* group = projectXml.createNewChildElement ("ItemDefinitionGroup");
             setConditionAttribute (*group, config);
 
-            XmlElement* midl = group->createNewChildElement ("Midl");
-            midl->createNewChildElement ("PreprocessorDefinitions")->addTextElement (isDebug ? "_DEBUG;%(PreprocessorDefinitions)"
-                                                                                             : "NDEBUG;%(PreprocessorDefinitions)");
-            midl->createNewChildElement ("MkTypLibCompatible")->addTextElement ("true");
-            midl->createNewChildElement ("SuppressStartupBanner")->addTextElement ("true");
-            midl->createNewChildElement ("TargetEnvironment")->addTextElement ("Win32");
-            //midl->createNewChildElement ("TypeLibraryName")->addTextElement ("");
-            midl->createNewChildElement ("HeaderFileName");
-
-            XmlElement* cl = group->createNewChildElement ("ClCompile");
-            cl->createNewChildElement ("Optimization")->addTextElement (isDebug ? "Disabled" : "MaxSpeed");
-
-            if (isDebug)
-                cl->createNewChildElement ("DebugInformationFormat")->addTextElement ("EditAndContinue");
-
-            StringArray includePaths (getHeaderSearchPaths (config));
-            includePaths.add ("%(AdditionalIncludeDirectories)");
-            cl->createNewChildElement ("AdditionalIncludeDirectories")->addTextElement (includePaths.joinIntoString (";"));
-            cl->createNewChildElement ("PreprocessorDefinitions")->addTextElement (getPreprocessorDefs (config, ";") + ";%(PreprocessorDefinitions)");
-            cl->createNewChildElement ("RuntimeLibrary")->addTextElement (isRTAS() ? (isDebug ? "MultiThreadedDLLDebug" : "MultiThreadedDLL")
-                                                                                   : (isDebug ? "MultiThreadedDebug" : "MultiThreaded"));
-            cl->createNewChildElement ("RuntimeTypeInfo")->addTextElement ("true");
-            cl->createNewChildElement ("PrecompiledHeader");
-            cl->createNewChildElement ("AssemblerListingLocation")->addTextElement (FileHelpers::windowsStylePath (intermediatesPath + "/"));
-            cl->createNewChildElement ("ObjectFileName")->addTextElement (FileHelpers::windowsStylePath (intermediatesPath + "/"));
-            cl->createNewChildElement ("ProgramDataBaseFileName")->addTextElement (FileHelpers::windowsStylePath (intermediatesPath + "/"));
-            cl->createNewChildElement ("WarningLevel")->addTextElement ("Level4");
-            cl->createNewChildElement ("SuppressStartupBanner")->addTextElement ("true");
-
-            XmlElement* res = group->createNewChildElement ("ResourceCompile");
-            res->createNewChildElement ("PreprocessorDefinitions")->addTextElement (isDebug ? "_DEBUG;%(PreprocessorDefinitions)"
-                                                                                            : "NDEBUG;%(PreprocessorDefinitions)");
-
-            XmlElement* link = group->createNewChildElement ("Link");
-            link->createNewChildElement ("OutputFile")->addTextElement (FileHelpers::windowsStylePath (binariesPath + "/" + outputFileName));
-            link->createNewChildElement ("SuppressStartupBanner")->addTextElement ("true");
-            link->createNewChildElement ("IgnoreSpecificDefaultLibraries")->addTextElement (isDebug ? "libcmt.lib; msvcrt.lib;;%(IgnoreSpecificDefaultLibraries)"
-                                                                                                    : "%(IgnoreSpecificDefaultLibraries)");
-            link->createNewChildElement ("GenerateDebugInformation")->addTextElement (isDebug ? "true" : "false");
-            link->createNewChildElement ("ProgramDatabaseFile")->addTextElement (FileHelpers::windowsStylePath (intermediatesPath + "/" + binaryName + ".pdb"));
-            link->createNewChildElement ("SubSystem")->addTextElement (project.isCommandLineApp() ? "Console" : "Windows");
-            link->createNewChildElement ("TargetMachine")->addTextElement ("MachineX86");
-
-            if (! isDebug)
             {
-                link->createNewChildElement ("OptimizeReferences")->addTextElement ("true");
-                link->createNewChildElement ("EnableCOMDATFolding")->addTextElement ("true");
+                XmlElement* midl = group->createNewChildElement ("Midl");
+                midl->createNewChildElement ("PreprocessorDefinitions")->addTextElement (isDebug ? "_DEBUG;%(PreprocessorDefinitions)"
+                                                                                                 : "NDEBUG;%(PreprocessorDefinitions)");
+                midl->createNewChildElement ("MkTypLibCompatible")->addTextElement ("true");
+                midl->createNewChildElement ("SuppressStartupBanner")->addTextElement ("true");
+                midl->createNewChildElement ("TargetEnvironment")->addTextElement ("Win32");
+                //midl->createNewChildElement ("TypeLibraryName")->addTextElement ("");
+                midl->createNewChildElement ("HeaderFileName");
             }
 
-            String extraLinkerOptions (getExtraLinkerFlags().toString());
-            if (extraLinkerOptions.isNotEmpty())
-                link->createNewChildElement ("AdditionalOptions")->addTextElement (replacePreprocessorTokens (config, extraLinkerOptions).trim()
-                                                                                     + " %(AdditionalOptions)");
+            {
+                XmlElement* cl = group->createNewChildElement ("ClCompile");
+                cl->createNewChildElement ("Optimization")->addTextElement (isDebug ? "Disabled" : "MaxSpeed");
 
-            XmlElement* bsc = group->createNewChildElement ("Bscmake");
-            bsc->createNewChildElement ("SuppressStartupBanner")->addTextElement ("true");
-            bsc->createNewChildElement ("OutputFile")->addTextElement (FileHelpers::windowsStylePath (intermediatesPath + "/" + binaryName + ".bsc"));
+                if (isDebug)
+                    cl->createNewChildElement ("DebugInformationFormat")->addTextElement ("EditAndContinue");
+
+                StringArray includePaths (getHeaderSearchPaths (config));
+                includePaths.add ("%(AdditionalIncludeDirectories)");
+                cl->createNewChildElement ("AdditionalIncludeDirectories")->addTextElement (includePaths.joinIntoString (";"));
+                cl->createNewChildElement ("PreprocessorDefinitions")->addTextElement (getPreprocessorDefs (config, ";") + ";%(PreprocessorDefinitions)");
+                cl->createNewChildElement ("RuntimeLibrary")->addTextElement (msvcNeedsDLLRuntimeLib ? (isDebug ? "MultiThreadedDLLDebug" : "MultiThreadedDLL")
+                                                                                                     : (isDebug ? "MultiThreadedDebug" : "MultiThreaded"));
+                cl->createNewChildElement ("RuntimeTypeInfo")->addTextElement ("true");
+                cl->createNewChildElement ("PrecompiledHeader");
+                cl->createNewChildElement ("AssemblerListingLocation")->addTextElement (FileHelpers::windowsStylePath (intermediatesPath + "/"));
+                cl->createNewChildElement ("ObjectFileName")->addTextElement (FileHelpers::windowsStylePath (intermediatesPath + "/"));
+                cl->createNewChildElement ("ProgramDataBaseFileName")->addTextElement (FileHelpers::windowsStylePath (intermediatesPath + "/"));
+                cl->createNewChildElement ("WarningLevel")->addTextElement ("Level4");
+                cl->createNewChildElement ("SuppressStartupBanner")->addTextElement ("true");
+
+                const String extraFlags (replacePreprocessorTokens (config, getExtraCompilerFlags().toString()).trim());
+                if (extraFlags.isNotEmpty())
+                    cl->createNewChildElement ("AdditionalOptions")->addTextElement (extraFlags + " %(AdditionalOptions)");
+            }
+
+            {
+                XmlElement* res = group->createNewChildElement ("ResourceCompile");
+                res->createNewChildElement ("PreprocessorDefinitions")->addTextElement (isDebug ? "_DEBUG;%(PreprocessorDefinitions)"
+                                                                                                : "NDEBUG;%(PreprocessorDefinitions)");
+            }
+
+            {
+                XmlElement* link = group->createNewChildElement ("Link");
+                link->createNewChildElement ("OutputFile")->addTextElement (FileHelpers::windowsStylePath (binariesPath + "/" + outputFileName));
+                link->createNewChildElement ("SuppressStartupBanner")->addTextElement ("true");
+                link->createNewChildElement ("IgnoreSpecificDefaultLibraries")->addTextElement (isDebug ? "libcmt.lib; msvcrt.lib;;%(IgnoreSpecificDefaultLibraries)"
+                                                                                                        : "%(IgnoreSpecificDefaultLibraries)");
+                link->createNewChildElement ("GenerateDebugInformation")->addTextElement (isDebug ? "true" : "false");
+                link->createNewChildElement ("ProgramDatabaseFile")->addTextElement (FileHelpers::windowsStylePath (intermediatesPath + "/" + binaryName + ".pdb"));
+                link->createNewChildElement ("SubSystem")->addTextElement (msvcIsWindowsSubsystem ? "Windows" : "Console");
+                link->createNewChildElement ("TargetMachine")->addTextElement ("MachineX86");
+
+                if (! isDebug)
+                {
+                    link->createNewChildElement ("OptimizeReferences")->addTextElement ("true");
+                    link->createNewChildElement ("EnableCOMDATFolding")->addTextElement ("true");
+                }
+
+                String extraLinkerOptions (getExtraLinkerFlags().toString());
+                if (extraLinkerOptions.isNotEmpty())
+                    link->createNewChildElement ("AdditionalOptions")->addTextElement (replacePreprocessorTokens (config, extraLinkerOptions).trim()
+                                                                                         + " %(AdditionalOptions)");
+            }
+
+            {
+                XmlElement* bsc = group->createNewChildElement ("Bscmake");
+                bsc->createNewChildElement ("SuppressStartupBanner")->addTextElement ("true");
+                bsc->createNewChildElement ("OutputFile")->addTextElement (FileHelpers::windowsStylePath (intermediatesPath + "/" + binaryName + ".bsc"));
+            }
         }
 
         {
             XmlElement* cppFiles = projectXml.createNewChildElement ("ItemGroup");
             XmlElement* headerFiles = projectXml.createNewChildElement ("ItemGroup");
 
-            addFilesToCompile (project.getMainGroup(), *cppFiles, *headerFiles);
-            addFilesToCompile (juceWrapperFiles, *cppFiles, *headerFiles, false);
-            addFilesToCompile (getVSTFilesRequired(), *cppFiles, *headerFiles, false);
-            addFilesToCompile (getRTASFilesRequired(), *cppFiles, *headerFiles, true);
+            for (int i = 0; i < groups.size(); ++i)
+                if (groups.getReference(i).getNumChildren() > 0)
+                    addFilesToCompile (groups.getReference(i), *cppFiles, *headerFiles, false);
         }
 
         if (hasIcon)
@@ -1330,14 +1268,11 @@ protected:
         }
     }
 
-    const String getProjectType() const
+    String getProjectType() const
     {
-        if (project.isGUIApplication() || project.isCommandLineApp())
-            return "Application";
-        else if (project.isAudioPlugin() || project.isBrowserPlugin())
-            return "DynamicLibrary";
-        else if (project.isLibrary())
-            return "StaticLibrary";
+        if (projectType.isGUIApplication() || projectType.isCommandLineApp())   return "Application";
+        else if (msvcIsDLL)                                                     return "DynamicLibrary";
+        else if (projectType.isLibrary())                                       return "StaticLibrary";
 
         jassertfalse;
         return String::empty;
@@ -1370,16 +1305,15 @@ protected:
     void addFilesToCompile (const Array<RelativePath>& files, XmlElement& cpps, XmlElement& headers, bool useStdCall)
     {
         for (int i = 0; i < files.size(); ++i)
-            addFileToCompile (files.getReference(i), cpps, headers, false,
-                              useStdCall && shouldFileBeCompiledByDefault (files.getReference(i)));
+            addFileToCompile (files.getReference(i), cpps, headers, false, useStdCall);
     }
 
-    void addFilesToCompile (const Project::Item& projectItem, XmlElement& cpps, XmlElement& headers)
+    void addFilesToCompile (const Project::Item& projectItem, XmlElement& cpps, XmlElement& headers, bool useStdCall)
     {
         if (projectItem.isGroup())
         {
             for (int i = 0; i < projectItem.getNumChildren(); ++i)
-                addFilesToCompile (projectItem.getChild(i), cpps, headers);
+                addFilesToCompile (projectItem.getChild(i), cpps, headers, useStdCall);
         }
         else
         {
@@ -1388,7 +1322,7 @@ protected:
                 const RelativePath path (projectItem.getFile(), getTargetFolder(), RelativePath::buildTargetFolder);
 
                 if (path.hasFileExtension (headerFileExtensions) || (path.hasFileExtension ("cpp;cc;c;cxx") && projectItem.shouldBeCompiled()))
-                    addFileToCompile (path, cpps, headers, false, false);
+                    addFileToCompile (path, cpps, headers, false, useStdCall);
             }
         }
     }
@@ -1452,15 +1386,13 @@ protected:
         filterXml.setAttribute ("ToolsVersion", "4.0");
         filterXml.setAttribute ("xmlns", "http://schemas.microsoft.com/developer/msbuild/2003");
 
-        XmlElement* groups = filterXml.createNewChildElement ("ItemGroup");
-        XmlElement* cpps = filterXml.createNewChildElement ("ItemGroup");
-        XmlElement* headers = filterXml.createNewChildElement ("ItemGroup");
+        XmlElement* groupsXml  = filterXml.createNewChildElement ("ItemGroup");
+        XmlElement* cpps       = filterXml.createNewChildElement ("ItemGroup");
+        XmlElement* headers    = filterXml.createNewChildElement ("ItemGroup");
 
-        addFilesToFilter (project.getMainGroup(), project.getProjectName().toString(), *cpps, *headers, *groups);
-
-        addFilesToFilter (juceWrapperFiles, project.getJuceCodeGroupName(), *cpps, *headers, *groups);
-        addFilesToFilter (getVSTFilesRequired(), "Juce VST Wrapper", *cpps, *headers, *groups);
-        addFilesToFilter (getRTASFilesRequired(), "Juce RTAS Wrapper", *cpps, *headers, *groups);
+        for (int i = 0; i < groups.size(); ++i)
+            if (groups.getReference(i).getNumChildren() > 0)
+                addFilesToFilter (groups.getReference(i), groups.getReference(i).getName().toString(), *cpps, *headers, *groupsXml);
 
         if (iconFile.exists())
         {

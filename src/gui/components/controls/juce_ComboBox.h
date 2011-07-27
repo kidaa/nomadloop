@@ -81,7 +81,7 @@ public:
     /** Returns true if the text is directly editable.
         @see setEditableText
     */
-    bool isTextEditable() const throw();
+    bool isTextEditable() const noexcept;
 
     /** Sets the style of justification to be used for positioning the text.
 
@@ -93,7 +93,7 @@ public:
     /** Returns the current justification for the text box.
         @see setJustificationType
     */
-    const Justification getJustificationType() const throw();
+    const Justification getJustificationType() const noexcept;
 
     //==============================================================================
     /** Adds an item to be shown in the drop-down list.
@@ -134,7 +134,7 @@ public:
     void setItemEnabled (int itemId, bool shouldBeEnabled);
 
     /** Returns true if the given item is enabled. */
-    bool isItemEnabled (int itemId) const throw();
+    bool isItemEnabled (int itemId) const noexcept;
 
     /** Changes the text for an existing item.
     */
@@ -153,15 +153,13 @@ public:
 
         Note that this doesn't include headers or separators.
     */
-    int getNumItems() const throw();
+    int getNumItems() const noexcept;
 
     /** Returns the text for one of the items in the list.
-
         Note that this doesn't include headers or separators.
-
         @param index    the item's index from 0 to (getNumItems() - 1)
     */
-    const String getItemText (int index) const;
+    String getItemText (int index) const;
 
     /** Returns the ID for one of the items in the list.
 
@@ -169,12 +167,12 @@ public:
 
         @param index    the item's index from 0 to (getNumItems() - 1)
     */
-    int getItemId (int index) const throw();
+    int getItemId (int index) const noexcept;
 
     /** Returns the index in the list of a particular item ID.
         If no such ID is found, this will return -1.
     */
-    int indexOfItemId (int itemId) const throw();
+    int indexOfItemId (int itemId) const noexcept;
 
     //==============================================================================
     /** Returns the ID of the item that's currently shown in the box.
@@ -185,7 +183,7 @@ public:
 
         @see setSelectedId, getSelectedItemIndex, getText
     */
-    int getSelectedId() const throw();
+    int getSelectedId() const noexcept;
 
     /** Returns a Value object that can be used to get or set the selected item's ID.
 
@@ -238,7 +236,7 @@ public:
 
         @see setText, getSelectedId, getSelectedItemIndex
     */
-    const String getText() const;
+    String getText() const;
 
     /** Sets the contents of the combo-box's text field.
 
@@ -300,7 +298,7 @@ public:
 
         @see setTextWhenNothingSelected
     */
-    const String getTextWhenNothingSelected() const;
+    String getTextWhenNothingSelected() const;
 
 
     /** Sets the message to show when there are no items in the list, and the user clicks
@@ -314,7 +312,7 @@ public:
     /** Returns the text shown when no items have been added to the list.
         @see setTextWhenNoChoicesAvailable
     */
-    const String getTextWhenNoChoicesAvailable() const;
+    String getTextWhenNoChoicesAvailable() const;
 
     //==============================================================================
     /** Gives the ComboBox a tooltip. */
@@ -379,8 +377,8 @@ private:
     struct ItemInfo
     {
         ItemInfo (const String& name, int itemId, bool isEnabled, bool isHeading);
-        bool isSeparator() const throw();
-        bool isRealItem() const throw();
+        bool isSeparator() const noexcept;
+        bool isRealItem() const noexcept;
 
         String name;
         int itemId;
@@ -395,8 +393,8 @@ private:
     ScopedPointer<Label> label;
     String textWhenNothingSelected, noChoicesMessage;
 
-    ItemInfo* getItemForId (int itemId) const throw();
-    ItemInfo* getItemForIndex (int index) const throw();
+    ItemInfo* getItemForId (int itemId) const noexcept;
+    ItemInfo* getItemForIndex (int index) const noexcept;
     bool selectIfEnabled (int index);
     static void popupMenuFinishedCallback (int, ComboBox*);
 

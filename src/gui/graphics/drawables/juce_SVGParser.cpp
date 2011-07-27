@@ -49,7 +49,7 @@ public:
     Drawable* parseSVGElement (const XmlElement& xml)
     {
         if (! xml.hasTagName ("svg"))
-            return 0;
+            return nullptr;
 
         DrawableComposite* const drawable = new DrawableComposite();
 
@@ -142,7 +142,7 @@ private:
     {
         forEachXmlChildElement (xml, e)
         {
-            Drawable* d = 0;
+            Drawable* d = nullptr;
 
             if (e->hasTagName ("g"))                d = parseGroupElement (*e);
             else if (e->hasTagName ("svg"))         d = parseSVGElement (*e);
@@ -165,10 +165,10 @@ private:
     {
         const XmlElement* const group = xml.getChildByName ("g");
 
-        if (group != 0)
+        if (group != nullptr)
             return parseGroupElement (*group);
 
-        return 0;
+        return nullptr;
     }
 
     DrawableComposite* parseGroupElement (const XmlElement& xml)
@@ -640,7 +640,7 @@ private:
         const String id (e->getStringAttribute ("xlink:href"));
 
         if (! id.startsWithChar ('#'))
-            return 0;
+            return nullptr;
 
         return findElementForId (topLevelXml, id.substring (1));
     }
@@ -667,11 +667,11 @@ private:
         }
     }
 
-    const FillType getPathFillType (const Path& path,
-                                    const String& fill,
-                                    const String& fillOpacity,
-                                    const String& overallOpacity,
-                                    const Colour& defaultColour) const
+    FillType getPathFillType (const Path& path,
+                              const String& fill,
+                              const String& fillOpacity,
+                              const String& overallOpacity,
+                              const Colour& defaultColour) const
     {
         float opacity = 1.0f;
 
@@ -688,7 +688,7 @@ private:
 
             const XmlElement* const fillXml = findElementForId (topLevelXml, id);
 
-            if (fillXml != 0
+            if (fillXml != nullptr
                  && (fillXml->hasTagName ("linearGradient")
                       || fillXml->hasTagName ("radialGradient")))
             {
@@ -785,7 +785,7 @@ private:
         return colour.withMultipliedAlpha (opacity);
     }
 
-    const PathStrokeType getStrokeFor (const XmlElement* const xml) const
+    PathStrokeType getStrokeFor (const XmlElement* const xml) const
     {
         const String strokeWidth (getStyleAttribute (xml, "stroke-width"));
         const String cap (getStyleAttribute (xml, "stroke-linecap"));
@@ -847,7 +847,7 @@ private:
             }
         }
 
-        return 0;
+        return nullptr;
     }
 
     //==============================================================================
@@ -916,8 +916,8 @@ private:
         cssStyleText = xml.getAllSubText() + "\n" + cssStyleText;
     }
 
-    const String getStyleAttribute (const XmlElement* xml, const String& attributeName,
-                                    const String& defaultValue = String::empty) const
+    String getStyleAttribute (const XmlElement* xml, const String& attributeName,
+                              const String& defaultValue = String::empty) const
     {
         if (xml->hasAttribute (attributeName))
             return xml->getStringAttribute (attributeName, defaultValue);
@@ -961,20 +961,20 @@ private:
 
         xml = const_cast <XmlElement*> (topLevelXml)->findParentElementOf (xml);
 
-        if (xml != 0)
+        if (xml != nullptr)
             return getStyleAttribute (xml, attributeName, defaultValue);
 
         return defaultValue;
     }
 
-    const String getInheritedAttribute (const XmlElement* xml, const String& attributeName) const
+    String getInheritedAttribute (const XmlElement* xml, const String& attributeName) const
     {
         if (xml->hasAttribute (attributeName))
             return xml->getStringAttribute (attributeName);
 
         xml = const_cast <XmlElement*> (topLevelXml)->findParentElementOf (xml);
 
-        if (xml != 0)
+        if (xml != nullptr)
             return getInheritedAttribute  (xml, attributeName);
 
         return String::empty;
@@ -986,7 +986,7 @@ private:
         return CharacterFunctions::isLetter (c) || c == '-';
     }
 
-    static const String getAttributeFromStyleList (const String& list, const String& attributeName, const String& defaultValue)
+    static String getAttributeFromStyleList (const String& list, const String& attributeName, const String& defaultValue)
     {
         int i = 0;
 
@@ -1284,11 +1284,11 @@ private:
 
             const XmlElement* const found = findElementForId (e, id);
 
-            if (found != 0)
+            if (found != nullptr)
                 return found;
         }
 
-        return 0;
+        return nullptr;
     }
 
     SVGState& operator= (const SVGState&);

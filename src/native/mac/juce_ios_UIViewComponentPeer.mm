@@ -232,14 +232,14 @@ END_JUCE_NAMESPACE
 - (BOOL) shouldAutorotateToInterfaceOrientation: (UIInterfaceOrientation) interfaceOrientation
 {
     JuceUIView* juceView = (JuceUIView*) [self view];
-    jassert (juceView != 0 && juceView->owner != 0);
+    jassert (juceView != nil && juceView->owner != nullptr);
     return juceView->owner->shouldRotate (interfaceOrientation);
 }
 
 - (void) didRotateFromInterfaceOrientation: (UIInterfaceOrientation) fromInterfaceOrientation
 {
     JuceUIView* juceView = (JuceUIView*) [self view];
-    jassert (juceView != 0 && juceView->owner != 0);
+    jassert (juceView != nil && juceView->owner != nullptr);
     juceView->owner->displayRotated();
 }
 
@@ -274,7 +274,7 @@ END_JUCE_NAMESPACE
 //==============================================================================
 - (void) drawRect: (CGRect) r
 {
-    if (owner != 0)
+    if (owner != nullptr)
         owner->drawRect (r);
 }
 
@@ -286,12 +286,12 @@ bool KeyPress::isKeyCurrentlyDown (const int keyCode)
 
 ModifierKeys UIViewComponentPeer::currentModifiers;
 
-const ModifierKeys ModifierKeys::getCurrentModifiersRealtime() throw()
+ModifierKeys ModifierKeys::getCurrentModifiersRealtime() noexcept
 {
     return UIViewComponentPeer::currentModifiers;
 }
 
-void ModifierKeys::updateCurrentModifiers() throw()
+void ModifierKeys::updateCurrentModifiers() noexcept
 {
     currentModifiers = UIViewComponentPeer::currentModifiers;
 }
@@ -301,25 +301,25 @@ JUCE_NAMESPACE::Point<int> juce_lastMousePos;
 //==============================================================================
 - (void) touchesBegan: (NSSet*) touches withEvent: (UIEvent*) event
 {
-    if (owner != 0)
+    if (owner != nullptr)
         owner->handleTouches (event, true, false, false);
 }
 
 - (void) touchesMoved: (NSSet*) touches withEvent: (UIEvent*) event
 {
-    if (owner != 0)
+    if (owner != nullptr)
         owner->handleTouches (event, false, false, false);
 }
 
 - (void) touchesEnded: (NSSet*) touches withEvent: (UIEvent*) event
 {
-    if (owner != 0)
+    if (owner != nullptr)
         owner->handleTouches (event, false, true, false);
 }
 
 - (void) touchesCancelled: (NSSet*) touches withEvent: (UIEvent*) event
 {
-    if (owner != 0)
+    if (owner != nullptr)
         owner->handleTouches (event, false, true, true);
 
     [self touchesEnded: touches withEvent: event];
@@ -328,7 +328,7 @@ JUCE_NAMESPACE::Point<int> juce_lastMousePos;
 //==============================================================================
 - (BOOL) becomeFirstResponder
 {
-    if (owner != 0)
+    if (owner != nullptr)
         owner->viewFocusGain();
 
     return true;
@@ -336,7 +336,7 @@ JUCE_NAMESPACE::Point<int> juce_lastMousePos;
 
 - (BOOL) resignFirstResponder
 {
-    if (owner != 0)
+    if (owner != nullptr)
         owner->viewFocusLoss();
 
     return true;
@@ -344,7 +344,7 @@ JUCE_NAMESPACE::Point<int> juce_lastMousePos;
 
 - (BOOL) canBecomeFirstResponder
 {
-    return owner != 0 && owner->canBecomeKeyWindow();
+    return owner != nullptr && owner->canBecomeKeyWindow();
 }
 
 - (void) asyncRepaint: (id) rect
@@ -374,7 +374,7 @@ JUCE_NAMESPACE::Point<int> juce_lastMousePos;
 {
     [super becomeKeyWindow];
 
-    if (owner != 0)
+    if (owner != nullptr)
         owner->grabFocus();
 }
 
@@ -389,9 +389,10 @@ UIViewComponentPeer::UIViewComponentPeer (Component* const component,
                                           const int windowStyleFlags,
                                           UIView* viewToAttachTo)
     : ComponentPeer (component, windowStyleFlags),
-      window (0),
-      view (0), controller (0),
-      isSharedWindow (viewToAttachTo != 0),
+      window (nil),
+      view (nil),
+      controller (nil),
+      isSharedWindow (viewToAttachTo != nil),
       fullScreen (false),
       insideDrawRect (false)
 {
@@ -445,7 +446,7 @@ UIViewComponentPeer::~UIViewComponentPeer()
 {
     Desktop::getInstance().removeFocusChangeListener (this);
 
-    view->owner = 0;
+    view->owner = nullptr;
     [view removeFromSuperview];
     [view release];
     [controller release];
@@ -516,7 +517,7 @@ const Rectangle<int> UIViewComponentPeer::getBounds (const bool global) const
 {
     CGRect r = [view frame];
 
-    if (global && [view window] != 0)
+    if (global && [view window] != nil)
     {
         r = [view convertRect: r toView: nil];
         CGRect wr = [[view window] frame];
@@ -552,7 +553,7 @@ const Point<int> UIViewComponentPeer::globalToLocal (const Point<int>& screenPos
 
 CGRect UIViewComponentPeer::constrainRect (CGRect r)
 {
-    if (constrainer != 0)
+    if (constrainer != nullptr)
     {
         CGRect current = [window frame];
         current.origin.y = [[UIScreen mainScreen] bounds].size.height - current.origin.y - current.size.height;
@@ -698,16 +699,16 @@ void UIViewComponentPeer::toFront (bool makeActiveWindow)
     if (isSharedWindow)
         [[view superview] bringSubviewToFront: view];
 
-    if (window != 0 && component->isVisible())
+    if (window != nil && component->isVisible())
         [window makeKeyAndVisible];
 }
 
 void UIViewComponentPeer::toBehind (ComponentPeer* other)
 {
     UIViewComponentPeer* const otherPeer = dynamic_cast <UIViewComponentPeer*> (other);
-    jassert (otherPeer != 0); // wrong type of window?
+    jassert (otherPeer != nullptr); // wrong type of window?
 
-    if (otherPeer != 0)
+    if (otherPeer != nullptr)
     {
         if (isSharedWindow)
         {
@@ -734,6 +735,9 @@ void UIViewComponentPeer::handleTouches (UIEvent* event, const bool isDown, cons
     {
         UITouch* touch = [touches objectAtIndex: i];
 
+        if ([touch phase] == UITouchPhaseStationary)
+            continue;
+
         CGPoint p = [touch locationInView: view];
         const Point<int> pos ((int) p.x, (int) p.y);
         juce_lastMousePos = pos + getScreenPosition();
@@ -744,31 +748,66 @@ void UIViewComponentPeer::handleTouches (UIEvent* event, const bool isDown, cons
 
         if (touchIndex < 0)
         {
-            touchIndex = currentTouches.size();
-            currentTouches.add (touch);
+            for (touchIndex = 0; touchIndex < currentTouches.size(); ++touchIndex)
+                if (currentTouches.getUnchecked (touchIndex) == nil)
+                    break;
+
+            currentTouches.set (touchIndex, touch);
         }
+
+        ModifierKeys modsToSend (currentModifiers);
 
         if (isDown)
         {
-            currentModifiers = currentModifiers.withoutMouseButtons();
-            handleMouseEvent (touchIndex, pos, currentModifiers, time);
+            if ([touch phase] != UITouchPhaseBegan)
+                continue;
+
             currentModifiers = currentModifiers.withoutMouseButtons().withFlags (ModifierKeys::leftButtonModifier);
+            modsToSend = currentModifiers;
+
+            // this forces a mouse-enter/up event, in case for some reason we didn't get a mouse-up before.
+            handleMouseEvent (touchIndex, pos, modsToSend.withoutMouseButtons(), time);
+            if (! isValidPeer (this)) // (in case this component was deleted by the event)
+                return;
         }
         else if (isUp)
         {
-            currentModifiers = currentModifiers.withoutMouseButtons();
-            currentTouches.remove (touchIndex);
+            if (! ([touch phase] == UITouchPhaseEnded || [touch phase] == UITouchPhaseCancelled))
+                continue;
+
+            modsToSend = modsToSend.withoutMouseButtons();
+            currentTouches.set (touchIndex, nil);
+
+            int totalActiveTouches = 0;
+            for (int j = currentTouches.size(); --j >= 0;)
+                if (currentTouches.getUnchecked(j) != nil)
+                    ++totalActiveTouches;
+
+            if (totalActiveTouches == 0)
+                isCancel = true;
         }
 
         if (isCancel)
+        {
             currentTouches.clear();
+            currentModifiers = currentModifiers.withoutMouseButtons();
+        }
 
-        handleMouseEvent (touchIndex, pos, currentModifiers, time);
+        handleMouseEvent (touchIndex, pos, modsToSend, time);
+        if (! isValidPeer (this)) // (in case this component was deleted by the event)
+            return;
+
+        if (isUp || isCancel)
+        {
+            handleMouseEvent (touchIndex, Point<int> (-1, -1), currentModifiers, time);
+            if (! isValidPeer (this))
+                return;
+        }
     }
 }
 
 //==============================================================================
-static UIViewComponentPeer* currentlyFocusedPeer = 0;
+static UIViewComponentPeer* currentlyFocusedPeer = nullptr;
 
 void UIViewComponentPeer::viewFocusGain()
 {
@@ -787,40 +826,20 @@ void UIViewComponentPeer::viewFocusLoss()
 {
     if (currentlyFocusedPeer == this)
     {
-        currentlyFocusedPeer = 0;
+        currentlyFocusedPeer = nullptr;
         handleFocusLoss();
-    }
-}
-
-void juce_HandleProcessFocusChange()
-{
-    if (UIViewComponentPeer::isValidPeer (currentlyFocusedPeer))
-    {
-        if (Process::isForegroundProcess())
-        {
-            currentlyFocusedPeer->handleFocusGain();
-
-            ModalComponentManager::getInstance()->bringModalComponentsToFront();
-        }
-        else
-        {
-            currentlyFocusedPeer->handleFocusLoss();
-
-            // turn kiosk mode off if we lose focus..
-            Desktop::getInstance().setKioskModeComponent (0);
-        }
     }
 }
 
 bool UIViewComponentPeer::isFocused() const
 {
     return isSharedWindow ? this == currentlyFocusedPeer
-                          : (window != 0 && [window isKeyWindow]);
+                          : (window != nil && [window isKeyWindow]);
 }
 
 void UIViewComponentPeer::grabFocus()
 {
-    if (window != 0)
+    if (window != nil)
     {
         [window makeKeyWindow];
         viewFocusGain();
@@ -841,7 +860,7 @@ BOOL UIViewComponentPeer::textViewReplaceCharacters (const Range<int>& range, co
 {
     TextInputTarget* const target = findCurrentTextInputTarget();
 
-    if (target != 0)
+    if (target != nullptr)
     {
         const Range<int> currentSelection (target->getHighlightedRegion());
 
@@ -849,7 +868,11 @@ BOOL UIViewComponentPeer::textViewReplaceCharacters (const Range<int>& range, co
             if (currentSelection.isEmpty())
                 target->setHighlightedRegion (currentSelection.withStart (currentSelection.getStart() - 1));
 
-        target->insertTextAtCaret (text);
+        if (text == "\r" || text == "\n" || text == "\r\n")
+            handleKeyPress (KeyPress::returnKey, text[0]);
+        else
+            target->insertTextAtCaret (text);
+
         updateHiddenTextContent (target);
     }
 
@@ -860,7 +883,7 @@ void UIViewComponentPeer::globalFocusChanged (Component*)
 {
     TextInputTarget* const target = findCurrentTextInputTarget();
 
-    if (target != 0)
+    if (target != nullptr)
     {
         Component* comp = dynamic_cast<Component*> (target);
 
@@ -959,49 +982,6 @@ void UIViewComponentPeer::performAnyPendingRepaintsNow()
 ComponentPeer* Component::createNewPeer (int styleFlags, void* windowToAttachTo)
 {
     return new UIViewComponentPeer (this, styleFlags, (UIView*) windowToAttachTo);
-}
-
-//==============================================================================
-const Image juce_createIconForFile (const File& file)
-{
-    return Image::null;
-}
-
-//==============================================================================
-void Desktop::createMouseInputSources()
-{
-    for (int i = 0; i < 10; ++i)
-        mouseSources.add (new MouseInputSource (i, false));
-}
-
-bool Desktop::canUseSemiTransparentWindows() throw()
-{
-    return true;
-}
-
-const Point<int> MouseInputSource::getCurrentMousePosition()
-{
-    return juce_lastMousePos;
-}
-
-void Desktop::setMousePosition (const Point<int>&)
-{
-}
-
-Desktop::DisplayOrientation Desktop::getCurrentOrientation() const
-{
-    return convertToJuceOrientation ([[UIApplication sharedApplication] statusBarOrientation]);
-}
-
-void Desktop::getCurrentMonitorPositions (Array <Rectangle <int> >& monitorCoords, const bool clipToWorkArea)
-{
-    const ScopedAutoReleasePool pool;
-    monitorCoords.clear();
-
-    CGRect r = clipToWorkArea ? [[UIScreen mainScreen] applicationFrame]
-                              : [[UIScreen mainScreen] bounds];
-
-    monitorCoords.add (UIViewComponentPeer::realScreenPosToRotated (convertToRectInt (r)));
 }
 
 //==============================================================================

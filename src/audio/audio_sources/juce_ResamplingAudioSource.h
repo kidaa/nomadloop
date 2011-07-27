@@ -27,7 +27,8 @@
 #define __JUCE_RESAMPLINGAUDIOSOURCE_JUCEHEADER__
 
 #include "juce_AudioSource.h"
-#include "../../threads/juce_CriticalSection.h"
+#include "../../threads/juce_SpinLock.h"
+#include "../../memory/juce_OptionalScopedPointer.h"
 
 
 //==============================================================================
@@ -68,7 +69,7 @@ public:
 
         This is the value that was set by setResamplingRatio().
     */
-    double getResamplingRatio() const throw()                   { return ratio; }
+    double getResamplingRatio() const noexcept                  { return ratio; }
 
     //==============================================================================
     void prepareToPlay (int samplesPerBlockExpected, double sampleRate);
@@ -77,14 +78,13 @@ public:
 
 private:
     //==============================================================================
-    AudioSource* const input;
-    const bool deleteInputWhenDeleted;
+    OptionalScopedPointer<AudioSource> input;
     double ratio, lastRatio;
     AudioSampleBuffer buffer;
     int bufferPos, sampsInBuffer;
     double subSampleOffset;
     double coefficients[6];
-    CriticalSection ratioLock;
+    SpinLock ratioLock;
     const int numChannels;
     HeapBlock<float*> destBuffers, srcBuffers;
 

@@ -31,7 +31,7 @@
 #include "../../io/streams/juce_OutputStream.h"
 #include "../../events/juce_ChangeBroadcaster.h"
 #include "../../events/juce_Timer.h"
-#include "../../gui/graphics/contexts/juce_Graphics.h"
+#include "../../gui/graphics/contexts/juce_GraphicsContext.h"
 #include "juce_AudioFormatReader.h"
 #include "juce_AudioFormatManager.h"
 
@@ -139,10 +139,10 @@ public:
 
     //==============================================================================
     /** Returns the number of channels in the file. */
-    int getNumChannels() const throw();
+    int getNumChannels() const noexcept;
 
     /** Returns the length of the audio file, in seconds. */
-    double getTotalLength() const throw();
+    double getTotalLength() const noexcept;
 
     /** Draws the waveform for a channel.
 
@@ -175,10 +175,10 @@ public:
                        float verticalZoomFactor);
 
     /** Returns true if the low res preview is fully generated. */
-    bool isFullyLoaded() const throw();
+    bool isFullyLoaded() const noexcept;
 
     /** Returns the number of samples that have been set in the thumbnail. */
-    int64 getNumSamplesFinished() const throw();
+    int64 getNumSamplesFinished() const noexcept;
 
     /** Returns the highest level in the thumbnail.
         Note that because the thumb only stores low-resolution data, this isn't
@@ -186,12 +186,19 @@ public:
     */
     float getApproximatePeak() const;
 
+    /** Reads the approximate min and max levels from a section of the thumbnail.
+        The lowest and highest samples are returned in minValue and maxValue, but obviously
+        because the thumb only stores low-resolution data, these numbers will only be a rough
+        approximation of the true values.
+    */
+    void getApproximateMinMax (double startTime, double endTime, int channelIndex,
+                               float& minValue, float& maxValue) const noexcept;
+
     /** Returns the hash code that was set by setSource() or setReader(). */
     int64 getHashCode() const;
 
    #ifndef DOXYGEN
-    // (this is only public to avoid a VC6 bug)
-    class LevelDataSource;
+    class LevelDataSource;  // (this is only public to avoid a VC6 bug)
    #endif
 
 private:
@@ -220,6 +227,7 @@ private:
     double sampleRate;
     CriticalSection lock;
 
+    void clearChannelData();
     bool setDataSource (LevelDataSource* newSource);
     void setLevels (const MinMaxValue* const* values, int thumbIndex, int numChans, int numValues);
     void createChannels (int length);

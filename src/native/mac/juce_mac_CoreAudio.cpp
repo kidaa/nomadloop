@@ -29,34 +29,11 @@
 
 
 //==============================================================================
-#ifndef JUCE_COREAUDIO_ERROR_LOGGING_ENABLED
-  #define JUCE_COREAUDIO_ERROR_LOGGING_ENABLED 1
-#endif
-
-//==============================================================================
-#undef log
-#if JUCE_COREAUDIO_LOGGING_ENABLED
-  #define log(a) Logger::writeToLog (a)
+#if JUCE_COREAUDIO_LOGGING_ENABLED //|| ! defined (JUCE_COREAUDIO_LOGGING_ENABLED)
+ #define JUCE_COREAUDIOLOG(a) Logger::writeToLog (a)
 #else
-  #define log(a)
+ #define JUCE_COREAUDIOLOG(a)
 #endif
-
-#undef OK
-#if JUCE_COREAUDIO_ERROR_LOGGING_ENABLED
-  static bool logAnyErrors_CoreAudio (const OSStatus err, const int lineNum)
-  {
-      if (err == noErr)
-          return true;
-
-      Logger::writeToLog ("CoreAudio error: " + String (lineNum) + " - " + String::toHexString ((int) err));
-      return false;
-  }
-
-  #define OK(a) logAnyErrors_CoreAudio (a, __LINE__)
-#else
-  #define OK(a) (a == noErr)
-#endif
-
 
 //==============================================================================
 class CoreAudioInternal  : public Timer
@@ -66,10 +43,10 @@ public:
     CoreAudioInternal (AudioDeviceID id)
        : inputLatency (0),
          outputLatency (0),
-         callback (0),
-#if MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_5
+         callback (nullptr),
+        #if MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_5
          audioProcID (0),
-#endif
+        #endif
          isSlaveDevice (false),
          deviceID (id),
          started (false),
@@ -296,7 +273,7 @@ public:
             rates << sampleRate;
         }
 
-        log ("sr: " + rates);
+        JUCE_COREAUDIOLOG ("sr: " + rates);
 
         inputLatency = 0;
         outputLatency = 0;
@@ -313,7 +290,7 @@ public:
         if (AudioObjectGetPropertyData (deviceID, &pa, 0, 0, &size, &lat) == noErr)
             outputLatency = (int) lat;
 
-        log ("lat: " + String (inputLatency) + " " + String (outputLatency));
+        JUCE_COREAUDIOLOG ("lat: " + String (inputLatency) + " " + String (outputLatency));
 
         inChanNames.clear();
         outChanNames.clear();
@@ -329,7 +306,7 @@ public:
     }
 
     //==============================================================================
-    const StringArray getSources (bool input)
+    StringArray getSources (bool input)
     {
         StringArray s;
         HeapBlock <OSType> types;
@@ -416,13 +393,13 @@ public:
     }
 
     //==============================================================================
-    const String reopen (const BigInteger& inputChannels,
-                         const BigInteger& outputChannels,
-                         double newSampleRate,
-                         int bufferSizeSamples)
+    String reopen (const BigInteger& inputChannels,
+                   const BigInteger& outputChannels,
+                   double newSampleRate,
+                   int bufferSizeSamples)
     {
         String error;
-        log ("CoreAudio reopen");
+        JUCE_COREAUDIOLOG ("CoreAudio reopen");
         callbacksAllowed = false;
         stopTimer();
 
@@ -492,15 +469,15 @@ public:
     {
         if (! started)
         {
-            callback = 0;
+            callback = nullptr;
 
             if (deviceID != 0)
             {
-#if MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5
+               #if MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5
                 if (OK (AudioDeviceAddIOProc (deviceID, audioIOProc, this)))
-#else
+               #else
                 if (OK (AudioDeviceCreateIOProcID (deviceID, audioIOProc, this, &audioProcID)))
-#endif
+               #endif
                 {
                     if (OK (AudioDeviceStart (deviceID, audioIOProc)))
                     {
@@ -508,12 +485,12 @@ public:
                     }
                     else
                     {
-#if MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5
+                       #if MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5
                         OK (AudioDeviceRemoveIOProc (deviceID, audioIOProc));
-#else
+                       #else
                         OK (AudioDeviceDestroyIOProcID (deviceID, audioProcID));
                         audioProcID = 0;
-#endif
+                       #endif
                     }
                 }
             }
@@ -525,17 +502,14 @@ public:
             callback = cb;
         }
 
-        if (inputDevice != 0)
-            return started && inputDevice->start (cb);
-        else
-            return started;
+        return started && (inputDevice == nullptr || inputDevice->start (cb));
     }
 
     void stop (bool leaveInterruptRunning)
     {
         {
             const ScopedLock sl (callbackLock);
-            callback = 0;
+            callback = nullptr;
         }
 
         if (started
@@ -544,12 +518,13 @@ public:
         {
             OK (AudioDeviceStop (deviceID, audioIOProc));
 
-#if MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5
+           #if MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5
             OK (AudioDeviceRemoveIOProc (deviceID, audioIOProc));
-#else
+           #else
             OK (AudioDeviceDestroyIOProcID (deviceID, audioProcID));
             audioProcID = 0;
-#endif
+           #endif
+
             started = false;
 
             { const ScopedLock sl (callbackLock); }
@@ -576,19 +551,12 @@ public:
             const ScopedLock sl (callbackLock);
         }
 
-        if (inputDevice != 0)
+        if (inputDevice != nullptr)
             inputDevice->stop (leaveInterruptRunning);
     }
 
-    double getSampleRate() const
-    {
-        return sampleRate;
-    }
-
-    int getBufferSize() const
-    {
-        return bufferSize;
-    }
+    double getSampleRate() const  { return sampleRate; }
+    int getBufferSize() const     { return bufferSize; }
 
     void audioCallback (const AudioBufferList* inInputData,
                         AudioBufferList* outOutputData)
@@ -596,7 +564,7 @@ public:
         int i;
         const ScopedLock sl (callbackLock);
 
-        if (callback != 0)
+        if (callback != nullptr)
         {
             if (inputDevice == 0)
             {
@@ -695,7 +663,7 @@ public:
     void timerCallback()
     {
         stopTimer();
-        log ("CoreAudio device changed callback");
+        JUCE_COREAUDIOLOG ("CoreAudio device changed callback");
 
         const double oldSampleRate = sampleRate;
         const int oldBufferSize = bufferSize;
@@ -759,9 +727,9 @@ public:
     Array <double> sampleRates;
     Array <int> bufferSizes;
     AudioIODeviceCallback* callback;
-#if MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_5
+   #if MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_5
     AudioDeviceIOProcID audioProcID;
-#endif
+   #endif
 
     ScopedPointer<CoreAudioInternal> inputDevice;
     bool isSlaveDevice;
@@ -836,15 +804,29 @@ private:
         UInt32 size = 0;
 
         if (deviceID != 0
-             && OK (AudioObjectGetPropertyDataSize (deviceID, &pa, 0, 0, &size)))
+             && AudioObjectGetPropertyDataSize (deviceID, &pa, 0, 0, &size) == noErr)
         {
             types.calloc (size, 1);
 
-            if (OK (AudioObjectGetPropertyData (deviceID, &pa, 0, 0, &size, types)))
+            if (AudioObjectGetPropertyData (deviceID, &pa, 0, 0, &size, types) == noErr)
                 return size / (int) sizeof (OSType);
         }
 
         return 0;
+    }
+
+    bool OK (const OSStatus errorCode) const
+    {
+        if (errorCode == noErr)
+            return true;
+
+        const String errorMessage ("CoreAudio error: " + String::toHexString ((int) errorCode));
+        JUCE_COREAUDIOLOG (errorMessage);
+
+        if (callback != nullptr)
+            callback->audioDeviceError (errorMessage);
+
+        return false;
     }
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (CoreAudioInternal);
@@ -866,7 +848,7 @@ public:
           isOpen_ (false),
           isStarted (false)
     {
-        CoreAudioInternal* device = 0;
+        CoreAudioInternal* device = nullptr;
 
         if (outputDeviceId == 0 || outputDeviceId == inputDeviceId)
         {
@@ -888,6 +870,7 @@ public:
         }
 
         internal = device;
+        jassert (device != nullptr);
 
         AudioObjectPropertyAddress pa;
         pa.mSelector = kAudioObjectPropertySelectorWildcard;
@@ -909,12 +892,12 @@ public:
         AudioObjectRemovePropertyListener (kAudioObjectSystemObject, &pa, hardwareListenerProc, internal);
     }
 
-    const StringArray getOutputChannelNames()
+    StringArray getOutputChannelNames()
     {
         return internal->outChanNames;
     }
 
-    const StringArray getInputChannelNames()
+    StringArray getInputChannelNames()
     {
         if (internal->inputDevice != 0)
             return internal->inputDevice->inChanNames;
@@ -922,25 +905,17 @@ public:
             return internal->inChanNames;
     }
 
-    int getNumSampleRates()
-    {
-        return internal->sampleRates.size();
-    }
+    bool isOpen()    { return isOpen_; }
 
-    double getSampleRate (int index)
-    {
-        return internal->sampleRates [index];
-    }
+    int getNumSampleRates()              { return internal->sampleRates.size(); }
+    double getSampleRate (int index)     { return internal->sampleRates [index]; }
+    double getCurrentSampleRate()        { return internal->getSampleRate(); }
 
-    int getNumBufferSizesAvailable()
-    {
-        return internal->bufferSizes.size();
-    }
+    int getCurrentBitDepth()             { return 32; }  // no way to find out, so just assume it's high..
 
-    int getBufferSizeSamples (int index)
-    {
-        return internal->bufferSizes [index];
-    }
+    int getNumBufferSizesAvailable()     { return internal->bufferSizes.size(); }
+    int getBufferSizeSamples (int index) { return internal->bufferSizes [index]; }
+    int getCurrentBufferSizeSamples()    { return internal->getBufferSize(); }
 
     int getDefaultBufferSize()
     {
@@ -972,51 +947,23 @@ public:
         internal->stop (false);
     }
 
-    bool isOpen()
-    {
-        return isOpen_;
-    }
-
-    int getCurrentBufferSizeSamples()
-    {
-        return internal != 0 ? internal->getBufferSize() : 512;
-    }
-
-    double getCurrentSampleRate()
-    {
-        return internal != 0 ? internal->getSampleRate() : 0;
-    }
-
-    int getCurrentBitDepth()
-    {
-        return 32;  // no way to find out, so just assume it's high..
-    }
-
     const BigInteger getActiveOutputChannels() const
     {
-        return internal != 0 ? internal->activeOutputChans : BigInteger();
+        return internal->activeOutputChans;
     }
 
     const BigInteger getActiveInputChannels() const
     {
-        BigInteger chans;
+        BigInteger chans (internal->activeInputChans);
 
-        if (internal != 0)
-        {
-            chans = internal->activeInputChans;
-
-            if (internal->inputDevice != 0)
-                chans |= internal->inputDevice->activeInputChans;
-        }
+        if (internal->inputDevice != nullptr)
+            chans |= internal->inputDevice->activeInputChans;
 
         return chans;
     }
 
     int getOutputLatencyInSamples()
     {
-        if (internal == 0)
-            return 0;
-
         // this seems like a good guess at getting the latency right - comparing
         // this with a round-trip measurement, it gets it to within a few millisecs
         // for the built-in mac soundcard
@@ -1025,17 +972,14 @@ public:
 
     int getInputLatencyInSamples()
     {
-        if (internal == 0)
-            return 0;
-
         return internal->inputLatency + internal->getBufferSize() * 2;
     }
 
     void start (AudioIODeviceCallback* callback)
     {
-        if (internal != 0 && ! isStarted)
+        if (! isStarted)
         {
-            if (callback != 0)
+            if (callback != nullptr)
                 callback->audioDeviceAboutToStart (this);
 
             isStarted = true;
@@ -1045,21 +989,21 @@ public:
 
     void stop()
     {
-        if (isStarted && internal != 0)
+        if (isStarted)
         {
             AudioIODeviceCallback* const lastCallback = internal->callback;
 
             isStarted = false;
             internal->stop (true);
 
-            if (lastCallback != 0)
+            if (lastCallback != nullptr)
                 lastCallback->audioDeviceStopped();
         }
     }
 
     bool isPlaying()
     {
-        if (internal->callback == 0)
+        if (internal->callback == nullptr)
             isStarted = false;
 
         return isStarted;
@@ -1108,10 +1052,22 @@ public:
         : AudioIODeviceType ("CoreAudio"),
           hasScanned (false)
     {
+        AudioObjectPropertyAddress pa;
+        pa.mSelector = kAudioHardwarePropertyDevices;
+        pa.mScope = kAudioObjectPropertyScopeWildcard;
+        pa.mElement = kAudioObjectPropertyElementWildcard;
+
+        AudioObjectAddPropertyListener (kAudioObjectSystemObject, &pa, hardwareListenerProc, this);
     }
 
     ~CoreAudioIODeviceType()
     {
+        AudioObjectPropertyAddress pa;
+        pa.mSelector = kAudioHardwarePropertyDevices;
+        pa.mScope = kAudioObjectPropertyScopeWildcard;
+        pa.mElement = kAudioObjectPropertyElementWildcard;
+
+        AudioObjectRemovePropertyListener (kAudioObjectSystemObject, &pa, hardwareListenerProc, this);
     }
 
     //==============================================================================
@@ -1131,12 +1087,12 @@ public:
         pa.mScope = kAudioObjectPropertyScopeWildcard;
         pa.mElement = kAudioObjectPropertyElementMaster;
 
-        if (OK (AudioObjectGetPropertyDataSize (kAudioObjectSystemObject, &pa, 0, 0, &size)))
+        if (AudioObjectGetPropertyDataSize (kAudioObjectSystemObject, &pa, 0, 0, &size) == noErr)
         {
             HeapBlock <AudioDeviceID> devs;
             devs.calloc (size, 1);
 
-            if (OK (AudioObjectGetPropertyData (kAudioObjectSystemObject, &pa, 0, 0, &size, devs)))
+            if (AudioObjectGetPropertyData (kAudioObjectSystemObject, &pa, 0, 0, &size, devs) == noErr)
             {
                 const int num = size / (int) sizeof (AudioDeviceID);
                 for (int i = 0; i < num; ++i)
@@ -1145,7 +1101,7 @@ public:
                     size = sizeof (name);
                     pa.mSelector = kAudioDevicePropertyDeviceName;
 
-                    if (OK (AudioObjectGetPropertyData (devs[i], &pa, 0, 0, &size, name)))
+                    if (AudioObjectGetPropertyData (devs[i], &pa, 0, 0, &size, name) == noErr)
                     {
                         const String nameString (String::fromUTF8 (name, (int) strlen (name)));
                         const int numIns = getNumChannels (devs[i], true);
@@ -1171,14 +1127,12 @@ public:
         outputDeviceNames.appendNumbersToDuplicates (false, true);
     }
 
-    const StringArray getDeviceNames (bool wantInputNames) const
+    StringArray getDeviceNames (bool wantInputNames) const
     {
         jassert (hasScanned); // need to call scanForDevices() before doing this
 
-        if (wantInputNames)
-            return inputDeviceNames;
-        else
-            return outputDeviceNames;
+        return wantInputNames ? inputDeviceNames
+                              : outputDeviceNames;
     }
 
     int getDefaultDeviceIndex (bool forInput) const
@@ -1220,7 +1174,7 @@ public:
         jassert (hasScanned); // need to call scanForDevices() before doing this
 
         CoreAudioIODevice* const d = dynamic_cast <CoreAudioIODevice*> (device);
-        if (d == 0)
+        if (d == nullptr)
             return -1;
 
         return asInput ? d->inputIndex
@@ -1248,7 +1202,7 @@ public:
                                           outputIds [outputIndex],
                                           outputIndex);
 
-        return 0;
+        return nullptr;
     }
 
     //==============================================================================
@@ -1268,12 +1222,12 @@ private:
         pa.mScope = input ? kAudioDevicePropertyScopeInput : kAudioDevicePropertyScopeOutput;
         pa.mElement = kAudioObjectPropertyElementMaster;
 
-        if (OK (AudioObjectGetPropertyDataSize (deviceID, &pa, 0, 0, &size)))
+        if (AudioObjectGetPropertyDataSize (deviceID, &pa, 0, 0, &size) == noErr)
         {
             HeapBlock <AudioBufferList> bufList;
             bufList.calloc (size, 1);
 
-            if (OK (AudioObjectGetPropertyData (deviceID, &pa, 0, 0, &size, bufList)))
+            if (AudioObjectGetPropertyData (deviceID, &pa, 0, 0, &size, bufList) == noErr)
             {
                 const int numStreams = bufList->mNumberBuffers;
 
@@ -1288,6 +1242,18 @@ private:
         return total;
     }
 
+    void audioDeviceListChanged()
+    {
+        scanForDevices();
+        callDeviceChangeListeners();
+    }
+
+    static OSStatus hardwareListenerProc (AudioDeviceID, UInt32, const AudioObjectPropertyAddress*, void* clientData)
+    {
+        static_cast <CoreAudioIODeviceType*> (clientData)->audioDeviceListChanged();
+        return noErr;
+    }
+
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (CoreAudioIODeviceType);
 };
 
@@ -1297,6 +1263,6 @@ AudioIODeviceType* AudioIODeviceType::createAudioIODeviceType_CoreAudio()
     return new CoreAudioIODeviceType();
 }
 
-#undef log
+#undef JUCE_COREAUDIOLOG
 
 #endif

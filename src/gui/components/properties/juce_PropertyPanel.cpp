@@ -97,9 +97,9 @@ public:
             for (int i = propertyComps.size(); --i >= 0;)
                 propertyComps.getUnchecked(i)->setVisible (open);
 
-            PropertyPanel* const pp = findParentComponentOfClass ((PropertyPanel*) 0);
+            PropertyPanel* const pp = findParentComponentOfClass ((PropertyPanel*) nullptr);
 
-            if (pp != 0)
+            if (pp != nullptr)
                 pp->resized();
         }
     }
@@ -181,7 +181,7 @@ public:
         addAndMakeVisible (newSection, 0);
     }
 
-    int getNumSections() const throw()                              { return sections.size(); }
+    int getNumSections() const noexcept                             { return sections.size(); }
     PropertySectionComponent* getSection (const int index) const    { return sections [index]; }
 
 private:
@@ -275,7 +275,7 @@ void PropertyPanel::refreshAll() const
 }
 
 //==============================================================================
-const StringArray PropertyPanel::getSectionNames() const
+StringArray PropertyPanel::getSectionNames() const
 {
     StringArray s;
 

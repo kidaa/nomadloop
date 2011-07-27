@@ -28,20 +28,24 @@
 BEGIN_JUCE_NAMESPACE
 
 #include "juce_MidiOutput.h"
-#include "../../threads/juce_ScopedLock.h"
 #include "../../core/juce_Time.h"
 
 
 //==============================================================================
+struct MidiOutput::PendingMessage
+{
+    PendingMessage (const void* const data, const int len, const double timeStamp)
+        : message (data, len, timeStamp)
+    {}
+
+    MidiMessage message;
+    PendingMessage* next;
+};
+
 MidiOutput::MidiOutput()
     : Thread ("midi out"),
-      internal (0),
-      firstMessage (0)
-{
-}
-
-MidiOutput::PendingMessage::PendingMessage (const void* const data, const int len, const double timeStamp)
-    : message (data, len, timeStamp)
+      internal (nullptr),
+      firstMessage (nullptr)
 {
 }
 
@@ -66,12 +70,11 @@ void MidiOutput::sendBlockOfMessages (const MidiBuffer& buffer,
     {
         const double eventTime = millisecondCounterToStartAt + timeScaleFactor * time;
 
-        PendingMessage* const m
-            = new PendingMessage (data, len, eventTime);
+        PendingMessage* const m = new PendingMessage (data, len, eventTime);
 
         const ScopedLock sl (lock);
 
-        if (firstMessage == 0 || firstMessage->message.getTimeStamp() > eventTime)
+        if (firstMessage == nullptr || firstMessage->message.getTimeStamp() > eventTime)
         {
             m->next = firstMessage;
             firstMessage = m;
@@ -80,7 +83,7 @@ void MidiOutput::sendBlockOfMessages (const MidiBuffer& buffer,
         {
             PendingMessage* mm = firstMessage;
 
-            while (mm->next != 0 && mm->next->message.getTimeStamp() <= eventTime)
+            while (mm->next != nullptr && mm->next->message.getTimeStamp() <= eventTime)
                 mm = mm->next;
 
             m->next = mm->next;
@@ -95,7 +98,7 @@ void MidiOutput::clearAllPendingMessages()
 {
     const ScopedLock sl (lock);
 
-    while (firstMessage != 0)
+    while (firstMessage != nullptr)
     {
         PendingMessage* const m = firstMessage;
         firstMessage = firstMessage->next;
@@ -127,14 +130,14 @@ void MidiOutput::run()
             const ScopedLock sl (lock);
             message = firstMessage;
 
-            if (message != 0)
+            if (message != nullptr)
             {
                 eventTime = roundToInt (message->message.getTimeStamp());
 
                 if (eventTime > now + 20)
                 {
                     timeToWait = eventTime - (now + 20);
-                    message = 0;
+                    message = nullptr;
                 }
                 else
                 {
@@ -143,7 +146,7 @@ void MidiOutput::run()
             }
         }
 
-        if (message != 0)
+        if (message != nullptr)
         {
             if (eventTime > now)
             {

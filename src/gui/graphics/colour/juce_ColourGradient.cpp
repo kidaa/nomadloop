@@ -31,11 +31,11 @@ BEGIN_JUCE_NAMESPACE
 
 
 //==============================================================================
-ColourGradient::ColourGradient() throw()
+ColourGradient::ColourGradient() noexcept
 {
-#if JUCE_DEBUG
+   #if JUCE_DEBUG
     point1.setX (987654.0f);
-#endif
+   #endif
 }
 
 ColourGradient::ColourGradient (const Colour& colour1, const float x1_, const float y1_,
@@ -53,14 +53,14 @@ ColourGradient::~ColourGradient()
 {
 }
 
-bool ColourGradient::operator== (const ColourGradient& other) const throw()
+bool ColourGradient::operator== (const ColourGradient& other) const noexcept
 {
     return point1 == other.point1 && point2 == other.point2
             && isRadial == other.isRadial
             && colours == other.colours;
 }
 
-bool ColourGradient::operator!= (const ColourGradient& other) const throw()
+bool ColourGradient::operator!= (const ColourGradient& other) const noexcept
 {
     return ! operator== (other);
 }
@@ -93,7 +93,7 @@ void ColourGradient::removeColour (int index)
     colours.remove (index);
 }
 
-void ColourGradient::multiplyOpacity (const float multiplier) throw()
+void ColourGradient::multiplyOpacity (const float multiplier) noexcept
 {
     for (int i = 0; i < colours.size(); ++i)
     {
@@ -103,12 +103,12 @@ void ColourGradient::multiplyOpacity (const float multiplier) throw()
 }
 
 //==============================================================================
-int ColourGradient::getNumColours() const throw()
+int ColourGradient::getNumColours() const noexcept
 {
     return colours.size();
 }
 
-double ColourGradient::getColourPosition (const int index) const throw()
+double ColourGradient::getColourPosition (const int index) const noexcept
 {
     if (isPositiveAndBelow (index, colours.size()))
         return colours.getReference (index).position;
@@ -116,7 +116,7 @@ double ColourGradient::getColourPosition (const int index) const throw()
     return 0;
  }
 
-const Colour ColourGradient::getColour (const int index) const throw()
+const Colour ColourGradient::getColour (const int index) const noexcept
 {
     if (isPositiveAndBelow (index, colours.size()))
         return colours.getReference (index).colour;
@@ -124,13 +124,13 @@ const Colour ColourGradient::getColour (const int index) const throw()
     return Colour();
 }
 
-void ColourGradient::setColour (int index, const Colour& newColour) throw()
+void ColourGradient::setColour (int index, const Colour& newColour) noexcept
 {
     if (isPositiveAndBelow (index, colours.size()))
         colours.getReference (index).colour = newColour;
 }
 
-const Colour ColourGradient::getColourAtPosition (const double position) const throw()
+Colour ColourGradient::getColourAtPosition (const double position) const noexcept
 {
     jassert (colours.getReference(0).position == 0); // the first colour specified has to go at position 0
 
@@ -154,11 +154,11 @@ const Colour ColourGradient::getColourAtPosition (const double position) const t
 //==============================================================================
 int ColourGradient::createLookupTable (const AffineTransform& transform, HeapBlock <PixelARGB>& lookupTable) const
 {
-#if JUCE_DEBUG
+   #if JUCE_DEBUG
     // trying to use the object without setting its co-ordinates? Have a careful read of
     // the comments for the constructors.
     jassert (point1.getX() != 987654.0f);
-#endif
+   #endif
 
     const int numEntries = jlimit (1, jmax (1, (colours.size() - 1) << 8),
                                    3 * (int) point1.transformedBy (transform)
@@ -201,7 +201,7 @@ int ColourGradient::createLookupTable (const AffineTransform& transform, HeapBlo
     return numEntries;
 }
 
-bool ColourGradient::isOpaque() const throw()
+bool ColourGradient::isOpaque() const noexcept
 {
     for (int i = 0; i < colours.size(); ++i)
         if (! colours.getReference(i).colour.isOpaque())
@@ -210,7 +210,7 @@ bool ColourGradient::isOpaque() const throw()
     return true;
 }
 
-bool ColourGradient::isInvisible() const throw()
+bool ColourGradient::isInvisible() const noexcept
 {
     for (int i = 0; i < colours.size(); ++i)
         if (! colours.getReference(i).colour.isTransparent())
@@ -219,12 +219,12 @@ bool ColourGradient::isInvisible() const throw()
     return true;
 }
 
-bool ColourGradient::ColourPoint::operator== (const ColourPoint& other) const throw()
+bool ColourGradient::ColourPoint::operator== (const ColourPoint& other) const noexcept
 {
     return position == other.position && colour == other.colour;
 }
 
-bool ColourGradient::ColourPoint::operator!= (const ColourPoint& other) const throw()
+bool ColourGradient::ColourPoint::operator!= (const ColourPoint& other) const noexcept
 {
     return position != other.position || colour != other.colour;
 }

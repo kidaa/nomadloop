@@ -101,11 +101,11 @@ public:
 
     //==============================================================================
     /** Makes this context the currently active one. */
-    virtual bool makeActive() const throw() = 0;
+    virtual bool makeActive() const noexcept = 0;
     /** If this context is currently active, it is disactivated. */
-    virtual bool makeInactive() const throw() = 0;
+    virtual bool makeInactive() const noexcept = 0;
     /** Returns true if this context is currently active. */
-    virtual bool isActive() const throw() = 0;
+    virtual bool isActive() const noexcept = 0;
 
     /** Swaps the buffers (if the context can do this). */
     virtual void swapBuffers() = 0;
@@ -132,7 +132,7 @@ public:
     /** For windowed contexts, this moves the context within the bounds of
         its parent window.
     */
-    virtual void updateWindowPosition (int x, int y, int w, int h, int outerWindowHeight) = 0;
+    virtual void updateWindowPosition (const Rectangle<int>& bounds) = 0;
 
     /** For windowed contexts, this triggers a repaint of the window.
 
@@ -145,7 +145,7 @@ public:
         On win32, this will be a HGLRC; on the Mac, an AGLContext; on Linux,
         a GLXContext.
     */
-    virtual void* getRawContext() const throw() = 0;
+    virtual void* getRawContext() const noexcept = 0;
 
     /** Deletes the context.
 
@@ -166,7 +166,7 @@ public:
 
 protected:
     //==============================================================================
-    OpenGLContext() throw();
+    OpenGLContext() noexcept;
 
 private:
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OpenGLContext);
@@ -192,14 +192,19 @@ public:
     {
         openGLDefault = 0,
 
-#if JUCE_IOS
+       #if JUCE_IOS
         openGLES1,  /**< On the iPhone, this selects openGL ES 1.0 */
         openGLES2   /**< On the iPhone, this selects openGL ES 2.0 */
-#endif
+       #endif
     };
 
-    /** Creates an OpenGLComponent. */
-    OpenGLComponent (OpenGLType type = openGLDefault);
+    /** Creates an OpenGLComponent.
+        If useBackgroundThread is true, the component will launch a background thread
+        to do the rendering. If false, then renderOpenGL() will be called as part of the
+        normal paint() method.
+    */
+    OpenGLComponent (OpenGLType type = openGLDefault,
+                     bool useBackgroundThread = false);
 
     /** Destructor. */
     ~OpenGLComponent();
@@ -223,19 +228,24 @@ public:
         needs to recreate its internal context for some reason, the same context
         will be used again to share lists. So if you pass a context in here,
         don't delete the context while this component is still using it! You can
-        call shareWith (0) to stop this component from sharing with it.
+        call shareWith (nullptr) to stop this component from sharing with it.
     */
     void shareWith (OpenGLContext* contextToShareListsWith);
 
     /** Returns the context that this component is sharing with.
         @see shareWith
     */
-    OpenGLContext* getShareContext() const throw()    { return contextToShareListsWith; }
+    OpenGLContext* getShareContext() const noexcept     { return contextToShareListsWith; }
 
 
     //==============================================================================
     /** Flips the openGL buffers over. */
     void swapBuffers();
+
+    /** Returns true if the component is performing the rendering on a background thread.
+        This property is specified in the constructor.
+    */
+    bool isUsingDedicatedThread() const noexcept        { return useThread; }
 
     /** This replaces the normal paint() callback - use it to draw your openGL stuff.
 
@@ -266,6 +276,17 @@ public:
     */
     virtual void newOpenGLContextCreated() = 0;
 
+    /** This method is called when the component shuts down its OpenGL context.
+
+        You can use this callback to delete textures and any other OpenGL objects you
+        created in the component's context. Be aware: if you are using a render
+        thread, this may be called on the thread.
+
+        When this callback happens, the context will have been made current
+        using the makeCurrentContextActive() method, so there's no need to call it
+        again in your code.
+     */
+    virtual void releaseOpenGLContext()                         {}
 
     //==============================================================================
     /** Returns the context that will draw into this component.
@@ -276,7 +297,7 @@ public:
 
         @see newOpenGLContextCreated()
     */
-    OpenGLContext* getCurrentContext() const throw()            { return context; }
+    OpenGLContext* getCurrentContext() const noexcept           { return context; }
 
     /** Makes this component the current openGL context.
 
@@ -302,22 +323,17 @@ public:
     */
     void makeCurrentContextInactive();
 
-    /** Returns true if this component is the active openGL context for the
+    /** Returns true if this component's context is the active openGL context for the
         current thread.
 
         @see OpenGLContext::isActive
     */
-    bool isActiveContext() const throw();
+    bool isActiveContext() const noexcept;
 
 
     //==============================================================================
     /** Calls the rendering callback, and swaps the buffers afterwards.
-
         This is called automatically by paint() when the component needs to be rendered.
-
-        It can be overridden if you need to decouple the rendering from the paint callback
-        and render with a custom thread.
-
         Returns true if the operation succeeded.
     */
     virtual bool renderAndSwapBuffers();
@@ -329,7 +345,13 @@ public:
         thread, this allows you to lock the context for the duration of your rendering
         routine.
     */
-    CriticalSection& getContextLock() throw()       { return contextLock; }
+    CriticalSection& getContextLock() noexcept      { return contextLock; }
+
+    /** Delete the context.
+        You should only need to call this if you've written a custom thread - if so, make
+        sure that your thread calls this before it terminates.
+    */
+    void deleteContext();
 
     //==============================================================================
     /** Returns the native handle of an embedded heavyweight window, if there is one.
@@ -339,10 +361,18 @@ public:
     */
     void* getNativeWindowHandle() const;
 
-    /** Delete the context.
-        This can be called back on the same thread that created the context. */
-    void deleteContext();
+protected:
+    /** Kicks off a thread to start rendering.
+        The default implementation creates and manages an internal thread that tries
+        to render at around 50fps, but this can be overloaded to create a custom thread.
+    */
+    virtual void startRenderThread();
 
+    /** Cleans up the rendering thread.
+        Used to shut down the thread that was started by startRenderThread(). If you've
+        created a custom thread, then you should overload this to clean it up and delete it.
+    */
+    virtual void stopRenderThread();
 
     //==============================================================================
     /** @internal */
@@ -350,6 +380,11 @@ public:
 
 private:
     const OpenGLType type;
+
+    class OpenGLComponentRenderThread;
+    friend class OpenGLComponentRenderThread;
+    friend class ScopedPointer <OpenGLComponentRenderThread>;
+    ScopedPointer <OpenGLComponentRenderThread> renderThread;
 
     class OpenGLComponentWatcher;
     friend class OpenGLComponentWatcher;
@@ -360,10 +395,14 @@ private:
 
     CriticalSection contextLock;
     OpenGLPixelFormat preferredPixelFormat;
-    bool needToUpdateViewport;
+    bool needToUpdateViewport, needToDeleteContext, threadStarted;
+    const bool useThread;
 
     OpenGLContext* createContext();
+    void updateContext();
     void updateContextPosition();
+    void stopBackgroundThread();
+    void recreateContextAsync();
     void internalRepaint (int x, int y, int w, int h);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OpenGLComponent);

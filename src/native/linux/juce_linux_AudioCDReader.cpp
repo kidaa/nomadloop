@@ -34,7 +34,7 @@ AudioCDReader::AudioCDReader()
 {
 }
 
-const StringArray AudioCDReader::getAvailableCDNames()
+StringArray AudioCDReader::getAvailableCDNames()
 {
     StringArray names;
     return names;
@@ -42,7 +42,7 @@ const StringArray AudioCDReader::getAvailableCDNames()
 
 AudioCDReader* AudioCDReader::createReaderForCD (const int index)
 {
-    return 0;
+    return nullptr;
 }
 
 AudioCDReader::~AudioCDReader()

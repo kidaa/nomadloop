@@ -71,16 +71,16 @@ public:
 
     //==============================================================================
     /** Returns the current value. */
-    const var getValue() const;
+    var getValue() const;
 
     /** Returns the current value. */
-    operator const var() const;
+    operator var() const;
 
     /** Returns the value as a string.
 
         This is alternative to writing things like "myValue.getValue().toString()".
     */
-    const String toString() const;
+    String toString() const;
 
     /** Sets the current value.
 
@@ -170,7 +170,7 @@ public:
         of a ValueSource object. If you're feeling adventurous, you can create your own custom
         ValueSource classes to allow Value objects to represent your own custom data items.
     */
-    class JUCE_API  ValueSource   : public ReferenceCountedObject,
+    class JUCE_API  ValueSource   : public SingleThreadedReferenceCountedObject,
                                     public AsyncUpdater
     {
     public:
@@ -178,7 +178,7 @@ public:
         virtual ~ValueSource();
 
         /** Returns the current value of this object. */
-        virtual const var getValue() const = 0;
+        virtual var getValue() const = 0;
 
         /** Changes the current value.
             This must also trigger a change message if the value actually changes.
@@ -209,7 +209,7 @@ public:
     explicit Value (ValueSource* valueSource);
 
     /** Returns the ValueSource that this value is referring to. */
-    ValueSource& getValueSource() throw()           { return *value; }
+    ValueSource& getValueSource() noexcept          { return *value; }
 
 
 private:

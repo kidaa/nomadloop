@@ -87,7 +87,7 @@ public:
     {
     }
 
-    int getResizeOrder() const throw()
+    int getResizeOrder() const noexcept
     {
         return fixedSize <= 0 ? 0 : 1;
     }
@@ -180,7 +180,7 @@ public:
         {
             ToolbarItemComponent* const tc = owner_.items.getUnchecked(i);
 
-            if (dynamic_cast <ToolbarSpacerComp*> (tc) == 0 && ! tc->isVisible())
+            if (dynamic_cast <ToolbarSpacerComp*> (tc) == nullptr && ! tc->isVisible())
             {
                 oldIndexes.insert (0, i);
                 addAndMakeVisible (tc, 0);
@@ -192,13 +192,13 @@ public:
 
     ~MissingItemsComponent()
     {
-        if (owner != 0)
+        if (owner != nullptr)
         {
             for (int i = 0; i < getNumChildComponents(); ++i)
             {
                 ToolbarItemComponent* const tc = dynamic_cast <ToolbarItemComponent*> (getChildComponent (i));
 
-                if (tc != 0)
+                if (tc != nullptr)
                 {
                     tc->setVisible (false);
                     const int index = oldIndexes.remove (i);
@@ -222,7 +222,7 @@ public:
         {
             ToolbarItemComponent* const tc = dynamic_cast <ToolbarItemComponent*> (getChildComponent (i));
 
-            if (tc != 0)
+            if (tc != nullptr)
             {
                 int preferredSize = 1, minSize = 1, maxSize = 1;
 
@@ -313,7 +313,7 @@ void Toolbar::addItemInternal (ToolbarItemFactory& factory,
 
     ToolbarItemComponent* const tc = createItem (factory, itemId);
 
-    if (tc != 0)
+    if (tc != nullptr)
     {
 #if JUCE_DEBUG
         Array <int> allowedIds;
@@ -356,18 +356,18 @@ void Toolbar::removeToolbarItem (const int itemIndex)
     resized();
 }
 
-int Toolbar::getNumItems() const throw()
+int Toolbar::getNumItems() const noexcept
 {
     return items.size();
 }
 
-int Toolbar::getItemId (const int itemIndex) const throw()
+int Toolbar::getItemId (const int itemIndex) const noexcept
 {
     ToolbarItemComponent* const tc = getItemComponent (itemIndex);
-    return tc != 0 ? tc->getItemId() : 0;
+    return tc != nullptr ? tc->getItemId() : 0;
 }
 
-ToolbarItemComponent* Toolbar::getItemComponent (const int itemIndex) const throw()
+ToolbarItemComponent* Toolbar::getItemComponent (const int itemIndex) const noexcept
 {
     return items [itemIndex];
 }
@@ -379,14 +379,14 @@ ToolbarItemComponent* Toolbar::getNextActiveComponent (int index, const int delt
         index += delta;
         ToolbarItemComponent* const tc = getItemComponent (index);
 
-        if (tc == 0)
+        if (tc == nullptr)
             break;
 
         if (tc->isActive)
             return tc;
     }
 
-    return 0;
+    return nullptr;
 }
 
 void Toolbar::setStyle (const ToolbarItemStyle& newStyle)
@@ -398,7 +398,7 @@ void Toolbar::setStyle (const ToolbarItemStyle& newStyle)
     }
 }
 
-const String Toolbar::toString() const
+String Toolbar::toString() const
 {
     String s ("TB:");
 
@@ -431,12 +431,12 @@ void Toolbar::paint (Graphics& g)
     getLookAndFeel().paintToolbarBackground (g, getWidth(), getHeight(), *this);
 }
 
-int Toolbar::getThickness() const throw()
+int Toolbar::getThickness() const noexcept
 {
     return vertical ? getWidth() : getHeight();
 }
 
-int Toolbar::getLength() const throw()
+int Toolbar::getLength() const noexcept
 {
     return vertical ? getHeight() : getWidth();
 }
@@ -481,7 +481,7 @@ void Toolbar::updateAllItemPositions (const bool animate)
             {
                 tc->isActive = true;
                 resizer.addItem (preferredSize, minSize, maxSize,
-                                 spacer != 0 ? spacer->getResizeOrder() : 2);
+                                 spacer != nullptr ? spacer->getResizeOrder() : 2);
             }
             else
             {
@@ -558,30 +558,29 @@ void Toolbar::buttonClicked (Button*)
     {
         PopupMenu m;
         m.addCustomItem (1, new MissingItemsComponent (*this, getThickness()));
-        m.showMenuAsync (PopupMenu::Options().withTargetComponent (missingItemsButton), 0);
+        m.showMenuAsync (PopupMenu::Options().withTargetComponent (missingItemsButton), nullptr);
     }
 }
 
 //==============================================================================
-bool Toolbar::isInterestedInDragSource (const String& sourceDescription,
-                                        Component* /*sourceComponent*/)
+bool Toolbar::isInterestedInDragSource (const SourceDetails& dragSourceDetails)
 {
-    return sourceDescription == toolbarDragDescriptor && isEditingActive;
+    return dragSourceDetails.description == toolbarDragDescriptor && isEditingActive;
 }
 
-void Toolbar::itemDragMove (const String&, Component* sourceComponent, int x, int y)
+void Toolbar::itemDragMove (const SourceDetails& dragSourceDetails)
 {
-    ToolbarItemComponent* const tc = dynamic_cast <ToolbarItemComponent*> (sourceComponent);
+    ToolbarItemComponent* const tc = dynamic_cast <ToolbarItemComponent*> (dragSourceDetails.sourceComponent.get());
 
-    if (tc != 0)
+    if (tc != nullptr)
     {
         if (! items.contains (tc))
         {
             if (tc->getEditingMode() == ToolbarItemComponent::editableOnPalette)
             {
-                ToolbarItemPalette* const palette = tc->findParentComponentOfClass ((ToolbarItemPalette*) 0);
+                ToolbarItemPalette* const palette = tc->findParentComponentOfClass ((ToolbarItemPalette*) nullptr);
 
-                if (palette != 0)
+                if (palette != nullptr)
                     palette->replaceComponent (tc);
             }
             else
@@ -599,14 +598,15 @@ void Toolbar::itemDragMove (const String&, Component* sourceComponent, int x, in
             const int currentIndex = items.indexOf (tc);
             int newIndex = currentIndex;
 
-            const int dragObjectLeft = vertical ? (y - tc->dragOffsetY) : (x - tc->dragOffsetX);
+            const int dragObjectLeft = vertical ? (dragSourceDetails.localPosition.getY() - tc->dragOffsetY)
+                                                : (dragSourceDetails.localPosition.getX() - tc->dragOffsetX);
             const int dragObjectRight = dragObjectLeft + (vertical ? tc->getHeight() : tc->getWidth());
 
             const Rectangle<int> current (Desktop::getInstance().getAnimator()
                                             .getComponentDestination (getChildComponent (newIndex)));
             ToolbarItemComponent* const prev = getNextActiveComponent (newIndex, -1);
 
-            if (prev != 0)
+            if (prev != nullptr)
             {
                 const Rectangle<int> previousPos (Desktop::getInstance().getAnimator().getComponentDestination (prev));
 
@@ -618,7 +618,7 @@ void Toolbar::itemDragMove (const String&, Component* sourceComponent, int x, in
             }
 
             ToolbarItemComponent* const next = getNextActiveComponent (newIndex, 1);
-            if (next != 0)
+            if (next != nullptr)
             {
                 const Rectangle<int> nextPos (Desktop::getInstance().getAnimator().getComponentDestination (next));
 
@@ -641,11 +641,11 @@ void Toolbar::itemDragMove (const String&, Component* sourceComponent, int x, in
     }
 }
 
-void Toolbar::itemDragExit (const String&, Component* sourceComponent)
+void Toolbar::itemDragExit (const SourceDetails& dragSourceDetails)
 {
-    ToolbarItemComponent* const tc = dynamic_cast <ToolbarItemComponent*> (sourceComponent);
+    ToolbarItemComponent* const tc = dynamic_cast <ToolbarItemComponent*> (dragSourceDetails.sourceComponent.get());
 
-    if (tc != 0 && isParentOf (tc))
+    if (tc != nullptr && isParentOf (tc))
     {
         items.removeObject (tc, false);
         removeChildComponent (tc);
@@ -653,11 +653,11 @@ void Toolbar::itemDragExit (const String&, Component* sourceComponent)
     }
 }
 
-void Toolbar::itemDropped (const String&, Component* sourceComponent, int, int)
+void Toolbar::itemDropped (const SourceDetails& dragSourceDetails)
 {
-    ToolbarItemComponent* const tc = dynamic_cast <ToolbarItemComponent*> (sourceComponent);
+    ToolbarItemComponent* const tc = dynamic_cast <ToolbarItemComponent*> (dragSourceDetails.sourceComponent.get());
 
-    if (tc != 0)
+    if (tc != nullptr)
         tc->setState (Button::buttonNormal);
 }
 
@@ -806,9 +806,9 @@ private:
         {
             Colour background;
 
-            DialogWindow* const dw = findParentComponentOfClass ((DialogWindow*) 0);
+            DialogWindow* const dw = findParentComponentOfClass ((DialogWindow*) nullptr);
 
-            if (dw != 0)
+            if (dw != nullptr)
                 background = dw->getBackgroundColour();
 
             g.setColour (background.contrasting().withAlpha (0.3f));

@@ -24,6 +24,7 @@
 */
 
 #include "jucer_Project.h"
+#include "jucer_ProjectType.h"
 #include "jucer_ProjectExporter.h"
 #include "jucer_ResourceFile.h"
 #include "jucer_ProjectSaver.h"
@@ -90,7 +91,7 @@ void Project::updateProjectSettings()
 void Project::setMissingDefaultValues()
 {
     if (! projectRoot.hasProperty (Ids::id_))
-        projectRoot.setProperty (Ids::id_, createAlphaNumericUID(), 0);
+        projectRoot.setProperty (Ids::id_, createAlphaNumericUID(), nullptr);
 
     // Create main file group if missing
     if (! projectRoot.getChildWithName (Tags::projectMainGroup).isValid())
@@ -105,7 +106,7 @@ void Project::setMissingDefaultValues()
         setTitle ("Juce Project");
 
     if (! projectRoot.hasProperty (Ids::projectType))
-        getProjectType() = application;
+        getProjectTypeValue() = ProjectType::getGUIAppTypeName();
 
     if (! projectRoot.hasProperty (Ids::version))
         getVersion() = "1.0.0";
@@ -125,30 +126,7 @@ void Project::setMissingDefaultValues()
     if (! projectRoot.getChildWithName (Tags::exporters).isValid())
         createDefaultExporters();
 
-    const String sanitisedProjectName (CodeHelpers::makeValidIdentifier (getProjectName().toString(), false, true, false));
-
-    if (! projectRoot.hasProperty (Ids::buildVST))
-    {
-        shouldBuildVST() = true;
-        shouldBuildRTAS() = false;
-        shouldBuildAU() = true;
-
-        getPluginName() = getProjectName().toString();
-        getPluginDesc() = getProjectName().toString();
-        getPluginManufacturer() = "yourcompany";
-        getPluginManufacturerCode() = "Manu";
-        getPluginCode() = "Plug";
-        getPluginChannelConfigs() = "{1, 1}, {2, 2}";
-        getPluginIsSynth() = false;
-        getPluginWantsMidiInput() = false;
-        getPluginProducesMidiOut() = false;
-        getPluginSilenceInProducesSilenceOut() = false;
-        getPluginTailLengthSeconds() = 0;
-        getPluginEditorNeedsKeyFocus() = false;
-        getPluginAUExportPrefix() = sanitisedProjectName + "AU";
-        getPluginAUCocoaViewClassName() = sanitisedProjectName + "AU_V1";
-        getPluginRTASCategory() = String::empty;
-    }
+    getProjectType().setMissingProjectProperties (*this);
 
     if (! projectRoot.hasProperty (Ids::bundleIdentifier))
         setBundleIdentifierToDefault();
@@ -159,7 +137,7 @@ const String Project::loadDocument (const File& file)
 {
     ScopedPointer <XmlElement> xml (XmlDocument::parse (file));
 
-    if (xml == 0 || ! xml->hasTagName (Tags::projectRoot.toString()))
+    if (xml == nullptr || ! xml->hasTagName (Tags::projectRoot.toString()))
         return "Not a valid Jucer project!";
 
     ValueTree newTree (ValueTree::fromXml (*xml));
@@ -182,8 +160,8 @@ const String Project::saveDocument (const File& file)
 
     {
         // (getting these forces the values to be sanitised)
-        OwnedArray <Project::JuceConfigFlag> flags;
-        getJuceConfigFlags (flags);
+        OwnedArray <Project::ConfigFlag> flags;
+        getAllConfigFlags (flags);
     }
 
     if (FileHelpers::isJuceFolder (getLocalJuceFolder()))
@@ -211,7 +189,10 @@ void Project::setLastDocumentOpened (const File& file)
 //==============================================================================
 void Project::valueTreePropertyChanged (ValueTree& tree, const Identifier& property)
 {
-    if (isLibrary())
+    if (property == Ids::projectType)
+        setMissingDefaultValues();
+
+    if (getProjectType().isLibrary())
         getJuceLinkageModeValue() = notLinkedToJuce;
 
     changed();
@@ -237,12 +218,13 @@ void Project::valueTreeParentChanged (ValueTree& tree)
 }
 
 //==============================================================================
-const File Project::resolveFilename (String filename) const
+File Project::resolveFilename (String filename) const
 {
     if (filename.isEmpty())
         return File::nonexistent;
 
-    filename = replacePreprocessorDefs (getPreprocessorDefs(), filename);
+    filename = replacePreprocessorDefs (getPreprocessorDefs(), filename)
+                .replaceCharacter ('\\', '/');
 
     if (File::isAbsolutePath (filename))
         return File (filename);
@@ -250,7 +232,7 @@ const File Project::resolveFilename (String filename) const
     return getFile().getSiblingFile (filename);
 }
 
-const String Project::getRelativePathForFile (const File& file) const
+String Project::getRelativePathForFile (const File& file) const
 {
     String filename (file.getFullPathName());
 
@@ -275,23 +257,19 @@ const String Project::getRelativePathForFile (const File& file) const
 }
 
 //==============================================================================
-bool Project::shouldBeAddedToBinaryResourcesByDefault (const File& file)
+const ProjectType& Project::getProjectType() const
 {
-    return ! file.hasFileExtension (sourceOrHeaderFileExtensions);
+    const ProjectType* type = ProjectType::findType (getProjectTypeValue().toString());
+    jassert (type != nullptr);
+
+    if (type == nullptr)
+    {
+        type = ProjectType::findType (ProjectType::getGUIAppTypeName());
+        jassert (type != nullptr);
+    }
+
+    return *type;
 }
-
-//==============================================================================
-const char* const Project::application      = "guiapp";
-const char* const Project::commandLineApp   = "consoleapp";
-const char* const Project::audioPlugin      = "audioplug";
-const char* const Project::library          = "library";
-const char* const Project::browserPlugin    = "browserplug";
-
-bool Project::isLibrary() const                 { return getProjectType().toString() == library; }
-bool Project::isGUIApplication() const          { return getProjectType().toString() == application; }
-bool Project::isCommandLineApp() const          { return getProjectType().toString() == commandLineApp; }
-bool Project::isAudioPlugin() const             { return getProjectType().toString() == audioPlugin; }
-bool Project::isBrowserPlugin() const           { return getProjectType().toString() == browserPlugin; }
 
 const char* const Project::notLinkedToJuce                          = "none";
 const char* const Project::useLinkedJuce                            = "static";
@@ -299,11 +277,11 @@ const char* const Project::useAmalgamatedJuce                       = "amalg_big
 const char* const Project::useAmalgamatedJuceViaSingleTemplate      = "amalg_template";
 const char* const Project::useAmalgamatedJuceViaMultipleTemplates   = "amalg_multi";
 
-const File Project::getLocalJuceFolder()
+File Project::getLocalJuceFolder()
 {
     ScopedPointer <ProjectExporter> exp (ProjectExporter::createPlatformDefaultExporter (*this));
 
-    if (exp != 0)
+    if (exp != nullptr)
     {
         File f (resolveFilename (exp->getJuceFolder().toString()));
 
@@ -323,9 +301,20 @@ void Project::createPropertyEditors (Array <PropertyComponent*>& props)
     props.add (new TextPropertyComponent (getVersion(), "Project Version", 16, false));
     props.getLast()->setTooltip ("The project's version number, This should be in the format major.minor.point");
 
-    const char* projectTypes[] = { "Application (GUI)", "Application (Non-GUI)", "Audio Plug-in", "Static Library", 0 };
-    const char* projectTypeValues[] = { application, commandLineApp, audioPlugin, library, 0 };
-    props.add (new ChoicePropertyComponent (getProjectType(), "Project Type", StringArray (projectTypes), Array<var> (projectTypeValues)));
+    {
+        StringArray projectTypeNames;
+        Array<var> projectTypeCodes;
+
+        const Array<ProjectType*>& types = ProjectType::getAllTypes();
+
+        for (int i = 0; i < types.size(); ++i)
+        {
+            projectTypeNames.add (types.getUnchecked(i)->getDescription());
+            projectTypeCodes.add (types.getUnchecked(i)->getType());
+        }
+
+        props.add (new ChoicePropertyComponent (getProjectTypeValue(), "Project Type", projectTypeNames, projectTypeCodes));
+    }
 
     const char* linkageTypes[] = { "Not linked to Juce", "Linked to Juce Static Library", "Include Juce Amalgamated Files", "Include Juce Source Code Directly (In a single file)", "Include Juce Source Code Directly (Split across several files)", 0 };
     const char* linkageTypeValues[] = { notLinkedToJuce, useLinkedJuce, useAmalgamatedJuce, useAmalgamatedJuceViaSingleTemplate, useAmalgamatedJuceViaMultipleTemplates, 0 };
@@ -360,66 +349,7 @@ void Project::createPropertyEditors (Array <PropertyComponent*>& props)
         props.getLast()->setTooltip ("Sets an icon to use for the executable.");
     }
 
-    if (isAudioPlugin())
-    {
-        props.add (new BooleanPropertyComponent (shouldBuildVST(), "Build VST", "Enabled"));
-        props.getLast()->setTooltip ("Whether the project should produce a VST plugin.");
-        props.add (new BooleanPropertyComponent (shouldBuildAU(), "Build AudioUnit", "Enabled"));
-        props.getLast()->setTooltip ("Whether the project should produce an AudioUnit plugin.");
-        props.add (new BooleanPropertyComponent (shouldBuildRTAS(), "Build RTAS", "Enabled"));
-        props.getLast()->setTooltip ("Whether the project should produce an RTAS plugin.");
-    }
-
-    if (isAudioPlugin())
-    {
-        props.add (new TextPropertyComponent (getPluginName(), "Plugin Name", 128, false));
-        props.getLast()->setTooltip ("The name of your plugin (keep it short!)");
-        props.add (new TextPropertyComponent (getPluginDesc(), "Plugin Description", 256, false));
-        props.getLast()->setTooltip ("A short description of your plugin.");
-
-        props.add (new TextPropertyComponent (getPluginManufacturer(), "Plugin Manufacturer", 256, false));
-        props.getLast()->setTooltip ("The name of your company (cannot be blank).");
-        props.add (new TextPropertyComponent (getPluginManufacturerCode(), "Plugin Manufacturer Code", 4, false));
-        props.getLast()->setTooltip ("A four-character unique ID for your company. Note that for AU compatibility, this must contain at least one upper-case letter!");
-        props.add (new TextPropertyComponent (getPluginCode(), "Plugin Code", 4, false));
-        props.getLast()->setTooltip ("A four-character unique ID for your plugin. Note that for AU compatibility, this must contain at least one upper-case letter!");
-
-        props.add (new TextPropertyComponent (getPluginChannelConfigs(), "Plugin Channel Configurations", 256, false));
-        props.getLast()->setTooltip ("This is the set of input/output channel configurations that your plugin can handle.  The list is a comma-separated set of pairs of values in the form { numInputs, numOutputs }, and each "
-                                     "pair indicates a valid configuration that the plugin can handle. So for example, {1, 1}, {2, 2} means that the plugin can be used in just two configurations: either with 1 input "
-                                     "and 1 output, or with 2 inputs and 2 outputs.");
-
-        props.add (new BooleanPropertyComponent (getPluginIsSynth(), "Plugin is a Synth", "Is a Synth"));
-        props.getLast()->setTooltip ("Enable this if you want your plugin to be treated as a synth or generator. It doesn't make much difference to the plugin itself, but some hosts treat synths differently to other plugins.");
-
-        props.add (new BooleanPropertyComponent (getPluginWantsMidiInput(), "Plugin Midi Input", "Plugin wants midi input"));
-        props.getLast()->setTooltip ("Enable this if you want your plugin to accept midi messages.");
-
-        props.add (new BooleanPropertyComponent (getPluginProducesMidiOut(), "Plugin Midi Output", "Plugin produces midi output"));
-        props.getLast()->setTooltip ("Enable this if your plugin is going to produce midi messages.");
-
-        props.add (new BooleanPropertyComponent (getPluginSilenceInProducesSilenceOut(), "Silence", "Silence in produces silence out"));
-        props.getLast()->setTooltip ("Enable this if your plugin has no tail - i.e. if passing a silent buffer to it will always result in a silent buffer being produced.");
-
-        props.add (new TextPropertyComponent (getPluginTailLengthSeconds(), "Tail Length (in seconds)", 12, false));
-        props.getLast()->setTooltip ("This indicates the length, in seconds, of the plugin's tail. This information may or may not be used by the host.");
-
-        props.add (new BooleanPropertyComponent (getPluginEditorNeedsKeyFocus(), "Key Focus", "Plugin editor requires keyboard focus"));
-        props.getLast()->setTooltip ("Enable this if your plugin needs keyboard input - some hosts can be a bit funny about keyboard focus..");
-
-        props.add (new TextPropertyComponent (getPluginAUExportPrefix(), "Plugin AU Export Prefix", 64, false));
-        props.getLast()->setTooltip ("A prefix for the names of exported entry-point functions that the component exposes - typically this will be a version of your plugin's name that can be used as part of a C++ token.");
-
-        props.add (new TextPropertyComponent (getPluginAUCocoaViewClassName(), "Plugin AU Cocoa View Name", 64, false));
-        props.getLast()->setTooltip ("In an AU, this is the name of Cocoa class that creates the UI. Some hosts bizarrely display the class-name, so you might want to make it reflect your plugin. But the name must be "
-                                     "UNIQUE to this exact version of your plugin, to avoid objective-C linkage mix-ups that happen when different plugins containing the same class-name are loaded simultaneously.");
-
-        props.add (new TextPropertyComponent (getPluginRTASCategory(), "Plugin RTAS Category", 64, false));
-        props.getLast()->setTooltip ("(Leave this blank if your plugin is a synth). This is one of the RTAS categories from FicPluginEnums.h, such as: ePlugInCategory_None, ePlugInCategory_EQ, ePlugInCategory_Dynamics, "
-                                     "ePlugInCategory_PitchShift, ePlugInCategory_Reverb, ePlugInCategory_Delay, "
-                                     "ePlugInCategory_Modulation, ePlugInCategory_Harmonic, ePlugInCategory_NoiseReduction, "
-                                     "ePlugInCategory_Dither, ePlugInCategory_SoundField");
-    }
+    getProjectType().createPropertyEditors(*this, props);
 
     props.add (new TextPropertyComponent (getProjectPreprocessorDefs(), "Preprocessor definitions", 32768, false));
     props.getLast()->setTooltip ("Extra preprocessor definitions. Use the form \"NAME1=value NAME2=value\", using whitespace or commas to separate the items - to include a space or comma in a definition, precede it with a backslash.");
@@ -428,64 +358,42 @@ void Project::createPropertyEditors (Array <PropertyComponent*>& props)
         props.getUnchecked(i)->setPreferredHeight (22);
 }
 
-const Image Project::getBigIcon()
+String Project::getVersionAsHex() const
+{
+    StringArray configs;
+    configs.addTokens (getVersion().toString(), ",.", String::empty);
+    configs.trim();
+    configs.removeEmptyStrings();
+
+    int value = (configs[0].getIntValue() << 16) + (configs[1].getIntValue() << 8) + configs[2].getIntValue();
+
+    if (configs.size() >= 4)
+        value = (value << 8) + configs[3].getIntValue();
+
+    return "0x" + String::toHexString (value);
+}
+
+Image Project::getBigIcon()
 {
     Item icon (getMainGroup().findItemWithID (getBigIconImageItemID().toString()));
 
     if (icon.isValid())
         return ImageCache::getFromFile (icon.getFile());
 
-    return Image();
+    return Image::null;
 }
 
-const Image Project::getSmallIcon()
+Image Project::getSmallIcon()
 {
     Item icon (getMainGroup().findItemWithID (getSmallIconImageItemID().toString()));
 
     if (icon.isValid())
         return ImageCache::getFromFile (icon.getFile());
 
-    return Image();
+    return Image::null;
 }
 
-const Image Project::getBestIconForSize (int size, bool returnNullIfNothingBigEnough)
-{
-    Image im;
-
-    const Image im1 (getSmallIcon());
-    const Image im2 (getBigIcon());
-
-    if (im1.isValid() && im2.isValid())
-    {
-        if (im1.getWidth() >= size && im2.getWidth() >= size)
-            im = im1.getWidth() < im2.getWidth() ? im1 : im2;
-        else if (im1.getWidth() >= size)
-            im = im1;
-        else if (im2.getWidth() >= size)
-            im = im2;
-        else
-            return Image();
-    }
-    else
-    {
-        im = im1.isValid() ? im1 : im2;
-    }
-
-    if (size == im.getWidth() && size == im.getHeight())
-        return im;
-
-    if (returnNullIfNothingBigEnough && im.getWidth() < size && im.getHeight() < size)
-        return Image::null;
-
-    Image newIm (Image::ARGB, size, size, true);
-    Graphics g (newIm);
-    g.drawImageWithin (im, 0, 0, size, size,
-                       RectanglePlacement::centred | RectanglePlacement::onlyReduceInSize, false);
-    return newIm;
-}
-
-
-const StringPairArray Project::getPreprocessorDefs() const
+StringPairArray Project::getPreprocessorDefs() const
 {
     return parsePreprocessorDefs (getProjectPreprocessorDefs().toString());
 }
@@ -494,24 +402,6 @@ const StringPairArray Project::getPreprocessorDefs() const
 Project::Item Project::getMainGroup()
 {
     return Item (*this, projectRoot.getChildWithName (Tags::projectMainGroup));
-}
-
-Project::Item Project::createNewGroup()
-{
-    Item item (*this, ValueTree (Tags::group));
-    item.initialiseNodeValues();
-    item.getName() = "New Group";
-    return item;
-}
-
-Project::Item Project::createNewItem (const File& file)
-{
-    Item item (*this, ValueTree (Tags::file));
-    item.initialiseNodeValues();
-    item.getName() = file.getFileName();
-    item.getShouldCompileValue() = file.hasFileExtension ("cpp;mm;c;m;cc;cxx");
-    item.getShouldAddToResourceValue() = shouldBeAddedToBinaryResourcesByDefault (file);
-    return item;
 }
 
 static void findImages (const Project::Item& item, OwnedArray<Project::Item>& found)
@@ -534,7 +424,7 @@ void Project::findAllImageItems (OwnedArray<Project::Item>& items)
 
 //==============================================================================
 Project::Item::Item (Project& project_, const ValueTree& node_)
-    : project (project_), node (node_)
+    : project (&project_), node (node_)
 {
 }
 
@@ -543,12 +433,31 @@ Project::Item::Item (const Item& other)
 {
 }
 
+Project::Item& Project::Item::operator= (const Project::Item& other)
+{
+    project = other.project;
+    node = other.node;
+    return *this;
+}
+
 Project::Item::~Item()
 {
 }
 
-const String Project::Item::getID() const               { return node [Ids::id_]; }
-const String Project::Item::getImageFileID() const      { return "id:" + getID(); }
+Project::Item Project::Item::createCopy()         { Item i (*this); i.node = i.node.createCopy(); return i; }
+
+String Project::Item::getID() const               { return node [Ids::id_]; }
+void Project::Item::setID (const String& newID)   { node.setProperty (Ids::id_, newID, nullptr); }
+
+String Project::Item::getImageFileID() const      { return "id:" + getID(); }
+
+Project::Item Project::Item::createGroup (Project& project, const String& name)
+{
+    Item group (project, ValueTree (Tags::group));
+    group.initialiseNodeValues();
+    group.getName() = name;
+    return group;
+}
 
 bool Project::Item::isFile() const          { return node.hasType (Tags::file); }
 bool Project::Item::isGroup() const         { return node.hasType (Tags::group) || isMainGroup(); }
@@ -570,7 +479,7 @@ Project::Item Project::Item::findItemWithID (const String& targetId) const
         }
     }
 
-    return Item (project, ValueTree::invalid);
+    return Item (*project, ValueTree::invalid);
 }
 
 bool Project::Item::canContain (const Item& child) const
@@ -590,41 +499,44 @@ bool Project::Item::shouldBeAddedToTargetProject() const
     return isFile();
 }
 
-bool Project::Item::shouldBeCompiled() const
-{
-    return getShouldCompileValue().getValue();
-}
+bool Project::Item::shouldBeCompiled() const        { return getShouldCompileValue().getValue(); }
+Value Project::Item::getShouldCompileValue() const  { return node.getPropertyAsValue (Ids::compile, getUndoManager()); }
 
-Value Project::Item::getShouldCompileValue() const
-{
-    return node.getPropertyAsValue (Ids::compile, getUndoManager());
-}
+bool Project::Item::shouldBeAddedToBinaryResources() const  { return getShouldAddToResourceValue().getValue(); }
+Value Project::Item::getShouldAddToResourceValue() const    { return node.getPropertyAsValue (Ids::resource, getUndoManager()); }
 
-bool Project::Item::shouldBeAddedToBinaryResources() const
-{
-    return getShouldAddToResourceValue().getValue();
-}
+Value Project::Item::getShouldInhibitWarningsValue() const  { return node.getPropertyAsValue (Ids::noWarnings, getUndoManager()); }
+Value Project::Item::getShouldUseStdCallValue() const       { return node.getPropertyAsValue (Ids::useStdCall, nullptr); }
 
-Value Project::Item::getShouldAddToResourceValue() const
-{
-    return node.getPropertyAsValue (Ids::resource, getUndoManager());
-}
 
-const File Project::Item::getFile() const
+String Project::Item::getFilePath() const
 {
     if (isFile())
-        return project.resolveFilename (node [Ids::file].toString());
+        return node [Ids::file].toString();
+    else
+        return String::empty;
+}
+
+File Project::Item::getFile() const
+{
+    if (isFile())
+        return getProject().resolveFilename (node [Ids::file].toString());
     else
         return File::nonexistent;
 }
 
 void Project::Item::setFile (const File& file)
 {
-    jassert (isFile());
-    node.setProperty (Ids::file, project.getRelativePathForFile (file), getUndoManager());
-    node.setProperty (Ids::name, file.getFileName(), getUndoManager());
-
+    setFile (RelativePath (getProject().getRelativePathForFile (file), RelativePath::projectFolder));
     jassert (getFile() == file);
+}
+
+void Project::Item::setFile (const RelativePath& file)
+{
+    jassert (file.getRoot() == RelativePath::projectFolder);
+    jassert (isFile());
+    node.setProperty (Ids::file, file.toUnixStyle(), getUndoManager());
+    node.setProperty (Ids::name, file.getFileName(), getUndoManager());
 }
 
 bool Project::Item::renameFile (const File& newFile)
@@ -657,10 +569,10 @@ Project::Item Project::Item::findItemForFile (const File& file) const
         }
     }
 
-    return Item (project, ValueTree::invalid);
+    return Item (getProject(), ValueTree::invalid);
 }
 
-const File Project::Item::determineGroupFolder() const
+File Project::Item::determineGroupFolder() const
 {
     jassert (isGroup());
     File f;
@@ -683,7 +595,7 @@ const File Project::Item::determineGroupFolder() const
     }
     else
     {
-        f = project.getFile().getParentDirectory();
+        f = getProject().getFile().getParentDirectory();
 
         if (f.getChildFile ("Source").isDirectory())
             f = f.getChildFile ("Source");
@@ -695,7 +607,7 @@ const File Project::Item::determineGroupFolder() const
 void Project::Item::initialiseNodeValues()
 {
     if (! node.hasProperty (Ids::id_))
-        node.setProperty (Ids::id_, createAlphaNumericUID(), 0);
+        setID (createAlphaNumericUID());
 
     if (isFile())
     {
@@ -728,7 +640,7 @@ Project::Item Project::Item::getParent() const
     if (isMainGroup() || ! isGroup())
         return *this;
 
-    return Item (project, node.getParent());
+    return Item (getProject(), node.getParent());
 }
 
 struct ItemSorter
@@ -745,6 +657,15 @@ void Project::Item::sortAlphabetically()
     node.sort (sorter, getUndoManager(), true);
 }
 
+Project::Item Project::Item::addNewSubGroup (const String& name, int insertIndex)
+{
+    Item group (createGroup (getProject(), name));
+
+    jassert (canContain (group));
+    addChild (group, insertIndex);
+    return group;
+}
+
 bool Project::Item::addFile (const File& file, int insertIndex)
 {
     if (file == File::nonexistent || file.isHidden() || file.getFileName().startsWithChar ('.'))
@@ -752,18 +673,12 @@ bool Project::Item::addFile (const File& file, int insertIndex)
 
     if (file.isDirectory())
     {
-        Item group (project.createNewGroup());
-        group.getName() = file.getFileNameWithoutExtension();
-
-        jassert (canContain (group));
-
-        addChild (group, insertIndex);
-        //group.setFile (file);
+        Item group (addNewSubGroup (file.getFileNameWithoutExtension(), insertIndex));
 
         DirectoryIterator iter (file, false, "*", File::findFilesAndDirectories);
         while (iter.next())
         {
-            if (! project.getMainGroup().findItemForFile (iter.getFile()).isValid())
+            if (! getProject().getMainGroup().findItemForFile (iter.getFile()).isValid())
                 group.addFile (iter.getFile(), -1);
         }
 
@@ -771,9 +686,13 @@ bool Project::Item::addFile (const File& file, int insertIndex)
     }
     else if (file.existsAsFile())
     {
-        if (! project.getMainGroup().findItemForFile (file).isValid())
+        if (! getProject().getMainGroup().findItemForFile (file).isValid())
         {
-            Item item (project.createNewItem (file));
+            Item item (getProject(), ValueTree (Tags::file));
+            item.initialiseNodeValues();
+            item.getName() = file.getFileName();
+            item.getShouldCompileValue() = file.hasFileExtension ("cpp;mm;c;m;cc;cxx");
+            item.getShouldAddToResourceValue() = getProject().shouldBeAddedToBinaryResourcesByDefault (file);
 
             if (canContain (item))
             {
@@ -788,6 +707,24 @@ bool Project::Item::addFile (const File& file, int insertIndex)
     }
 
     return true;
+}
+
+bool Project::Item::addRelativeFile (const RelativePath& file, int insertIndex, bool shouldCompile)
+{
+    Item item (getProject(), ValueTree (Tags::file));
+    item.initialiseNodeValues();
+    item.getName() = file.getFileName();
+    item.getShouldCompileValue() = shouldCompile;
+    item.getShouldAddToResourceValue() = getProject().shouldBeAddedToBinaryResourcesByDefault (file);
+
+    if (canContain (item))
+    {
+        item.setFile (file);
+        addChild (item, insertIndex);
+        return true;
+    }
+
+    return false;
 }
 
 const Drawable* Project::Item::getIcon() const
@@ -808,69 +745,42 @@ const Drawable* Project::Item::getIcon() const
 }
 
 //==============================================================================
-ValueTree Project::getJuceConfigNode()
+ValueTree Project::getConfigNode()
 {
-    ValueTree configNode = projectRoot.getChildWithName (Tags::configGroup);
-
-    if (! configNode.isValid())
-    {
-        configNode = ValueTree (Tags::configGroup);
-        projectRoot.addChild (configNode, -1, 0);
-    }
-
-    return configNode;
+    return projectRoot.getOrCreateChildWithName (Tags::configGroup, nullptr);
 }
 
-void Project::getJuceConfigFlags (OwnedArray <JuceConfigFlag>& flags)
+void Project::getAllConfigFlags (OwnedArray <ConfigFlag>& flags)
 {
-    ValueTree configNode (getJuceConfigNode());
+    OwnedArray<LibraryModule> modules;
+    getProjectType().createRequiredModules (*this, modules);
 
-    File juceConfigH (getLocalJuceFolder().getChildFile ("juce_Config.h"));
-    StringArray lines;
-    lines.addLines (juceConfigH.loadFileAsString());
+    int i;
+    for (i = 0; i < modules.size(); ++i)
+        modules.getUnchecked(i)->getConfigFlags (*this, flags);
 
-    for (int i = 0; i < lines.size(); ++i)
-    {
-        String line (lines[i].trim());
-
-        if (line.startsWith ("/** ") && line.containsChar (':'))
-        {
-            ScopedPointer <JuceConfigFlag> config (new JuceConfigFlag());
-            config->symbol = line.substring (4).upToFirstOccurrenceOf (":", false, false).trim();
-
-            if (config->symbol.length() > 4)
-            {
-                config->description = line.fromFirstOccurrenceOf (":", false, false).trimStart();
-                ++i;
-                while (! (lines[i].contains ("*/") || lines[i].contains ("@see")))
-                {
-                    if (lines[i].trim().isNotEmpty())
-                        config->description = config->description.trim() + " " + lines[i].trim();
-
-                    ++i;
-                }
-
-                config->description = config->description.upToFirstOccurrenceOf ("*/", false, false);
-                config->value.referTo (getJuceConfigFlag (config->symbol));
-                flags.add (config.release());
-            }
-        }
-    }
+    for (i = 0; i < flags.size(); ++i)
+        flags.getUnchecked(i)->value.referTo (getConfigFlag (flags.getUnchecked(i)->symbol));
 }
 
 const char* const Project::configFlagDefault = "default";
 const char* const Project::configFlagEnabled = "enabled";
 const char* const Project::configFlagDisabled = "disabled";
 
-Value Project::getJuceConfigFlag (const String& name)
+Value Project::getConfigFlag (const String& name)
 {
-    const ValueTree configNode (getJuceConfigNode());
+    const ValueTree configNode (getConfigNode());
     Value v (configNode.getPropertyAsValue (name, getUndoManagerFor (configNode)));
 
     if (v.getValue().toString().isEmpty())
         v = configFlagDefault;
 
     return v;
+}
+
+bool Project::isConfigFlagEnabled (const String& name) const
+{
+    return projectRoot.getChildWithName (Tags::configGroup).getProperty (name) == configFlagEnabled;
 }
 
 //==============================================================================
@@ -900,7 +810,7 @@ bool Project::hasConfigurationNamed (const String& name) const
     return false;
 }
 
-const String Project::getUniqueConfigName (String name) const
+String Project::getUniqueConfigName (String name) const
 {
     String nameRoot (name);
     while (CharacterFunctions::isDigit (nameRoot.getLastCharacter()))
@@ -917,8 +827,8 @@ const String Project::getUniqueConfigName (String name) const
 
 void Project::addNewConfiguration (BuildConfiguration* configToCopy)
 {
-    const String configName (getUniqueConfigName (configToCopy != 0 ? configToCopy->config [Ids::name].toString()
-                                                                    : "New Build Configuration"));
+    const String configName (getUniqueConfigName (configToCopy != nullptr ? configToCopy->config [Ids::name].toString()
+                                                                          : "New Build Configuration"));
 
     ValueTree configs (getConfigurations());
 
@@ -929,7 +839,7 @@ void Project::addNewConfiguration (BuildConfiguration* configToCopy)
     }
 
     ValueTree newConfig (Tags::configuration);
-    if (configToCopy != 0)
+    if (configToCopy != nullptr)
         newConfig = configToCopy->config.createCopy();
 
     newConfig.setProperty (Ids::name, configName, 0);
@@ -947,7 +857,7 @@ void Project::createDefaultConfigs()
 {
     for (int i = 0; i < 2; ++i)
     {
-        addNewConfiguration (0);
+        addNewConfiguration (nullptr);
         BuildConfiguration config = getConfiguration (i);
 
         const bool debugConfig = i == 0;
@@ -983,7 +893,7 @@ Project::BuildConfiguration::~BuildConfiguration()
 {
 }
 
-const String Project::BuildConfiguration::getGCCOptimisationFlag() const
+String Project::BuildConfiguration::getGCCOptimisationFlag() const
 {
     const int level = (int) getOptimisationLevel().getValue();
     return String (level <= 1 ? "0" : (level == 2 ? "s" : "3"));
@@ -1053,13 +963,13 @@ void Project::BuildConfiguration::createPropertyEditors (Array <PropertyComponen
         props.getUnchecked(i)->setPreferredHeight (22);
 }
 
-const StringPairArray Project::BuildConfiguration::getAllPreprocessorDefs() const
+StringPairArray Project::BuildConfiguration::getAllPreprocessorDefs() const
 {
     return mergePreprocessorDefs (project->getPreprocessorDefs(),
                                   parsePreprocessorDefs (getBuildConfigPreprocessorDefs().toString()));
 }
 
-const StringArray Project::BuildConfiguration::getHeaderSearchPaths() const
+StringArray Project::BuildConfiguration::getHeaderSearchPaths() const
 {
     StringArray s;
     s.addTokens (getHeaderSearchPath().toString(), ";", String::empty);
@@ -1115,12 +1025,12 @@ void Project::createDefaultExporters()
 }
 
 //==============================================================================
-const String Project::getFileTemplate (const String& templateName)
+String Project::getFileTemplate (const String& templateName)
 {
     int dataSize;
     const char* data = BinaryData::getNamedResource (templateName.toUTF8(), dataSize);
 
-    if (data == 0)
+    if (data == nullptr)
     {
         jassertfalse;
         return String::empty;

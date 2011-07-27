@@ -31,10 +31,10 @@ BEGIN_JUCE_NAMESPACE
 
 namespace
 {
-    int calcBufferStreamBufferSize (int requestedSize, InputStream* const source) throw()
+    int calcBufferStreamBufferSize (int requestedSize, InputStream* const source) noexcept
     {
         // You need to supply a real stream when creating a BufferedInputStream
-        jassert (source != 0);
+        jassert (source != nullptr);
 
         requestedSize = jmax (256, requestedSize);
 
@@ -177,7 +177,7 @@ int BufferedInputStream::read (void* destBuffer, int maxBytesToRead)
     }
 }
 
-const String BufferedInputStream::readString()
+String BufferedInputStream::readString()
 {
     if (position >= bufferStart
          && position < lastReadPos)

@@ -28,42 +28,36 @@
 BEGIN_JUCE_NAMESPACE
 
 #include "juce_ResamplingAudioSource.h"
-#include "../../threads/juce_ScopedLock.h"
 
 
 //==============================================================================
 ResamplingAudioSource::ResamplingAudioSource (AudioSource* const inputSource,
-                                              const bool deleteInputWhenDeleted_,
+                                              const bool deleteInputWhenDeleted,
                                               const int numChannels_)
-    : input (inputSource),
-      deleteInputWhenDeleted (deleteInputWhenDeleted_),
+    : input (inputSource, deleteInputWhenDeleted),
       ratio (1.0),
       lastRatio (1.0),
       buffer (numChannels_, 0),
       sampsInBuffer (0),
       numChannels (numChannels_)
 {
-    jassert (input != 0);
+    jassert (input != nullptr);
 }
 
-ResamplingAudioSource::~ResamplingAudioSource()
-{
-    if (deleteInputWhenDeleted)
-        delete input;
-}
+ResamplingAudioSource::~ResamplingAudioSource() {}
 
 void ResamplingAudioSource::setResamplingRatio (const double samplesInPerOutputSample)
 {
     jassert (samplesInPerOutputSample > 0);
 
-    const ScopedLock sl (ratioLock);
+    const SpinLock::ScopedLockType sl (ratioLock);
     ratio = jmax (0.0, samplesInPerOutputSample);
 }
 
 void ResamplingAudioSource::prepareToPlay (int samplesPerBlockExpected,
                                            double sampleRate)
 {
-    const ScopedLock sl (ratioLock);
+    const SpinLock::ScopedLockType sl (ratioLock);
 
     input->prepareToPlay (samplesPerBlockExpected, sampleRate);
 
@@ -91,7 +85,7 @@ void ResamplingAudioSource::getNextAudioBlock (const AudioSourceChannelInfo& inf
     double localRatio;
 
     {
-        const ScopedLock sl (ratioLock);
+        const SpinLock::ScopedLockType sl (ratioLock);
         localRatio = ratio;
     }
 
@@ -257,10 +251,10 @@ void ResamplingAudioSource::applyFilter (float* samples, int num, FilterState& f
                      - coefficients[4] * fs.y1
                      - coefficients[5] * fs.y2;
 
-#if JUCE_INTEL
+       #if JUCE_INTEL
         if (! (out < -1.0e-8 || out > 1.0e-8))
             out = 0;
-#endif
+       #endif
 
         fs.x2 = fs.x1;
         fs.x1 = in;

@@ -32,7 +32,8 @@
 #endif
 
 
-ApplicationCommandManager* commandManager = 0;
+ApplicationCommandManager* commandManager = nullptr;
+ApplicationProperties* appProperties = nullptr;
 
 
 //==============================================================================
@@ -44,17 +45,17 @@ public:
     {
     }
 
-    ~PluginHostApp()
-    {
-    }
-
     void initialise (const String& commandLine)
     {
         // initialise our settings file..
-        ApplicationProperties::getInstance()
-            ->setStorageParameters ("Juce Audio Plugin Host",
-                                    "settings", String::empty, 1000,
-                                    PropertiesFile::storeAsXML);
+
+        PropertiesFile::Options options;
+        options.applicationName     = "Juce Audio Plugin Host";
+        options.filenameSuffix      = "settings";
+        options.osxLibrarySubFolder = "Preferences";
+
+        appProperties = new ApplicationProperties();
+        appProperties->setStorageParameters (options);
 
         commandManager = new ApplicationCommandManager();
 
@@ -70,16 +71,22 @@ public:
         mainWindow->menuItemsChanged();
 
         if (commandLine.isNotEmpty() && mainWindow->getGraphEditor() != 0)
-            mainWindow->getGraphEditor()->graph.loadFrom (File::getCurrentWorkingDirectory()
-                                                            .getChildFile (commandLine), true);
+        {
+           #if JUCE_MAC
+            if (! commandLine.trimStart().startsWith ("-psn"))
+           #endif
+                mainWindow->getGraphEditor()->graph.loadFrom (File::getCurrentWorkingDirectory()
+                                                                .getChildFile (commandLine), true);
+        }
     }
 
     void shutdown()
     {
         mainWindow = 0;
-        ApplicationProperties::getInstance()->closeFiles();
+        appProperties->closeFiles();
 
         deleteAndZero (commandManager);
+        deleteAndZero (appProperties);
     }
 
     void systemRequestedQuit()

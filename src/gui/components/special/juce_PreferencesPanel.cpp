@@ -43,6 +43,17 @@ PreferencesPanel::~PreferencesPanel()
 {
 }
 
+int PreferencesPanel::getButtonSize() const noexcept
+{
+    return buttonSize;
+}
+
+void PreferencesPanel::setButtonSize (int newSize)
+{
+    buttonSize = newSize;
+    resized();
+}
+
 //==============================================================================
 void PreferencesPanel::addSettingsPage (const String& title,
                                         const Drawable* icon,
@@ -61,7 +72,7 @@ void PreferencesPanel::addSettingsPage (const String& title,
 
     resized();
 
-    if (currentPage == 0)
+    if (currentPage == nullptr)
         setCurrentPage (title);
 }
 
@@ -92,7 +103,7 @@ void PreferencesPanel::resized()
     for (int i = 0; i < buttons.size(); ++i)
         buttons.getUnchecked(i)->setBounds (i * buttonSize, 0, buttonSize, buttonSize);
 
-    if (currentPage != 0)
+    if (currentPage != nullptr)
         currentPage->setBounds (getLocalBounds().withTop (buttonSize + 5));
 }
 
@@ -108,10 +119,10 @@ void PreferencesPanel::setCurrentPage (const String& pageName)
     {
         currentPageName = pageName;
 
-        currentPage = 0;
+        currentPage = nullptr;
         currentPage = createComponentForPage (pageName);
 
-        if (currentPage != 0)
+        if (currentPage != nullptr)
         {
             addAndMakeVisible (currentPage);
             currentPage->toBack();

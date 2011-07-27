@@ -55,15 +55,15 @@ public:
     /** Destructor. */
     ~RSAKey();
 
-    bool operator== (const RSAKey& other) const throw();
-    bool operator!= (const RSAKey& other) const throw();
+    bool operator== (const RSAKey& other) const noexcept;
+    bool operator!= (const RSAKey& other) const noexcept;
 
     //==============================================================================
     /** Turns the key into a string representation.
 
         This can be reloaded using the constructor that takes a string.
     */
-    const String toString() const;
+    String toString() const;
 
     //==============================================================================
     /** Encodes or decodes a value.
@@ -98,7 +98,7 @@ public:
     static void createKeyPair (RSAKey& publicKey,
                                RSAKey& privateKey,
                                int numBits,
-                               const int* randomSeeds = 0,
+                               const int* randomSeeds = nullptr,
                                int numRandomSeeds = 0);
 
 
@@ -108,7 +108,7 @@ protected:
 
 private:
     //==============================================================================
-    static const BigInteger findBestCommonDivisor (const BigInteger& p, const BigInteger& q);
+    static BigInteger findBestCommonDivisor (const BigInteger& p, const BigInteger& q);
 
     JUCE_LEAK_DETECTOR (RSAKey);
 };

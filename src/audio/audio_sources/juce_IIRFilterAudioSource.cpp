@@ -29,23 +29,19 @@ BEGIN_JUCE_NAMESPACE
 
 #include "juce_IIRFilterAudioSource.h"
 
+
 //==============================================================================
 IIRFilterAudioSource::IIRFilterAudioSource (AudioSource* const inputSource,
-                                            const bool deleteInputWhenDeleted_)
-    : input (inputSource),
-      deleteInputWhenDeleted (deleteInputWhenDeleted_)
+                                            const bool deleteInputWhenDeleted)
+    : input (inputSource, deleteInputWhenDeleted)
 {
-    jassert (inputSource != 0);
+    jassert (inputSource != nullptr);
 
     for (int i = 2; --i >= 0;)
         iirFilters.add (new IIRFilter());
 }
 
-IIRFilterAudioSource::~IIRFilterAudioSource()
-{
-    if (deleteInputWhenDeleted)
-        delete input;
-}
+IIRFilterAudioSource::~IIRFilterAudioSource()  {}
 
 //==============================================================================
 void IIRFilterAudioSource::setFilterParameters (const IIRFilter& newSettings)

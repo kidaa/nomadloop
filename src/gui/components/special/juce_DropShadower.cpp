@@ -55,7 +55,7 @@ public:
                             | ComponentPeer::windowIsTemporary
                             | ComponentPeer::windowIgnoresKeyPresses);
         }
-        else if (owner.getParentComponent() != 0)
+        else if (owner.getParentComponent() != nullptr)
         {
             owner.getParentComponent()->addChildComponent (this);
         }
@@ -115,7 +115,7 @@ DropShadower::DropShadower (const float alpha_,
                             const int xOffset_,
                             const int yOffset_,
                             const float blurRadius_)
-   : owner (0),
+   : owner (nullptr),
      xOffset (xOffset_),
      yOffset (yOffset_),
      alpha (alpha_),
@@ -126,7 +126,7 @@ DropShadower::DropShadower (const float alpha_,
 
 DropShadower::~DropShadower()
 {
-    if (owner != 0)
+    if (owner != nullptr)
         owner->removeComponentListener (this);
 
     reentrant = true;
@@ -137,15 +137,15 @@ void DropShadower::setOwner (Component* componentToFollow)
 {
     if (componentToFollow != owner)
     {
-        if (owner != 0)
+        if (owner != nullptr)
             owner->removeComponentListener (this);
 
         // (the component can't be null)
-        jassert (componentToFollow != 0);
+        jassert (componentToFollow != nullptr);
 
         owner = componentToFollow;
 
-        jassert (owner != 0);
+        jassert (owner != nullptr);
         jassert (owner->isOpaque()); // doesn't work properly for semi-transparent comps!
 
         owner->addComponentListener (this);
@@ -177,18 +177,18 @@ void DropShadower::componentVisibilityChanged (Component&)
 
 void DropShadower::updateShadows()
 {
-    if (reentrant || owner == 0)
+    if (reentrant || owner == nullptr)
         return;
 
     ComponentPeer* const peer = owner->getPeer();
-    const bool isOwnerVisible = owner->isVisible() && (peer == 0 || ! peer->isMinimised());
+    const bool isOwnerVisible = owner->isVisible() && (peer == nullptr || ! peer->isMinimised());
 
     const bool createShadowWindows  = shadowWindows.size() == 0
                                          && owner->getWidth() > 0
                                          && owner->getHeight() > 0
                                          && isOwnerVisible
                                          && (Desktop::canUseSemiTransparentWindows()
-                                              || owner->getParentComponent() != 0);
+                                              || owner->getParentComponent() != nullptr);
 
     {
         const ScopedValueSetter<bool> setter (reentrant, true, false);
@@ -249,21 +249,38 @@ void DropShadower::updateShadows()
 
         if (shadowWindows.size() >= 4)
         {
-            for (int i = shadowWindows.size(); --i >= 0;)
-            {
-                shadowWindows.getUnchecked(i)->setAlwaysOnTop (owner->isAlwaysOnTop());
-                shadowWindows.getUnchecked(i)->setVisible (isOwnerVisible);
-            }
-
             const int x = owner->getX();
             const int y = owner->getY() - shadowEdge;
             const int w = owner->getWidth();
             const int h = owner->getHeight() + shadowEdge + shadowEdge;
 
-            shadowWindows.getUnchecked(0)->setBounds (x - shadowEdge, y, shadowEdge, h);
-            shadowWindows.getUnchecked(1)->setBounds (x + w, y, shadowEdge, h);
-            shadowWindows.getUnchecked(2)->setBounds (x, y, w, shadowEdge);
-            shadowWindows.getUnchecked(3)->setBounds (x, owner->getBottom(), w, shadowEdge);
+            for (int i = shadowWindows.size(); --i >= 0;)
+            {
+                // there seem to be rare situations where the dropshadower may be deleted by
+                // callbacks during this loop, so use a weak ref to watch out for this..
+                WeakReference<Component> sw (shadowWindows[i]);
+
+                if (sw != nullptr)
+                    sw->setAlwaysOnTop (owner->isAlwaysOnTop());
+
+                if (sw != nullptr)
+                    sw->setVisible (isOwnerVisible);
+
+                if (sw != nullptr)
+                {
+                    switch (i)
+                    {
+                        case 0: sw->setBounds (x - shadowEdge, y, shadowEdge, h); break;
+                        case 1: sw->setBounds (x + w, y, shadowEdge, h); break;
+                        case 2: sw->setBounds (x, y, w, shadowEdge); break;
+                        case 3: sw->setBounds (x, owner->getBottom(), w, shadowEdge); break;
+                        default: break;
+                    }
+                }
+
+                if (sw == nullptr)
+                    return;
+            }
         }
     }
 

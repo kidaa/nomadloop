@@ -95,14 +95,18 @@ public:
 
     //==============================================================================
     /** Returns the component being represented by this peer. */
-    Component* getComponent() const throw()                 { return component; }
+    Component* getComponent() const noexcept                { return component; }
 
     /** Returns the set of style flags that were set when the window was created.
 
         @see Component::addToDesktop
     */
-    int getStyleFlags() const throw()                       { return styleFlags; }
+    int getStyleFlags() const noexcept                      { return styleFlags; }
 
+    /** Returns a unique ID for this peer.
+        Each peer that is created is given a different ID.
+    */
+    uint32 getUniqueID() const noexcept                     { return uniqueID; }
 
     //==============================================================================
     /** Returns the raw handle to whatever kind of window is being used.
@@ -177,10 +181,10 @@ public:
     virtual bool isFullScreen() const = 0;
 
     /** Sets the size to restore to if fullscreen mode is turned off. */
-    void setNonFullScreenBounds (const Rectangle<int>& newBounds) throw();
+    void setNonFullScreenBounds (const Rectangle<int>& newBounds) noexcept;
 
     /** Returns the size to restore to if fullscreen mode is turned off. */
-    const Rectangle<int>& getNonFullScreenBounds() const throw();
+    const Rectangle<int>& getNonFullScreenBounds() const noexcept;
 
     /** Attempts to change the icon associated with this window.
     */
@@ -190,10 +194,10 @@ public:
 
         The constrainer won't be deleted by this object, so the caller must manage its lifetime.
     */
-    void setConstrainer (ComponentBoundsConstrainer* newConstrainer) throw();
+    void setConstrainer (ComponentBoundsConstrainer* newConstrainer) noexcept;
 
     /** Returns the current constrainer, if one has been set. */
-    ComponentBoundsConstrainer* getConstrainer() const throw()              { return constrainer; }
+    ComponentBoundsConstrainer* getConstrainer() const noexcept             { return constrainer; }
 
     /** Checks if a point is in the window.
 
@@ -258,7 +262,7 @@ public:
     /** Called when the window loses keyboard focus. */
     void handleFocusLoss();
 
-    Component* getLastFocusedSubcomponent() const throw();
+    Component* getLastFocusedSubcomponent() const noexcept;
 
     /** Called when a key is pressed.
 
@@ -309,9 +313,9 @@ public:
 
     void handleUserClosingWindow();
 
-    void handleFileDragMove (const StringArray& files, const Point<int>& position);
-    void handleFileDragExit (const StringArray& files);
-    void handleFileDragDrop (const StringArray& files, const Point<int>& position);
+    bool handleFileDragMove (const StringArray& files, const Point<int>& position);
+    bool handleFileDragExit (const StringArray& files);
+    bool handleFileDragDrop (const StringArray& files, const Point<int>& position);
 
     //==============================================================================
     /** Resets the masking region.
@@ -339,23 +343,23 @@ public:
 
         @see getPeer
     */
-    static int getNumPeers() throw();
+    static int getNumPeers() noexcept;
 
     /** Returns one of the currently-active peers.
 
         @see getNumPeers
     */
-    static ComponentPeer* getPeer (int index) throw();
+    static ComponentPeer* getPeer (int index) noexcept;
 
     /** Checks if this peer object is valid.
 
         @see getNumPeers
     */
-    static bool isValidPeer (const ComponentPeer* peer) throw();
+    static bool isValidPeer (const ComponentPeer* peer) noexcept;
 
 
     //==============================================================================
-    virtual const StringArray getAvailableRenderingEngines();
+    virtual StringArray getAvailableRenderingEngines();
     virtual int getCurrentRenderingEngine() const;
     virtual void setCurrentRenderingEngine (int index);
 
@@ -368,17 +372,18 @@ protected:
     uint32 lastPaintTime;
     ComponentBoundsConstrainer* constrainer;
 
-    static void updateCurrentModifiers() throw();
+    static void updateCurrentModifiers() noexcept;
 
 private:
     //==============================================================================
     WeakReference<Component> lastFocusedComponent, dragAndDropTargetComponent;
     Component* lastDragAndDropCompUnderMouse;
+    const uint32 uniqueID;
     bool fakeMouseMessageSent : 1, isWindowMinimised : 1;
 
     friend class Component;
     friend class Desktop;
-    static ComponentPeer* getPeerFor (const Component* component) throw();
+    static ComponentPeer* getPeerFor (const Component* component) noexcept;
 
     void setLastDragDropTarget (Component* comp);
 

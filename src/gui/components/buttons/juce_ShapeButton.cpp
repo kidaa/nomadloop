@@ -77,15 +77,15 @@ void ShapeButton::setShape (const Path& newShape,
 
     if (resizeNowToFitThisShape)
     {
-        Rectangle<float> bounds (shape.getBounds());
+        Rectangle<float> newBounds (shape.getBounds());
 
         if (hasShadow)
-            bounds.expand (4.0f, 4.0f);
+            newBounds.expand (4.0f, 4.0f);
 
-        shape.applyTransform (AffineTransform::translation (-bounds.getX(), -bounds.getY()));
+        shape.applyTransform (AffineTransform::translation (-newBounds.getX(), -newBounds.getY()));
 
-        setSize (1 + (int) (bounds.getWidth() + outlineWidth),
-                 1 + (int) (bounds.getHeight() + outlineWidth));
+        setSize (1 + (int) (newBounds.getWidth() + outlineWidth),
+                 1 + (int) (newBounds.getHeight() + outlineWidth));
     }
 }
 
@@ -104,7 +104,7 @@ void ShapeButton::paintButton (Graphics& g, bool isMouseOverButton, bool isButto
     int w = getWidth();
     int h = getHeight();
 
-    if (getComponentEffect() != 0)
+    if (getComponentEffect() != nullptr)
     {
         w -= 4;
         h -= 4;

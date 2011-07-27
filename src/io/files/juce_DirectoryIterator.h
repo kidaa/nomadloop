@@ -95,14 +95,18 @@ public:
                     false if there are no more matching files. If it returns false, then none of the
                     parameters will be filled-in.
     */
-    bool next (bool* isDirectory, bool* isHidden, int64* fileSize,
-               Time* modTime, Time* creationTime, bool* isReadOnly);
+    bool next (bool* isDirectory,
+               bool* isHidden,
+               int64* fileSize,
+               Time* modTime,
+               Time* creationTime,
+               bool* isReadOnly);
 
     /** Returns the file that the iterator is currently pointing at.
 
         The result of this call is only valid after a call to next() has returned true.
     */
-    const File getFile() const;
+    const File& getFile() const;
 
     /** Returns a guess of how far through the search the iterator has got.
 

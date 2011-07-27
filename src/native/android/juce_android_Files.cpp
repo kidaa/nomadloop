@@ -80,7 +80,7 @@ bool File::isHidden() const
 //==============================================================================
 namespace
 {
-    const File juce_readlink (const String& file, const File& defaultFile)
+    File juce_readlink (const String& file, const File& defaultFile)
     {
         const int size = 8192;
         HeapBlock<char> buffer;
@@ -95,13 +95,13 @@ namespace
     }
 }
 
-const File File::getLinkedTarget() const
+File File::getLinkedTarget() const
 {
     return juce_readlink (getFullPathName().toUTF8(), *this);
 }
 
 //==============================================================================
-const File File::getSpecialLocation (const SpecialLocationType type)
+File File::getSpecialLocation (const SpecialLocationType type)
 {
     switch (type)
     {
@@ -138,7 +138,7 @@ const File File::getSpecialLocation (const SpecialLocationType type)
 }
 
 //==============================================================================
-const String File::getVersion() const
+String File::getVersion() const
 {
     return String::empty;
 }
@@ -177,16 +177,16 @@ public:
     {
         if (dir != 0)
         {
-            const char* wildcardUTF8 = 0;
+            const char* wildcardUTF8 = nullptr;
 
             for (;;)
             {
                 struct dirent* const de = readdir (dir);
 
-                if (de == 0)
+                if (de == nullptr)
                     break;
 
-                if (wildcardUTF8 == 0)
+                if (wildcardUTF8 == nullptr)
                     wildcardUTF8 = wildCard.toUTF8();
 
                 if (fnmatch (wildcardUTF8, de->d_name, FNM_CASEFOLD) == 0)
@@ -232,7 +232,7 @@ bool DirectoryIterator::NativeIterator::next (String& filenameFound,
 
 
 //==============================================================================
-bool PlatformUtilities::openDocument (const String& fileName, const String& parameters)
+bool Process::openDocument (const String& fileName, const String& parameters)
 {
 
 }

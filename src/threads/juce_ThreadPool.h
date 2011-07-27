@@ -27,7 +27,6 @@
 #define __JUCE_THREADPOOL_JUCEHEADER__
 
 #include "juce_Thread.h"
-#include "juce_ScopedLock.h"
 #include "../text/juce_StringArray.h"
 #include "../containers/juce_Array.h"
 #include "../containers/juce_OwnedArray.h"
@@ -66,7 +65,7 @@ public:
     /** Returns the name of this job.
         @see setJobName
     */
-    const String getJobName() const;
+    String getJobName() const;
 
     /** Changes the job's name.
         @see getJobName
@@ -281,7 +280,7 @@ public:
 
         If onlyReturnActiveJobs is true, only the ones currently running are returned.
     */
-    const StringArray getNamesOfAllJobs (bool onlyReturnActiveJobs) const;
+    StringArray getNamesOfAllJobs (bool onlyReturnActiveJobs) const;
 
     /** Changes the priority of all the threads.
 

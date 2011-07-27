@@ -75,8 +75,6 @@ namespace ASIODebugging
 class ASIOAudioIODevice;
 static ASIOAudioIODevice* volatile currentASIODev[3] = { 0 };
 
-static const int maxASIOChannels = 160;
-
 
 //==============================================================================
 class JUCE_API  ASIOAudioIODevice  : public AudioIODevice,
@@ -88,7 +86,7 @@ public:
     ASIOAudioIODevice (const String& name_, const CLSID classId_, const int slotNumber,
                        const String& optionalDllForDirectLoading_)
        : AudioIODevice (name_, "ASIO"),
-         asioObject (0),
+         asioObject (nullptr),
          classId (classId_),
          optionalDllForDirectLoading (optionalDllForDirectLoading_),
          currentBitDepth (16),
@@ -104,7 +102,7 @@ public:
         ourWindow.addToDesktop (0);
         windowHandle = ourWindow.getWindowHandle();
 
-        jassert (currentASIODev [slotNumber] == 0);
+        jassert (currentASIODev [slotNumber] == nullptr);
         currentASIODev [slotNumber] = this;
 
         openDevice();
@@ -114,7 +112,7 @@ public:
     {
         for (int i = 0; i < numElementsInArray (currentASIODev); ++i)
             if (currentASIODev[i] == this)
-                currentASIODev[i] = 0;
+                currentASIODev[i] = nullptr;
 
         close();
         log ("ASIO - exiting");
@@ -127,7 +125,7 @@ public:
         const double possibleSampleRates[] = { 44100.0, 48000.0, 88200.0, 96000.0, 176400.0, 192000.0 };
         sampleRates.clear();
 
-        if (asioObject != 0)
+        if (asioObject != nullptr)
         {
             for (int index = 0; index < numElementsInArray (possibleSampleRates); ++index)
             {
@@ -156,8 +154,8 @@ public:
         }
     }
 
-    const StringArray getOutputChannelNames()   { return outputChannelNames; }
-    const StringArray getInputChannelNames()    { return inputChannelNames; }
+    StringArray getOutputChannelNames()         { return outputChannelNames; }
+    StringArray getInputChannelNames()          { return inputChannelNames; }
 
     int getNumSampleRates()                     { return sampleRates.size(); }
     double getSampleRate (int index)            { return sampleRates [index]; }
@@ -172,30 +170,26 @@ public:
                        int bufferSizeSamples)
     {
         close();
-        currentCallback = 0;
+        currentCallback = nullptr;
 
         if (bufferSizeSamples <= 0)
             shouldUsePreferredSize = true;
 
-        if (asioObject == 0 || ! isASIOOpen)
+        if (asioObject == nullptr || ! isASIOOpen)
         {
             log ("Warning: device not open");
             const String err (openDevice());
 
-            if (asioObject == 0 || ! isASIOOpen)
+            if (asioObject == nullptr || ! isASIOOpen)
                 return err;
         }
 
         isStarted = false;
         bufferIndex = -1;
         long err = 0;
-
         long newPreferredSize = 0;
-
-        // if the preferred size has just changed, assume it's a control panel thing and use it as the new value.
         minSize = 0;
         maxSize = 0;
-        newPreferredSize = 0;
         granularity = 0;
 
         if (asioObject->getBufferSize (&minSize, &maxSize, &newPreferredSize, &granularity) == 0)
@@ -356,7 +350,7 @@ public:
                     currentChansIn.setBit (i);
                     info->isInput = 1;
                     info->channelNum = i;
-                    info->buffers[0] = info->buffers[1] = 0;
+                    info->buffers[0] = info->buffers[1] = nullptr;
                     ++info;
                     ++numActiveInputChans;
                 }
@@ -369,7 +363,7 @@ public:
                     currentChansOut.setBit (i);
                     info->isInput = 0;
                     info->channelNum = i;
-                    info->buffers[0] = info->buffers[1] = 0;
+                    info->buffers[0] = info->buffers[1] = nullptr;
                     ++info;
                     ++numActiveOutputChans;
                 }
@@ -377,30 +371,7 @@ public:
 
             const int totalBuffers = numActiveInputChans + numActiveOutputChans;
 
-            callbacks.sampleRateDidChange = &sampleRateChangedCallback;
-
-            if (currentASIODev[0] == this)
-            {
-                callbacks.bufferSwitch = &bufferSwitchCallback0;
-                callbacks.asioMessage = &asioMessagesCallback0;
-                callbacks.bufferSwitchTimeInfo = &bufferSwitchTimeInfoCallback0;
-            }
-            else if (currentASIODev[1] == this)
-            {
-                callbacks.bufferSwitch = &bufferSwitchCallback1;
-                callbacks.asioMessage = &asioMessagesCallback1;
-                callbacks.bufferSwitchTimeInfo = &bufferSwitchTimeInfoCallback1;
-            }
-            else if (currentASIODev[2] == this)
-            {
-                callbacks.bufferSwitch = &bufferSwitchCallback2;
-                callbacks.asioMessage = &asioMessagesCallback2;
-                callbacks.bufferSwitchTimeInfo = &bufferSwitchTimeInfoCallback2;
-            }
-            else
-            {
-                jassertfalse;
-            }
+            setCallbackFunctions();
 
             log ("disposing buffers");
             err = asioObject->disposeBuffers();
@@ -433,7 +404,7 @@ public:
                 Array <int> types;
                 currentBitDepth = 16;
 
-                for (i = 0; i < jmin ((int) totalNumInputChans, maxASIOChannels); ++i)
+                for (i = 0; i < jmin ((int) totalNumInputChans, (int) maxASIOChannels); ++i)
                 {
                     if (inputChannels[i])
                     {
@@ -460,7 +431,7 @@ public:
                 jassert (numActiveInputChans == n);
                 n = 0;
 
-                for (i = 0; i < jmin ((int) totalNumOutputChans, maxASIOChannels); ++i)
+                for (i = 0; i < jmin ((int) totalNumOutputChans, (int) maxASIOChannels); ++i)
                 {
                     if (outputChannels[i])
                     {
@@ -566,7 +537,7 @@ public:
         {
             logError (error, err);
 
-            if (asioObject != 0 && buffersCreated)
+            if (asioObject != nullptr && buffersCreated)
                 asioObject->disposeBuffers();
 
             Thread::sleep (20);
@@ -601,7 +572,7 @@ public:
 
             log ("ASIO - stopping");
 
-            if (asioObject != 0)
+            if (asioObject != nullptr)
             {
                 Thread::sleep (20);
                 asioObject->stop();
@@ -614,7 +585,7 @@ public:
     }
 
     bool isOpen()                       { return isOpen_ || insideControlPanelModalLoop; }
-    bool isPlaying()                    { return isASIOOpen && (currentCallback != 0); }
+    bool isPlaying()                    { return isASIOOpen && (currentCallback != nullptr); }
 
     int getCurrentBufferSizeSamples()   { return currentBlockSizeSamples; }
     double getCurrentSampleRate()       { return currentSampleRate; }
@@ -628,7 +599,7 @@ public:
 
     void start (AudioIODeviceCallback* callback)
     {
-        if (callback != 0)
+        if (callback != nullptr)
         {
             callback->audioDeviceAboutToStart (this);
 
@@ -643,10 +614,10 @@ public:
 
         {
             const ScopedLock sl (callbackLock);
-            currentCallback = 0;
+            currentCallback = nullptr;
         }
 
-        if (lastCallback != 0)
+        if (lastCallback != nullptr)
             lastCallback->audioDeviceStopped();
     }
 
@@ -671,7 +642,7 @@ public:
 
             const uint32 started = Time::getMillisecondCounter();
 
-            if (asioObject != 0)
+            if (asioObject != nullptr)
             {
                 asioObject->controlPanel();
 
@@ -692,12 +663,12 @@ public:
         return done;
     }
 
-    void resetRequest() throw()
+    void resetRequest() noexcept
     {
         needToReset = true;
     }
 
-    void resyncRequest() throw()
+    void resyncRequest() noexcept
     {
         needToReset = true;
         isReSync = true;
@@ -720,7 +691,7 @@ public:
                 open (BigInteger (currentChansIn), BigInteger (currentChansOut),
                       currentSampleRate, currentBlockSizeSamples);
 
-                if (oldCallback != 0)
+                if (oldCallback != nullptr)
                     start (oldCallback);
             }
         }
@@ -754,6 +725,8 @@ private:
     AudioIODeviceCallback* volatile currentCallback;
     CriticalSection callbackLock;
 
+    enum { maxASIOChannels = 160 };
+
     ASIOBufferInfo bufferInfos [maxASIOChannels];
     float* inBuffers [maxASIOChannels];
     float* outBuffers [maxASIOChannels];
@@ -781,10 +754,10 @@ private:
     //==============================================================================
     void removeCurrentDriver()
     {
-        if (asioObject != 0)
+        if (asioObject != nullptr)
         {
             asioObject->Release();
-            asioObject = 0;
+            asioObject = nullptr;
         }
     }
 
@@ -813,29 +786,29 @@ private:
 
                     if (dllGetClassObject != 0)
                     {
-                        IClassFactory* classFactory = 0;
+                        IClassFactory* classFactory = nullptr;
                         HRESULT hr = dllGetClassObject (classId, IID_IClassFactory, (void**) &classFactory);
 
-                        if (classFactory != 0)
+                        if (classFactory != nullptr)
                         {
                             hr = classFactory->CreateInstance (0, classId, (void**) &asioObject);
                             classFactory->Release();
                         }
 
-                        return asioObject != 0;
+                        return asioObject != nullptr;
                     }
                 }
             }
         }
         JUCE_CATCH_ALL
 
-        asioObject = 0;
+        asioObject = nullptr;
         return false;
     }
 
-    const String initDriver()
+    String initDriver()
     {
-        if (asioObject != 0)
+        if (asioObject != nullptr)
         {
             char buffer [256] = { 0 };
 
@@ -854,7 +827,7 @@ private:
         return "No Driver";
     }
 
-    const String openDevice()
+    String openDevice()
     {
         // use this in case the driver starts opening dialog boxes..
         Component modalWindow (String::empty);
@@ -877,7 +850,7 @@ private:
         totalNumOutputChans = 0;
         numActiveInputChans = 0;
         numActiveOutputChans = 0;
-        currentCallback = 0;
+        currentCallback = nullptr;
 
         error = String::empty;
 
@@ -895,7 +868,7 @@ private:
                 totalNumInputChans = 0;
                 totalNumOutputChans = 0;
 
-                if (asioObject != 0
+                if (asioObject != nullptr
                      && (err = asioObject->getChannels (&totalNumInputChans, &totalNumOutputChans)) == 0)
                 {
                     log (String ((int) totalNumInputChans) + " in, " + String ((int) totalNumOutputChans) + " out");
@@ -970,7 +943,7 @@ private:
                         {
                             info->isInput = 1;
                             info->channelNum = i;
-                            info->buffers[0] = info->buffers[1] = 0;
+                            info->buffers[0] = info->buffers[1] = nullptr;
                             ++info;
                             ++numChans;
                         }
@@ -981,36 +954,12 @@ private:
                         {
                             info->isInput = 0;
                             info->channelNum = i;
-                            info->buffers[0] = info->buffers[1] = 0;
+                            info->buffers[0] = info->buffers[1] = nullptr;
                             ++info;
                             ++numChans;
                         }
 
-
-                        callbacks.sampleRateDidChange = &sampleRateChangedCallback;
-
-                        if (currentASIODev[0] == this)
-                        {
-                            callbacks.bufferSwitch = &bufferSwitchCallback0;
-                            callbacks.asioMessage = &asioMessagesCallback0;
-                            callbacks.bufferSwitchTimeInfo = &bufferSwitchTimeInfoCallback0;
-                        }
-                        else if (currentASIODev[1] == this)
-                        {
-                            callbacks.bufferSwitch = &bufferSwitchCallback1;
-                            callbacks.asioMessage = &asioMessagesCallback1;
-                            callbacks.bufferSwitchTimeInfo = &bufferSwitchTimeInfoCallback1;
-                        }
-                        else if (currentASIODev[2] == this)
-                        {
-                            callbacks.bufferSwitch = &bufferSwitchCallback2;
-                            callbacks.asioMessage = &asioMessagesCallback2;
-                            callbacks.bufferSwitchTimeInfo = &bufferSwitchTimeInfoCallback2;
-                        }
-                        else
-                        {
-                            jassertfalse;
-                        }
+                        setCallbackFunctions();
 
                         log ("creating buffers (dummy): " + String (numChans) + ", " + String ((int) preferredSize));
 
@@ -1107,7 +1056,7 @@ private:
         {
             logError (error, err);
 
-            if (asioObject != 0)
+            if (asioObject != nullptr)
                 asioObject->disposeBuffers();
 
             removeCurrentDriver();
@@ -1136,7 +1085,7 @@ private:
         }
         else
         {
-            if (postOutput && (asioObject != 0))
+            if (postOutput && (asioObject != nullptr))
                 asioObject->outputReady();
         }
 
@@ -1169,13 +1118,13 @@ private:
         {
             const int samps = currentBlockSizeSamples;
 
-            if (currentCallback != 0)
+            if (currentCallback != nullptr)
             {
                 int i;
                 for (i = 0; i < numActiveInputChans; ++i)
                 {
                     float* const dst = inBuffers[i];
-                    jassert (dst != 0);
+                    jassert (dst != nullptr);
 
                     const char* const src = (const char*) (infos[i].buffers[bi]);
 
@@ -1217,7 +1166,7 @@ private:
                 for (i = 0; i < numActiveOutputChans; ++i)
                 {
                     float* const src = outBuffers[i];
-                    jassert (src != 0);
+                    jassert (src != nullptr);
 
                     char* const dst = (char*) (infos [numActiveInputChans + i].buffers[bi]);
 
@@ -1268,65 +1217,48 @@ private:
     }
 
     //==============================================================================
-    static ASIOTime* JUCE_ASIOCALLBACK bufferSwitchTimeInfoCallback0 (ASIOTime*, long index, long)
+    template <int deviceIndex>
+    struct ASIOCallbackFunctions
     {
-        if (currentASIODev[0] != 0)
-            currentASIODev[0]->callback (index);
+        static ASIOTime* JUCE_ASIOCALLBACK bufferSwitchTimeInfoCallback (ASIOTime*, long index, long)
+        {
+            if (currentASIODev[deviceIndex] != nullptr)
+                currentASIODev[deviceIndex]->callback (index);
 
-        return 0;
-    }
+            return nullptr;
+        }
 
-    static ASIOTime* JUCE_ASIOCALLBACK bufferSwitchTimeInfoCallback1 (ASIOTime*, long index, long)
+        static void JUCE_ASIOCALLBACK bufferSwitchCallback (long index, long)
+        {
+            if (currentASIODev[deviceIndex] != nullptr)
+                currentASIODev[deviceIndex]->callback (index);
+        }
+
+        static long JUCE_ASIOCALLBACK asioMessagesCallback (long selector, long value, void*, double*)
+        {
+            return ASIOAudioIODevice::asioMessagesCallback (selector, value, deviceIndex);
+        }
+
+        static void setCallbacks (ASIOCallbacks& callbacks)
+        {
+            callbacks.bufferSwitch = &bufferSwitchCallback;
+            callbacks.asioMessage = &asioMessagesCallback;
+            callbacks.bufferSwitchTimeInfo = &bufferSwitchTimeInfoCallback;
+        }
+    };
+
+    void setCallbackFunctions()
     {
-        if (currentASIODev[1] != 0)
-            currentASIODev[1]->callback (index);
+        callbacks.sampleRateDidChange = &sampleRateChangedCallback;
 
-        return 0;
-    }
-
-    static ASIOTime* JUCE_ASIOCALLBACK bufferSwitchTimeInfoCallback2 (ASIOTime*, long index, long)
-    {
-        if (currentASIODev[2] != 0)
-            currentASIODev[2]->callback (index);
-
-        return 0;
-    }
-
-    static void JUCE_ASIOCALLBACK bufferSwitchCallback0 (long index, long)
-    {
-        if (currentASIODev[0] != 0)
-            currentASIODev[0]->callback (index);
-    }
-
-    static void JUCE_ASIOCALLBACK bufferSwitchCallback1 (long index, long)
-    {
-        if (currentASIODev[1] != 0)
-            currentASIODev[1]->callback (index);
-    }
-
-    static void JUCE_ASIOCALLBACK bufferSwitchCallback2 (long index, long)
-    {
-        if (currentASIODev[2] != 0)
-            currentASIODev[2]->callback (index);
-    }
-
-    static long JUCE_ASIOCALLBACK asioMessagesCallback0 (long selector, long value, void*, double*)
-    {
-        return asioMessagesCallback (selector, value, 0);
-    }
-
-    static long JUCE_ASIOCALLBACK asioMessagesCallback1 (long selector, long value, void*, double*)
-    {
-        return asioMessagesCallback (selector, value, 1);
-    }
-
-    static long JUCE_ASIOCALLBACK asioMessagesCallback2 (long selector, long value, void*, double*)
-    {
-        return asioMessagesCallback (selector, value, 2);
+        if      (currentASIODev[0] == this)  ASIOCallbackFunctions<0>::setCallbacks (callbacks);
+        else if (currentASIODev[1] == this)  ASIOCallbackFunctions<1>::setCallbacks (callbacks);
+        else if (currentASIODev[2] == this)  ASIOCallbackFunctions<2>::setCallbacks (callbacks);
+        else                                 jassertfalse;
     }
 
     //==============================================================================
-    static long JUCE_ASIOCALLBACK asioMessagesCallback (long selector, long value, const int deviceIndex)
+    static long asioMessagesCallback (long selector, long value, const int deviceIndex)
     {
         switch (selector)
         {
@@ -1343,13 +1275,13 @@ private:
             break;
 
         case kAsioResetRequest:
-            if (currentASIODev[deviceIndex] != 0)
+            if (currentASIODev[deviceIndex] != nullptr)
                 currentASIODev[deviceIndex]->resetRequest();
 
             return 1;
 
         case kAsioResyncRequest:
-            if (currentASIODev[deviceIndex] != 0)
+            if (currentASIODev[deviceIndex] != nullptr)
                 currentASIODev[deviceIndex]->resyncRequest();
 
             return 1;
@@ -1377,7 +1309,7 @@ private:
                                      float* dest,
                                      const int srcStrideBytes,
                                      int numSamples,
-                                     const bool littleEndian) throw()
+                                     const bool littleEndian) noexcept
     {
         const double g = 1.0 / 32768.0;
 
@@ -1403,7 +1335,7 @@ private:
                                      char* dest,
                                      const int dstStrideBytes,
                                      int numSamples,
-                                     const bool littleEndian) throw()
+                                     const bool littleEndian) noexcept
     {
         const double maxVal = (double) 0x7fff;
 
@@ -1429,7 +1361,7 @@ private:
                                      float* dest,
                                      const int srcStrideBytes,
                                      int numSamples,
-                                     const bool littleEndian) throw()
+                                     const bool littleEndian) noexcept
     {
         const double g = 1.0 / 0x7fffff;
 
@@ -1455,7 +1387,7 @@ private:
                                      char* dest,
                                      const int dstStrideBytes,
                                      int numSamples,
-                                     const bool littleEndian) throw()
+                                     const bool littleEndian) noexcept
     {
         const double maxVal = (double) 0x7fffff;
 
@@ -1481,7 +1413,7 @@ private:
                                      float* dest,
                                      const int srcStrideBytes,
                                      int numSamples,
-                                     const bool littleEndian) throw()
+                                     const bool littleEndian) noexcept
     {
         const double g = 1.0 / 0x7fffffff;
 
@@ -1507,7 +1439,7 @@ private:
                                      char* dest,
                                      const int dstStrideBytes,
                                      int numSamples,
-                                     const bool littleEndian) throw()
+                                     const bool littleEndian) noexcept
     {
         const double maxVal = (double) 0x7fffffff;
 
@@ -1534,7 +1466,7 @@ private:
                                         int& bitDepth,
                                         int& byteStride,
                                         bool& formatIsFloat,
-                                        bool& littleEndian) throw()
+                                        bool& littleEndian) noexcept
     {
         bitDepth = 0;
         littleEndian = false;
@@ -1671,7 +1603,7 @@ public:
         }
     }
 
-    const StringArray getDeviceNames (bool /*wantInputNames*/) const
+    StringArray getDeviceNames (bool /*wantInputNames*/) const
     {
         jassert (hasScanned); // need to call scanForDevices() before doing this
 
@@ -1686,11 +1618,11 @@ public:
             if (deviceNames[i].containsIgnoreCase ("asio4all"))
                 return i; // asio4all is a safe choice for a default..
 
-#if JUCE_DEBUG
+       #if JUCE_DEBUG
         if (deviceNames.size() > 1 && deviceNames[0].containsIgnoreCase ("digidesign"))
             return 1; // (the digi m-box driver crashes the app when you run
                       // it in the debugger, which can be a bit annoying)
-#endif
+       #endif
 
         return 0;
     }
@@ -1710,7 +1642,7 @@ public:
     {
         jassert (hasScanned); // need to call scanForDevices() before doing this
 
-        return d == 0 ? -1 : deviceNames.indexOf (d->getName());
+        return d == nullptr ? -1 : deviceNames.indexOf (d->getName());
     }
 
     bool hasSeparateInputsAndOutputs() const    { return false; }
@@ -1733,7 +1665,7 @@ public:
                 return new ASIOAudioIODevice (outputDeviceName, *(classIds [index]), freeSlot, String::empty);
         }
 
-        return 0;
+        return nullptr;
     }
 
     //==============================================================================
@@ -1840,7 +1772,7 @@ AudioIODevice* juce_createASIOAudioIODeviceForGUID (const String& name,
     const int freeSlot = ASIOAudioIODeviceType::findFreeSlot();
 
     if (freeSlot < 0)
-        return 0;
+        return nullptr;
 
     return new ASIOAudioIODevice (name, *(CLSID*) guid, freeSlot, optionalDllForDirectLoading);
 }

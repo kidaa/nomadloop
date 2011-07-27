@@ -68,7 +68,7 @@ RelativePointPath::~RelativePointPath()
 {
 }
 
-bool RelativePointPath::operator== (const RelativePointPath& other) const throw()
+bool RelativePointPath::operator== (const RelativePointPath& other) const noexcept
 {
     if (elements.size() != other.elements.size()
          || usesNonZeroWinding != other.usesNonZeroWinding
@@ -97,16 +97,16 @@ bool RelativePointPath::operator== (const RelativePointPath& other) const throw(
     return true;
 }
 
-bool RelativePointPath::operator!= (const RelativePointPath& other) const throw()
+bool RelativePointPath::operator!= (const RelativePointPath& other) const noexcept
 {
     return ! operator== (other);
 }
 
-void RelativePointPath::swapWith (RelativePointPath& other) throw()
+void RelativePointPath::swapWith (RelativePointPath& other) noexcept
 {
     elements.swapWithArray (other.elements);
-    swapVariables (usesNonZeroWinding, other.usesNonZeroWinding);
-    swapVariables (containsDynamicPoints, other.containsDynamicPoints);
+    std::swap (usesNonZeroWinding, other.usesNonZeroWinding);
+    std::swap (containsDynamicPoints, other.containsDynamicPoints);
 }
 
 void RelativePointPath::createPath (Path& path, Expression::Scope* scope) const
@@ -122,7 +122,7 @@ bool RelativePointPath::containsAnyDynamicPoints() const
 
 void RelativePointPath::addElement (ElementBase* newElement)
 {
-    if (newElement != 0)
+    if (newElement != nullptr)
     {
         elements.add (newElement);
         containsDynamicPoints = containsDynamicPoints || newElement->isDynamic();
@@ -152,10 +152,10 @@ RelativePointPath::StartSubPath::StartSubPath (const RelativePoint& pos)
 {
 }
 
-const ValueTree RelativePointPath::StartSubPath::createTree() const
+ValueTree RelativePointPath::StartSubPath::createTree() const
 {
     ValueTree v (DrawablePath::ValueTreeWrapper::Element::startSubPathElement);
-    v.setProperty (DrawablePath::ValueTreeWrapper::point1, startPos.toString(), 0);
+    v.setProperty (DrawablePath::ValueTreeWrapper::point1, startPos.toString(), nullptr);
     return v;
 }
 
@@ -181,7 +181,7 @@ RelativePointPath::CloseSubPath::CloseSubPath()
 {
 }
 
-const ValueTree RelativePointPath::CloseSubPath::createTree() const
+ValueTree RelativePointPath::CloseSubPath::createTree() const
 {
     return ValueTree (DrawablePath::ValueTreeWrapper::Element::closeSubPathElement);
 }
@@ -194,7 +194,7 @@ void RelativePointPath::CloseSubPath::addToPath (Path& path, Expression::Scope*)
 RelativePoint* RelativePointPath::CloseSubPath::getControlPoints (int& numPoints)
 {
     numPoints = 0;
-    return 0;
+    return nullptr;
 }
 
 RelativePointPath::ElementBase* RelativePointPath::CloseSubPath::clone() const
@@ -208,10 +208,10 @@ RelativePointPath::LineTo::LineTo (const RelativePoint& endPoint_)
 {
 }
 
-const ValueTree RelativePointPath::LineTo::createTree() const
+ValueTree RelativePointPath::LineTo::createTree() const
 {
     ValueTree v (DrawablePath::ValueTreeWrapper::Element::lineToElement);
-    v.setProperty (DrawablePath::ValueTreeWrapper::point1, endPoint.toString(), 0);
+    v.setProperty (DrawablePath::ValueTreeWrapper::point1, endPoint.toString(), nullptr);
     return v;
 }
 
@@ -239,11 +239,11 @@ RelativePointPath::QuadraticTo::QuadraticTo (const RelativePoint& controlPoint, 
     controlPoints[1] = endPoint;
 }
 
-const ValueTree RelativePointPath::QuadraticTo::createTree() const
+ValueTree RelativePointPath::QuadraticTo::createTree() const
 {
     ValueTree v (DrawablePath::ValueTreeWrapper::Element::quadraticToElement);
-    v.setProperty (DrawablePath::ValueTreeWrapper::point1, controlPoints[0].toString(), 0);
-    v.setProperty (DrawablePath::ValueTreeWrapper::point2, controlPoints[1].toString(), 0);
+    v.setProperty (DrawablePath::ValueTreeWrapper::point1, controlPoints[0].toString(), nullptr);
+    v.setProperty (DrawablePath::ValueTreeWrapper::point2, controlPoints[1].toString(), nullptr);
     return v;
 }
 
@@ -274,12 +274,12 @@ RelativePointPath::CubicTo::CubicTo (const RelativePoint& controlPoint1, const R
     controlPoints[2] = endPoint;
 }
 
-const ValueTree RelativePointPath::CubicTo::createTree() const
+ValueTree RelativePointPath::CubicTo::createTree() const
 {
     ValueTree v (DrawablePath::ValueTreeWrapper::Element::cubicToElement);
-    v.setProperty (DrawablePath::ValueTreeWrapper::point1, controlPoints[0].toString(), 0);
-    v.setProperty (DrawablePath::ValueTreeWrapper::point2, controlPoints[1].toString(), 0);
-    v.setProperty (DrawablePath::ValueTreeWrapper::point3, controlPoints[2].toString(), 0);
+    v.setProperty (DrawablePath::ValueTreeWrapper::point1, controlPoints[0].toString(), nullptr);
+    v.setProperty (DrawablePath::ValueTreeWrapper::point2, controlPoints[1].toString(), nullptr);
+    v.setProperty (DrawablePath::ValueTreeWrapper::point3, controlPoints[2].toString(), nullptr);
     return v;
 }
 

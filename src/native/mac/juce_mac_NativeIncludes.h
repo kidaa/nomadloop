@@ -36,15 +36,18 @@
  #import <CoreData/CoreData.h>
  #import <MobileCoreServices/MobileCoreServices.h>
  #import <QuartzCore/QuartzCore.h>
+ #import <CoreText/CoreText.h>
  #include <sys/fcntl.h>
  #if JUCE_OPENGL
   #include <OpenGLES/ES1/gl.h>
   #include <OpenGLES/ES1/glext.h>
  #endif
 #else
+ #define Point CarbonDummyPointName // (workaround to avoid definition of "Point" by old Carbon headers)
  #import <Cocoa/Cocoa.h>
  #import <CoreAudio/HostTime.h>
  #if JUCE_BUILD_NATIVE
+  #include <AudioToolbox/AudioToolbox.h>
   #import <CoreAudio/AudioHardware.h>
   #import <CoreMIDI/MIDIServices.h>
   #import <QTKit/QTKit.h>
@@ -60,6 +63,7 @@
         || ! (defined (MAC_OS_X_VERSION_10_6) && MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_6)
   #include <Carbon/Carbon.h>
  #endif
+ #undef Point
  #include <sys/dir.h>
 #endif
 
@@ -68,6 +72,8 @@
 #include <sys/stat.h>
 #include <sys/param.h>
 #include <sys/mount.h>
+#include <sys/utsname.h>
+#include <sys/mman.h>
 #include <fnmatch.h>
 #include <utime.h>
 #include <dlfcn.h>

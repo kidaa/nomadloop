@@ -142,7 +142,7 @@ public:
     /** Returns true if the caret is enabled.
         @see setCaretVisible
     */
-    bool isCaretVisible() const                                 { return caret != 0; }
+    bool isCaretVisible() const                                 { return caret != nullptr; }
 
     //==============================================================================
     /** Enables/disables a vertical scrollbar.
@@ -254,7 +254,7 @@ public:
 
         @see setFont
     */
-    const Font getFont() const;
+    const Font& getFont() const;
 
     //==============================================================================
     /** If set to true, focusing on the editor will highlight all its text.
@@ -336,7 +336,7 @@ public:
 
     //==============================================================================
     /** Returns the entire contents of the editor. */
-    const String getText() const;
+    String getText() const;
 
     /** Returns a section of the contents of the editor. */
     const String getTextInRange (const Range<int>& textRange) const;
@@ -444,7 +444,7 @@ public:
     const Range<int> getHighlightedRegion() const                   { return selection; }
 
     /** Returns the section of text that is currently selected. */
-    const String getHighlightedText() const;
+    String getHighlightedText() const;
 
     /** Finds the index of the character at a given position.
 
@@ -533,6 +533,27 @@ public:
     bool isTextInputActive() const;
     /** @internal */
     void setTemporaryUnderlining (const Array <Range<int> >&);
+
+    bool moveCaretLeft (bool moveInWholeWordSteps, bool selecting);
+    bool moveCaretRight (bool moveInWholeWordSteps, bool selecting);
+    bool moveCaretUp (bool selecting);
+    bool moveCaretDown (bool selecting);
+    bool pageUp (bool selecting);
+    bool pageDown (bool selecting);
+    bool scrollDown();
+    bool scrollUp();
+    bool moveCaretToTop (bool selecting);
+    bool moveCaretToStartOfLine (bool selecting);
+    bool moveCaretToEnd (bool selecting);
+    bool moveCaretToEndOfLine (bool selecting);
+    bool deleteBackwards (bool moveInWholeWordSteps);
+    bool deleteForwards (bool moveInWholeWordSteps);
+    bool copyToClipboard();
+    bool cutToClipboard();
+    bool pasteFromClipboard();
+    bool selectAll();
+    bool undo();
+    bool redo();
 
     //==============================================================================
     /** This adds the items to the popup menu.
@@ -664,11 +685,12 @@ private:
     void remove (const Range<int>& range, UndoManager* um, int caretPositionToMoveTo);
     void getCharPosition (int index, float& x, float& y, float& lineHeight) const;
     void updateCaretPosition();
+    void updateValueFromText();
     void textWasChangedByValue();
     int indexAtPosition (float x, float y);
     int findWordBreakAfter (int position) const;
     int findWordBreakBefore (int position) const;
-
+    bool moveCaretWithTransation (int newPos, bool selecting);
     friend class TextHolderComponent;
     friend class TextEditorViewport;
     void drawContent (Graphics& g);
@@ -676,7 +698,9 @@ private:
     float getWordWrapWidth() const;
     void timerCallbackInt();
     void repaintText (const Range<int>& range);
-    UndoManager* getUndoManager() throw();
+    void scrollByLines (int deltaLines);
+    bool undoOrRedo (bool shouldUndo);
+    UndoManager* getUndoManager() noexcept;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (TextEditor);
 };

@@ -28,6 +28,7 @@
 
 #include "juce_OutputStream.h"
 #include "../../memory/juce_OptionalScopedPointer.h"
+#include "../../memory/juce_HeapBlock.h"
 
 
 //==============================================================================
@@ -85,6 +86,7 @@ private:
     friend class ScopedPointer <GZIPCompressorHelper>;
     ScopedPointer <GZIPCompressorHelper> helper;
     bool doNextBlock();
+    void flushInternal();
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (GZIPCompressorOutputStream);
 };

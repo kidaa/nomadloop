@@ -32,7 +32,7 @@
  #define JUCE_DEBUG_XERRORS 1
 #endif
 
-Display* display = 0;
+Display* display = nullptr;
 Window juce_messageWindowHandle = None;
 XContext windowHandleXContext;   // This is referenced from Windowing.cpp
 
@@ -158,7 +158,7 @@ private:
     int bytesInSocket;
     int totalEventCount;
 
-    int getWaitHandle() const throw()       { return fd[1]; }
+    int getWaitHandle() const noexcept      { return fd[1]; }
 
     static bool setNonBlocking (int handle)
     {
@@ -193,7 +193,7 @@ private:
         return true;
     }
 
-    const Message::Ptr popNextMessage()
+    Message::Ptr popNextMessage()
     {
         const ScopedLock sl (lock);
 
@@ -214,7 +214,7 @@ private:
     {
         const Message::Ptr msg (popNextMessage());
 
-        if (msg == 0)
+        if (msg == nullptr)
             return false;
 
         if (msg->intParameter1 == MessageThreadFuncCall::uniqueID)
@@ -263,14 +263,14 @@ namespace LinuxErrorHandling
     // A protocol error has occurred
     static int juce_XErrorHandler (Display* display, XErrorEvent* event)
     {
-    #if JUCE_DEBUG_XERRORS
+       #if JUCE_DEBUG_XERRORS
         char errorStr[64] = { 0 };
         char requestStr[64] = { 0 };
 
         XGetErrorText (display, event->error_code, errorStr, 64);
         XGetErrorDatabaseText (display, "XRequest", String (event->request_code).toUTF8(), "Unknown", requestStr, 64);
         DBG ("ERROR: X returned " + String (errorStr) + " for operation " + String (requestStr));
-    #endif
+       #endif
 
         return 0;
     }
@@ -375,7 +375,7 @@ void MessageManager::doPlatformSpecificShutdown()
         XCloseDisplay (display);
 
         juce_messageWindowHandle = 0;
-        display = 0;
+        display = nullptr;
 
         LinuxErrorHandling::removeXErrorHandlers();
     }
@@ -433,7 +433,7 @@ private:
 void* MessageManager::callFunctionOnMessageThread (MessageCallbackFunction* func, void* parameter)
 {
     if (LinuxErrorHandling::errorOccurred)
-        return 0;
+        return nullptr;
 
     return AsyncFunctionCaller::call (func, parameter);
 }

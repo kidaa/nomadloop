@@ -43,9 +43,6 @@ public:
 
     ~ContentComp()
     {
-        // (need to do this because the old school look-and-feel object is one of our members,
-        // so will be deleted with us, and would leave a dangling pointer if it's selected)
-        LookAndFeel::setDefaultLookAndFeel (0);
     }
 
     //==============================================================================
@@ -89,6 +86,7 @@ public:
             menu.addCommandItem (commandManager, showDragAndDrop);
             menu.addCommandItem (commandManager, showOpenGL);
             menu.addCommandItem (commandManager, showQuicktime);
+            menu.addCommandItem (commandManager, showDirectShow);
             menu.addCommandItem (commandManager, showInterprocessComms);
             menu.addCommandItem (commandManager, showCamera);
             menu.addCommandItem (commandManager, showWebBrowser);
@@ -160,6 +158,7 @@ public:
                                   showDragAndDrop,
                                   showOpenGL,
                                   showQuicktime,
+                                  showDirectShow,
                                   showCamera,
                                   showWebBrowser,
                                   showCodeEditor,
@@ -250,6 +249,15 @@ public:
             result.addDefaultKeypress ('b', ModifierKeys::commandModifier);
             result.setTicked (currentDemoId == showQuicktime);
 #if ! (JUCE_QUICKTIME && ! JUCE_LINUX)
+            result.setActive (false);
+#endif
+            break;
+
+        case showDirectShow:
+            result.setInfo ("DirectShow", "Shows the DirectShow demo", demosCategory, 0);
+            result.addDefaultKeypress ('b', ModifierKeys::commandModifier);
+            result.setTicked (currentDemoId == showDirectShow);
+#if ! JUCE_DIRECTSHOW
             result.setActive (false);
 #endif
             break;
@@ -377,6 +385,13 @@ public:
 #endif
             break;
 
+        case showDirectShow:
+#if JUCE_DIRECTSHOW
+            showDemo (createDirectShowDemo());
+            currentDemoId = showDirectShow;
+#endif
+            break;
+
         case showCamera:
 #if JUCE_USE_CAMERA
             showDemo (createCameraDemo());
@@ -402,7 +417,7 @@ public:
             break;
 
         case setDefaultLookAndFeel:
-            LookAndFeel::setDefaultLookAndFeel (0);
+            LookAndFeel::setDefaultLookAndFeel (nullptr);
             break;
 
         case setOldSchoolLookAndFeel:
@@ -477,6 +492,7 @@ private:
         showCamera                 = 0x2011,
         showWebBrowser             = 0x2012,
         showCodeEditor             = 0x2013,
+        showDirectShow             = 0x2014,
 
         setDefaultLookAndFeel      = 0x200b,
         setOldSchoolLookAndFeel    = 0x200c,

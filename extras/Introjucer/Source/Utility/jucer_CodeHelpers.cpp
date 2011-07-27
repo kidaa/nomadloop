@@ -30,7 +30,7 @@
 //==============================================================================
 namespace CodeHelpers
 {
-    const String indent (const String& code, const int numSpaces, bool indentFirstLine)
+    String indent (const String& code, const int numSpaces, bool indentFirstLine)
     {
         if (numSpaces == 0)
             return code;
@@ -52,7 +52,7 @@ namespace CodeHelpers
         return lines.joinIntoString (newLine);
     }
 
-    const String makeValidIdentifier (String s, bool capitalise, bool removeColons, bool allowTemplates)
+    String makeValidIdentifier (String s, bool capitalise, bool removeColons, bool allowTemplates)
     {
         if (s.isEmpty())
             return "unknown";
@@ -166,19 +166,24 @@ namespace CodeHelpers
         }
     }
 
-    const String addEscapeChars (const String& s)
+    String addEscapeChars (const String& s)
     {
         MemoryOutputStream out;
         writeEscapeChars (out, s.toUTF8().getAddress(), -1, -1, false, true);
         return out.toUTF8();
     }
 
-    const String createIncludeStatement (const File& includeFile, const File& targetFile)
+    String createIncludeStatement (const File& includeFile, const File& targetFile)
     {
-        return "#include \"" + FileHelpers::unixStylePath (includeFile.getRelativePathFrom (targetFile.getParentDirectory())) + "\"";
+        return createIncludeStatement (FileHelpers::unixStylePath (includeFile.getRelativePathFrom (targetFile.getParentDirectory())));
     }
 
-    const String makeHeaderGuardName (const File& file)
+    String createIncludeStatement (const String& includePath)
+    {
+        return "#include \"" + includePath + "\"";
+    }
+
+    String makeHeaderGuardName (const File& file)
     {
         return "__" + file.getFileName().toUpperCase()
                                         .replaceCharacters (" .", "__")
@@ -186,7 +191,15 @@ namespace CodeHelpers
                 + "_" + String::toHexString (file.hashCode()).toUpperCase() + "__";
     }
 
-    const String stringLiteral (const String& text)
+    String makeBinaryDataIdentifierName (const File& file)
+    {
+        return makeValidIdentifier (file.getFileName()
+                                        .replaceCharacters (" .", "__")
+                                        .retainCharacters ("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_0123456789"),
+                                    false, true, false);
+    }
+
+    String stringLiteral (const String& text)
     {
         if (text.isEmpty())
             return "String::empty";
@@ -197,17 +210,17 @@ namespace CodeHelpers
             return "CharPointer_UTF8 (" + CodeHelpers::addEscapeChars (text).quoted() + ")";
     }
 
-    const String stringLiteralIfNotEmpty (const String& text)
+    String stringLiteralIfNotEmpty (const String& text)
     {
         return text.isNotEmpty() ? stringLiteral (text) : String::empty;
     }
 
-    const String boolLiteral (const bool b)
+    String boolLiteral (const bool b)
     {
         return b ? "true" : "false";
     }
 
-    const String floatLiteral (float v)
+    String floatLiteral (float v)
     {
         String s ((double) v, 4);
 
@@ -227,7 +240,7 @@ namespace CodeHelpers
         return s;
     }
 
-    const String doubleLiteral (double v)
+    String doubleLiteral (double v)
     {
         String s (v, 7);
 
@@ -245,7 +258,7 @@ namespace CodeHelpers
         return s;
     }
 
-    const String alignFunctionCallParams (const String& call, const StringArray& parameters, const int maxLineLength)
+    String alignFunctionCallParams (const String& call, const StringArray& parameters, const int maxLineLength)
     {
         String result, currentLine (call);
 
@@ -268,7 +281,7 @@ namespace CodeHelpers
         return result + currentLine.trimEnd() + ")";
     }
 
-    const String colourToCode (const Colour& col)
+    String colourToCode (const Colour& col)
     {
         const Colour colours[] =
         {
@@ -293,7 +306,7 @@ namespace CodeHelpers
         return "Colour (0x" + hexString8Digits ((int) col.getARGB()) + ')';
     }
 
-    const String justificationToCode (const Justification& justification)
+    String justificationToCode (const Justification& justification)
     {
         switch (justification.getFlags())
         {
@@ -319,7 +332,7 @@ namespace CodeHelpers
         return "Justification (" + String (justification.getFlags()) + ")";
     }
 
-    const String fontToCode (const Font& font)
+    String fontToCode (const Font& font)
     {
         String s ("Font (");
         String name (font.getTypefaceName());
@@ -344,11 +357,13 @@ namespace CodeHelpers
             s << ", Font::bold";
         else if (font.isItalic())
             s << ", Font::italic";
+        else if (name != Font::getDefaultSansSerifFontName()) // need this param if we're using the typeface name constructor
+            s << ", Font::plain";
 
         return s + ")";
     }
 
-    const String castToFloat (const String& expression)
+    String castToFloat (const String& expression)
     {
         if (expression.containsOnly ("0123456789.f"))
         {
@@ -363,7 +378,7 @@ namespace CodeHelpers
         return "(float) (" + expression + ")";
     }
 
-    const String castToInt (const String& expression)
+    String castToInt (const String& expression)
     {
         if (expression.containsOnly ("0123456789."))
             return String ((int) expression.getFloatValue());

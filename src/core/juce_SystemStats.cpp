@@ -30,14 +30,30 @@ BEGIN_JUCE_NAMESPACE
 #include "../text/juce_String.h"
 #include "juce_SystemStats.h"
 #include "juce_Time.h"
-#include "juce_PlatformUtilities.h"
 
 
 //==============================================================================
-SystemStats::CPUFlags SystemStats::cpuFlags;
-
-const String SystemStats::getJUCEVersion()
+const SystemStats::CPUFlags& SystemStats::getCPUFlags()
 {
+    static CPUFlags cpuFlags;
+    return cpuFlags;
+}
+
+String SystemStats::getJUCEVersion()
+{
+    // Some basic tests, to keep an eye on things and make sure these types work ok
+    // on all platforms. Let me know if any of these assertions fail on your system!
+    static_jassert (sizeof (pointer_sized_int) == sizeof (void*));
+    static_jassert (sizeof (int8) == 1);
+    static_jassert (sizeof (uint8) == 1);
+    static_jassert (sizeof (int16) == 2);
+    static_jassert (sizeof (uint16) == 2);
+    static_jassert (sizeof (int32) == 4);
+    static_jassert (sizeof (uint32) == 4);
+    static_jassert (sizeof (int64) == 8);
+    static_jassert (sizeof (uint64) == 8);
+
+    // (these confusing macros convert numbers into a single string literal)
     #define JUCE_STRINGIFYVERSION2(a) #a
     #define JUCE_STRINGIFYVERSION(a) JUCE_STRINGIFYVERSION2(a)
 
@@ -49,19 +65,17 @@ const String SystemStats::getJUCEVersion()
     #undef JUCE_STRINGIFYVERSION2
 }
 
-//==============================================================================
-#ifdef JUCE_DLL
- void* juce_Malloc (int size)                   { return malloc (size); }
- void* juce_Calloc (int size)                   { return calloc (1, size); }
- void* juce_Realloc (void* block, int size)     { return realloc (block, size); }
- void juce_Free (void* block)                   { free (block); }
+#if JUCE_DEBUG && ! JUCE_ANDROID
+ struct JuceVersionPrinter
+ {
+     JuceVersionPrinter()
+     {
+         DBG (SystemStats::getJUCEVersion());
+     }
+ };
 
- #if JUCE_MSVC && JUCE_CHECK_MEMORY_LEAKS
-  void* juce_DebugMalloc (int size, const char* file, int line)                 { return _malloc_dbg  (size, _NORMAL_BLOCK, file, line); }
-  void* juce_DebugCalloc (int size, const char* file, int line)                 { return _calloc_dbg  (1, size, _NORMAL_BLOCK, file, line); }
-  void* juce_DebugRealloc (void* block, int size, const char* file, int line)   { return _realloc_dbg  (block, size, _NORMAL_BLOCK, file, line); }
-  void juce_DebugFree (void* block)                                             { _free_dbg (block, _NORMAL_BLOCK); }
- #endif
+ static JuceVersionPrinter juceVersionPrinter;
 #endif
+
 
 END_JUCE_NAMESPACE

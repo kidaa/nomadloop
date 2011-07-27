@@ -397,7 +397,7 @@ const Font OldSchoolLookAndFeel::getComboBoxFont (ComboBox& box)
 }
 
 //==============================================================================
-static void drawTriangle (Graphics& g, float x1, float y1, float x2, float y2, float x3, float y3, const Colour& fill, const Colour& outline) throw()
+static void drawTriangle (Graphics& g, float x1, float y1, float x2, float y2, float x3, float y3, const Colour& fill, const Colour& outline) noexcept
 {
     Path p;
     p.addTriangle (x1, y1, x2, y2, x3, y3);
@@ -575,7 +575,7 @@ Button* OldSchoolLookAndFeel::createDocumentWindowButton (int buttonType)
     }
 
     jassertfalse;
-    return 0;
+    return nullptr;
 }
 
 void OldSchoolLookAndFeel::positionDocumentWindowButtons (DocumentWindow&,
@@ -596,7 +596,7 @@ void OldSchoolLookAndFeel::positionDocumentWindowButtons (DocumentWindow&,
     int x = positionTitleBarButtonsOnLeft ? titleBarX + 4
                                           : titleBarX + titleBarW - buttonW - 4;
 
-    if (closeButton != 0)
+    if (closeButton != nullptr)
     {
         closeButton->setBounds (x, titleBarY, buttonW, titleBarH);
         x += positionTitleBarButtonsOnLeft ? buttonW + buttonW / 5
@@ -604,15 +604,15 @@ void OldSchoolLookAndFeel::positionDocumentWindowButtons (DocumentWindow&,
     }
 
     if (positionTitleBarButtonsOnLeft)
-        swapVariables (minimiseButton, maximiseButton);
+        std::swap (minimiseButton, maximiseButton);
 
-    if (maximiseButton != 0)
+    if (maximiseButton != nullptr)
     {
         maximiseButton->setBounds (x, titleBarY - 2, buttonW, titleBarH);
         x += positionTitleBarButtonsOnLeft ? buttonW : -buttonW;
     }
 
-    if (minimiseButton != 0)
+    if (minimiseButton != nullptr)
         minimiseButton->setBounds (x, titleBarY - 2, buttonW, titleBarH);
 }
 

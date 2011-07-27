@@ -27,8 +27,8 @@
 #define __JUCE_AUDIOPROCESSORGRAPH_JUCEHEADER__
 
 #include "juce_AudioProcessor.h"
-#include "../plugins/juce_AudioPluginFormatManager.h"
-#include "../plugins/juce_KnownPluginList.h"
+#include "../plugin_host/juce_AudioPluginFormatManager.h"
+#include "../plugin_host/juce_KnownPluginList.h"
 #include "../../containers/juce_NamedValueSet.h"
 #include "../../containers/juce_ReferenceCountedArray.h"
 
@@ -71,13 +71,12 @@ public:
     public:
         //==============================================================================
         /** The ID number assigned to this node.
-
             This is assigned by the graph that owns it, and can't be changed.
         */
-        const uint32 id;
+        const uint32 nodeId;
 
         /** The actual processor object that this node represents. */
-        AudioProcessor* getProcessor() const throw()            { return processor; }
+        AudioProcessor* getProcessor() const noexcept           { return processor; }
 
         /** A set of user-definable properties that are associated with this node.
 
@@ -99,7 +98,7 @@ public:
         const ScopedPointer<AudioProcessor> processor;
         bool isPrepared;
 
-        Node (uint32 id, AudioProcessor* processor);
+        Node (uint32 nodeId, AudioProcessor* processor) noexcept;
 
         void prepare (double sampleRate, int blockSize, AudioProcessorGraph* graph);
         void unprepare();
@@ -115,6 +114,10 @@ public:
     struct JUCE_API  Connection
     {
     public:
+        //==============================================================================
+        Connection (uint32 sourceNodeId, int sourceChannelIndex,
+                    uint32 destNodeId, int destChannelIndex) noexcept;
+
         //==============================================================================
         /** The ID number of the node which is the input source for this connection.
             @see AudioProcessorGraph::getNodeForId
@@ -372,7 +375,7 @@ public:
     bool producesMidi() const;
 
     bool hasEditor() const                          { return false; }
-    AudioProcessorEditor* createEditor()            { return 0; }
+    AudioProcessorEditor* createEditor()            { return nullptr; }
 
     int getNumParameters()                          { return 0; }
     const String getParameterName (int)             { return String::empty; }
@@ -396,7 +399,7 @@ private:
     //==============================================================================
     ReferenceCountedArray <Node> nodes;
     OwnedArray <Connection> connections;
-    int lastNodeId;
+    uint32 lastNodeId;
     AudioSampleBuffer renderingBuffers;
     OwnedArray <MidiBuffer> midiBuffers;
 

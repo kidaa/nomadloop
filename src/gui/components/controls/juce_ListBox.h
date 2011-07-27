@@ -139,14 +139,14 @@ public:
 
     /** To allow rows from your list to be dragged-and-dropped, implement this method.
 
-        If this returns a non-empty name then when the user drags a row, the listbox will
+        If this returns a non-null variant then when the user drags a row, the listbox will
         try to find a DragAndDropContainer in its parent hierarchy, and will use it to trigger
         a drag-and-drop operation, using this string as the source description, with the listbox
         itself as the source component.
 
         @see DragAndDropContainer::startDragging
     */
-    virtual const String getDragSourceDescription (const SparseSet<int>& currentlySelectedRows);
+    virtual const var getDragSourceDescription (const SparseSet<int>& currentlySelectedRows);
 
     /** You can override this to provide tool tips for specific rows.
         @see TooltipClient
@@ -187,7 +187,7 @@ public:
     void setModel (ListBoxModel* newModel);
 
     /** Returns the current list model. */
-    ListBoxModel* getModel() const throw()                      { return model; }
+    ListBoxModel* getModel() const noexcept                     { return model; }
 
 
     //==============================================================================
@@ -196,8 +196,7 @@ public:
         Call this when the number of rows in the list changes, or if you want it
         to call refreshComponentForRow() on all the row components.
 
-        Be careful not to call it from a different thread, though, as it's not
-        thread-safe.
+        This must only be called from the main message thread.
     */
     void updateContent();
 
@@ -363,13 +362,13 @@ public:
 
         (Unlikely to be useful for most people).
     */
-    ScrollBar* getVerticalScrollBar() const throw();
+    ScrollBar* getVerticalScrollBar() const noexcept;
 
     /** Returns a pointer to the scrollbar.
 
         (Unlikely to be useful for most people).
     */
-    ScrollBar* getHorizontalScrollBar() const throw();
+    ScrollBar* getHorizontalScrollBar() const noexcept;
 
     /** Finds the row index that contains a given x,y position.
 
@@ -379,7 +378,7 @@ public:
 
         @see getComponentForRowNumber
     */
-    int getRowContainingPosition (int x, int y) const throw();
+    int getRowContainingPosition (int x, int y) const noexcept;
 
     /** Finds a row index that would be the most suitable place to insert a new
         item for a given position.
@@ -394,7 +393,7 @@ public:
 
         @see getComponentForRowNumber
     */
-    int getInsertionIndexForPosition (int x, int y) const throw();
+    int getInsertionIndexForPosition (int x, int y) const noexcept;
 
     /** Returns the position of one of the rows, relative to the top-left of
         the listbox.
@@ -403,7 +402,7 @@ public:
         not checked to see if it's a valid row.
     */
     const Rectangle<int> getRowPosition (int rowNumber,
-                                         bool relativeToComponentTopLeft) const throw();
+                                         bool relativeToComponentTopLeft) const noexcept;
 
     /** Finds the row component for a given row in the list.
 
@@ -414,18 +413,18 @@ public:
 
         @see getRowContainingPosition
     */
-    Component* getComponentForRowNumber (int rowNumber) const throw();
+    Component* getComponentForRowNumber (int rowNumber) const noexcept;
 
     /** Returns the row number that the given component represents.
 
         If the component isn't one of the list's rows, this will return -1.
     */
-    int getRowNumberOfComponent (Component* rowComponent) const throw();
+    int getRowNumberOfComponent (Component* rowComponent) const noexcept;
 
     /** Returns the width of a row (which may be less than the width of this component
         if there's a scrollbar).
     */
-    int getVisibleRowWidth() const throw();
+    int getVisibleRowWidth() const noexcept;
 
     //==============================================================================
     /** Sets the height of each row in the list.
@@ -440,14 +439,14 @@ public:
 
         @see setRowHeight
     */
-    int getRowHeight() const throw()   { return rowHeight; }
+    int getRowHeight() const noexcept  { return rowHeight; }
 
     /** Returns the number of rows actually visible.
 
         This is the number of whole rows which will fit on-screen, so the value might
         be more than the actual number of rows in the list.
     */
-    int getNumRowsOnScreen() const throw();
+    int getNumRowsOnScreen() const noexcept;
 
     //==============================================================================
     /** A set of colour IDs to use to change the colour of various aspects of the label.
@@ -477,7 +476,7 @@ public:
 
         @see setOutlineColour
     */
-    int getOutlineThickness() const throw()    { return outlineThickness; }
+    int getOutlineThickness() const noexcept   { return outlineThickness; }
 
     /** Sets a component that the list should use as a header.
 
@@ -505,14 +504,14 @@ public:
     /** Returns the space currently available for the row items, taking into account
         borders, scrollbars, etc.
     */
-    int getVisibleContentWidth() const throw();
+    int getVisibleContentWidth() const noexcept;
 
     /** Repaints one of the rows.
 
         This is a lightweight alternative to calling updateContent, and just causes a
         repaint of the row's area.
     */
-    void repaintRow (int rowNumber) throw();
+    void repaintRow (int rowNumber) noexcept;
 
     /** This fairly obscure method creates an image that just shows the currently
         selected row components.
@@ -533,7 +532,7 @@ public:
         You may need to use this to change parameters such as whether scrollbars
         are shown, etc.
     */
-    Viewport* getViewport() const throw();
+    Viewport* getViewport() const noexcept;
 
 
     //==============================================================================
@@ -560,7 +559,7 @@ public:
     /** @internal */
     void colourChanged();
     /** @internal */
-    void startDragAndDrop (const MouseEvent& e, const String& dragDescription);
+    void startDragAndDrop (const MouseEvent& e, const var& dragDescription, bool allowDraggingToOtherWindows = true);
 
 private:
     //==============================================================================

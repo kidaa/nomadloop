@@ -52,6 +52,7 @@ public:
     void setProject (Project* newProject);
     Project* getProject() const                 { return currentProject; }
 
+    void makeVisible();
     void restoreWindowPosition();
     bool closeProject (Project* project);
     bool closeCurrentProject();
@@ -74,10 +75,10 @@ public:
 private:
     ScopedPointer <Project> currentProject;
 
-    const String getProjectWindowPosName() const
+    String getProjectWindowPosName() const
     {
-        jassert (currentProject != 0);
-        if (currentProject == 0)
+        jassert (currentProject != nullptr);
+        if (currentProject == nullptr)
             return String::empty;
 
         return "projectWindowPos_" + currentProject->getProjectUID();

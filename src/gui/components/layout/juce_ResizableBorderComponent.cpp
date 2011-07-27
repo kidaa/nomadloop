@@ -34,22 +34,22 @@ BEGIN_JUCE_NAMESPACE
 
 
 //==============================================================================
-ResizableBorderComponent::Zone::Zone (const int zoneFlags) throw()
+ResizableBorderComponent::Zone::Zone (const int zoneFlags) noexcept
     : zone (zoneFlags)
 {}
 
-ResizableBorderComponent::Zone::Zone (const ResizableBorderComponent::Zone& other) throw()
+ResizableBorderComponent::Zone::Zone (const ResizableBorderComponent::Zone& other) noexcept
     : zone (other.zone)
 {}
 
-ResizableBorderComponent::Zone& ResizableBorderComponent::Zone::operator= (const ResizableBorderComponent::Zone& other) throw()
+ResizableBorderComponent::Zone& ResizableBorderComponent::Zone::operator= (const ResizableBorderComponent::Zone& other) noexcept
 {
     zone = other.zone;
     return *this;
 }
 
-bool ResizableBorderComponent::Zone::operator== (const ResizableBorderComponent::Zone& other) const throw()       { return zone == other.zone; }
-bool ResizableBorderComponent::Zone::operator!= (const ResizableBorderComponent::Zone& other) const throw()       { return zone != other.zone; }
+bool ResizableBorderComponent::Zone::operator== (const ResizableBorderComponent::Zone& other) const noexcept      { return zone == other.zone; }
+bool ResizableBorderComponent::Zone::operator!= (const ResizableBorderComponent::Zone& other) const noexcept      { return zone != other.zone; }
 
 const ResizableBorderComponent::Zone ResizableBorderComponent::Zone::fromPositionOnBorder (const Rectangle<int>& totalSize,
                                                                                            const BorderSize<int>& border,
@@ -76,7 +76,7 @@ const ResizableBorderComponent::Zone ResizableBorderComponent::Zone::fromPositio
     return Zone (z);
 }
 
-const MouseCursor ResizableBorderComponent::Zone::getMouseCursor() const throw()
+const MouseCursor ResizableBorderComponent::Zone::getMouseCursor() const noexcept
 {
     MouseCursor::StandardCursorType mc = MouseCursor::NormalCursor;
 
@@ -128,7 +128,7 @@ void ResizableBorderComponent::mouseMove (const MouseEvent& e)
 
 void ResizableBorderComponent::mouseDown (const MouseEvent& e)
 {
-    if (component == 0)
+    if (component == nullptr)
     {
         jassertfalse; // You've deleted the component that this resizer was supposed to be using!
         return;
@@ -138,23 +138,23 @@ void ResizableBorderComponent::mouseDown (const MouseEvent& e)
 
     originalBounds = component->getBounds();
 
-    if (constrainer != 0)
+    if (constrainer != nullptr)
         constrainer->resizeStart();
 }
 
 void ResizableBorderComponent::mouseDrag (const MouseEvent& e)
 {
-    if (component == 0)
+    if (component == nullptr)
     {
         jassertfalse; // You've deleted the component that this resizer was supposed to be using!
         return;
     }
 
-    const Rectangle<int> bounds (mouseZone.resizeRectangleBy (originalBounds, e.getOffsetFromDragStart()));
+    const Rectangle<int> newBounds (mouseZone.resizeRectangleBy (originalBounds, e.getOffsetFromDragStart()));
 
-    if (constrainer != 0)
+    if (constrainer != nullptr)
     {
-        constrainer->setBoundsForComponent (component, bounds,
+        constrainer->setBoundsForComponent (component, newBounds,
                                             mouseZone.isDraggingTopEdge(),
                                             mouseZone.isDraggingLeftEdge(),
                                             mouseZone.isDraggingBottomEdge(),
@@ -162,18 +162,18 @@ void ResizableBorderComponent::mouseDrag (const MouseEvent& e)
     }
     else
     {
-        Component::Positioner* const positioner = component->getPositioner();
+        Component::Positioner* const pos = component->getPositioner();
 
-        if (positioner != 0)
-            positioner->applyNewBounds (bounds);
+        if (pos != nullptr)
+            pos->applyNewBounds (newBounds);
         else
-            component->setBounds (bounds);
+            component->setBounds (newBounds);
     }
 }
 
 void ResizableBorderComponent::mouseUp (const MouseEvent&)
 {
-    if (constrainer != 0)
+    if (constrainer != nullptr)
         constrainer->resizeEnd();
 }
 

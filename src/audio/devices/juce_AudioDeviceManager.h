@@ -30,8 +30,9 @@
 #include "../midi/juce_MidiInput.h"
 #include "../midi/juce_MidiOutput.h"
 #include "../../text/juce_XmlElement.h"
-#include "../../gui/components/controls/juce_ComboBox.h"
+#include "../../events/juce_ChangeBroadcaster.h"
 #include "../dsp/juce_AudioSampleBuffer.h"
+#include "../../containers/juce_OwnedArray.h"
 
 
 //==============================================================================
@@ -190,17 +191,20 @@ public:
 
         @returns an error message if anything went wrong, or an empty string if it worked ok.
     */
-    const String initialise (int numInputChannelsNeeded,
-                             int numOutputChannelsNeeded,
-                             const XmlElement* savedState,
-                             bool selectDefaultDeviceOnFailure,
-                             const String& preferredDefaultDeviceName = String::empty,
-                             const AudioDeviceSetup* preferredSetupOptions = 0);
+    String initialise (int numInputChannelsNeeded,
+                       int numOutputChannelsNeeded,
+                       const XmlElement* savedState,
+                       bool selectDefaultDeviceOnFailure,
+                       const String& preferredDefaultDeviceName = String::empty,
+                       const AudioDeviceSetup* preferredSetupOptions = 0);
 
     /** Returns some XML representing the current state of the manager.
 
         This stores the current device, its samplerate, block size, etc, and
         can be restored later with initialise().
+
+        Note that this can return a null pointer if no settings have been explicitly changed
+        (i.e. if the device manager has just been left in its default state).
     */
     XmlElement* createStateXml() const;
 
@@ -230,17 +234,17 @@ public:
 
         @see getAudioDeviceSetup
     */
-    const String setAudioDeviceSetup (const AudioDeviceSetup& newSetup,
-                                      bool treatAsChosenDevice);
+    String setAudioDeviceSetup (const AudioDeviceSetup& newSetup,
+                                bool treatAsChosenDevice);
 
 
     /** Returns the currently-active audio device. */
-    AudioIODevice* getCurrentAudioDevice() const throw()                { return currentAudioDevice; }
+    AudioIODevice* getCurrentAudioDevice() const noexcept               { return currentAudioDevice; }
 
     /** Returns the type of audio device currently in use.
         @see setCurrentAudioDeviceType
     */
-    const String getCurrentAudioDeviceType() const                      { return currentDeviceType; }
+    String getCurrentAudioDeviceType() const                            { return currentDeviceType; }
 
     /** Returns the currently active audio device type object.
         Don't keep a copy of this pointer - it's owned by the device manager and could
@@ -371,7 +375,7 @@ public:
 
         @see setDefaultMidiOutput, getDefaultMidiOutput
     */
-    const String getDefaultMidiOutputName() const                   { return defaultMidiOutputName; }
+    String getDefaultMidiOutputName() const                         { return defaultMidiOutputName; }
 
     /** Returns the current default midi output device.
 
@@ -380,7 +384,7 @@ public:
 
         @see getDefaultMidiOutputName
     */
-    MidiOutput* getDefaultMidiOutput() const throw()                { return defaultMidiOutput; }
+    MidiOutput* getDefaultMidiOutput() const noexcept               { return defaultMidiOutput; }
 
     /** Returns a list of the types of device supported.
     */
@@ -432,13 +436,13 @@ public:
         Obviously while this is locked, you're blocking the audio thread from running, so
         it must only be used for very brief periods when absolutely necessary.
     */
-    CriticalSection& getAudioCallbackLock() throw()         { return audioCallbackLock; }
+    CriticalSection& getAudioCallbackLock() noexcept        { return audioCallbackLock; }
 
     /** Returns the a lock that can be used to synchronise access to the midi callback.
         Obviously while this is locked, you're blocking the midi system from running, so
         it must only be used for very brief periods when absolutely necessary.
     */
-    CriticalSection& getMidiCallbackLock() throw()          { return midiCallbackLock; }
+    CriticalSection& getMidiCallbackLock() noexcept         { return midiCallbackLock; }
 
 private:
     //==============================================================================
@@ -447,7 +451,7 @@ private:
 
     AudioDeviceSetup currentSetup;
     ScopedPointer <AudioIODevice> currentAudioDevice;
-    SortedSet <AudioIODeviceCallback*> callbacks;
+    Array <AudioIODeviceCallback*> callbacks;
     int numInputChansNeeded, numOutputChansNeeded;
     String currentDeviceType;
     BigInteger inputChannels, outputChannels;
@@ -472,13 +476,15 @@ private:
 
     //==============================================================================
     class CallbackHandler  : public AudioIODeviceCallback,
-                             public MidiInputCallback
+                             public MidiInputCallback,
+                             public AudioIODeviceType::Listener
     {
     public:
         void audioDeviceIOCallback (const float**, int, float**, int, int);
         void audioDeviceAboutToStart (AudioIODevice*);
         void audioDeviceStopped();
         void handleIncomingMidiMessage (MidiInput*, const MidiMessage&);
+        void audioDeviceListChanged();
 
         AudioDeviceManager* owner;
     };
@@ -491,9 +497,10 @@ private:
     void audioDeviceAboutToStartInt (AudioIODevice*);
     void audioDeviceStoppedInt();
     void handleIncomingMidiMessageInt (MidiInput*, const MidiMessage&);
+    void audioDeviceListChanged();
 
-    const String restartDevice (int blockSizeToUse, double sampleRateToUse,
-                                const BigInteger& ins, const BigInteger& outs);
+    String restartDevice (int blockSizeToUse, double sampleRateToUse,
+                          const BigInteger& ins, const BigInteger& outs);
     void stopDevice();
 
     void updateXml();
@@ -503,7 +510,7 @@ private:
     void deleteCurrentDevice();
     double chooseBestSampleRate (double preferred) const;
     int chooseBestBufferSize (int preferred) const;
-    void insertDefaultDeviceNames (AudioDeviceSetup& setup) const;
+    void insertDefaultDeviceNames (AudioDeviceSetup&) const;
 
     AudioIODeviceType* findType (const String& inputName, const String& outputName);
 

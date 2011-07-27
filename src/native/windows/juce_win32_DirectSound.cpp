@@ -139,9 +139,9 @@ BEGIN_JUCE_NAMESPACE
 
 namespace
 {
-    const String getDSErrorMessage (HRESULT hr)
+    String getDSErrorMessage (HRESULT hr)
     {
-        const char* result = 0;
+        const char* result = nullptr;
 
         switch (hr)
         {
@@ -228,11 +228,11 @@ namespace
 class DSoundInternalOutChannel
 {
 public:
-    DSoundInternalOutChannel (const String& name_, LPGUID guid_, int rate,
+    DSoundInternalOutChannel (const String& name_, const GUID& guid_, int rate,
                               int bufferSize, float* left, float* right)
         : bitDepth (16), name (name_), guid (guid_), sampleRate (rate),
           bufferSizeSamples (bufferSize), leftBuffer (left), rightBuffer (right),
-          pDirectSound (0), pOutputBuffer (0)
+          pDirectSound (nullptr), pOutputBuffer (nullptr)
     {
     }
 
@@ -245,39 +245,39 @@ public:
     {
         HRESULT hr;
 
-        if (pOutputBuffer != 0)
+        if (pOutputBuffer != nullptr)
         {
             log ("closing dsound out: " + name);
             hr = pOutputBuffer->Stop();
             logError (hr);
 
             hr = pOutputBuffer->Release();
-            pOutputBuffer = 0;
+            pOutputBuffer = nullptr;
             logError (hr);
         }
 
-        if (pDirectSound != 0)
+        if (pDirectSound != nullptr)
         {
             hr = pDirectSound->Release();
-            pDirectSound = 0;
+            pDirectSound = nullptr;
             logError (hr);
         }
     }
 
-    const String open()
+    String open()
     {
         log ("opening dsound out device: " + name + "  rate=" + String (sampleRate)
               + " bits=" + String (bitDepth) + " buf=" + String (bufferSizeSamples));
 
-        pDirectSound = 0;
-        pOutputBuffer = 0;
+        pDirectSound = nullptr;
+        pOutputBuffer = nullptr;
         writeOffset = 0;
 
         String error;
         HRESULT hr = E_NOINTERFACE;
 
         if (dsDirectSoundCreate != 0)
-            hr = dsDirectSoundCreate (guid, &pDirectSound, 0);
+            hr = dsDirectSoundCreate (&guid, &pDirectSound, 0);
 
         if (hr == S_OK)
         {
@@ -371,7 +371,7 @@ public:
 
     void synchronisePosition()
     {
-        if (pOutputBuffer != 0)
+        if (pOutputBuffer != nullptr)
         {
             DWORD playCursor;
             pOutputBuffer->GetCurrentPosition (&playCursor, &writeOffset);
@@ -420,8 +420,8 @@ public:
 
         if (bytesEmpty >= bytesPerBuffer)
         {
-            void* lpbuf1 = 0;
-            void* lpbuf2 = 0;
+            void* lpbuf1 = nullptr;
+            void* lpbuf2 = nullptr;
             DWORD dwSize1 = 0;
             DWORD dwSize2 = 0;
 
@@ -516,7 +516,7 @@ public:
 
 private:
     String name;
-    LPGUID guid;
+    GUID guid;
     int sampleRate, bufferSizeSamples;
     float* leftBuffer;
     float* rightBuffer;
@@ -527,7 +527,7 @@ private:
     int totalBytesPerBuffer, bytesPerBuffer;
     unsigned int lastPlayCursor;
 
-    static inline int convertInputValue (const float v) throw()
+    static inline int convertInputValue (const float v) noexcept
     {
         return jlimit (-32768, 32767, roundToInt (32767.0f * v));
     }
@@ -539,11 +539,11 @@ private:
 struct DSoundInternalInChannel
 {
 public:
-    DSoundInternalInChannel (const String& name_, LPGUID guid_, int rate,
+    DSoundInternalInChannel (const String& name_, const GUID& guid_, int rate,
                              int bufferSize, float* left, float* right)
         : bitDepth (16), name (name_), guid (guid_), sampleRate (rate),
           bufferSizeSamples (bufferSize), leftBuffer (left), rightBuffer (right),
-          pDirectSound (0), pDirectSoundCapture (0), pInputBuffer (0)
+          pDirectSound (nullptr), pDirectSoundCapture (nullptr), pInputBuffer (nullptr)
     {
     }
 
@@ -556,40 +556,40 @@ public:
     {
         HRESULT hr;
 
-        if (pInputBuffer != 0)
+        if (pInputBuffer != nullptr)
         {
             log ("closing dsound in: " + name);
             hr = pInputBuffer->Stop();
             logError (hr);
 
             hr = pInputBuffer->Release();
-            pInputBuffer = 0;
+            pInputBuffer = nullptr;
             logError (hr);
         }
 
-        if (pDirectSoundCapture != 0)
+        if (pDirectSoundCapture != nullptr)
         {
             hr = pDirectSoundCapture->Release();
-            pDirectSoundCapture = 0;
+            pDirectSoundCapture = nullptr;
             logError (hr);
         }
 
-        if (pDirectSound != 0)
+        if (pDirectSound != nullptr)
         {
             hr = pDirectSound->Release();
-            pDirectSound = 0;
+            pDirectSound = nullptr;
             logError (hr);
         }
     }
 
-    const String open()
+    String open()
     {
         log ("opening dsound in device: " + name
               + "  rate=" + String (sampleRate) + " bits=" + String (bitDepth) + " buf=" + String (bufferSizeSamples));
 
-        pDirectSound = 0;
-        pDirectSoundCapture = 0;
-        pInputBuffer = 0;
+        pDirectSound = nullptr;
+        pDirectSoundCapture = nullptr;
+        pInputBuffer = nullptr;
         readOffset = 0;
         totalBytesPerBuffer = 0;
 
@@ -597,7 +597,7 @@ public:
         HRESULT hr = E_NOINTERFACE;
 
         if (dsDirectSoundCaptureCreate != 0)
-            hr = dsDirectSoundCaptureCreate (guid, &pDirectSoundCapture, 0);
+            hr = dsDirectSoundCaptureCreate (&guid, &pDirectSoundCapture, 0);
 
         logError (hr);
 
@@ -645,7 +645,7 @@ public:
 
     void synchronisePosition()
     {
-        if (pInputBuffer != 0)
+        if (pInputBuffer != nullptr)
         {
             DWORD capturePos;
             pInputBuffer->GetCurrentPosition (&capturePos, (DWORD*)&readOffset);
@@ -670,8 +670,8 @@ public:
 
         if (bytesFilled >= bytesPerBuffer)
         {
-            LPBYTE lpbuf1 = 0;
-            LPBYTE lpbuf2 = 0;
+            LPBYTE lpbuf1 = nullptr;
+            LPBYTE lpbuf2 = nullptr;
             DWORD dwsize1 = 0;
             DWORD dwsize2 = 0;
 
@@ -773,7 +773,7 @@ public:
 
 private:
     String name;
-    LPGUID guid;
+    GUID guid;
     int sampleRate, bufferSizeSamples;
     float* leftBuffer;
     float* rightBuffer;
@@ -804,7 +804,7 @@ public:
           sampleRate (0.0),
           inputBuffers (1, 1),
           outputBuffers (1, 1),
-          callback (0)
+          callback (nullptr)
     {
         if (outputDeviceIndex_ >= 0)
         {
@@ -852,8 +852,8 @@ public:
     const BigInteger getActiveInputChannels() const     { return enabledInputs; }
     int getOutputLatencyInSamples()                     { return (int) (getCurrentBufferSizeSamples() * 1.5); }
     int getInputLatencyInSamples()                      { return getOutputLatencyInSamples(); }
-    const StringArray getOutputChannelNames()           { return outChannels; }
-    const StringArray getInputChannelNames()            { return inChannels; }
+    StringArray getOutputChannelNames()                 { return outChannels; }
+    StringArray getInputChannelNames()                  { return inChannels; }
 
     int getNumSampleRates()                             { return 4; }
     int getDefaultBufferSize()                          { return 2560; }
@@ -894,7 +894,7 @@ public:
 
     void start (AudioIODeviceCallback* call)
     {
-        if (isOpen_ && call != 0 && ! isStarted)
+        if (isOpen_ && call != nullptr && ! isStarted)
         {
             if (! isThreadRunning())
             {
@@ -922,7 +922,7 @@ public:
                 isStarted = false;
             }
 
-            if (callbackLocal != 0)
+            if (callbackLocal != nullptr)
                 callbackLocal->audioDeviceStopped();
         }
     }
@@ -953,9 +953,9 @@ private:
     AudioIODeviceCallback* callback;
     CriticalSection startStopLock;
 
-    const String openDevice (const BigInteger& inputChannels,
-                             const BigInteger& outputChannels,
-                             double sampleRate_, int bufferSizeSamples_);
+    String openDevice (const BigInteger& inputChannels,
+                       const BigInteger& outputChannels,
+                       double sampleRate_, int bufferSizeSamples_);
 
     void closeDevice()
     {
@@ -1094,26 +1094,17 @@ public:
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (DSoundAudioIODevice);
 };
 
-
 //==============================================================================
-class DSoundAudioIODeviceType  : public AudioIODeviceType
+struct DSoundDeviceList
 {
-public:
-    DSoundAudioIODeviceType()
-        : AudioIODeviceType ("DirectSound"),
-          hasScanned (false)
-    {
-        initialiseDSoundFunctions();
-    }
+    StringArray outputDeviceNames, inputDeviceNames;
+    Array<GUID> outputGuids, inputGuids;
 
-    //==============================================================================
-    void scanForDevices()
+    void scan()
     {
-        hasScanned = true;
-
         outputDeviceNames.clear();
-        outputGuids.clear();
         inputDeviceNames.clear();
+        outputGuids.clear();
         inputGuids.clear();
 
         if (dsDirectSoundEnumerateW != 0)
@@ -1123,59 +1114,16 @@ public:
         }
     }
 
-    const StringArray getDeviceNames (bool wantInputNames) const
+    bool operator!= (const DSoundDeviceList& other) const noexcept
     {
-        jassert (hasScanned); // need to call scanForDevices() before doing this
-
-        return wantInputNames ? inputDeviceNames
-                              : outputDeviceNames;
+        return outputDeviceNames != other.outputDeviceNames
+            || inputDeviceNames != other.inputDeviceNames
+            || outputGuids != other.outputGuids
+            || inputGuids != other.inputGuids;
     }
-
-    int getDefaultDeviceIndex (bool /*forInput*/) const
-    {
-        jassert (hasScanned); // need to call scanForDevices() before doing this
-        return 0;
-    }
-
-    int getIndexOfDevice (AudioIODevice* device, bool asInput) const
-    {
-        jassert (hasScanned); // need to call scanForDevices() before doing this
-
-        DSoundAudioIODevice* const d = dynamic_cast <DSoundAudioIODevice*> (device);
-        if (d == 0)
-            return -1;
-
-        return asInput ? d->inputDeviceIndex
-                       : d->outputDeviceIndex;
-    }
-
-    bool hasSeparateInputsAndOutputs() const    { return true; }
-
-    AudioIODevice* createDevice (const String& outputDeviceName,
-                                 const String& inputDeviceName)
-    {
-        jassert (hasScanned); // need to call scanForDevices() before doing this
-
-        const int outputIndex = outputDeviceNames.indexOf (outputDeviceName);
-        const int inputIndex = inputDeviceNames.indexOf (inputDeviceName);
-
-        if (outputIndex >= 0 || inputIndex >= 0)
-            return new DSoundAudioIODevice (outputDeviceName.isNotEmpty() ? outputDeviceName
-                                                                          : inputDeviceName,
-                                            outputIndex, inputIndex);
-
-        return 0;
-    }
-
-    //==============================================================================
-    StringArray outputDeviceNames, inputDeviceNames;
-    OwnedArray <GUID> outputGuids, inputGuids;
 
 private:
-    bool hasScanned;
-
-    //==============================================================================
-    BOOL outputEnumProc (LPGUID lpGUID, String desc)
+    static BOOL enumProc (LPGUID lpGUID, String desc, StringArray& names, Array<GUID>& guids)
     {
         desc = desc.trim();
 
@@ -1184,76 +1132,34 @@ private:
             const String origDesc (desc);
 
             int n = 2;
-            while (outputDeviceNames.contains (desc))
+            while (names.contains (desc))
                 desc = origDesc + " (" + String (n++) + ")";
 
-            outputDeviceNames.add (desc);
-
-            if (lpGUID != 0)
-                outputGuids.add (new GUID (*lpGUID));
-            else
-                outputGuids.add (0);
+            names.add (desc);
+            guids.add (lpGUID != nullptr ? *lpGUID : GUID());
         }
 
         return TRUE;
     }
+
+    BOOL outputEnumProc (LPGUID guid, LPCWSTR desc)  { return enumProc (guid, desc, outputDeviceNames, outputGuids); }
+    BOOL inputEnumProc (LPGUID guid, LPCWSTR desc)   { return enumProc (guid, desc, inputDeviceNames, inputGuids); }
 
     static BOOL CALLBACK outputEnumProcW (LPGUID lpGUID, LPCWSTR description, LPCWSTR, LPVOID object)
     {
-        return ((DSoundAudioIODeviceType*) object)
-                    ->outputEnumProc (lpGUID, String (description));
-    }
-
-    static BOOL CALLBACK outputEnumProcA (LPGUID lpGUID, LPCTSTR description, LPCTSTR, LPVOID object)
-    {
-        return ((DSoundAudioIODeviceType*) object)
-                    ->outputEnumProc (lpGUID, String (description));
-    }
-
-    //==============================================================================
-    BOOL CALLBACK inputEnumProc (LPGUID lpGUID, String desc)
-    {
-        desc = desc.trim();
-
-        if (desc.isNotEmpty())
-        {
-            const String origDesc (desc);
-
-            int n = 2;
-            while (inputDeviceNames.contains (desc))
-                desc = origDesc + " (" + String (n++) + ")";
-
-            inputDeviceNames.add (desc);
-
-            if (lpGUID != 0)
-                inputGuids.add (new GUID (*lpGUID));
-            else
-                inputGuids.add (0);
-        }
-
-        return TRUE;
+        return static_cast<DSoundDeviceList*> (object)->outputEnumProc (lpGUID, description);
     }
 
     static BOOL CALLBACK inputEnumProcW (LPGUID lpGUID, LPCWSTR description, LPCWSTR, LPVOID object)
     {
-        return ((DSoundAudioIODeviceType*) object)
-                    ->inputEnumProc (lpGUID, String (description));
+        return static_cast<DSoundDeviceList*> (object)->inputEnumProc (lpGUID, description);
     }
-
-    static BOOL CALLBACK inputEnumProcA (LPGUID lpGUID, LPCTSTR description, LPCTSTR, LPVOID object)
-    {
-        return ((DSoundAudioIODeviceType*) object)
-                    ->inputEnumProc (lpGUID, String (description));
-    }
-
-    //==============================================================================
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (DSoundAudioIODeviceType);
 };
 
 //==============================================================================
-const String DSoundAudioIODevice::openDevice (const BigInteger& inputChannels,
-                                              const BigInteger& outputChannels,
-                                              double sampleRate_, int bufferSizeSamples_)
+String DSoundAudioIODevice::openDevice (const BigInteger& inputChannels,
+                                        const BigInteger& outputChannels,
+                                        double sampleRate_, int bufferSizeSamples_)
 {
     closeDevice();
     totalSamplesOut = 0;
@@ -1265,8 +1171,8 @@ const String DSoundAudioIODevice::openDevice (const BigInteger& inputChannels,
 
     bufferSizeSamples = bufferSizeSamples_ & ~7;
 
-    DSoundAudioIODeviceType dlh;
-    dlh.scanForDevices();
+    DSoundDeviceList dlh;
+    dlh.scan();
 
     enabledInputs = inputChannels;
     enabledInputs.setRange (inChannels.size(),
@@ -1279,15 +1185,15 @@ const String DSoundAudioIODevice::openDevice (const BigInteger& inputChannels,
 
     for (i = 0; i <= enabledInputs.getHighestBit(); i += 2)
     {
-        float* left = 0;
+        float* left = nullptr;
         if (enabledInputs[i])
             left = inputBuffers.getSampleData (numIns++);
 
-        float* right = 0;
+        float* right = nullptr;
         if (enabledInputs[i + 1])
             right = inputBuffers.getSampleData (numIns++);
 
-        if (left != 0 || right != 0)
+        if (left != nullptr || right != nullptr)
             inChans.add (new DSoundInternalInChannel (dlh.inputDeviceNames [inputDeviceIndex],
                                                       dlh.inputGuids [inputDeviceIndex],
                                                       (int) sampleRate, bufferSizeSamples,
@@ -1305,15 +1211,15 @@ const String DSoundAudioIODevice::openDevice (const BigInteger& inputChannels,
 
     for (i = 0; i <= enabledOutputs.getHighestBit(); i += 2)
     {
-        float* left = 0;
+        float* left = nullptr;
         if (enabledOutputs[i])
             left = outputBuffers.getSampleData (numOuts++);
 
-        float* right = 0;
+        float* right = nullptr;
         if (enabledOutputs[i + 1])
             right = outputBuffers.getSampleData (numOuts++);
 
-        if (left != 0 || right != 0)
+        if (left != nullptr || right != nullptr)
             outChans.add (new DSoundInternalOutChannel (dlh.outputDeviceNames[outputDeviceIndex],
                                                         dlh.outputGuids [outputDeviceIndex],
                                                         (int) sampleRate, bufferSizeSamples,
@@ -1380,11 +1286,97 @@ const String DSoundAudioIODevice::openDevice (const BigInteger& inputChannels,
 }
 
 //==============================================================================
+class DSoundAudioIODeviceType  : public AudioIODeviceType,
+                                 private DeviceChangeDetector
+{
+public:
+    DSoundAudioIODeviceType()
+        : AudioIODeviceType ("DirectSound"),
+          DeviceChangeDetector (L"DirectSound"),
+          hasScanned (false)
+    {
+        initialiseDSoundFunctions();
+    }
+
+    //==============================================================================
+    void scanForDevices()
+    {
+        hasScanned = true;
+        deviceList.scan();
+    }
+
+    StringArray getDeviceNames (bool wantInputNames) const
+    {
+        jassert (hasScanned); // need to call scanForDevices() before doing this
+
+        return wantInputNames ? deviceList.inputDeviceNames
+                              : deviceList.outputDeviceNames;
+    }
+
+    int getDefaultDeviceIndex (bool /*forInput*/) const
+    {
+        jassert (hasScanned); // need to call scanForDevices() before doing this
+        return 0;
+    }
+
+    int getIndexOfDevice (AudioIODevice* device, bool asInput) const
+    {
+        jassert (hasScanned); // need to call scanForDevices() before doing this
+
+        DSoundAudioIODevice* const d = dynamic_cast <DSoundAudioIODevice*> (device);
+        if (d == 0)
+            return -1;
+
+        return asInput ? d->inputDeviceIndex
+                       : d->outputDeviceIndex;
+    }
+
+    bool hasSeparateInputsAndOutputs() const    { return true; }
+
+    AudioIODevice* createDevice (const String& outputDeviceName,
+                                 const String& inputDeviceName)
+    {
+        jassert (hasScanned); // need to call scanForDevices() before doing this
+
+        const int outputIndex = deviceList.outputDeviceNames.indexOf (outputDeviceName);
+        const int inputIndex = deviceList.inputDeviceNames.indexOf (inputDeviceName);
+
+        if (outputIndex >= 0 || inputIndex >= 0)
+            return new DSoundAudioIODevice (outputDeviceName.isNotEmpty() ? outputDeviceName
+                                                                          : inputDeviceName,
+                                            outputIndex, inputIndex);
+
+        return nullptr;
+    }
+
+private:
+    //==============================================================================
+    DSoundDeviceList deviceList;
+    bool hasScanned;
+
+    void systemDeviceChanged()
+    {
+        DSoundDeviceList newList;
+        newList.scan();
+
+        if (newList != deviceList)
+        {
+            deviceList = newList;
+            callDeviceChangeListeners();
+        }
+    }
+
+    //==============================================================================
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (DSoundAudioIODeviceType);
+};
+
+//==============================================================================
 AudioIODeviceType* AudioIODeviceType::createAudioIODeviceType_DirectSound()
 {
     return new DSoundAudioIODeviceType();
 }
 
 #undef log
+#undef logError
 
 #endif

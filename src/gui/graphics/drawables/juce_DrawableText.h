@@ -56,7 +56,7 @@ public:
     void setColour (const Colour& newColour);
 
     /** Returns the current text colour. */
-    const Colour& getColour() const throw()                 { return colour; }
+    const Colour& getColour() const noexcept                { return colour; }
 
     /** Sets the font to use.
         Note that the font height and horizontal scale are actually based upon the position
@@ -70,13 +70,13 @@ public:
     void setJustification (const Justification& newJustification);
 
     /** Returns the parallelogram that defines the text bounding box. */
-    const RelativeParallelogram& getBoundingBox() const throw()         { return bounds; }
+    const RelativeParallelogram& getBoundingBox() const noexcept        { return bounds; }
 
     /** Sets the bounding box that contains the text. */
     void setBoundingBox (const RelativeParallelogram& newBounds);
 
     /** Returns the point within the bounds that defines the font's size and scale. */
-    const RelativePoint& getFontSizeControlPoint() const throw()        { return fontSizeControlPoint; }
+    const RelativePoint& getFontSizeControlPoint() const noexcept       { return fontSizeControlPoint; }
 
     /** Sets the control point that defines the font's height and horizontal scale.
         This position is a point within the bounding box parallelogram, whose Y position (relative
@@ -94,11 +94,11 @@ public:
     /** @internal */
     void refreshFromValueTree (const ValueTree& tree, ComponentBuilder& builder);
     /** @internal */
-    const ValueTree createValueTree (ComponentBuilder::ImageProvider* imageProvider) const;
+    ValueTree createValueTree (ComponentBuilder::ImageProvider* imageProvider) const;
     /** @internal */
     static const Identifier valueTreeType;
     /** @internal */
-    const Rectangle<float> getDrawableBounds() const;
+    Rectangle<float> getDrawableBounds() const;
 
     //==============================================================================
     /** Internally-used class for wrapping a DrawableText's state into a ValueTree. */
@@ -107,24 +107,24 @@ public:
     public:
         ValueTreeWrapper (const ValueTree& state);
 
-        const String getText() const;
+        String getText() const;
         void setText (const String& newText, UndoManager* undoManager);
         Value getTextValue (UndoManager* undoManager);
 
-        const Colour getColour() const;
+        Colour getColour() const;
         void setColour (const Colour& newColour, UndoManager* undoManager);
 
-        const Justification getJustification() const;
+        Justification getJustification() const;
         void setJustification (const Justification& newJustification, UndoManager* undoManager);
 
-        const Font getFont() const;
+        Font getFont() const;
         void setFont (const Font& newFont, UndoManager* undoManager);
         Value getFontValue (UndoManager* undoManager);
 
-        const RelativeParallelogram getBoundingBox() const;
+        RelativeParallelogram getBoundingBox() const;
         void setBoundingBox (const RelativeParallelogram& newBounds, UndoManager* undoManager);
 
-        const RelativePoint getFontSizeControlPoint() const;
+        RelativePoint getFontSizeControlPoint() const;
         void setFontSizeControlPoint (const RelativePoint& p, UndoManager* undoManager);
 
         static const Identifier text, colour, font, justification, topLeft, topRight, bottomLeft, fontSizeAnchor;

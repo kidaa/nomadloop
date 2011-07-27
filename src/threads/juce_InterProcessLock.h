@@ -29,6 +29,7 @@
 #include "../text/juce_String.h"
 #include "../memory/juce_ScopedPointer.h"
 
+
 //==============================================================================
 /**
     Acts as a critical section which processes can use to block each other.
@@ -105,7 +106,7 @@ public:
         inline ~ScopedLockType()                                            { lock_.exit(); }
 
         /** Returns true if the InterProcessLock was successfully locked. */
-        bool isLocked() const throw()                                       { return lockWasSuccessful; }
+        bool isLocked() const noexcept                                      { return lockWasSuccessful; }
 
     private:
         //==============================================================================

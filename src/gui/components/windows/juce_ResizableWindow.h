@@ -94,7 +94,7 @@ public:
 
         @see setBackgroundColour
     */
-    const Colour getBackgroundColour() const throw();
+    const Colour getBackgroundColour() const noexcept;
 
     /** Changes the colour currently being used for the window's background.
 
@@ -129,7 +129,7 @@ public:
 
         @see setResizable
     */
-    bool isResizable() const throw();
+    bool isResizable() const noexcept;
 
     /** This sets the maximum and minimum sizes for the window.
 
@@ -144,13 +144,13 @@ public:
     void setResizeLimits (int newMinimumWidth,
                           int newMinimumHeight,
                           int newMaximumWidth,
-                          int newMaximumHeight) throw();
+                          int newMaximumHeight) noexcept;
 
     /** Returns the bounds constrainer object that this window is using.
 
         You can access this to change its properties.
     */
-    ComponentBoundsConstrainer* getConstrainer() throw()            { return constrainer; }
+    ComponentBoundsConstrainer* getConstrainer() noexcept           { return constrainer; }
 
     /** Sets the bounds-constrainer object to use for resizing and dragging this window.
 
@@ -200,6 +200,9 @@ public:
     */
     void setMinimised (bool shouldMinimise);
 
+    /** Adds the window to the desktop using the default flags. */
+    void addToDesktop();
+
     //==============================================================================
     /** Returns a string which encodes the window's current size and position.
 
@@ -211,7 +214,7 @@ public:
 
         @see restoreWindowStateFromString
     */
-    const String getWindowStateAsString();
+    String getWindowStateAsString();
 
     /** Restores the window to a previously-saved size and position.
 
@@ -233,7 +236,7 @@ public:
 
         @see setContentOwned, setContentNonOwned
     */
-    Component* getContentComponent() const throw()                  { return contentComponent; }
+    Component* getContentComponent() const noexcept                 { return contentComponent; }
 
     /** Changes the current content component.
 
@@ -340,7 +343,7 @@ protected:
     /** @internal */
     int getDesktopWindowStyleFlags() const;
 
-#if JUCE_DEBUG
+   #if JUCE_DEBUG
     /** Overridden to warn people about adding components directly to this component
         instead of using setContentOwned().
 
@@ -355,7 +358,7 @@ protected:
         a base-class method call to Component::addAndMakeVisible(), to side-step this warning.
     */
     void addAndMakeVisible (Component* child, int zOrder = -1);
-#endif
+   #endif
 
     ScopedPointer <ResizableCornerComponent> resizableCorner;
     ScopedPointer <ResizableBorderComponent> resizableBorder;
@@ -372,6 +375,7 @@ private:
     bool hasBeenResized;
     #endif
 
+    void initialise (bool addToDesktop);
     void updateLastPos();
     void setContent (Component* newComp, bool takeOwnership, bool resizeToFit);
 

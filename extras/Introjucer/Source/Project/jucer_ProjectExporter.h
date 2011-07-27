@@ -28,6 +28,7 @@
 
 #include "../jucer_Headers.h"
 #include "jucer_Project.h"
+#include "jucer_ProjectType.h"
 
 
 //==============================================================================
@@ -41,14 +42,15 @@ public:
     virtual ~ProjectExporter();
 
     static int getNumExporters();
-    static const StringArray getExporterNames();
+    static StringArray getExporterNames();
     static ProjectExporter* createNewExporter (Project& project, const int index);
 
     static ProjectExporter* createExporter (Project& project, const ValueTree& settings);
     static ProjectExporter* createPlatformDefaultExporter (Project& project);
 
     //=============================================================================
-    virtual bool isDefaultFormatForCurrentOS() = 0;
+    // return 0 if this can't be opened in the current OS, or a higher value, where higher numbers are more preferable.
+    virtual int getLaunchPreferenceOrderForCurrentOS() = 0;
     virtual bool isPossibleForCurrentProject() = 0;
     virtual bool usesMMFiles() const = 0;
     virtual void createPropertyEditors (Array <PropertyComponent*>& props);
@@ -56,9 +58,16 @@ public:
     virtual void create() = 0; // may throw a SaveError
     virtual bool shouldFileBeCompiledByDefault (const RelativePath& path) const;
 
+    virtual bool isXcode() const            { return false; }
+    virtual bool isVisualStudio() const     { return false; }
+    virtual bool isLinux() const            { return false; }
+
     //==============================================================================
-    const String getName() const            { return name; }
-    const File getTargetFolder() const;
+    String getName() const                  { return name; }
+    File getTargetFolder() const;
+
+    Project& getProject() noexcept              { return project; }
+    const Project& getProject() const noexcept  { return project; }
 
     const ValueTree& getSettings() const                { return settings; }
     Value getSetting (const Identifier& name_) const    { return settings.getPropertyAsValue (name_, project.getUndoManagerFor (settings)); }
@@ -66,38 +75,29 @@ public:
     Value getJuceFolder() const             { return getSetting (Ids::juceFolder); }
     Value getTargetLocation() const         { return getSetting (Ids::targetFolder); }
 
-    Value getVSTFolder() const              { return getSetting (Ids::vstFolder); }
-    Value getRTASFolder() const             { return getSetting (Ids::rtasFolder); }
-    Value getAUFolder() const               { return getSetting (Ids::auFolder); }
-
-    bool isVST() const                      { return (bool) project.isAudioPlugin() && (bool) project.shouldBuildVST().getValue(); }
-    bool isRTAS() const                     { return (bool) project.isAudioPlugin() && (bool) project.shouldBuildRTAS().getValue(); }
-    bool isAU() const                       { return (bool) project.isAudioPlugin() && (bool) project.shouldBuildAU().getValue(); }
-
     Value getExtraCompilerFlags() const     { return getSetting (Ids::extraCompilerFlags); }
     Value getExtraLinkerFlags() const       { return getSetting (Ids::extraLinkerFlags); }
 
     Value getExporterPreprocessorDefs() const   { return getSetting (Ids::extraDefs); }
 
     // includes exporter, project + config defs
-    const StringPairArray getAllPreprocessorDefs (const Project::BuildConfiguration& config) const;
+    StringPairArray getAllPreprocessorDefs (const Project::BuildConfiguration& config) const;
     // includes exporter + project defs..
-    const StringPairArray getAllPreprocessorDefs() const;
+    StringPairArray getAllPreprocessorDefs() const;
 
-    const String replacePreprocessorTokens (const Project::BuildConfiguration& config,
-                                            const String& sourceString) const;
+    String replacePreprocessorTokens (const Project::BuildConfiguration& config,
+                                      const String& sourceString) const;
 
     // This adds the quotes, and may return angle-brackets, eg: <foo/bar.h> or normal quotes.
-    const String getIncludePathForFileInJuceFolder (const String& pathFromJuceFolder, const File& targetIncludeFile) const;
+    String getIncludePathForFileInJuceFolder (const String& pathFromJuceFolder, const File& targetIncludeFile) const;
 
-    const String getExporterIdentifierMacro() const
+    RelativePath rebaseFromProjectFolderToBuildTarget (const RelativePath& path) const;
+
+    String getExporterIdentifierMacro() const
     {
         return "JUCER_" + settings.getType().toString() + "_"
                 + String::toHexString (settings [Ids::targetFolder].toString().hashCode()).toUpperCase();
     }
-
-    Array<RelativePath> juceWrapperFiles;
-    RelativePath juceWrapperFolder;
 
     // An exception that can be thrown by the create() method.
     class SaveError
@@ -113,19 +113,48 @@ public:
         String message;
     };
 
+    RelativePath getJucePathFromTargetFolder() const;
+    RelativePath getJucePathFromProjectFolder() const;
+
+    //==============================================================================
+    Array<Project::Item> groups;
+    OwnedArray<LibraryModule> libraryModules;
+
+    //==============================================================================
+    String xcodePackageType, xcodeBundleSignature, xcodeBundleExtension;
+    String xcodeProductType, xcodeProductInstallPath, xcodeFileType;
+    String xcodeShellScript, xcodeShellScriptTitle, xcodeOtherRezFlags;
+    bool xcodeIsBundle, xcodeCreatePList, xcodeCanUseDwarf;
+    StringArray xcodeFrameworks;
+    Array<RelativePath> xcodeExtraLibrariesDebug, xcodeExtraLibrariesRelease;
+
+    //==============================================================================
+    String makefileTargetSuffix;
+    bool makefileIsDLL;
+
+    //==============================================================================
+    String msvcTargetSuffix;
+    StringPairArray msvcExtraPreprocessorDefs;
+    bool msvcIsDLL, msvcIsWindowsSubsystem, msvcNeedsDLLRuntimeLib;
+    String msvcExtraLinkerOptions, msvcDelayLoadedDLLs, msvcModuleDefinitionFile;
+    String msvcPostBuildCommand, msvcPostBuildOutputs;
+
+    //==============================================================================
+    void createLibraryModules();
+
 protected:
     //==============================================================================
-    Project& project;
-    ValueTree settings;
     String name;
+    Project& project;
+    const ProjectType& projectType;
+    const String projectName;
+    const File projectFolder;
+    Array<Project::BuildConfiguration> configs;
+    ValueTree settings;
 
-    const RelativePath getJucePathFromTargetFolder() const;
+    static String getDefaultBuildsRootFolder()            { return "Builds/"; }
 
-    static const String getDefaultBuildsRootFolder()            { return "Builds/"; }
-
-    const Array<RelativePath> getVSTFilesRequired() const;
-
-    static const String getLibbedFilename (String name)
+    static String getLibbedFilename (String name)
     {
         if (! name.startsWith ("lib"))
             name = "lib" + name;
@@ -134,7 +163,7 @@ protected:
         return name;
     }
 
-    const RelativePath rebaseFromProjectFolderToBuildTarget (const RelativePath& path) const;
+    Image getBestIconForSize (int size, bool returnNullIfNothingBigEnough);
 
     //==============================================================================
     static void overwriteFileIfDifferentOrThrow (const File& file, const MemoryOutputStream& newData)

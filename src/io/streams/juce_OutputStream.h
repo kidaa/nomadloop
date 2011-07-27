@@ -28,8 +28,10 @@
 
 #include "../../text/juce_String.h"
 #include "../../text/juce_NewLine.h"
-#include "juce_InputStream.h"
+class InputStream;
+class MemoryBlock;
 class File;
+
 
 //==============================================================================
 /**
@@ -213,7 +215,7 @@ public:
     void setNewLineString (const String& newLineString);
 
     /** Returns the current new-line string that was set by setNewLineString(). */
-    const String& getNewLineString() const throw()          { return newLineString; }
+    const String& getNewLineString() const noexcept         { return newLineString; }
 
 private:
     //==============================================================================

@@ -58,10 +58,10 @@ void MACAddress::findAllAddresses (Array<MACAddress>& result)
 }
 
 
-bool PlatformUtilities::launchEmailWithAttachments (const String& targetEmailAddress,
-                                                    const String& emailSubject,
-                                                    const String& bodyText,
-                                                    const StringArray& filesToAttach)
+bool Process::openEmailWithAttachments (const String& targetEmailAddress,
+                                        const String& emailSubject,
+                                        const String& bodyText,
+                                        const StringArray& filesToAttach)
 {
     jassertfalse;    // xxx todo
 
@@ -83,7 +83,7 @@ public:
     {
         createConnection (progressCallback, progressCallbackContext);
 
-        if (responseHeaders != 0 && ! isError())
+        if (responseHeaders != nullptr && ! isError())
         {
             for (int i = 0; i < headerLines.size(); ++i)
             {
@@ -219,7 +219,7 @@ private:
         hints.ai_socktype = SOCK_STREAM;
         hints.ai_flags = AI_NUMERICSERV;
 
-        struct addrinfo* result = 0;
+        struct addrinfo* result = nullptr;
         if (getaddrinfo (serverName.toUTF8(), String (port).toUTF8(), &hints, &result) != 0 || result == 0)
             return;
 
@@ -259,7 +259,7 @@ private:
             }
         }
 
-        const String responseHeader (readResponse (socketHandle, timeOutTime));
+        String responseHeader (readResponse (socketHandle, timeOutTime));
 
         if (responseHeader.isNotEmpty())
         {
@@ -297,7 +297,7 @@ private:
     }
 
     //==============================================================================
-    static const String readResponse (const int socketHandle, const uint32 timeOutTime)
+    static String readResponse (const int socketHandle, const uint32 timeOutTime)
     {
         int bytesRead = 0, numConsecutiveLFs  = 0;
         MemoryBlock buffer (1024, true);
@@ -339,11 +339,11 @@ private:
         return String::empty;
     }
 
-    static const MemoryBlock createRequestHeader (const String& hostName, const int hostPort,
-                                                  const String& proxyName, const int proxyPort,
-                                                  const String& hostPath, const String& originalURL,
-                                                  const String& headers, const MemoryBlock& postData,
-                                                  const bool isPost)
+    static MemoryBlock createRequestHeader (const String& hostName, const int hostPort,
+                                            const String& proxyName, const int proxyPort,
+                                            const String& hostPath, const String& originalURL,
+                                            const String& headers, const MemoryBlock& postData,
+                                            const bool isPost)
     {
         String header (isPost ? "POST " : "GET ");
 
@@ -387,7 +387,7 @@ private:
 
             totalHeaderSent += numToSend;
 
-            if (progressCallback != 0 && ! progressCallback (progressCallbackContext, totalHeaderSent, requestHeader.getSize()))
+            if (progressCallback != nullptr && ! progressCallback (progressCallbackContext, totalHeaderSent, requestHeader.getSize()))
                 return false;
         }
 
@@ -431,7 +431,7 @@ private:
         return true;
     }
 
-    static const String findHeaderItem (const StringArray& lines, const String& itemName)
+    static String findHeaderItem (const StringArray& lines, const String& itemName)
     {
         for (int i = 0; i < lines.size(); ++i)
             if (lines[i].startsWithIgnoreCase (itemName))
@@ -451,7 +451,7 @@ InputStream* URL::createNativeStream (const String& address, bool isPost, const 
                                                            progressCallback, progressCallbackContext,
                                                            headers, timeOutMs, responseHeaders));
 
-    return wi->isError() ? 0 : wi.release();
+    return wi->isError() ? nullptr : wi.release();
 }
 
 

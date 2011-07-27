@@ -44,6 +44,7 @@ namespace Ids
     DECLARE_ID (readOnly);
     DECLARE_ID (editMode);
     DECLARE_ID (justification);
+    DECLARE_ID (placement);
     DECLARE_ID (items);
     DECLARE_ID (editable);
     DECLARE_ID (textJustification);
@@ -97,6 +98,7 @@ namespace Ids
     DECLARE_ID (buildVST);
     DECLARE_ID (bundleIdentifier);
     DECLARE_ID (compile);
+    DECLARE_ID (noWarnings);
     DECLARE_ID (resource);
     DECLARE_ID (className);
     DECLARE_ID (classDesc);
@@ -110,10 +112,12 @@ namespace Ids
     DECLARE_ID (rootItemVisible);
     DECLARE_ID (openByDefault);
     DECLARE_ID (locked);
+    DECLARE_ID (image);
     DECLARE_ID (tooltip);
     DECLARE_ID (memberName);
     DECLARE_ID (focusOrder);
     DECLARE_ID (hidden);
+    DECLARE_ID (useStdCall);
     DECLARE_ID (androidSDKPath);
     DECLARE_ID (androidNDKPath);
     DECLARE_ID (androidInternetNeeded);

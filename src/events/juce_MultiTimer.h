@@ -28,6 +28,7 @@
 
 #include "juce_Timer.h"
 #include "../containers/juce_OwnedArray.h"
+#include "../threads/juce_SpinLock.h"
 
 
 //==============================================================================
@@ -55,14 +56,14 @@ protected:
 
         When created, no timers are running, so use startTimer() to start things off.
     */
-    MultiTimer() throw();
+    MultiTimer() noexcept;
 
     /** Creates a copy of another timer.
 
         Note that this timer will not contain any running timers, even if the one you're
         copying from was running.
     */
-    MultiTimer (const MultiTimer& other) throw();
+    MultiTimer (const MultiTimer& other) noexcept;
 
 public:
     //==============================================================================
@@ -92,7 +93,7 @@ public:
         @param  intervalInMilliseconds  the interval to use (any values less than 1 will be
                                         rounded up to 1)
     */
-    void startTimer (int timerId, int intervalInMilliseconds) throw();
+    void startTimer (int timerId, int intervalInMilliseconds) noexcept;
 
     /** Stops a timer.
 
@@ -103,27 +104,27 @@ public:
         be currently executing may be allowed to finish before the method
         returns.
     */
-    void stopTimer (int timerId) throw();
+    void stopTimer (int timerId) noexcept;
 
     //==============================================================================
     /** Checks whether a timer has been started for a specified ID.
 
         @returns true if a timer with the given ID is running.
     */
-    bool isTimerRunning (int timerId) const throw();
+    bool isTimerRunning (int timerId) const noexcept;
 
     /** Returns the interval for a specified timer ID.
 
         @returns    the timer's interval in milliseconds if it's running, or 0 if it's no timer
                     is running for the ID number specified.
     */
-    int getTimerInterval (int timerId) const throw();
+    int getTimerInterval (int timerId) const noexcept;
 
 
     //==============================================================================
 private:
     class MultiTimerCallback;
-    CriticalSection timerListLock;
+    SpinLock timerListLock;
     OwnedArray <MultiTimerCallback> timers;
 
     MultiTimer& operator= (const MultiTimer&);

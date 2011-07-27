@@ -29,6 +29,9 @@
 #include "juce_Variant.h"
 #include "../containers/juce_LinkedListPointer.h"
 class XmlElement;
+#ifndef DOXYGEN
+ class JSONFormatter;
+#endif
 
 
 //==============================================================================
@@ -41,7 +44,7 @@ class JUCE_API  NamedValueSet
 {
 public:
     /** Creates an empty set. */
-    NamedValueSet() throw();
+    NamedValueSet() noexcept;
 
     /** Creates a copy of another set. */
     NamedValueSet (const NamedValueSet& other);
@@ -57,7 +60,7 @@ public:
 
     //==============================================================================
     /** Returns the total number of values that the set contains. */
-    int size() const throw();
+    int size() const noexcept;
 
     /** Returns the value of a named item.
         If the name isn't found, this will return a void variant.
@@ -68,7 +71,7 @@ public:
     /** Tries to return the named value, but if no such value is found, this will
         instead return the supplied default value.
     */
-    const var getWithDefault (const Identifier& name, const var& defaultReturnValue) const;
+    var getWithDefault (const Identifier& name, const var& defaultReturnValue) const;
 
     /** Changes or adds a named value.
         @returns    true if a value was changed or added; false if the
@@ -93,7 +96,7 @@ public:
     /** Returns the value of the item at a given index.
         The index must be between 0 and size() - 1.
     */
-    const var getValueAt (int index) const;
+    const var& getValueAt (int index) const;
 
     /** Removes all values. */
     void clear();
@@ -105,7 +108,7 @@ public:
         Do not use this method unless you really need access to the internal var object
         for some reason - for normal reading and writing always prefer operator[]() and set().
     */
-    var* getVarPointer (const Identifier& name) const;
+    var* getVarPointer (const Identifier& name) const noexcept;
 
     //==============================================================================
     /** Sets properties to the values of all of an XML element's attributes. */
@@ -121,11 +124,11 @@ private:
     class NamedValue
     {
     public:
-        NamedValue() throw();
+        NamedValue() noexcept;
         NamedValue (const NamedValue&);
         NamedValue (const Identifier& name, const var& value);
         NamedValue& operator= (const NamedValue&);
-        bool operator== (const NamedValue& other) const throw();
+        bool operator== (const NamedValue& other) const noexcept;
 
         LinkedListPointer<NamedValue> nextListItem;
         Identifier name;
@@ -137,6 +140,8 @@ private:
 
     friend class LinkedListPointer<NamedValue>;
     LinkedListPointer<NamedValue> values;
+
+    friend class JSONFormatter;
 };
 
 

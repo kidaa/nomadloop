@@ -40,28 +40,28 @@ SystemStats::OperatingSystemType SystemStats::getOperatingSystemType()
     return Linux;
 }
 
-const String SystemStats::getOperatingSystemName()
+String SystemStats::getOperatingSystemName()
 {
     return "Linux";
 }
 
 bool SystemStats::isOperatingSystem64Bit()
 {
-#if JUCE_64BIT
+   #if JUCE_64BIT
     return true;
-#else
+   #else
     //xxx not sure how to find this out?..
     return false;
-#endif
+   #endif
 }
 
 //==============================================================================
 namespace LinuxStatsHelpers
 {
-    const String getCpuInfo (const char* const key)
+    String getCpuInfo (const char* const key)
     {
         StringArray lines;
-        lines.addLines (File ("/proc/cpuinfo").loadFileAsString());
+        File ("/proc/cpuinfo").readLines (lines);
 
         for (int i = lines.size(); --i >= 0;) // (NB - it's important that this runs in reverse order)
             if (lines[i].startsWithIgnoreCase (key))
@@ -71,7 +71,7 @@ namespace LinuxStatsHelpers
     }
 }
 
-const String SystemStats::getCpuVendor()
+String SystemStats::getCpuVendor()
 {
     return LinuxStatsHelpers::getCpuInfo ("vendor_id");
 }
@@ -97,43 +97,48 @@ int SystemStats::getPageSize()
 }
 
 //==============================================================================
-const String SystemStats::getLogonName()
+String SystemStats::getLogonName()
 {
     const char* user = getenv ("USER");
 
-    if (user == 0)
+    if (user == nullptr)
     {
         struct passwd* const pw = getpwuid (getuid());
-        if (pw != 0)
+        if (pw != nullptr)
             user = pw->pw_name;
     }
 
     return CharPointer_UTF8 (user);
 }
 
-const String SystemStats::getFullUserName()
+String SystemStats::getFullUserName()
 {
     return getLogonName();
 }
 
+String SystemStats::getComputerName()
+{
+    char name [256] = { 0 };
+    if (gethostname (name, sizeof (name) - 1) == 0)
+        return name;
+
+    return String::empty;
+}
+
 //==============================================================================
-void SystemStats::initialiseStats()
+SystemStats::CPUFlags::CPUFlags()
 {
     const String flags (LinuxStatsHelpers::getCpuInfo ("flags"));
-    cpuFlags.hasMMX = flags.contains ("mmx");
-    cpuFlags.hasSSE = flags.contains ("sse");
-    cpuFlags.hasSSE2 = flags.contains ("sse2");
-    cpuFlags.has3DNow = flags.contains ("3dnow");
+    hasMMX   = flags.contains ("mmx");
+    hasSSE   = flags.contains ("sse");
+    hasSSE2  = flags.contains ("sse2");
+    has3DNow = flags.contains ("3dnow");
 
-    cpuFlags.numCpus = LinuxStatsHelpers::getCpuInfo ("processor").getIntValue() + 1;
-}
-
-void PlatformUtilities::fpuReset()
-{
+    numCpus = LinuxStatsHelpers::getCpuInfo ("processor").getIntValue() + 1;
 }
 
 //==============================================================================
-uint32 juce_millisecondsSinceStartup() throw()
+uint32 juce_millisecondsSinceStartup() noexcept
 {
     timespec t;
     clock_gettime (CLOCK_MONOTONIC, &t);
@@ -141,20 +146,20 @@ uint32 juce_millisecondsSinceStartup() throw()
     return t.tv_sec * 1000 + t.tv_nsec / 1000000;
 }
 
-int64 Time::getHighResolutionTicks() throw()
+int64 Time::getHighResolutionTicks() noexcept
 {
     timespec t;
     clock_gettime (CLOCK_MONOTONIC, &t);
 
-    return (t.tv_sec * (int64) 1000000) + (t.tv_nsec / (int64) 1000);
+    return (t.tv_sec * (int64) 1000000) + (t.tv_nsec / 1000);
 }
 
-int64 Time::getHighResolutionTicksPerSecond() throw()
+int64 Time::getHighResolutionTicksPerSecond() noexcept
 {
     return 1000000;  // (microseconds)
 }
 
-double Time::getMillisecondCounterHiRes() throw()
+double Time::getMillisecondCounterHiRes() noexcept
 {
     return getHighResolutionTicks() * 0.001;
 }

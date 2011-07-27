@@ -54,23 +54,21 @@ public:
 
         if (getTargetLocation().toString().isEmpty())
             getTargetLocation() = getDefaultBuildsRootFolder() + "Linux";
-
-        if (getVSTFolder().toString().isEmpty())
-            getVSTFolder() = "~/SDKs/vstsdk2.4";
     }
 
     //==============================================================================
-    bool isDefaultFormatForCurrentOS()
+    int getLaunchPreferenceOrderForCurrentOS()
     {
-      #if JUCE_LINUX
-        return true;
-      #else
-        return false;
-      #endif
+       #if JUCE_LINUX
+        return 1;
+       #else
+        return 0;
+       #endif
     }
 
     bool isPossibleForCurrentProject()          { return true; }
     bool usesMMFiles() const                    { return false; }
+    bool isLinux() const                        { return true; }
 
     void launchProject()
     {
@@ -86,15 +84,8 @@ public:
     void create()
     {
         Array<RelativePath> files;
-        findAllFilesToCompile (project.getMainGroup(), files);
-
-        for (int i = 0; i < juceWrapperFiles.size(); ++i)
-            if (shouldFileBeCompiledByDefault (juceWrapperFiles.getReference(i)))
-                files.add (juceWrapperFiles.getReference(i));
-
-        const Array<RelativePath> vstFiles (getVSTFilesRequired());
-        for (int i = 0; i < vstFiles.size(); i++)
-            files.add (vstFiles.getReference(i));
+        for (int i = 0; i < groups.size(); ++i)
+            findAllFilesToCompile (groups.getReference(i), files);
 
         MemoryOutputStream mo;
         writeMakefile (mo, files);
@@ -142,11 +133,8 @@ private:
         headerPaths.insert (0, "/usr/include/freetype2");
         headerPaths.insert (0, "/usr/include");
 
-        if (project.shouldAddVSTFolderToPath() && getVSTFolder().toString().isNotEmpty())
-            headerPaths.insert (0, rebaseFromProjectFolderToBuildTarget (RelativePath (getVSTFolder().toString(), RelativePath::projectFolder)).toUnixStyle());
-
-        if (isVST())
-            headerPaths.insert (0, juceWrapperFolder.toUnixStyle());
+        for (int i = 0; i < libraryModules.size(); ++i)
+            libraryModules.getUnchecked(i)->addExtraSearchPaths (*this, headerPaths);
 
         for (int i = 0; i < headerPaths.size(); ++i)
             out << " -I " << FileHelpers::unixStylePath (replacePreprocessorTokens (config, headerPaths[i])).quoted();
@@ -164,7 +152,7 @@ private:
     {
         out << "  LDFLAGS += -L$(BINDIR) -L$(LIBDIR)";
 
-        if (project.isAudioPlugin())
+        if (makefileIsDLL)
             out << " -shared";
 
         {
@@ -198,7 +186,7 @@ private:
         if (config.getTargetBinaryRelativePath().toString().isNotEmpty())
         {
             RelativePath binaryPath (config.getTargetBinaryRelativePath().toString(), RelativePath::projectFolder);
-            outputDir = binaryPath.rebased (project.getFile().getParentDirectory(), getTargetFolder(), RelativePath::buildTargetFolder).toUnixStyle();
+            outputDir = binaryPath.rebased (projectFolder, getTargetFolder(), RelativePath::buildTargetFolder).toUnixStyle();
         }
 
         out << "ifeq ($(CONFIG)," << escapeSpaces (config.getName().toString()) << ")" << newLine;
@@ -214,7 +202,7 @@ private:
         if (config.isDebug().getValue())
             out << " -g -ggdb";
 
-        if (project.isAudioPlugin())
+        if (makefileIsDLL)
             out << " -fPIC";
 
         out << " -O" << config.getGCCOptimisationFlag() << newLine;
@@ -231,14 +219,14 @@ private:
 
         String targetName (config.getTargetBinaryName().getValue().toString());
 
-        if (project.isLibrary())
+        if (projectType.isLibrary())
             targetName = getLibbedFilename (targetName);
-        else if (isVST())
-            targetName = targetName.upToLastOccurrenceOf (".", false, false) + ".so";
+        else
+            targetName = targetName.upToLastOccurrenceOf (".", false, false) + makefileTargetSuffix;
 
         out << "  TARGET := " << escapeSpaces (targetName) << newLine;
 
-        if (project.isLibrary())
+        if (projectType.isLibrary())
             out << "  BLDCMD = ar -rcs $(OUTDIR)/$(TARGET) $(OBJECTS) $(TARGET_ARCH)" << newLine;
         else
             out << "  BLDCMD = $(CXX) -o $(OUTDIR)/$(TARGET) $(OBJECTS) $(LDFLAGS) $(RESOURCES) $(TARGET_ARCH)" << newLine;
@@ -264,11 +252,11 @@ private:
             << newLine;
 
         out << "ifndef CONFIG" << newLine
-            << "  CONFIG=" << escapeSpaces (project.getConfiguration(0).getName().toString()) << newLine
+            << "  CONFIG=" << escapeSpaces (configs.getReference(0).getName().toString()) << newLine
             << "endif" << newLine
             << newLine;
 
-        if (! project.isLibrary())
+        if (! projectType.isLibrary())
             out << "ifeq ($(TARGET_ARCH),)" << newLine
                 << "  TARGET_ARCH := -march=native" << newLine
                 << "endif"  << newLine << newLine;
@@ -278,8 +266,8 @@ private:
             << newLine;
 
         int i;
-        for (i = 0; i < project.getNumConfigurations(); ++i)
-            writeConfig (out, project.getConfiguration(i));
+        for (i = 0; i < configs.size(); ++i)
+            writeConfig (out, configs.getReference(i));
 
         writeObjects (out, files);
 
@@ -287,7 +275,7 @@ private:
             << newLine;
 
         out << "$(OUTDIR)/$(TARGET): $(OBJECTS) $(LDDEPS) $(RESOURCES)" << newLine
-            << "\t@echo Linking " << project.getProjectName() << newLine
+            << "\t@echo Linking " << projectName << newLine
             << "\t-@mkdir -p $(BINDIR)" << newLine
             << "\t-@mkdir -p $(LIBDIR)" << newLine
             << "\t-@mkdir -p $(OUTDIR)" << newLine
@@ -295,7 +283,7 @@ private:
             << newLine;
 
         out << "clean:" << newLine
-            << "\t@echo Cleaning " << project.getProjectName() << newLine
+            << "\t@echo Cleaning " << projectName << newLine
             << "\t-@rm -f $(OUTDIR)/$(TARGET)" << newLine
             << "\t-@rm -rf $(OBJDIR)/*" << newLine
             << "\t-@rm -rf $(OBJDIR)" << newLine
@@ -320,7 +308,7 @@ private:
         out << "-include $(OBJECTS:%.o=%.d)" << newLine;
     }
 
-    const String getObjectFileFor (const RelativePath& file) const
+    String getObjectFileFor (const RelativePath& file) const
     {
         return file.getFileNameWithoutExtension()
                 + "_" + String::toHexString (file.toUnixStyle().hashCode()) + ".o";

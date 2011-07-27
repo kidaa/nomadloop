@@ -101,19 +101,7 @@ FileBrowserComponent::FileBrowserComponent (int flags_,
 
     addAndMakeVisible (&currentPathBox);
     currentPathBox.setEditableText (true);
-
-    StringArray rootNames, rootPaths;
-    getRoots (rootNames, rootPaths);
-
-    for (int i = 0; i < rootNames.size(); ++i)
-    {
-        if (rootNames[i].isEmpty())
-            currentPathBox.addSeparator();
-        else
-            currentPathBox.addItem (rootNames[i], i + 1);
-    }
-
-    currentPathBox.addSeparator();
+    resetRecentPaths();
     currentPathBox.addListener (this);
 
     addAndMakeVisible (&filenameBox);
@@ -130,7 +118,7 @@ FileBrowserComponent::FileBrowserComponent (int flags_,
     goUpButton->addListener (this);
     goUpButton->setTooltip (TRANS ("go up to parent directory"));
 
-    if (previewComp != 0)
+    if (previewComp != nullptr)
         addAndMakeVisible (previewComp);
 
     setRoot (currentRoot);
@@ -140,8 +128,8 @@ FileBrowserComponent::FileBrowserComponent (int flags_,
 
 FileBrowserComponent::~FileBrowserComponent()
 {
-    fileListComponent = 0;
-    fileList = 0;
+    fileListComponent = nullptr;
+    fileList = nullptr;
     thread.stopThread (10000);
 }
 
@@ -157,12 +145,12 @@ void FileBrowserComponent::removeListener (FileBrowserListener* const listener)
 }
 
 //==============================================================================
-bool FileBrowserComponent::isSaveMode() const throw()
+bool FileBrowserComponent::isSaveMode() const noexcept
 {
     return (flags & saveMode) != 0;
 }
 
-int FileBrowserComponent::getNumSelectedFiles() const throw()
+int FileBrowserComponent::getNumSelectedFiles() const noexcept
 {
     if (chosenFiles.size() == 0 && currentFileIsValid())
         return 1;
@@ -170,7 +158,7 @@ int FileBrowserComponent::getNumSelectedFiles() const throw()
     return chosenFiles.size();
 }
 
-const File FileBrowserComponent::getSelectedFile (int index) const throw()
+File FileBrowserComponent::getSelectedFile (int index) const noexcept
 {
     if ((flags & canSelectDirectories) != 0 && filenameBox.getText().isEmpty())
         return currentRoot;
@@ -189,7 +177,7 @@ bool FileBrowserComponent::currentFileIsValid() const
         return getSelectedFile (0).exists();
 }
 
-const File FileBrowserComponent::getHighlightedFile() const throw()
+File FileBrowserComponent::getHighlightedFile() const noexcept
 {
     return fileListComponent->getSelectedFile (0);
 }
@@ -202,7 +190,7 @@ void FileBrowserComponent::deselectAllFiles()
 //==============================================================================
 bool FileBrowserComponent::isFileSuitable (const File& file) const
 {
-    return (flags & canSelectFiles) != 0 && (fileFilter == 0 || fileFilter->isFileSuitable (file));
+    return (flags & canSelectFiles) != 0 && (fileFilter == nullptr || fileFilter->isFileSuitable (file));
 }
 
 bool FileBrowserComponent::isDirectorySuitable (const File&) const
@@ -214,14 +202,14 @@ bool FileBrowserComponent::isFileOrDirSuitable (const File& f) const
 {
     if (f.isDirectory())
         return (flags & canSelectDirectories) != 0
-                && (fileFilter == 0 || fileFilter->isDirectorySuitable (f));
+                && (fileFilter == nullptr || fileFilter->isDirectorySuitable (f));
 
     return (flags & canSelectFiles) != 0 && f.exists()
-            && (fileFilter == 0 || fileFilter->isFileSuitable (f));
+            && (fileFilter == nullptr || fileFilter->isFileSuitable (f));
 }
 
 //==============================================================================
-const File FileBrowserComponent::getRoot() const
+const File& FileBrowserComponent::getRoot() const
 {
     return currentRoot;
 }
@@ -271,6 +259,24 @@ void FileBrowserComponent::setRoot (const File& newRootDirectory)
                              && currentRoot.getParentDirectory() != currentRoot);
 }
 
+void FileBrowserComponent::resetRecentPaths()
+{
+    currentPathBox.clear();
+
+    StringArray rootNames, rootPaths;
+    getRoots (rootNames, rootPaths);
+
+    for (int i = 0; i < rootNames.size(); ++i)
+    {
+        if (rootNames[i].isEmpty())
+            currentPathBox.addSeparator();
+        else
+            currentPathBox.addItem (rootNames[i], i + 1);
+    }
+
+    currentPathBox.addSeparator();
+}
+
 void FileBrowserComponent::goUp()
 {
     setRoot (getRoot().getParentDirectory());
@@ -295,7 +301,7 @@ const String FileBrowserComponent::getActionVerb() const
     return isSaveMode() ? TRANS("Save") : TRANS("Open");
 }
 
-FilePreviewComponent* FileBrowserComponent::getPreviewComponent() const throw()
+FilePreviewComponent* FileBrowserComponent::getPreviewComponent() const noexcept
 {
     return previewComp;
 }
@@ -313,7 +319,7 @@ void FileBrowserComponent::sendListenerChangeMessage()
 {
     Component::BailOutChecker checker (this);
 
-    if (previewComp != 0)
+    if (previewComp != nullptr)
         previewComp->selectedFileChanged (getSelectedFile (0));
 
     // You shouldn't delete the browser when the file gets changed!
@@ -475,7 +481,7 @@ void FileBrowserComponent::comboBoxChanged (ComboBox*)
 
 void FileBrowserComponent::getRoots (StringArray& rootNames, StringArray& rootPaths)
 {
-#if JUCE_WINDOWS
+   #if JUCE_WINDOWS
     Array<File> roots;
     File::findFileSystemRoots (roots);
     rootPaths.clear();
@@ -511,9 +517,8 @@ void FileBrowserComponent::getRoots (StringArray& rootNames, StringArray& rootPa
     rootNames.add ("Documents");
     rootPaths.add (File::getSpecialLocation (File::userDesktopDirectory).getFullPathName());
     rootNames.add ("Desktop");
-#endif
 
-#if JUCE_MAC
+   #elif JUCE_MAC
     rootPaths.add (File::getSpecialLocation (File::userHomeDirectory).getFullPathName());
     rootNames.add ("Home folder");
     rootPaths.add (File::getSpecialLocation (File::userDocumentsDirectory).getFullPathName());
@@ -538,16 +543,15 @@ void FileBrowserComponent::getRoots (StringArray& rootNames, StringArray& rootPa
             rootNames.add (volume.getFileName());
         }
     }
-#endif
 
-#if JUCE_LINUX
+   #else
     rootPaths.add ("/");
     rootNames.add ("/");
     rootPaths.add (File::getSpecialLocation (File::userHomeDirectory).getFullPathName());
     rootNames.add ("Home folder");
     rootPaths.add (File::getSpecialLocation (File::userDesktopDirectory).getFullPathName());
     rootNames.add ("Desktop");
-#endif
+   #endif
 }
 
 

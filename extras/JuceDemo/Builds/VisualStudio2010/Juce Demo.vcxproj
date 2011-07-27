@@ -132,6 +132,7 @@
     <ClCompile Include="..\..\Source\demos\AudioDemoTabComponent.cpp"/>
     <ClCompile Include="..\..\Source\demos\CameraDemo.cpp"/>
     <ClCompile Include="..\..\Source\demos\CodeEditorDemo.cpp"/>
+    <ClCompile Include="..\..\Source\demos\DirectShowDemo.cpp"/>
     <ClCompile Include="..\..\Source\demos\DragAndDropDemo.cpp"/>
     <ClCompile Include="..\..\Source\demos\FontsAndTextDemo.cpp"/>
     <ClCompile Include="..\..\Source\demos\InterprocessCommsDemo.cpp"/>
@@ -160,8 +161,8 @@
     <ClInclude Include="..\..\Source\demos\AudioDemoTabComponent.h"/>
     <ClInclude Include="..\..\Source\demos\RenderingTestComponent.h"/>
     <ClInclude Include="..\..\JuceLibraryCode\AppConfig.h"/>
-    <ClInclude Include="..\..\JuceLibraryCode\JuceHeader.h"/>
     <ClInclude Include="..\..\JuceLibraryCode\BinaryData.h"/>
+    <ClInclude Include="..\..\JuceLibraryCode\JuceHeader.h"/>
   </ItemGroup>
   <ItemGroup>
     <None Include=".\icon.ico"/>

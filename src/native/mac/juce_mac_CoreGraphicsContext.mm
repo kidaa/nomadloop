@@ -27,6 +27,29 @@
 // compiled on its own).
 #if JUCE_INCLUDED_FILE
 
+
+//==============================================================================
+namespace
+{
+    template <class RectType>
+    Rectangle<int> convertToRectInt (const RectType& r)
+    {
+        return Rectangle<int> ((int) r.origin.x, (int) r.origin.y, (int) r.size.width, (int) r.size.height);
+    }
+
+    template <class RectType>
+    Rectangle<float> convertToRectFloat (const RectType& r)
+    {
+        return Rectangle<float> (r.origin.x, r.origin.y, r.size.width, r.size.height);
+    }
+
+    template <class RectType>
+    CGRect convertToCGRect (const RectType& r)
+    {
+        return CGRectMake ((CGFloat) r.getX(), (CGFloat) r.getY(), (CGFloat) r.getWidth(), (CGFloat) r.getHeight());
+    }
+}
+
 //==============================================================================
 class CoreGraphicsImage : public Image::SharedImage
 {
@@ -78,7 +101,7 @@ public:
     {
         const CoreGraphicsImage* nativeImage = dynamic_cast <const CoreGraphicsImage*> (juceImage.getSharedImage());
 
-        if (nativeImage != 0 && (juceImage.getFormat() == Image::SingleChannel || ! forAlpha))
+        if (nativeImage != nullptr && (juceImage.getFormat() == Image::SingleChannel || ! forAlpha))
         {
             return CGBitmapContextCreateImage (nativeImage->context);
         }
@@ -111,7 +134,7 @@ public:
   #if JUCE_MAC
     static NSImage* createNSImage (const Image& image)
     {
-        const ScopedAutoReleasePool pool;
+        JUCE_AUTORELEASEPOOL
 
         NSImage* im = [[NSImage alloc] init];
         [im setSize: NSMakeSize (image.getWidth(), image.getHeight())];
@@ -339,7 +362,7 @@ public:
 
         SavedState* const top = stateStack.getLast();
 
-        if (top != 0)
+        if (top != nullptr)
         {
             state = top;
             stateStack.removeLast (1, false);
@@ -594,7 +617,7 @@ public:
 
             MacTypeface* mf = dynamic_cast <MacTypeface*> (state->font.getTypeface());
 
-            if (mf != 0)
+            if (mf != nullptr)
             {
                 state->fontRef = mf->fontRef;
                 CGContextSetFont (context, state->fontRef);
@@ -607,7 +630,7 @@ public:
         }
     }
 
-    const Font getFont()
+    Font getFont()
     {
         return state->font;
     }
@@ -841,7 +864,7 @@ LowLevelGraphicsContext* CoreGraphicsImage::createLowLevelContext()
 
 //==============================================================================
 #if USE_COREGRAPHICS_RENDERING && ! DONT_USE_COREIMAGE_LOADER
-const Image juce_loadWithCoreImage (InputStream& input)
+Image juce_loadWithCoreImage (InputStream& input)
 {
     MemoryBlock data;
     input.readIntoMemoryBlock (data, -1);
@@ -879,7 +902,7 @@ const Image juce_loadWithCoreImage (InputStream& input)
                          hasAlphaChan, Image::NativeImage);
 
             CoreGraphicsImage* const cgImage = dynamic_cast<CoreGraphicsImage*> (image.getSharedImage());
-            jassert (cgImage != 0); // if USE_COREGRAPHICS_RENDERING is set, the CoreGraphicsImage class should have been used.
+            jassert (cgImage != nullptr); // if USE_COREGRAPHICS_RENDERING is set, the CoreGraphicsImage class should have been used.
 
             CGContextDrawImage (cgImage->context, CGRectMake (0, 0, image.getWidth(), image.getHeight()), loadedImage);
             CGContextFlush (cgImage->context);
@@ -896,6 +919,19 @@ const Image juce_loadWithCoreImage (InputStream& input)
     }
 
     return Image::null;
+}
+#endif
+
+#if JUCE_MAC
+Image juce_createImageFromCIImage (CIImage* im, int w, int h)
+{
+    CoreGraphicsImage* cgImage = new CoreGraphicsImage (Image::ARGB, w, h, false);
+
+    CIContext* cic = [CIContext contextWithCGContext: cgImage->context options: nil];
+    [cic drawImage: im inRect: CGRectMake (0, 0, w, h) fromRect: CGRectMake (0, 0, w, h)];
+    CGContextFlush (cgImage->context);
+
+    return Image (cgImage);
 }
 #endif
 

@@ -23,7 +23,6 @@
   ==============================================================================
 */
 
-//==============================================================================
 #ifndef __JUCE_WIN32_NATIVEINCLUDES_JUCEHEADER__
 #define __JUCE_WIN32_NATIVEINCLUDES_JUCEHEADER__
 
@@ -31,22 +30,29 @@
 #include "../../core/juce_TargetPlatform.h"
 #include "../../../juce_Config.h"
 
-#ifndef STRICT
- #define STRICT 1
-#endif
-
-#undef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN 1
-
 #if JUCE_MSVC
-  #pragma warning (push)
-  #pragma warning (disable : 4100 4201 4514 4312 4995)
+ #ifndef _CPPRTTI
+  #error "You're compiling without RTTI enabled! This is needed for a lot of JUCE classes, please update your compiler settings!"
+ #endif
+
+ #ifndef _CPPUNWIND
+  #error "You're compiling without exceptions enabled! This is needed for a lot of JUCE classes, please update your compiler settings!"
+ #endif
+
+ #pragma warning (push)
+ #pragma warning (disable : 4100 4201 4514 4312 4995)
 #endif
 
+#undef  _WIN32_WINNT
 #define _WIN32_WINNT 0x0500
+#undef  STRICT
+#define STRICT 1
+#undef  WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN 1
+#undef  _UNICODE
 #define _UNICODE 1
+#undef  UNICODE
 #define UNICODE 1
-
 #ifndef _WIN32_IE
  #define _WIN32_IE 0x0400
 #endif
@@ -119,7 +125,7 @@
 #endif
 
 //==============================================================================
-#if JUCE_USE_CAMERA && JUCE_BUILD_NATIVE
+#if (JUCE_USE_CAMERA || JUCE_DIRECTSHOW) && JUCE_BUILD_NATIVE
 
  /*  If you're using the camera classes, you'll need access to a few DirectShow headers.
 
@@ -140,6 +146,10 @@
  #include <dshow.h>
  #include <qedit.h>
  #include <dshowasf.h>
+#endif
+
+#if JUCE_DIRECTSHOW && JUCE_MEDIAFOUNDATION && JUCE_BUILD_NATIVE
+ #include <evr.h>
 #endif
 
 //==============================================================================
@@ -185,94 +195,24 @@
  #include <dwrite.h>
 #endif
 
-//==============================================================================
-/** A simple COM smart pointer.
-    Avoids having to include ATL just to get one of these.
+#ifndef WM_APPCOMMAND
+ #define WM_APPCOMMAND 0x0319
+#endif
+
+#include "juce_win32_ComSmartPtr.h"
+
+/* Used with DynamicLibrary to simplify importing functions
+
+   functionName: function to import
+   localFunctionName: name you want to use to actually call it (must be different)
+   returnType: the return type
+   object: the DynamicLibrary to use
+   params: list of params (bracketed)
 */
-template <class ComClass>
-class ComSmartPtr
-{
-public:
-    ComSmartPtr() throw() : p (0)                               {}
-    ComSmartPtr (ComClass* const p_) : p (p_)                   { if (p_ != 0) p_->AddRef(); }
-    ComSmartPtr (const ComSmartPtr<ComClass>& p_) : p (p_.p)    { if (p != 0) p->AddRef(); }
-    ~ComSmartPtr()                                              { release(); }
+#define JUCE_DLL_FUNCTION(functionName, localFunctionName, returnType, object, params) \
+    typedef returnType (WINAPI *type##localFunctionName) params; \
+    type##localFunctionName localFunctionName  \
+        = (type##localFunctionName)object.getFunction (#functionName);
 
-    operator ComClass*() const throw()     { return p; }
-    ComClass& operator*() const throw()    { return *p; }
-    ComClass* operator->() const throw()   { return p; }
-
-    ComSmartPtr& operator= (ComClass* const newP)
-    {
-        if (newP != 0)  newP->AddRef();
-        release();
-        p = newP;
-        return *this;
-    }
-
-    ComSmartPtr& operator= (const ComSmartPtr<ComClass>& newP)  { return operator= (newP.p); }
-
-    // Releases and nullifies this pointer and returns its address
-    ComClass** resetAndGetPointerAddress()
-    {
-        release();
-        p = 0;
-        return &p;
-    }
-
-    HRESULT CoCreateInstance (REFCLSID classUUID, DWORD dwClsContext = CLSCTX_INPROC_SERVER)
-    {
-      #ifndef __MINGW32__
-        return ::CoCreateInstance (classUUID, 0, dwClsContext, __uuidof (ComClass), (void**) resetAndGetPointerAddress());
-      #else
-        return E_NOTIMPL;
-      #endif
-    }
-
-    template <class OtherComClass>
-    HRESULT QueryInterface (REFCLSID classUUID, ComSmartPtr<OtherComClass>& destObject) const
-    {
-        if (p == 0)
-            return E_POINTER;
-
-        return p->QueryInterface (classUUID, (void**) destObject.resetAndGetPointerAddress());
-    }
-
-private:
-    ComClass* p;
-
-    void release()  { if (p != 0) p->Release(); }
-
-    ComClass** operator&() throw(); // private to avoid it being used accidentally
-};
-
-//==============================================================================
-/** Handy base class for writing COM objects, providing ref-counting and a basic QueryInterface method.
-*/
-template <class ComClass>
-class ComBaseClassHelper   : public ComClass
-{
-public:
-    ComBaseClassHelper()  : refCount (1) {}
-    virtual ~ComBaseClassHelper() {}
-
-    HRESULT __stdcall QueryInterface (REFIID refId, void** result)
-    {
-      #ifndef __MINGW32__
-        if (refId == __uuidof (ComClass))   { AddRef(); *result = dynamic_cast <ComClass*> (this); return S_OK; }
-      #endif
-
-        if (refId == IID_IUnknown)          { AddRef(); *result = dynamic_cast <IUnknown*> (this); return S_OK; }
-
-        *result = 0;
-        return E_NOINTERFACE;
-    }
-
-    ULONG __stdcall AddRef()    { return ++refCount; }
-    ULONG __stdcall Release()   { const int r = --refCount; if (r == 0) delete this; return r; }
-
-protected:
-    int refCount;
-};
 
 #endif   // __JUCE_WIN32_NATIVEINCLUDES_JUCEHEADER__

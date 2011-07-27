@@ -36,11 +36,11 @@
 //==============================================================================
 bool Process::isForegroundProcess()
 {
-#if JUCE_MAC
+   #if JUCE_MAC
     return [NSApp isActive];
-#else
+   #else
     return true; // xxx change this if more than one app is ever possible on the iPhone!
-#endif
+   #endif
 }
 
 void Process::raisePrivilege()
@@ -61,6 +61,28 @@ void Process::terminate()
 void Process::setPriority (ProcessPriority)
 {
     // xxx
+}
+
+//==============================================================================
+JUCE_API bool JUCE_CALLTYPE juce_isRunningUnderDebugger()
+{
+    static char testResult = 0;
+
+    if (testResult == 0)
+    {
+        struct kinfo_proc info;
+        int m[] = { CTL_KERN, KERN_PROC, KERN_PROC_PID, getpid() };
+        size_t sz = sizeof (info);
+        sysctl (m, 4, &info, &sz, 0, 0);
+        testResult = ((info.kp_proc.p_flag & P_TRACED) != 0) ? 1 : -1;
+    }
+
+    return testResult > 0;
+}
+
+JUCE_API bool JUCE_CALLTYPE Process::isRunningUnderDebugger()
+{
+    return juce_isRunningUnderDebugger();
 }
 
 #endif

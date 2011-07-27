@@ -48,7 +48,7 @@ bool ResourceFile::isResourceFile (const File& file)
     {
         ScopedPointer <InputStream> in (file.createInputStream());
 
-        if (in != 0)
+        if (in != nullptr)
         {
             MemoryBlock mb;
             in->readIntoMemoryBlock (mb, 256);
@@ -87,7 +87,28 @@ void ResourceFile::setClassName (const String& className_)
 
 void ResourceFile::addFile (const File& file)
 {
-    files.add (new File (file));
+    files.add (file);
+
+    const String variableNameRoot (CodeHelpers::makeBinaryDataIdentifierName (file));
+    String variableName (variableNameRoot);
+
+    int suffix = 2;
+    while (variableNames.contains (variableName))
+        variableName = variableNameRoot + String (suffix++);
+
+    variableNames.add (variableName);
+}
+
+String ResourceFile::getDataVariableFor (const File& file) const
+{
+    jassert (files.indexOf (file) >= 0);
+    return variableNames [files.indexOf (file)];
+}
+
+String ResourceFile::getSizeVariableFor (const File& file) const
+{
+    jassert (files.indexOf (file) >= 0);
+    return variableNames [files.indexOf (file)] + "Size";
 }
 
 int64 ResourceFile::getTotalDataSize() const
@@ -95,7 +116,7 @@ int64 ResourceFile::getTotalDataSize() const
     int64 total = 0;
 
     for (int i = 0; i < files.size(); ++i)
-        total += files.getUnchecked(i)->getSize();
+        total += files.getReference(i).getSize();
 
     return total;
 }
@@ -118,25 +139,12 @@ bool ResourceFile::write (const File& cppFile, OutputStream& cpp, OutputStream& 
         header << CodeHelpers::createIncludeStatement (juceHeader, cppFile) << newLine;
 
     const String namespaceName (className);
-    StringArray variableNames, returnCodes;
+    StringArray returnCodes;
 
     int i;
     for (i = 0; i < files.size(); ++i)
-    {
-        String variableNameRoot (CodeHelpers::makeValidIdentifier (files.getUnchecked(i)->getFileName()
-                                                                       .replaceCharacters (" .", "__")
-                                                                       .retainCharacters ("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_0123456789"),
-                                                                      false, true, false));
-        String variableName (variableNameRoot);
-
-        int suffix = 2;
-        while (variableNames.contains (variableName))
-            variableName = variableNameRoot + String (suffix++);
-
-        variableNames.add (variableName);
-        returnCodes.add ("numBytes = " + namespaceName + "::" + variableName + "Size; return "
-                            + namespaceName + "::" + variableName + ";");
-    }
+        returnCodes.add ("numBytes = " + namespaceName + "::" + variableNames[i] + "Size; return "
+                            + namespaceName + "::" + variableNames[i] + ";");
 
     cpp << CodeHelpers::createIncludeStatement (cppFile.withFileExtension (".h"), cppFile) << newLine
         << newLine
@@ -155,13 +163,13 @@ bool ResourceFile::write (const File& cppFile, OutputStream& cpp, OutputStream& 
 
     for (i = 0; i < files.size(); ++i)
     {
-        const File file (*files.getUnchecked(i));
+        const File& file = files.getReference(i);
         const int64 dataSize = file.getSize();
 
         ScopedPointer <InputStream> fileStream (file.createInputStream());
-        jassert (fileStream != 0);
+        jassert (fileStream != nullptr);
 
-        if (fileStream != 0)
+        if (fileStream != nullptr)
         {
             const String variableName (variableNames[i]);
             const String tempVariable ("temp_" + String::toHexString (file.hashCode()));
@@ -201,12 +209,12 @@ bool ResourceFile::write (const File& cppFile)
     ScopedPointer <FileOutputStream> cppOut (tempCpp.getFile().createOutputStream (32768));
     ScopedPointer <FileOutputStream> hppOut (tempH.getFile().createOutputStream (32768));
 
-    if (cppOut != 0 && hppOut != 0)
+    if (cppOut != nullptr && hppOut != nullptr)
     {
         if (write (cppFile, *cppOut, *hppOut))
         {
-            cppOut = 0;
-            hppOut = 0;
+            cppOut = nullptr;
+            hppOut = nullptr;
 
             return (tempCpp.getFile().hasIdenticalContentTo (tempCpp.getTargetFile()) || tempCpp.overwriteTargetFileWithTemporary())
                 && (tempH.getFile().hasIdenticalContentTo (tempH.getTargetFile()) || tempH.overwriteTargetFileWithTemporary());

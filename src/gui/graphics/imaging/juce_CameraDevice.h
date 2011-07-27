@@ -49,7 +49,7 @@ public:
 
         You can open one of these devices by calling openDevice().
     */
-    static const StringArray getAvailableDevices();
+    static StringArray getAvailableDevices();
 
     /** Opens a camera device.
 
@@ -66,7 +66,7 @@ public:
 
     //==============================================================================
     /** Returns the name of this device */
-    const String getName() const                { return name; }
+    String getName() const                { return name; }
 
     /** Creates a component that can be used to display a preview of the
         video from this camera.
@@ -99,12 +99,12 @@ public:
 
         This may be platform-specific, e.g. ".mov" or ".avi".
     */
-    static const String getFileExtension();
+    static String getFileExtension();
 
     /** After calling stopRecording(), this method can be called to return the timestamp
         of the first frame that was written to the file.
     */
-    const Time getTimeOfFirstRecordedFrame() const;
+    Time getTimeOfFirstRecordedFrame() const;
 
     //==============================================================================
     /**
@@ -140,8 +140,9 @@ public:
 
 
 protected:
-    /** @internal */
+   #ifndef DOXYGEN
     CameraDevice (const String& name, int index);
+   #endif
 
 private:
     void* internal;

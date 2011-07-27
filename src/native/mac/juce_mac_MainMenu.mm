@@ -59,7 +59,7 @@ class JuceMainMenuHandler   : private MenuBarModel::Listener,
 public:
     //==============================================================================
     JuceMainMenuHandler()
-        : currentModel (0),
+        : currentModel (nullptr),
           lastUpdateTime (0)
     {
         callback = [[JuceMenuCallback alloc] initWithOwner: this];
@@ -67,10 +67,10 @@ public:
 
     ~JuceMainMenuHandler()
     {
-        setMenu (0);
+        setMenu (nullptr);
 
         jassert (instance == this);
-        instance = 0;
+        instance = nullptr;
 
         [callback release];
     }
@@ -79,15 +79,15 @@ public:
     {
         if (currentModel != newMenuBarModel)
         {
-            if (currentModel != 0)
+            if (currentModel != nullptr)
                 currentModel->removeListener (this);
 
             currentModel = newMenuBarModel;
 
-            if (currentModel != 0)
+            if (currentModel != nullptr)
                 currentModel->addListener (this);
 
-            menuBarItemsChanged (0);
+            menuBarItemsChanged (nullptr);
         }
     }
 
@@ -96,7 +96,7 @@ public:
     {
         NSMenuItem* item = [parent addItemWithTitle: juceStringToNS (name)
                                              action: nil
-                                      keyEquivalent: @""];
+                                      keyEquivalent: nsEmptyString()];
         [item setTag: tag];
 
         NSMenu* sub = createMenu (child, name, menuId, tag);
@@ -109,21 +109,20 @@ public:
     void updateSubMenu (NSMenuItem* parentItem, const PopupMenu& menuToCopy,
                         const String& name, const int menuId, const int tag)
     {
-        [parentItem setTag: tag];
-        NSMenu* menu = [parentItem submenu];
-
-        [menu setTitle: juceStringToNS (name)];
-
-        while ([menu numberOfItems] > 0)
-            [menu removeItemAtIndex: 0];
+        // Note: This method used to update the contents of the existing menu in-place, but that caused
+        // weird side-effects which messed-up keyboard focus when switching between windows. By creating
+        // a new menu and replacing the old one with it, that problem seems to be avoided..
+        NSMenu* menu = [[NSMenu alloc] initWithTitle: juceStringToNS (name)];
 
         PopupMenu::MenuItemIterator iter (menuToCopy);
-
         while (iter.next())
             addMenuItem (iter, menu, menuId, tag);
 
         [menu setAutoenablesItems: false];
         [menu update];
+        [parentItem setTag: tag];
+        [parentItem setSubmenu: menu];
+        [menu release];
     }
 
     void menuBarItemsChanged (MenuBarModel*)
@@ -131,7 +130,7 @@ public:
         lastUpdateTime = Time::getMillisecondCounter();
 
         StringArray menuNames;
-        if (currentModel != 0)
+        if (currentModel != nullptr)
             menuNames = currentModel->getMenuBarNames();
 
         NSMenu* menuBar = [NSApp mainMenu];
@@ -155,7 +154,7 @@ public:
     {
         NSMenuItem* item = findMenuItem ([NSApp mainMenu], info);
 
-        if (item != 0)
+        if (item != nil)
             flashMenuBar ([item menu]);
     }
 
@@ -170,14 +169,14 @@ public:
         }
 
         if (Time::getMillisecondCounter() > lastUpdateTime + 500)
-            menuBarItemsChanged (0);
+            (new AsyncMenuUpdater())->post();
     }
 
     void invoke (const int commandId, ApplicationCommandManager* const commandManager, const int topLevelIndex) const
     {
-        if (currentModel != 0)
+        if (currentModel != nullptr)
         {
-            if (commandManager != 0)
+            if (commandManager != nullptr)
             {
                 ApplicationCommandTarget::InvocationInfo info (commandId);
                 info.invocationMethod = ApplicationCommandTarget::InvocationInfo::fromMenu;
@@ -185,8 +184,14 @@ public:
                 commandManager->invoke (info, true);
             }
 
-            currentModel->menuItemSelected (commandId, topLevelIndex);
+            (new AsyncCommandInvoker (commandId, topLevelIndex))->post();
         }
+    }
+
+    void invokeDirectly (const int commandId, const int topLevelIndex)
+    {
+        if (currentModel != nullptr)
+            currentModel->menuItemSelected (commandId, topLevelIndex);
     }
 
     void addMenuItem (PopupMenu::MenuItemIterator& iter, NSMenu* menuToAddTo,
@@ -194,8 +199,8 @@ public:
     {
         NSString* text = juceStringToNS (iter.itemName.upToFirstOccurrenceOf ("<end>", false, true));
 
-        if (text == 0)
-            text = @"";
+        if (text == nil)
+            text = nsEmptyString();
 
         if (iter.isSeparator)
         {
@@ -205,15 +210,15 @@ public:
         {
             NSMenuItem* item = [menuToAddTo addItemWithTitle: text
                                                       action: nil
-                                               keyEquivalent: @""];
+                                               keyEquivalent: nsEmptyString()];
 
             [item setEnabled: false];
         }
-        else if (iter.subMenu != 0)
+        else if (iter.subMenu != nullptr)
         {
             NSMenuItem* item = [menuToAddTo addItemWithTitle: text
                                                       action: nil
-                                               keyEquivalent: @""];
+                                               keyEquivalent: nsEmptyString()];
 
             [item setTag: iter.itemId];
             [item setEnabled: iter.isEnabled];
@@ -227,7 +232,7 @@ public:
         {
             NSMenuItem* item = [menuToAddTo addItemWithTitle: text
                                                       action: @selector (menuItemInvoked:)
-                                               keyEquivalent: @""];
+                                               keyEquivalent: nsEmptyString()];
 
             [item setTag: iter.itemId];
             [item setEnabled: iter.isEnabled];
@@ -238,7 +243,7 @@ public:
             [info addObject: [NSNumber numberWithInt: topLevelIndex]];
             [item setRepresentedObject: info];
 
-            if (iter.commandManager != 0)
+            if (iter.commandManager != nullptr)
             {
                 const Array <KeyPress> keyPresses (iter.commandManager->getKeyMappings()
                                                    ->getKeyPressesAssignedToCommand (iter.itemId));
@@ -247,31 +252,15 @@ public:
                 {
                     const KeyPress& kp = keyPresses.getReference(0);
 
-                    if (kp.getKeyCode() != KeyPress::backspaceKey
-                         && kp.getKeyCode() != KeyPress::deleteKey) // (adding these is annoying because it flashes the menu bar
-                                                                    // every time you press the key while editing text)
+                    if (kp.getKeyCode() != KeyPress::backspaceKey   // (adding these is annoying because it flashes the menu bar
+                         && kp.getKeyCode() != KeyPress::deleteKey) // every time you press the key while editing text)
                     {
                         juce_wchar key = kp.getTextCharacter();
-
-                        if (kp.getKeyCode() == KeyPress::backspaceKey)
-                            key = NSBackspaceCharacter;
-                        else if (kp.getKeyCode() == KeyPress::deleteKey)
-                            key = NSDeleteCharacter;
-                        else if (key == 0)
+                        if (key == 0)
                             key = (juce_wchar) kp.getKeyCode();
 
-                        unsigned int mods = 0;
-                        if (kp.getModifiers().isShiftDown())
-                            mods |= NSShiftKeyMask;
-                        if (kp.getModifiers().isCtrlDown())
-                            mods |= NSControlKeyMask;
-                        if (kp.getModifiers().isAltDown())
-                            mods |= NSAlternateKeyMask;
-                        if (kp.getModifiers().isCommandDown())
-                            mods |= NSCommandKeyMask;
-
                         [item setKeyEquivalent: juceStringToNS (String::charToString (key))];
-                        [item setKeyEquivalentModifierMask: mods];
+                        [item setKeyEquivalentModifierMask: juceModsToNSMods (kp.getModifiers())];
                     }
                 }
             }
@@ -313,20 +302,20 @@ private:
             if ([m tag] == info.commandID)
                 return m;
 
-            if ([m submenu] != 0)
+            if ([m submenu] != nil)
             {
                 NSMenuItem* found = findMenuItem ([m submenu], info);
-                if (found != 0)
+                if (found != nil)
                     return found;
             }
         }
 
-        return 0;
+        return nil;
     }
 
     static void flashMenuBar (NSMenu* menu)
     {
-        if ([[menu title] isEqualToString: @"Apple"])
+        if ([[menu title] isEqualToString: nsStringLiteral ("Apple")])
             return;
 
         [menu retain];
@@ -334,7 +323,7 @@ private:
         const unichar f35Key = NSF35FunctionKey;
         NSString* f35String = [NSString stringWithCharacters: &f35Key length: 1];
 
-        NSMenuItem* item = [[NSMenuItem alloc] initWithTitle: @"x"
+        NSMenuItem* item = [[NSMenuItem alloc] initWithTitle: nsStringLiteral ("x")
                                                       action: nil
                                                keyEquivalent: f35String];
         [item setTarget: nil];
@@ -362,9 +351,53 @@ private:
 
         [menu release];
     }
+
+    static unsigned int juceModsToNSMods (const ModifierKeys& mods)
+    {
+        unsigned int m = 0;
+        if (mods.isShiftDown())    m |= NSShiftKeyMask;
+        if (mods.isCtrlDown())     m |= NSControlKeyMask;
+        if (mods.isAltDown())      m |= NSAlternateKeyMask;
+        if (mods.isCommandDown())  m |= NSCommandKeyMask;
+        return m;
+    }
+
+    class AsyncMenuUpdater  : public CallbackMessage
+    {
+    public:
+        AsyncMenuUpdater() {}
+
+        void messageCallback()
+        {
+            if (JuceMainMenuHandler::instance != nullptr)
+                JuceMainMenuHandler::instance->menuBarItemsChanged (nullptr);
+        }
+
+    private:
+        JUCE_DECLARE_NON_COPYABLE (AsyncMenuUpdater);
+    };
+
+    class AsyncCommandInvoker  : public CallbackMessage
+    {
+    public:
+        AsyncCommandInvoker (const int commandId_, const int topLevelIndex_)
+            : commandId (commandId_), topLevelIndex (topLevelIndex_)
+        {}
+
+        void messageCallback()
+        {
+            if (JuceMainMenuHandler::instance != nullptr)
+                JuceMainMenuHandler::instance->invokeDirectly (commandId, topLevelIndex);
+        }
+
+    private:
+        const int commandId, topLevelIndex;
+
+        JUCE_DECLARE_NON_COPYABLE (AsyncCommandInvoker);
+    };
 };
 
-JuceMainMenuHandler* JuceMainMenuHandler::instance = 0;
+JuceMainMenuHandler* JuceMainMenuHandler::instance = nullptr;
 
 END_JUCE_NAMESPACE
 
@@ -395,11 +428,11 @@ END_JUCE_NAMESPACE
         NSEvent* e = [NSApp currentEvent];
         if ([e type] == NSKeyDown || [e type] == NSKeyUp)
         {
-            if (JUCE_NAMESPACE::Component::getCurrentlyFocusedComponent() != 0)
+            if (JUCE_NAMESPACE::Component::getCurrentlyFocusedComponent() != nullptr)
             {
                 JUCE_NAMESPACE::NSViewComponentPeer* peer = dynamic_cast <JUCE_NAMESPACE::NSViewComponentPeer*> (JUCE_NAMESPACE::Component::getCurrentlyFocusedComponent()->getPeer());
 
-                if (peer != 0)
+                if (peer != nullptr)
                 {
                     if ([e type] == NSKeyDown)
                         peer->redirectKeyDown (e);
@@ -422,7 +455,7 @@ END_JUCE_NAMESPACE
 
 - (void) menuNeedsUpdate: (NSMenu*) menu;
 {
-    if (JuceMainMenuHandler::instance != 0)
+    if (JuceMainMenuHandler::instance != nullptr)
         JuceMainMenuHandler::instance->updateMenus (menu);
 }
 
@@ -434,7 +467,7 @@ namespace MainMenuHelpers
 {
     NSMenu* createStandardAppMenu (NSMenu* menu, const String& appName, const PopupMenu* extraItems)
     {
-        if (extraItems != 0 && JuceMainMenuHandler::instance != 0 && extraItems->getNumItems() > 0)
+        if (extraItems != nullptr && JuceMainMenuHandler::instance != nullptr && extraItems->getNumItems() > 0)
         {
             PopupMenu::MenuItemIterator iter (*extraItems);
 
@@ -447,11 +480,11 @@ namespace MainMenuHelpers
         NSMenuItem* item;
 
         // Services...
-        item = [[NSMenuItem alloc] initWithTitle: NSLocalizedString (@"Services", nil)
-                                          action: nil  keyEquivalent: @""];
+        item = [[NSMenuItem alloc] initWithTitle: NSLocalizedString (nsStringLiteral ("Services"), nil)
+                                          action: nil  keyEquivalent: nsEmptyString()];
         [menu addItem: item];
         [item release];
-        NSMenu* servicesMenu = [[NSMenu alloc] initWithTitle: @"Services"];
+        NSMenu* servicesMenu = [[NSMenu alloc] initWithTitle: nsStringLiteral ("Services")];
         [menu setSubmenu: servicesMenu forItem: item];
         [NSApp setServicesMenu: servicesMenu];
         [servicesMenu release];
@@ -459,20 +492,20 @@ namespace MainMenuHelpers
 
         // Hide + Show stuff...
         item = [[NSMenuItem alloc] initWithTitle: juceStringToNS ("Hide " + appName)
-                                          action: @selector (hide:)  keyEquivalent: @"h"];
+                                          action: @selector (hide:)  keyEquivalent: nsStringLiteral ("h")];
         [item setTarget: NSApp];
         [menu addItem: item];
         [item release];
 
-        item = [[NSMenuItem alloc] initWithTitle: NSLocalizedString (@"Hide Others", nil)
-                                          action: @selector (hideOtherApplications:)  keyEquivalent: @"h"];
+        item = [[NSMenuItem alloc] initWithTitle: NSLocalizedString (nsStringLiteral ("Hide Others"), nil)
+                                          action: @selector (hideOtherApplications:)  keyEquivalent: nsStringLiteral ("h")];
         [item setKeyEquivalentModifierMask: NSCommandKeyMask | NSAlternateKeyMask];
         [item setTarget: NSApp];
         [menu addItem: item];
         [item release];
 
-        item = [[NSMenuItem alloc] initWithTitle: NSLocalizedString (@"Show All", nil)
-                                          action: @selector (unhideAllApplications:)  keyEquivalent: @""];
+        item = [[NSMenuItem alloc] initWithTitle: NSLocalizedString (nsStringLiteral ("Show All"), nil)
+                                          action: @selector (unhideAllApplications:)  keyEquivalent: nsEmptyString()];
         [item setTarget: NSApp];
         [menu addItem: item];
         [item release];
@@ -481,7 +514,7 @@ namespace MainMenuHelpers
 
         // Quit item....
         item = [[NSMenuItem alloc] initWithTitle: juceStringToNS ("Quit " + appName)
-                                          action: @selector (terminate:)  keyEquivalent: @"q"];
+                                          action: @selector (terminate:)  keyEquivalent: nsStringLiteral ("q")];
 
         [item setTarget: NSApp];
         [menu addItem: item];
@@ -496,14 +529,14 @@ namespace MainMenuHelpers
         // this can't be used in a plugin!
         jassert (JUCEApplication::isStandaloneApp());
 
-        if (JUCEApplication::getInstance() != 0)
+        if (JUCEApplication::getInstance() != nullptr)
         {
-            const ScopedAutoReleasePool pool;
+            JUCE_AUTORELEASEPOOL
 
-            NSMenu* mainMenu = [[NSMenu alloc] initWithTitle: @"MainMenu"];
-            NSMenuItem* item = [mainMenu addItemWithTitle: @"Apple" action: nil keyEquivalent: @""];
+            NSMenu* mainMenu = [[NSMenu alloc] initWithTitle: nsStringLiteral ("MainMenu")];
+            NSMenuItem* item = [mainMenu addItemWithTitle: nsStringLiteral ("Apple") action: nil keyEquivalent: nsEmptyString()];
 
-            NSMenu* appMenu = [[NSMenu alloc] initWithTitle: @"Apple"];
+            NSMenu* appMenu = [[NSMenu alloc] initWithTitle: nsStringLiteral ("Apple")];
 
             [NSApp performSelector: @selector (setAppleMenu:) withObject: appMenu];
             [mainMenu setSubmenu: appMenu forItem: item];
@@ -522,19 +555,19 @@ void MenuBarModel::setMacMainMenu (MenuBarModel* newMenuBarModel,
 {
     if (getMacMainMenu() != newMenuBarModel)
     {
-        const ScopedAutoReleasePool pool;
+        JUCE_AUTORELEASEPOOL
 
-        if (newMenuBarModel == 0)
+        if (newMenuBarModel == nullptr)
         {
             delete JuceMainMenuHandler::instance;
-            jassert (JuceMainMenuHandler::instance == 0); // should be zeroed in the destructor
-            jassert (extraAppleMenuItems == 0); // you can't specify some extra items without also supplying a model
+            jassert (JuceMainMenuHandler::instance == nullptr); // should be zeroed in the destructor
+            jassert (extraAppleMenuItems == nullptr); // you can't specify some extra items without also supplying a model
 
-            extraAppleMenuItems = 0;
+            extraAppleMenuItems = nullptr;
         }
         else
         {
-            if (JuceMainMenuHandler::instance == 0)
+            if (JuceMainMenuHandler::instance == nullptr)
                 JuceMainMenuHandler::instance = new JuceMainMenuHandler();
 
             JuceMainMenuHandler::instance->setMenu (newMenuBarModel);
@@ -543,20 +576,20 @@ void MenuBarModel::setMacMainMenu (MenuBarModel* newMenuBarModel,
 
     MainMenuHelpers::rebuildMainMenu (extraAppleMenuItems);
 
-    if (newMenuBarModel != 0)
+    if (newMenuBarModel != nullptr)
         newMenuBarModel->menuItemsChanged();
 }
 
 MenuBarModel* MenuBarModel::getMacMainMenu()
 {
-    return JuceMainMenuHandler::instance != 0
-            ? JuceMainMenuHandler::instance->currentModel : 0;
+    return JuceMainMenuHandler::instance != nullptr
+             ? JuceMainMenuHandler::instance->currentModel : nullptr;
 }
 
 void juce_initialiseMacMainMenu()
 {
-    if (JuceMainMenuHandler::instance == 0)
-        MainMenuHelpers::rebuildMainMenu (0);
+    if (JuceMainMenuHandler::instance == nullptr)
+        MainMenuHelpers::rebuildMainMenu (nullptr);
 }
 
 

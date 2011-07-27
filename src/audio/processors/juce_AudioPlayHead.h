@@ -62,7 +62,7 @@ public:
     //==============================================================================
     /** This structure is filled-in by the AudioPlayHead::getCurrentPosition() method.
     */
-    struct CurrentPositionInfo
+    struct JUCE_API  CurrentPositionInfo
     {
         /** The tempo in BPM */
         double bpm;
@@ -107,8 +107,8 @@ public:
         bool isRecording;
 
         //==============================================================================
-        bool operator== (const CurrentPositionInfo& other) const throw();
-        bool operator!= (const CurrentPositionInfo& other) const throw();
+        bool operator== (const CurrentPositionInfo& other) const noexcept;
+        bool operator!= (const CurrentPositionInfo& other) const noexcept;
 
         void resetToDefault();
     };

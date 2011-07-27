@@ -31,8 +31,9 @@ BEGIN_JUCE_NAMESPACE
 #include "../lookandfeel/juce_LookAndFeel.h"
 #include "../../graphics/imaging/juce_ImageCache.h"
 #include "../../../events/juce_AsyncUpdater.h"
+#include "../../../memory/juce_OptionalScopedPointer.h"
 
-const Image juce_createIconForFile (const File& file);
+Image juce_createIconForFile (const File& file);
 
 
 //==============================================================================
@@ -52,14 +53,12 @@ public:
           owner (owner_),
           parentContentsList (parentContentsList_),
           indexInContentsList (indexInContentsList_),
-          subContentsList (0),
-          canDeleteSubContentsList (false),
-          thread (thread_),
-          icon (0)
+          subContentsList (nullptr, false),
+          thread (thread_)
     {
         DirectoryContentsList::FileInfo fileInfo;
 
-        if (parentContentsList_ != 0
+        if (parentContentsList_ != nullptr
              && parentContentsList_->getFileInfo (indexInContentsList_, fileInfo))
         {
             fileSize = File::descriptionOfSizeInBytes (fileInfo.fileSize);
@@ -75,11 +74,7 @@ public:
     ~FileListTreeItem()
     {
         thread.removeTimeSliceClient (this);
-
         clearSubItems();
-
-        if (canDeleteSubContentsList)
-            delete subContentsList;
     }
 
     //==============================================================================
@@ -87,7 +82,7 @@ public:
     const String getUniqueName() const          { return file.getFullPathName(); }
     int getItemHeight() const                   { return 22; }
 
-    const String getDragSourceDescription()     { return owner.getDragAndDropDescription(); }
+    const var getDragSourceDescription()        { return owner.getDragAndDropDescription(); }
 
     void itemOpennessChanged (bool isNowOpen)
     {
@@ -99,26 +94,25 @@ public:
 
             if (isDirectory)
             {
-                if (subContentsList == 0)
+                if (subContentsList == nullptr)
                 {
-                    jassert (parentContentsList != 0);
+                    jassert (parentContentsList != nullptr);
 
                     DirectoryContentsList* const l = new DirectoryContentsList (parentContentsList->getFilter(), thread);
                     l->setDirectory (file, true, true);
 
-                    setSubContentsList (l);
-                    canDeleteSubContentsList = true;
+                    setSubContentsList (l, true);
                 }
 
-                changeListenerCallback (0);
+                changeListenerCallback (nullptr);
             }
         }
     }
 
-    void setSubContentsList (DirectoryContentsList* newList)
+    void setSubContentsList (DirectoryContentsList* newList, const bool canDeleteList)
     {
-        jassert (subContentsList == 0);
-        subContentsList = newList;
+        OptionalScopedPointer<DirectoryContentsList> newPointer (newList, canDeleteList);
+        subContentsList = newPointer;
         newList->addChangeListener (this);
     }
 
@@ -126,7 +120,7 @@ public:
     {
         clearSubItems();
 
-        if (isOpen() && subContentsList != 0)
+        if (isOpen() && subContentsList != nullptr)
         {
             for (int i = 0; i < subContentsList->getNumFiles(); ++i)
             {
@@ -190,8 +184,8 @@ private:
     FileTreeComponent& owner;
     DirectoryContentsList* parentContentsList;
     int indexInContentsList;
-    DirectoryContentsList* subContentsList;
-    bool isDirectory, canDeleteSubContentsList;
+    OptionalScopedPointer<DirectoryContentsList> subContentsList;
+    bool isDirectory;
     TimeSliceThread& thread;
     Image icon;
     String fileSize;
@@ -231,7 +225,7 @@ FileTreeComponent::FileTreeComponent (DirectoryContentsList& listToShow)
         = new FileListTreeItem (*this, 0, 0, listToShow.getDirectory(),
                                 listToShow.getTimeSliceThread());
 
-    root->setSubContentsList (&listToShow);
+    root->setSubContentsList (&listToShow, false);
     setRootItemVisible (false);
     setRootItem (root);
 }
@@ -246,8 +240,8 @@ const File FileTreeComponent::getSelectedFile (const int index) const
 {
     const FileListTreeItem* const item = dynamic_cast <const FileListTreeItem*> (getSelectedItem (index));
 
-    return item != 0 ? item->file
-                     : File::nonexistent;
+    return item != nullptr ? item->file
+                           : File::nonexistent;
 }
 
 void FileTreeComponent::deselectAllFiles()

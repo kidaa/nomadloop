@@ -28,6 +28,7 @@
 BEGIN_JUCE_NAMESPACE
 
 #include "juce_LocalisedStrings.h"
+#include "../threads/juce_SpinLock.h"
 
 
 //==============================================================================
@@ -46,15 +47,32 @@ LocalisedStrings::~LocalisedStrings()
 }
 
 //==============================================================================
-const String LocalisedStrings::translate (const String& text) const
+String LocalisedStrings::translate (const String& text) const
 {
     return translations.getValue (text, text);
 }
 
 namespace
 {
-    CriticalSection currentMappingsLock;
-    LocalisedStrings* currentMappings = 0;
+   #if JUCE_CHECK_MEMORY_LEAKS
+    // By using this object to force a LocalisedStrings object to be created
+    // before the currentMappings object, we can force the static order-of-destruction to
+    // delete the currentMappings object first, which avoids a bogus leak warning.
+    // (Oddly, just creating a LocalisedStrings on the stack doesn't work in gcc, it
+    // has to be created with 'new' for this to work..)
+    struct LeakAvoidanceTrick
+    {
+        LeakAvoidanceTrick()
+        {
+            const ScopedPointer<LocalisedStrings> dummy (new LocalisedStrings (String()));
+        }
+    };
+
+    LeakAvoidanceTrick leakAvoidanceTrick;
+   #endif
+
+    SpinLock currentMappingsLock;
+    ScopedPointer<LocalisedStrings> currentMappings;
 
     int findCloseQuote (const String& text, int startPos)
     {
@@ -75,7 +93,7 @@ namespace
         return startPos;
     }
 
-    const String unescapeString (const String& s)
+    String unescapeString (const String& s)
     {
         return s.replace ("\\\"", "\"")
                 .replace ("\\\'", "\'")
@@ -132,9 +150,7 @@ void LocalisedStrings::setIgnoresCase (const bool shouldIgnoreCase)
 //==============================================================================
 void LocalisedStrings::setCurrentMappings (LocalisedStrings* newTranslations)
 {
-    const ScopedLock sl (currentMappingsLock);
-
-    delete currentMappings;
+    const SpinLock::ScopedLockType sl (currentMappingsLock);
     currentMappings = newTranslations;
 }
 
@@ -143,17 +159,17 @@ LocalisedStrings* LocalisedStrings::getCurrentMappings()
     return currentMappings;
 }
 
-const String LocalisedStrings::translateWithCurrentMappings (const String& text)
+String LocalisedStrings::translateWithCurrentMappings (const String& text)
 {
-    const ScopedLock sl (currentMappingsLock);
+    const SpinLock::ScopedLockType sl (currentMappingsLock);
 
-    if (currentMappings != 0)
+    if (currentMappings != nullptr)
         return currentMappings->translate (text);
 
     return text;
 }
 
-const String LocalisedStrings::translateWithCurrentMappings (const char* text)
+String LocalisedStrings::translateWithCurrentMappings (const char* text)
 {
     return translateWithCurrentMappings (String (text));
 }

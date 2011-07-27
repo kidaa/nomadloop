@@ -28,7 +28,6 @@
 BEGIN_JUCE_NAMESPACE
 
 #include "juce_Synthesiser.h"
-#include "../../threads/juce_ScopedLock.h"
 
 
 //==============================================================================
@@ -45,7 +44,8 @@ SynthesiserVoice::SynthesiserVoice()
     : currentSampleRate (44100.0),
       currentlyPlayingNote (-1),
       noteOnTime (0),
-      currentlyPlayingSound (0)
+      keyIsDown (false),
+      sostenutoPedalDown (false)
 {
 }
 
@@ -55,7 +55,7 @@ SynthesiserVoice::~SynthesiserVoice()
 
 bool SynthesiserVoice::isPlayingChannel (const int midiChannel) const
 {
-    return currentlyPlayingSound != 0
+    return currentlyPlayingSound != nullptr
             && currentlyPlayingSound->appliesToChannel (midiChannel);
 }
 
@@ -67,7 +67,7 @@ void SynthesiserVoice::setCurrentPlaybackSampleRate (const double newRate)
 void SynthesiserVoice::clearCurrentNote()
 {
     currentlyPlayingNote = -1;
-    currentlyPlayingSound = 0;
+    currentlyPlayingSound = nullptr;
 }
 
 //==============================================================================
@@ -178,43 +178,44 @@ void Synthesiser::renderNextBlock (AudioSampleBuffer& outputBuffer,
         }
 
         if (useEvent)
-        {
-            if (m.isNoteOn())
-            {
-                const int channel = m.getChannel();
-
-                noteOn (channel,
-                        m.getNoteNumber(),
-                        m.getFloatVelocity());
-            }
-            else if (m.isNoteOff())
-            {
-                noteOff (m.getChannel(),
-                         m.getNoteNumber(),
-                         true);
-            }
-            else if (m.isAllNotesOff() || m.isAllSoundOff())
-            {
-                allNotesOff (m.getChannel(), true);
-            }
-            else if (m.isPitchWheel())
-            {
-                const int channel = m.getChannel();
-                const int wheelPos = m.getPitchWheelValue();
-                lastPitchWheelValues [channel - 1] = wheelPos;
-
-                handlePitchWheel (channel, wheelPos);
-            }
-            else if (m.isController())
-            {
-                handleController (m.getChannel(),
-                                  m.getControllerNumber(),
-                                  m.getControllerValue());
-            }
-        }
+            handleMidiEvent (m);
 
         startSample += numThisTime;
         numSamples -= numThisTime;
+    }
+}
+
+void Synthesiser::handleMidiEvent (const MidiMessage& m)
+{
+    if (m.isNoteOn())
+    {
+        noteOn (m.getChannel(),
+                m.getNoteNumber(),
+                m.getFloatVelocity());
+    }
+    else if (m.isNoteOff())
+    {
+        noteOff (m.getChannel(),
+                 m.getNoteNumber(),
+                 true);
+    }
+    else if (m.isAllNotesOff() || m.isAllSoundOff())
+    {
+        allNotesOff (m.getChannel(), true);
+    }
+    else if (m.isPitchWheel())
+    {
+        const int channel = m.getChannel();
+        const int wheelPos = m.getPitchWheelValue();
+        lastPitchWheelValues [channel - 1] = wheelPos;
+
+        handlePitchWheel (channel, wheelPos);
+    }
+    else if (m.isController())
+    {
+        handleController (m.getChannel(),
+                          m.getControllerNumber(),
+                          m.getControllerValue());
     }
 }
 
@@ -232,6 +233,17 @@ void Synthesiser::noteOn (const int midiChannel,
         if (sound->appliesToNote (midiNoteNumber)
              && sound->appliesToChannel (midiChannel))
         {
+            // If hitting a note that's still ringing, stop it first (it could be
+            // still playing because of the sustain or sostenuto pedal).
+            for (int j = voices.size(); --j >= 0;)
+            {
+                SynthesiserVoice* const voice = voices.getUnchecked (j);
+
+                if (voice->getCurrentlyPlayingNote() == midiNoteNumber
+                     && voice->isPlayingChannel (midiChannel))
+                    stopVoice (voice, true);
+            }
+
             startVoice (findFreeVoice (sound, shouldStealNotes),
                         sound, midiChannel, midiNoteNumber, velocity);
         }
@@ -244,20 +256,30 @@ void Synthesiser::startVoice (SynthesiserVoice* const voice,
                               const int midiNoteNumber,
                               const float velocity)
 {
-    if (voice != 0 && sound != 0)
+    if (voice != nullptr && sound != nullptr)
     {
-        if (voice->currentlyPlayingSound != 0)
+        if (voice->currentlyPlayingSound != nullptr)
             voice->stopNote (false);
 
-        voice->startNote (midiNoteNumber,
-                          velocity,
-                          sound,
+        voice->startNote (midiNoteNumber, velocity, sound,
                           lastPitchWheelValues [midiChannel - 1]);
 
         voice->currentlyPlayingNote = midiNoteNumber;
         voice->noteOnTime = ++lastNoteOnCounter;
         voice->currentlyPlayingSound = sound;
+        voice->keyIsDown = true;
+        voice->sostenutoPedalDown = false;
     }
+}
+
+void Synthesiser::stopVoice (SynthesiserVoice* voice, const bool allowTailOff)
+{
+    jassert (voice != nullptr);
+
+    voice->stopNote (allowTailOff);
+
+    // the subclass MUST call clearCurrentNote() if it's not tailing off! RTFM for stopNote()!
+    jassert (allowTailOff || (voice->getCurrentlyPlayingNote() < 0 && voice->getCurrentlyPlayingSound() == 0));
 }
 
 void Synthesiser::noteOff (const int midiChannel,
@@ -274,21 +296,20 @@ void Synthesiser::noteOff (const int midiChannel,
         {
             SynthesiserSound* const sound = voice->getCurrentlyPlayingSound();
 
-            if (sound != 0
+            if (sound != nullptr
                  && sound->appliesToNote (midiNoteNumber)
                  && sound->appliesToChannel (midiChannel))
             {
-                voice->stopNote (allowTailOff);
+                voice->keyIsDown = false;
 
-                // the subclass MUST call clearCurrentNote() if it's not tailing off! RTFM for stopNote()!
-                jassert (allowTailOff || (voice->getCurrentlyPlayingNote() < 0 && voice->getCurrentlyPlayingSound() == 0));
+                if (! (sustainPedalsDown [midiChannel] || voice->sostenutoPedalDown))
+                    stopVoice (voice, allowTailOff);
             }
         }
     }
 }
 
-void Synthesiser::allNotesOff (const int midiChannel,
-                               const bool allowTailOff)
+void Synthesiser::allNotesOff (const int midiChannel, const bool allowTailOff)
 {
     const ScopedLock sl (lock);
 
@@ -299,10 +320,11 @@ void Synthesiser::allNotesOff (const int midiChannel,
         if (midiChannel <= 0 || voice->isPlayingChannel (midiChannel))
             voice->stopNote (allowTailOff);
     }
+
+    sustainPedalsDown.clear();
 }
 
-void Synthesiser::handlePitchWheel (const int midiChannel,
-                                    const int wheelValue)
+void Synthesiser::handlePitchWheel (const int midiChannel, const int wheelValue)
 {
     const ScopedLock sl (lock);
 
@@ -311,9 +333,7 @@ void Synthesiser::handlePitchWheel (const int midiChannel,
         SynthesiserVoice* const voice = voices.getUnchecked (i);
 
         if (midiChannel <= 0 || voice->isPlayingChannel (midiChannel))
-        {
             voice->pitchWheelMoved (wheelValue);
-        }
     }
 }
 
@@ -321,6 +341,14 @@ void Synthesiser::handleController (const int midiChannel,
                                     const int controllerNumber,
                                     const int controllerValue)
 {
+    switch (controllerNumber)
+    {
+        case 0x40:  handleSustainPedal   (midiChannel, controllerValue >= 64); break;
+        case 0x42:  handleSostenutoPedal (midiChannel, controllerValue >= 64); break;
+        case 0x43:  handleSoftPedal      (midiChannel, controllerValue >= 64); break;
+        default:    break;
+    }
+
     const ScopedLock sl (lock);
 
     for (int i = voices.size(); --i >= 0;)
@@ -330,6 +358,54 @@ void Synthesiser::handleController (const int midiChannel,
         if (midiChannel <= 0 || voice->isPlayingChannel (midiChannel))
             voice->controllerMoved (controllerNumber, controllerValue);
     }
+}
+
+void Synthesiser::handleSustainPedal (int midiChannel, bool isDown)
+{
+    jassert (midiChannel > 0 && midiChannel <= 16);
+    const ScopedLock sl (lock);
+
+    if (isDown)
+    {
+        sustainPedalsDown.setBit (midiChannel);
+    }
+    else
+    {
+        for (int i = voices.size(); --i >= 0;)
+        {
+            SynthesiserVoice* const voice = voices.getUnchecked (i);
+
+            if (voice->isPlayingChannel (midiChannel) && ! voice->keyIsDown)
+                stopVoice (voice, true);
+        }
+
+        sustainPedalsDown.clearBit (midiChannel);
+    }
+}
+
+void Synthesiser::handleSostenutoPedal (int midiChannel, bool isDown)
+{
+    jassert (midiChannel > 0 && midiChannel <= 16);
+    const ScopedLock sl (lock);
+
+    for (int i = voices.size(); --i >= 0;)
+    {
+        SynthesiserVoice* const voice = voices.getUnchecked (i);
+
+        if (voice->isPlayingChannel (midiChannel))
+        {
+            if (isDown)
+                voice->sostenutoPedalDown = true;
+            else if (voice->sostenutoPedalDown)
+                stopVoice (voice, true);
+        }
+    }
+}
+
+void Synthesiser::handleSoftPedal (int midiChannel, bool /*isDown*/)
+{
+    (void) midiChannel;
+    jassert (midiChannel > 0 && midiChannel <= 16);
 }
 
 //==============================================================================
@@ -346,22 +422,22 @@ SynthesiserVoice* Synthesiser::findFreeVoice (SynthesiserSound* soundToPlay,
     if (stealIfNoneAvailable)
     {
         // currently this just steals the one that's been playing the longest, but could be made a bit smarter..
-        SynthesiserVoice* oldest = 0;
+        SynthesiserVoice* oldest = nullptr;
 
         for (int i = voices.size(); --i >= 0;)
         {
             SynthesiserVoice* const voice = voices.getUnchecked (i);
 
             if (voice->canPlaySound (soundToPlay)
-                 && (oldest == 0 || oldest->noteOnTime > voice->noteOnTime))
+                 && (oldest == nullptr || oldest->noteOnTime > voice->noteOnTime))
                 oldest = voice;
         }
 
-        jassert (oldest != 0);
+        jassert (oldest != nullptr);
         return oldest;
     }
 
-    return 0;
+    return nullptr;
 }
 
 

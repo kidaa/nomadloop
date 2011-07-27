@@ -32,24 +32,25 @@ BEGIN_JUCE_NAMESPACE
 #include "../../../io/files/juce_FileInputStream.h"
 #include "../../../io/streams/juce_BufferedInputStream.h"
 
-
 //==============================================================================
+struct DefaultImageFormats
+{
+    PNGImageFormat  png;
+    JPEGImageFormat jpg;
+    GIFImageFormat  gif;
+};
+
+static DefaultImageFormats defaultImageFormats;
+
 ImageFileFormat* ImageFileFormat::findImageFormatForStream (InputStream& input)
 {
-    static PNGImageFormat png;
-    static JPEGImageFormat jpg;
-    static GIFImageFormat gif;
-
-    ImageFileFormat* formats[4];
-    int numFormats = 0;
-
-    formats [numFormats++] = &png;
-    formats [numFormats++] = &jpg;
-    formats [numFormats++] = &gif;
+    ImageFileFormat* formats[] = { &defaultImageFormats.png,
+                                   &defaultImageFormats.jpg,
+                                   &defaultImageFormats.gif };
 
     const int64 streamPos = input.getPosition();
 
-    for (int i = 0; i < numFormats; ++i)
+    for (int i = 0; i < numElementsInArray (formats); ++i)
     {
         const bool found = formats[i]->canUnderstand (input);
         input.setPosition (streamPos);
@@ -58,25 +59,25 @@ ImageFileFormat* ImageFileFormat::findImageFormatForStream (InputStream& input)
             return formats[i];
     }
 
-    return 0;
+    return nullptr;
 }
 
 //==============================================================================
-const Image ImageFileFormat::loadFrom (InputStream& input)
+Image ImageFileFormat::loadFrom (InputStream& input)
 {
     ImageFileFormat* const format = findImageFormatForStream (input);
 
-    if (format != 0)
+    if (format != nullptr)
         return format->decodeImage (input);
 
     return Image::null;
 }
 
-const Image ImageFileFormat::loadFrom (const File& file)
+Image ImageFileFormat::loadFrom (const File& file)
 {
     InputStream* const in = file.createInputStream();
 
-    if (in != 0)
+    if (in != nullptr)
     {
         BufferedInputStream b (in, 8192, true);
         return loadFrom (b);
@@ -85,9 +86,9 @@ const Image ImageFileFormat::loadFrom (const File& file)
     return Image::null;
 }
 
-const Image ImageFileFormat::loadFrom (const void* rawData, const int numBytes)
+Image ImageFileFormat::loadFrom (const void* rawData, const int numBytes)
 {
-    if (rawData != 0 && numBytes > 4)
+    if (rawData != nullptr && numBytes > 4)
     {
         MemoryInputStream stream (rawData, numBytes, false);
         return loadFrom (stream);

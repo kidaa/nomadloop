@@ -65,16 +65,16 @@ public:
     }
 
     //==============================================================================
-    bool isDefaultFormatForCurrentOS()
+    int getLaunchPreferenceOrderForCurrentOS()
     {
-      #if JUCE_ANDROID
-        return true;
-      #else
-        return false;
-      #endif
+       #if JUCE_ANDROID
+        return 1;
+       #else
+        return 0;
+       #endif
     }
 
-    bool isPossibleForCurrentProject()          { return project.isGUIApplication(); }
+    bool isPossibleForCurrentProject()          { return projectType.isGUIApplication(); }
     bool usesMMFiles() const                    { return false; }
 
     void launchProject()
@@ -208,11 +208,9 @@ private:
     void writeAndroidMk (const File& file)
     {
         Array<RelativePath> files;
-        findAllFilesToCompile (project.getMainGroup(), files);
 
-        for (int i = 0; i < juceWrapperFiles.size(); ++i)
-            if (shouldFileBeCompiledByDefault (juceWrapperFiles.getReference(i)))
-                files.add (juceWrapperFiles.getReference(i));
+        for (int i = 0; i < groups.size(); ++i)
+            findAllFilesToCompile (groups.getReference(i), files);
 
         MemoryOutputStream mo;
         writeAndroidMk (mo, files);
@@ -246,7 +244,7 @@ private:
             << "include $(BUILD_SHARED_LIBRARY)" << newLine;
     }
 
-    const String createCPPFlags (bool forDebug)
+    String createCPPFlags (bool forDebug)
     {
         String flags ("-fsigned-char -fexceptions -frtti");
 
@@ -266,9 +264,9 @@ private:
             defines.set ("NDEBUG", "1");
         }
 
-        for (int i = 0; i < project.getNumConfigurations(); ++i)
+        for (int i = 0; i < configs.size(); ++i)
         {
-            Project::BuildConfiguration config (project.getConfiguration(i));
+            const Project::BuildConfiguration& config = configs.getReference(i);
 
             if (config.isDebug() == forDebug)
             {
@@ -286,7 +284,7 @@ private:
     XmlElement* createAntBuildXML()
     {
         XmlElement* proj = new XmlElement ("project");
-        proj->setAttribute ("name", project.getProjectName().toString());
+        proj->setAttribute ("name", projectName);
         proj->setAttribute ("default", "debug");
 
         proj->createNewChildElement ("property")->setAttribute ("file", "local.properties");
@@ -377,7 +375,7 @@ private:
 
     void writeIcon (const File& file, int size)
     {
-        Image im (project.getBestIconForSize (size, false));
+        Image im (getBestIconForSize (size, false));
 
         if (im.isValid())
         {
@@ -396,7 +394,7 @@ private:
         XmlElement strings ("resources");
         XmlElement* name = strings.createNewChildElement ("string");
         name->setAttribute ("name", "app_name");
-        name->addTextElement (project.getProjectName().toString());
+        name->addTextElement (projectName);
 
         writeXmlOrThrow (strings, file, "utf-8", 100);
     }

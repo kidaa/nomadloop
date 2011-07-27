@@ -56,7 +56,7 @@ namespace WindowsFileHelpers
         reinterpret_cast<ULARGE_INTEGER*> (ft)->QuadPart = time * 10000 + literal64bit (116444736000000000);
     }
 
-    const String getDriveFromPath (String path)
+    String getDriveFromPath (String path)
     {
         // (mess with the string to make sure it's not sharing its internal storage)
         path = (path + " ").dropLastCharacters(1);
@@ -84,7 +84,7 @@ namespace WindowsFileHelpers
         return GetDriveType (getDriveFromPath (path).toWideCharPointer());
     }
 
-    const File getSpecialFolderPath (int type)
+    File getSpecialFolderPath (int type)
     {
         WCHAR path [MAX_PATH + 256];
 
@@ -92,6 +92,17 @@ namespace WindowsFileHelpers
             return File (String (path));
 
         return File::nonexistent;
+    }
+
+    Result getResultForLastError()
+    {
+        TCHAR messageBuffer [256] = { 0 };
+
+        FormatMessage (FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+                       nullptr, GetLastError(), MAKELANGID (LANG_NEUTRAL, SUBLANG_DEFAULT),
+                       messageBuffer, numElementsInArray (messageBuffer) - 1, nullptr);
+
+        return Result::fail (String (messageBuffer));
     }
 }
 
@@ -192,9 +203,10 @@ bool File::moveInternal (const File& dest) const
     return MoveFile (fullPath.toWideCharPointer(), dest.getFullPathName().toWideCharPointer()) != 0;
 }
 
-void File::createDirectoryInternal (const String& fileName) const
+Result File::createDirectoryInternal (const String& fileName) const
 {
-    CreateDirectory (fileName.toWideCharPointer(), 0);
+    return CreateDirectory (fileName.toWideCharPointer(), 0) ? Result::ok()
+                                                             : WindowsFileHelpers::getResultForLastError();
 }
 
 //==============================================================================
@@ -215,6 +227,8 @@ void FileInputStream::openHandle()
 
     if (h != INVALID_HANDLE_VALUE)
         fileHandle = (void*) h;
+    else
+        status = WindowsFileHelpers::getResultForLastError();
 }
 
 void FileInputStream::closeHandle()
@@ -227,7 +241,9 @@ size_t FileInputStream::readInternal (void* buffer, size_t numBytes)
     if (fileHandle != 0)
     {
         DWORD actualNum = 0;
-        ReadFile ((HANDLE) fileHandle, buffer, numBytes, &actualNum, 0);
+        if (! ReadFile ((HANDLE) fileHandle, buffer, numBytes, &actualNum, 0))
+            status = WindowsFileHelpers::getResultForLastError();
+
         return (size_t) actualNum;
     }
 
@@ -250,8 +266,11 @@ void FileOutputStream::openHandle()
         {
             fileHandle = (void*) h;
             currentPosition = li.QuadPart;
+            return;
         }
     }
+
+    status = WindowsFileHelpers::getResultForLastError();
 }
 
 void FileOutputStream::closeHandle()
@@ -261,10 +280,12 @@ void FileOutputStream::closeHandle()
 
 int FileOutputStream::writeInternal (const void* buffer, int numBytes)
 {
-    if (fileHandle != 0)
+    if (fileHandle != nullptr)
     {
         DWORD actualNum = 0;
-        WriteFile ((HANDLE) fileHandle, buffer, numBytes, &actualNum, 0);
+        if (! WriteFile ((HANDLE) fileHandle, buffer, numBytes, &actualNum, 0))
+            status = WindowsFileHelpers::getResultForLastError();
+
         return (int) actualNum;
     }
 
@@ -273,8 +294,58 @@ int FileOutputStream::writeInternal (const void* buffer, int numBytes)
 
 void FileOutputStream::flushInternal()
 {
-    if (fileHandle != 0)
-        FlushFileBuffers ((HANDLE) fileHandle);
+    if (fileHandle != nullptr)
+        if (! FlushFileBuffers ((HANDLE) fileHandle))
+            status = WindowsFileHelpers::getResultForLastError();
+}
+
+//==============================================================================
+MemoryMappedFile::MemoryMappedFile (const File& file, MemoryMappedFile::AccessMode mode)
+    : address (nullptr),
+      length (0),
+      fileHandle (nullptr)
+{
+    jassert (mode == readOnly || mode == readWrite);
+
+    DWORD accessMode = GENERIC_READ, createType = OPEN_EXISTING;
+    DWORD protect = PAGE_READONLY, access = FILE_MAP_READ;
+
+    if (mode == readWrite)
+    {
+        accessMode = GENERIC_READ | GENERIC_WRITE;
+        createType = OPEN_ALWAYS;
+        protect = PAGE_READWRITE;
+        access = FILE_MAP_ALL_ACCESS;
+    }
+
+    HANDLE h = CreateFile (file.getFullPathName().toWideCharPointer(), accessMode, FILE_SHARE_READ, 0,
+                           createType, FILE_ATTRIBUTE_NORMAL, 0);
+
+    if (h != INVALID_HANDLE_VALUE)
+    {
+        fileHandle = (void*) h;
+        const int64 fileSize = file.getSize();
+
+        HANDLE mappingHandle = CreateFileMapping (h, 0, protect, (DWORD) (fileSize >> 32), (DWORD) fileSize, 0);
+        if (mappingHandle != 0)
+        {
+            address = MapViewOfFile (mappingHandle, access, 0, 0, (SIZE_T) fileSize);
+
+            if (address != nullptr)
+                length = (size_t) fileSize;
+
+            CloseHandle (mappingHandle);
+        }
+    }
+}
+
+MemoryMappedFile::~MemoryMappedFile()
+{
+    if (address != nullptr)
+        UnmapViewOfFile (address);
+
+    if (fileHandle != nullptr)
+        CloseHandle ((HANDLE) fileHandle);
 }
 
 //==============================================================================
@@ -334,9 +405,7 @@ bool File::setFileTimesInternal (int64 modificationTime, int64 accessTime, int64
 //==============================================================================
 void File::findFileSystemRoots (Array<File>& destArray)
 {
-    TCHAR buffer [2048];
-    buffer[0] = 0;
-    buffer[1] = 0;
+    TCHAR buffer [2048] = { 0 };
     GetLogicalDriveStrings (2048, buffer);
 
     const TCHAR* n = buffer;
@@ -357,7 +426,7 @@ void File::findFileSystemRoots (Array<File>& destArray)
 }
 
 //==============================================================================
-const String File::getVolumeLabel() const
+String File::getVolumeLabel() const
 {
     TCHAR dest[64];
     if (! GetVolumeInformation (WindowsFileHelpers::getDriveFromPath (getFullPathName()).toWideCharPointer(), dest,
@@ -422,7 +491,7 @@ bool File::isOnRemovableDrive() const
 }
 
 //==============================================================================
-const File JUCE_CALLTYPE File::getSpecialLocation (const SpecialLocationType type)
+File JUCE_CALLTYPE File::getSpecialLocation (const SpecialLocationType type)
 {
     int csidlType = 0;
 
@@ -449,7 +518,7 @@ const File JUCE_CALLTYPE File::getSpecialLocation (const SpecialLocationType typ
         case currentExecutableFile:
         case currentApplicationFile:
         {
-            HINSTANCE moduleHandle = (HINSTANCE) PlatformUtilities::getCurrentModuleInstanceHandle();
+            HINSTANCE moduleHandle = (HINSTANCE) Process::getCurrentModuleInstanceHandle();
 
             WCHAR dest [MAX_PATH + 256];
             dest[0] = 0;
@@ -474,7 +543,7 @@ const File JUCE_CALLTYPE File::getSpecialLocation (const SpecialLocationType typ
 }
 
 //==============================================================================
-const File File::getCurrentWorkingDirectory()
+File File::getCurrentWorkingDirectory()
 {
     WCHAR dest [MAX_PATH + 256];
     dest[0] = 0;
@@ -488,7 +557,7 @@ bool File::setAsCurrentWorkingDirectory() const
 }
 
 //==============================================================================
-const String File::getVersion() const
+String File::getVersion() const
 {
     String result;
 
@@ -515,7 +584,7 @@ const String File::getVersion() const
 }
 
 //==============================================================================
-const File File::getLinkedTarget() const
+File File::getLinkedTarget() const
 {
     File result (*this);
     String p (getFullPathName());
@@ -529,7 +598,7 @@ const File File::getLinkedTarget() const
     if (SUCCEEDED (shellLink.CoCreateInstance (CLSID_ShellLink)))
     {
         ComSmartPtr <IPersistFile> persistFile;
-        if (SUCCEEDED (shellLink.QueryInterface (IID_IPersistFile, persistFile)))
+        if (SUCCEEDED (shellLink.QueryInterface (persistFile)))
         {
             if (SUCCEEDED (persistFile->Load (p.toWideCharPointer(), STGM_READ))
                  && SUCCEEDED (shellLink->Resolve (0, SLR_ANY_MATCH | SLR_NO_UI)))
@@ -585,12 +654,12 @@ public:
 
         filenameFound = findData.cFileName;
 
-        if (isDir != 0)         *isDir = ((findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0);
-        if (isHidden != 0)      *isHidden = ((findData.dwFileAttributes & FILE_ATTRIBUTE_HIDDEN) != 0);
-        if (fileSize != 0)      *fileSize = findData.nFileSizeLow + (((int64) findData.nFileSizeHigh) << 32);
-        if (modTime != 0)       *modTime = Time (fileTimeToTime (&findData.ftLastWriteTime));
-        if (creationTime != 0)  *creationTime = Time (fileTimeToTime (&findData.ftCreationTime));
-        if (isReadOnly != 0)    *isReadOnly = ((findData.dwFileAttributes & FILE_ATTRIBUTE_READONLY) != 0);
+        if (isDir != nullptr)         *isDir = ((findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0);
+        if (isHidden != nullptr)      *isHidden = ((findData.dwFileAttributes & FILE_ATTRIBUTE_HIDDEN) != 0);
+        if (fileSize != nullptr)      *fileSize = findData.nFileSizeLow + (((int64) findData.nFileSizeHigh) << 32);
+        if (modTime != nullptr)       *modTime = Time (fileTimeToTime (&findData.ftLastWriteTime));
+        if (creationTime != nullptr)  *creationTime = Time (fileTimeToTime (&findData.ftCreationTime));
+        if (isReadOnly != nullptr)    *isReadOnly = ((findData.dwFileAttributes & FILE_ATTRIBUTE_READONLY) != 0);
 
         return true;
     }
@@ -620,7 +689,7 @@ bool DirectoryIterator::NativeIterator::next (String& filenameFound,
 
 
 //==============================================================================
-bool PlatformUtilities::openDocument (const String& fileName, const String& parameters)
+bool Process::openDocument (const String& fileName, const String& parameters)
 {
     HINSTANCE hInstance = 0;
 
@@ -728,7 +797,7 @@ void NamedPipe::close()
 
     const ScopedLock sl (lock);
     delete static_cast<NamedPipeInternal*> (internal);
-    internal = 0;
+    internal = nullptr;
 }
 
 bool NamedPipe::openInternal (const String& pipeName, const bool createPipe)
@@ -752,7 +821,7 @@ int NamedPipe::read (void* destBuffer, int maxBytesToRead, int timeOutMillisecon
     int bytesRead = -1;
     bool waitAgain = true;
 
-    while (waitAgain && internal != 0)
+    while (waitAgain && internal != nullptr)
     {
         NamedPipeInternal* const intern = static_cast<NamedPipeInternal*> (internal);
         waitAgain = false;
@@ -820,7 +889,7 @@ int NamedPipe::write (const void* sourceBuffer, int numBytesToWrite, int timeOut
     int bytesWritten = -1;
     NamedPipeInternal* const intern = static_cast<NamedPipeInternal*> (internal);
 
-    if (intern != 0 && intern->connect (timeOutMilliseconds))
+    if (intern != nullptr && intern->connect (timeOutMilliseconds))
     {
         if (numBytesToWrite <= 0)
             return 0;
@@ -867,7 +936,7 @@ int NamedPipe::write (const void* sourceBuffer, int numBytesToWrite, int timeOut
 
 void NamedPipe::cancelPendingReads()
 {
-    if (internal != 0)
+    if (internal != nullptr)
         SetEvent (static_cast<NamedPipeInternal*> (internal)->cancelEvent);
 }
 

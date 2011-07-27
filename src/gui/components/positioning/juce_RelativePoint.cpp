@@ -68,12 +68,12 @@ RelativePoint::RelativePoint (const String& s)
     y = RelativeCoordinate (Expression::parse (text));
 }
 
-bool RelativePoint::operator== (const RelativePoint& other) const throw()
+bool RelativePoint::operator== (const RelativePoint& other) const noexcept
 {
     return x == other.x && y == other.y;
 }
 
-bool RelativePoint::operator!= (const RelativePoint& other) const throw()
+bool RelativePoint::operator!= (const RelativePoint& other) const noexcept
 {
     return ! operator== (other);
 }
@@ -90,7 +90,7 @@ void RelativePoint::moveToAbsolute (const Point<float>& newPos, const Expression
     y.moveToAbsolute (newPos.getY(), scope);
 }
 
-const String RelativePoint::toString() const
+String RelativePoint::toString() const
 {
     return x.toString() + ", " + y.toString();
 }

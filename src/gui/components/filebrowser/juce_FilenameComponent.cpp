@@ -88,7 +88,7 @@ void FilenameComponent::setBrowseButtonText (const String& newBrowseButtonText)
 
 void FilenameComponent::lookAndFeelChanged()
 {
-    browseButton = 0;
+    browseButton = nullptr;
 
     addAndMakeVisible (browseButton = getLookAndFeel().createFilenameComponentBrowseButton (browseButtonText));
     browseButton->setConnectedEdges (Button::ConnectedOnLeft);
@@ -161,7 +161,7 @@ void FilenameComponent::fileDragExit (const StringArray&)
 }
 
 //==============================================================================
-const File FilenameComponent::getCurrentFile() const
+File FilenameComponent::getCurrentFile() const
 {
     File f (filenameBox.getText());
 
@@ -197,7 +197,7 @@ void FilenameComponent::setFilenameIsEditable (const bool shouldBeEditable)
     filenameBox.setEditableText (shouldBeEditable);
 }
 
-const StringArray FilenameComponent::getRecentlyUsedFilenames() const
+StringArray FilenameComponent::getRecentlyUsedFilenames() const
 {
     StringArray names;
 

@@ -59,6 +59,10 @@
  #undef JUCE_BUILD_GUI
 #endif
 
+#ifndef JUCE_NAMESPACE
+ #define JUCE_NAMESPACE juce
+#endif
+
 //==============================================================================
 #if JUCE_BUILD_NATIVE || JUCE_BUILD_CORE || (JUCE_BUILD_MISC && (JUCE_PLUGINHOST_VST || JUCE_PLUGINHOST_AU))
  #if JUCE_WINDOWS
@@ -103,8 +107,8 @@
  #include "../src/maths/juce_Random.cpp"
  #include "../src/core/juce_RelativeTime.cpp"
  #include "../src/core/juce_SystemStats.cpp"
+ #include "../src/core/juce_Result.cpp"
  #include "../src/core/juce_Time.cpp"
- #include "../src/core/juce_Initialisation.cpp"
  #include "../src/containers/juce_AbstractFifo.cpp"
  #include "../src/maths/juce_BigInteger.cpp"
  #include "../src/memory/juce_MemoryBlock.cpp"
@@ -116,6 +120,7 @@
  #include "../src/maths/juce_Expression.cpp"
  #include "../src/cryptography/juce_BlowFish.cpp"
  #include "../src/cryptography/juce_MD5.cpp"
+ #include "../src/cryptography/juce_SHA256.cpp"
  #include "../src/cryptography/juce_Primes.cpp"
  #include "../src/cryptography/juce_RSAKey.cpp"
  #include "../src/io/streams/juce_InputStream.cpp"
@@ -146,6 +151,7 @@
  #include "../src/text/juce_StringPool.cpp"
  #include "../src/text/juce_XmlDocument.cpp"
  #include "../src/text/juce_XmlElement.cpp"
+ #include "../src/text/juce_JSON.cpp"
  #include "../src/threads/juce_ReadWriteLock.cpp"
  #include "../src/threads/juce_Thread.cpp"
  #include "../src/threads/juce_ThreadPool.cpp"
@@ -183,6 +189,7 @@
  #include "../src/audio/audio_sources/juce_BufferingAudioSource.cpp"
  #include "../src/audio/audio_sources/juce_ChannelRemappingAudioSource.cpp"
  #include "../src/audio/audio_sources/juce_IIRFilterAudioSource.cpp"
+ #include "../src/audio/audio_sources/juce_ReverbAudioSource.cpp"
  #include "../src/audio/audio_sources/juce_MixerAudioSource.cpp"
  #include "../src/audio/audio_sources/juce_ResamplingAudioSource.cpp"
  #include "../src/audio/audio_sources/juce_ToneGeneratorAudioSource.cpp"
@@ -199,15 +206,14 @@
  #include "../src/audio/midi/juce_MidiMessage.cpp"
  #include "../src/audio/midi/juce_MidiMessageCollector.cpp"
  #include "../src/audio/midi/juce_MidiMessageSequence.cpp"
- #include "../src/audio/plugins/juce_AudioPluginFormat.cpp"
- #include "../src/audio/plugins/juce_AudioPluginFormatManager.cpp"
- #include "../src/audio/plugins/juce_AudioPluginInstance.cpp"
- #include "../src/audio/plugins/juce_KnownPluginList.cpp"
- #include "../src/audio/plugins/juce_PluginDescription.cpp"
- #include "../src/audio/plugins/juce_PluginDirectoryScanner.cpp"
- #include "../src/audio/plugins/juce_PluginListComponent.cpp"
- #include "../src/audio/plugins/formats/juce_AudioUnitPluginFormat.mm"
- #include "../src/audio/plugins/formats/juce_VSTPluginFormat.mm"
+ #include "../src/audio/plugin_host/juce_AudioPluginFormat.cpp"
+ #include "../src/audio/plugin_host/juce_AudioPluginFormatManager.cpp"
+ #include "../src/audio/plugin_host/juce_KnownPluginList.cpp"
+ #include "../src/audio/plugin_host/juce_PluginDescription.cpp"
+ #include "../src/audio/plugin_host/juce_PluginDirectoryScanner.cpp"
+ #include "../src/audio/plugin_host/juce_PluginListComponent.cpp"
+ #include "../src/audio/plugin_host/formats/juce_AudioUnitPluginFormat.mm"
+ #include "../src/audio/plugin_host/formats/juce_VSTPluginFormat.mm"
  #include "../src/audio/processors/juce_AudioProcessor.cpp"
  #include "../src/audio/processors/juce_AudioProcessorEditor.cpp"
  #include "../src/audio/processors/juce_AudioProcessorGraph.cpp"
@@ -245,6 +251,7 @@
  #include "../src/gui/components/code_editor/juce_CodeEditorComponent.cpp"
  #include "../src/gui/components/code_editor/juce_CPlusPlusCodeTokeniser.cpp"
  #include "../src/gui/components/controls/juce_ComboBox.cpp"
+ #include "../src/gui/components/controls/juce_ImageComponent.cpp"
  #include "../src/gui/components/controls/juce_Label.cpp"
  #include "../src/gui/components/controls/juce_ListBox.cpp"
  #include "../src/gui/components/controls/juce_ProgressBar.cpp"
@@ -343,7 +350,7 @@
  #include "../src/gui/graphics/colour/juce_Colours.cpp"
  #include "../src/gui/graphics/contexts/juce_EdgeTable.cpp"
  #include "../src/gui/graphics/contexts/juce_FillType.cpp"
- #include "../src/gui/graphics/contexts/juce_Graphics.cpp"
+ #include "../src/gui/graphics/contexts/juce_GraphicsContext.cpp"
  #include "../src/gui/graphics/contexts/juce_Justification.cpp"
  #include "../src/gui/graphics/contexts/juce_LowLevelGraphicsPostScriptRenderer.cpp"
  #include "../src/gui/graphics/contexts/juce_LowLevelGraphicsSoftwareRenderer.cpp"
@@ -362,6 +369,7 @@
  #include "../src/gui/graphics/fonts/juce_GlyphArrangement.cpp"
  #include "../src/gui/graphics/fonts/juce_TextLayout.cpp"
  #include "../src/gui/graphics/fonts/juce_Typeface.cpp"
+ #include "../src/gui/graphics/fonts/juce_CustomTypeface.cpp"
  #include "../src/gui/graphics/geometry/juce_AffineTransform.cpp"
  #include "../src/gui/graphics/geometry/juce_Path.cpp"
  #include "../src/gui/graphics/geometry/juce_PathIterator.cpp"
@@ -383,6 +391,7 @@
 #endif
 
 #if JUCE_BUILD_NATIVE && ! JUCE_ONLY_BUILD_CORE_LIBRARY
+ #include "../src/audio/audio_file_formats/juce_CoreAudioFormat.cpp"
  #include "../src/audio/audio_file_formats/juce_FlacAudioFormat.cpp"
  #include "../src/audio/audio_file_formats/juce_OggVorbisAudioFormat.cpp"
 #endif
@@ -398,7 +407,9 @@
  // Non-public headers that are needed by more than one platform must be included
  // before the platform-specific sections..
  BEGIN_JUCE_NAMESPACE
-  #include "../src/native/common/juce_MidiDataConcatenator.h"
+  #if ! JUCE_ONLY_BUILD_CORE_LIBRARY
+   #include "../src/native/common/juce_MidiDataConcatenator.h"
+  #endif
  END_JUCE_NAMESPACE
 
  #if JUCE_WINDOWS

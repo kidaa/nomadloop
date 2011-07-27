@@ -26,8 +26,6 @@
 #ifndef __JUCE_SINGLETON_JUCEHEADER__
 #define __JUCE_SINGLETON_JUCEHEADER__
 
-#include "../threads/juce_ScopedLock.h"
-
 
 //==============================================================================
 /**
@@ -95,11 +93,11 @@
 \
     static classname* JUCE_CALLTYPE getInstance() \
     { \
-        if (_singletonInstance == 0) \
+        if (_singletonInstance == nullptr) \
         {\
             const JUCE_NAMESPACE::ScopedLock sl (_singletonLock); \
 \
-            if (_singletonInstance == 0) \
+            if (_singletonInstance == nullptr) \
             { \
                 static bool alreadyInside = false; \
                 static bool createdOnceAlready = false; \
@@ -121,7 +119,7 @@
         return _singletonInstance; \
     } \
 \
-    static inline classname* JUCE_CALLTYPE getInstanceWithoutCreating() throw() \
+    static inline classname* JUCE_CALLTYPE getInstanceWithoutCreating() noexcept\
     { \
         return _singletonInstance; \
     } \
@@ -129,18 +127,18 @@
     static void JUCE_CALLTYPE deleteInstance() \
     { \
         const JUCE_NAMESPACE::ScopedLock sl (_singletonLock); \
-        if (_singletonInstance != 0) \
+        if (_singletonInstance != nullptr) \
         { \
             classname* const old = _singletonInstance; \
-            _singletonInstance = 0; \
+            _singletonInstance = nullptr; \
             delete old; \
         } \
     } \
 \
-    void clearSingletonInstance() throw() \
+    void clearSingletonInstance() noexcept\
     { \
         if (_singletonInstance == this) \
-            _singletonInstance = 0; \
+            _singletonInstance = nullptr; \
     }
 
 
@@ -152,7 +150,7 @@
 */
 #define juce_ImplementSingleton(classname) \
 \
-    classname* classname::_singletonInstance = 0; \
+    classname* classname::_singletonInstance = nullptr; \
     JUCE_NAMESPACE::CriticalSection classname::_singletonLock;
 
 
@@ -182,7 +180,7 @@
 \
     static classname* getInstance() \
     { \
-        if (_singletonInstance == 0) \
+        if (_singletonInstance == nullptr) \
         { \
             static bool alreadyInside = false; \
             static bool createdOnceAlready = false; \
@@ -203,25 +201,25 @@
         return _singletonInstance; \
     } \
 \
-    static inline classname* getInstanceWithoutCreating() throw() \
+    static inline classname* getInstanceWithoutCreating() noexcept\
     { \
         return _singletonInstance; \
     } \
 \
     static void deleteInstance() \
     { \
-        if (_singletonInstance != 0) \
+        if (_singletonInstance != nullptr) \
         { \
             classname* const old = _singletonInstance; \
-            _singletonInstance = 0; \
+            _singletonInstance = nullptr; \
             delete old; \
         } \
     } \
 \
-    void clearSingletonInstance() throw() \
+    void clearSingletonInstance() noexcept\
     { \
         if (_singletonInstance == this) \
-            _singletonInstance = 0; \
+            _singletonInstance = nullptr; \
     }
 
 //==============================================================================
@@ -248,31 +246,31 @@
 \
     static classname* getInstance() \
     { \
-        if (_singletonInstance == 0) \
+        if (_singletonInstance == nullptr) \
             _singletonInstance = new classname(); \
 \
         return _singletonInstance; \
     } \
 \
-    static inline classname* getInstanceWithoutCreating() throw() \
+    static inline classname* getInstanceWithoutCreating() noexcept\
     { \
         return _singletonInstance; \
     } \
 \
     static void deleteInstance() \
     { \
-        if (_singletonInstance != 0) \
+        if (_singletonInstance != nullptr) \
         { \
             classname* const old = _singletonInstance; \
-            _singletonInstance = 0; \
+            _singletonInstance = nullptr; \
             delete old; \
         } \
     } \
 \
-    void clearSingletonInstance() throw() \
+    void clearSingletonInstance() noexcept\
     { \
         if (_singletonInstance == this) \
-            _singletonInstance = 0; \
+            _singletonInstance = nullptr; \
     }
 
 
@@ -284,7 +282,7 @@
 */
 #define juce_ImplementSingleton_SingleThreaded(classname) \
 \
-    classname* classname::_singletonInstance = 0;
+    classname* classname::_singletonInstance = nullptr;
 
 
 

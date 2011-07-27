@@ -31,29 +31,28 @@ BEGIN_JUCE_NAMESPACE
 #include "juce_ActionBroadcaster.h"
 #include "../application/juce_Application.h"
 #include "../gui/components/juce_Component.h"
-#include "../threads/juce_Thread.h"
-#include "../threads/juce_ScopedLock.h"
+#include "../threads/juce_ThreadPool.h"
 #include "../core/juce_Time.h"
 
+
 //==============================================================================
-MessageManager* MessageManager::instance = 0;
+MessageManager* MessageManager::instance = nullptr;
 
-static const int quitMessageId = 0xfffff321;
+enum { quitMessageId = 0xfffff321 };
 
-MessageManager::MessageManager() throw()
+MessageManager::MessageManager() noexcept
   : quitMessagePosted (false),
     quitMessageReceived (false),
+    messageThreadId (Thread::getCurrentThreadId()),
     threadWithLock (0)
 {
-    messageThreadId = Thread::getCurrentThreadId();
-
     if (JUCEApplication::isStandaloneApp())
         Thread::setCurrentThreadName ("Juce Message Thread");
 }
 
-MessageManager::~MessageManager() throw()
+MessageManager::~MessageManager() noexcept
 {
-    broadcaster = 0;
+    broadcaster = nullptr;
 
     doPlatformSpecificShutdown();
 
@@ -61,18 +60,23 @@ MessageManager::~MessageManager() throw()
     jassert (messageListeners.size() == 0);
 
     jassert (instance == this);
-    instance = 0;  // do this last in case this instance is still needed by doPlatformSpecificShutdown()
+    instance = nullptr;  // do this last in case this instance is still needed by doPlatformSpecificShutdown()
 }
 
-MessageManager* MessageManager::getInstance() throw()
+MessageManager* MessageManager::getInstance()
 {
-    if (instance == 0)
+    if (instance == nullptr)
     {
         instance = new MessageManager();
         doPlatformSpecificInitialisation();
     }
 
     return instance;
+}
+
+void MessageManager::deleteInstance()
+{
+    deleteAndZero (instance);
 }
 
 void MessageManager::postMessageToQueue (Message* const message)
@@ -82,12 +86,12 @@ void MessageManager::postMessageToQueue (Message* const message)
 }
 
 //==============================================================================
-CallbackMessage::CallbackMessage() throw() {}
+CallbackMessage::CallbackMessage() noexcept {}
 CallbackMessage::~CallbackMessage() {}
 
 void CallbackMessage::post()
 {
-    if (MessageManager::instance != 0)
+    if (MessageManager::instance != nullptr)
         MessageManager::instance->postMessageToQueue (this);
 }
 
@@ -99,15 +103,15 @@ void MessageManager::deliverMessage (Message* const message)
     {
         MessageListener* const recipient = message->messageRecipient;
 
-        if (recipient == 0)
+        if (recipient == nullptr)
         {
             CallbackMessage* const callbackMessage = dynamic_cast <CallbackMessage*> (message);
 
-            if (callbackMessage != 0)
+            if (callbackMessage != nullptr)
             {
                 callbackMessage->messageCallback();
             }
-            else if (message->intParameter1 == quitMessageId)
+            else if (message->intParameter1 == (int) quitMessageId)
             {
                 quitMessageReceived = true;
             }
@@ -131,7 +135,7 @@ void MessageManager::runDispatchLoop()
 
 void MessageManager::stopDispatchLoop()
 {
-    postMessageToQueue (new Message (quitMessageId, 0, 0, 0));
+    postMessageToQueue (new Message ((int) quitMessageId, 0, 0, nullptr));
     quitMessagePosted = true;
 }
 
@@ -165,13 +169,13 @@ bool MessageManager::runDispatchLoopUntil (int millisecondsToRunFor)
 //==============================================================================
 void MessageManager::deliverBroadcastMessage (const String& value)
 {
-    if (broadcaster != 0)
+    if (broadcaster != nullptr)
         broadcaster->sendActionMessage (value);
 }
 
 void MessageManager::registerBroadcastListener (ActionListener* const listener)
 {
-    if (broadcaster == 0)
+    if (broadcaster == nullptr)
         broadcaster = new ActionBroadcaster();
 
     broadcaster->addActionListener (listener);
@@ -179,12 +183,12 @@ void MessageManager::registerBroadcastListener (ActionListener* const listener)
 
 void MessageManager::deregisterBroadcastListener (ActionListener* const listener)
 {
-    if (broadcaster != 0)
+    if (broadcaster != nullptr)
         broadcaster->removeActionListener (listener);
 }
 
 //==============================================================================
-bool MessageManager::isThisTheMessageThread() const throw()
+bool MessageManager::isThisTheMessageThread() const noexcept
 {
     return Thread::getCurrentThreadId() == messageThreadId;
 }
@@ -203,7 +207,7 @@ void MessageManager::setCurrentThreadAsMessageThread()
     }
 }
 
-bool MessageManager::currentThreadHasLockedMessageManager() const throw()
+bool MessageManager::currentThreadHasLockedMessageManager() const noexcept
 {
     const Thread::ThreadID thisThread = Thread::getCurrentThreadId();
     return thisThread == messageThreadId || thisThread == threadWithLock;
@@ -241,18 +245,18 @@ private:
 MessageManagerLock::MessageManagerLock (Thread* const threadToCheck)
     : locked (false)
 {
-    init (threadToCheck, 0);
+    init (threadToCheck, nullptr);
 }
 
 MessageManagerLock::MessageManagerLock (ThreadPoolJob* const jobToCheckForExitSignal)
     : locked (false)
 {
-    init (0, jobToCheckForExitSignal);
+    init (nullptr, jobToCheckForExitSignal);
 }
 
 void MessageManagerLock::init (Thread* const threadToCheck, ThreadPoolJob* const job)
 {
-    if (MessageManager::instance != 0)
+    if (MessageManager::instance != nullptr)
     {
         if (MessageManager::instance->currentThreadHasLockedMessageManager())
         {
@@ -260,7 +264,7 @@ void MessageManagerLock::init (Thread* const threadToCheck, ThreadPoolJob* const
         }
         else
         {
-            if (threadToCheck == 0 && job == 0)
+            if (threadToCheck == nullptr && job == nullptr)
             {
                 MessageManager::instance->lockingLock.enter();
             }
@@ -268,8 +272,8 @@ void MessageManagerLock::init (Thread* const threadToCheck, ThreadPoolJob* const
             {
                 while (! MessageManager::instance->lockingLock.tryEnter())
                 {
-                    if ((threadToCheck != 0 && threadToCheck->threadShouldExit())
-                          || (job != 0 && job->shouldExit()))
+                    if ((threadToCheck != nullptr && threadToCheck->threadShouldExit())
+                          || (job != nullptr && job->shouldExit()))
                         return;
 
                     Thread::sleep (1);
@@ -281,11 +285,11 @@ void MessageManagerLock::init (Thread* const threadToCheck, ThreadPoolJob* const
 
             while (! blockingMessage->lockedEvent.wait (20))
             {
-                if ((threadToCheck != 0 && threadToCheck->threadShouldExit())
-                      || (job != 0 && job->shouldExit()))
+                if ((threadToCheck != nullptr && threadToCheck->threadShouldExit())
+                      || (job != nullptr && job->shouldExit()))
                 {
                     blockingMessage->releaseEvent.signal();
-                    blockingMessage = 0;
+                    blockingMessage = nullptr;
                     MessageManager::instance->lockingLock.exit();
                     return;
                 }
@@ -299,16 +303,16 @@ void MessageManagerLock::init (Thread* const threadToCheck, ThreadPoolJob* const
     }
 }
 
-MessageManagerLock::~MessageManagerLock() throw()
+MessageManagerLock::~MessageManagerLock() noexcept
 {
-    if (blockingMessage != 0)
+    if (blockingMessage != nullptr)
     {
-        jassert (MessageManager::instance == 0 || MessageManager::instance->currentThreadHasLockedMessageManager());
+        jassert (MessageManager::instance == nullptr || MessageManager::instance->currentThreadHasLockedMessageManager());
 
         blockingMessage->releaseEvent.signal();
-        blockingMessage = 0;
+        blockingMessage = nullptr;
 
-        if (MessageManager::instance != 0)
+        if (MessageManager::instance != nullptr)
         {
             MessageManager::instance->threadWithLock = 0;
             MessageManager::instance->lockingLock.exit();
@@ -316,5 +320,18 @@ MessageManagerLock::~MessageManagerLock() throw()
     }
 }
 
+//==============================================================================
+JUCE_API void JUCE_CALLTYPE initialiseJuce_GUI()
+{
+    JUCE_AUTORELEASEPOOL
+    MessageManager::getInstance();
+}
+
+JUCE_API void JUCE_CALLTYPE shutdownJuce_GUI()
+{
+    JUCE_AUTORELEASEPOOL
+    DeletedAtShutdown::deleteAll();
+    MessageManager::deleteInstance();
+}
 
 END_JUCE_NAMESPACE

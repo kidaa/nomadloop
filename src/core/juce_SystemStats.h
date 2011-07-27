@@ -41,7 +41,7 @@ public:
 
         See also the JUCE_VERSION, JUCE_MAJOR_VERSION and JUCE_MINOR_VERSION macros.
     */
-    static const String getJUCEVersion();
+    static String getJUCEVersion();
 
     //==============================================================================
     /** The set of possible results of the getOperatingSystemType() method.
@@ -81,23 +81,33 @@ public:
         @returns a string describing the OS type.
         @see getOperatingSystemType
     */
-    static const String getOperatingSystemName();
+    static String getOperatingSystemName();
 
     /** Returns true if the OS is 64-bit, or false for a 32-bit OS.
     */
     static bool isOperatingSystem64Bit();
 
+   #if JUCE_MAC || DOXYGEN
+    /** OSX ONLY - Returns the current OS version number.
+        E.g. if it's running on 10.4, this will be 4, 10.5 will return 5, etc.
+    */
+    static int getOSXMinorVersionNumber();
+   #endif
+
     //==============================================================================
     /** Returns the current user's name, if available.
         @see getFullUserName()
     */
-    static const String getLogonName();
+    static String getLogonName();
 
     /** Returns the current user's full name, if available.
         On some OSes, this may just return the same value as getLogonName().
         @see getLogonName()
     */
-    static const String getFullUserName();
+    static String getFullUserName();
+
+    /** Returns the host-name of the computer. */
+    static String getComputerName();
 
     //==============================================================================
     // CPU and memory information..
@@ -113,22 +123,22 @@ public:
 
         Might not be known on some systems.
     */
-    static const String getCpuVendor();
+    static String getCpuVendor();
 
     /** Checks whether Intel MMX instructions are available. */
-    static bool hasMMX() throw()                { return cpuFlags.hasMMX; }
+    static bool hasMMX() noexcept               { return getCPUFlags().hasMMX; }
 
     /** Checks whether Intel SSE instructions are available. */
-    static bool hasSSE() throw()                { return cpuFlags.hasSSE; }
+    static bool hasSSE() noexcept               { return getCPUFlags().hasSSE; }
 
     /** Checks whether Intel SSE2 instructions are available. */
-    static bool hasSSE2() throw()               { return cpuFlags.hasSSE2; }
+    static bool hasSSE2() noexcept              { return getCPUFlags().hasSSE2; }
 
     /** Checks whether AMD 3DNOW instructions are available. */
-    static bool has3DNow() throw()              { return cpuFlags.has3DNow; }
+    static bool has3DNow() noexcept             { return getCPUFlags().has3DNow; }
 
     /** Returns the number of CPUs. */
-    static int getNumCpus() throw()             { return cpuFlags.numCpus; }
+    static int getNumCpus() noexcept            { return getCPUFlags().numCpus; }
 
     //==============================================================================
     /** Finds out how much RAM is in the machine.
@@ -144,13 +154,13 @@ public:
     */
     static int getPageSize();
 
-    //==============================================================================
-    // not-for-public-use platform-specific method gets called at startup to initialise things.
-    static void initialiseStats();
 
 private:
+    //==============================================================================
     struct CPUFlags
     {
+        CPUFlags();
+
         int numCpus;
         bool hasMMX : 1;
         bool hasSSE : 1;
@@ -158,9 +168,8 @@ private:
         bool has3DNow : 1;
     };
 
-    static CPUFlags cpuFlags;
-
     SystemStats();
+    static const CPUFlags& getCPUFlags();
 
     JUCE_DECLARE_NON_COPYABLE (SystemStats);
 };

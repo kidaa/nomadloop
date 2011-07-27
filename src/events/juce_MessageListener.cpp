@@ -28,37 +28,38 @@
 BEGIN_JUCE_NAMESPACE
 
 #include "juce_MessageManager.h"
+#include "juce_MessageListener.h"
 
 
 //==============================================================================
-MessageListener::MessageListener() throw()
+MessageListener::MessageListener() noexcept
 {
     // are you trying to create a messagelistener before or after juce has been intialised??
-    jassert (MessageManager::instance != 0);
+    jassert (MessageManager::instance != nullptr);
 
-    if (MessageManager::instance != 0)
+    if (MessageManager::instance != nullptr)
         MessageManager::instance->messageListeners.add (this);
 }
 
 MessageListener::~MessageListener()
 {
-    if (MessageManager::instance != 0)
+    if (MessageManager::instance != nullptr)
         MessageManager::instance->messageListeners.removeValue (this);
 }
 
-void MessageListener::postMessage (Message* const message) const throw()
+void MessageListener::postMessage (Message* const message) const
 {
     message->messageRecipient = const_cast <MessageListener*> (this);
 
-    if (MessageManager::instance == 0)
+    if (MessageManager::instance == nullptr)
         MessageManager::getInstance();
 
     MessageManager::instance->postMessageToQueue (message);
 }
 
-bool MessageListener::isValidMessageListener() const throw()
+bool MessageListener::isValidMessageListener() const noexcept
 {
-    return (MessageManager::instance != 0)
+    return (MessageManager::instance != nullptr)
              && MessageManager::instance->messageListeners.contains (this);
 }
 

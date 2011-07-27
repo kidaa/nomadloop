@@ -45,8 +45,8 @@ public:
         else if (tabIndex == 1)
         {
             // The Juce options tab...
-            OwnedArray <Project::JuceConfigFlag> flags;
-            project.getJuceConfigFlags (flags);
+            OwnedArray <Project::ConfigFlag> flags;
+            project.getAllConfigFlags (flags);
 
             StringArray possibleValues;
             possibleValues.add ("(Use default from juce_Config.h)");
@@ -76,7 +76,7 @@ public:
             // An export tab..
             ScopedPointer <ProjectExporter> exp (project.createExporter (tabIndex - (2 + project.getNumConfigurations())));
 
-            if (exp != 0)
+            if (exp != nullptr)
                 exp->createPropertyEditors (props);
 
             for (int i = props.size(); --i >= 0;)
@@ -241,20 +241,20 @@ void ProjectInformationComponent::rebuildConfigTabs()
     {
         ScopedPointer <ProjectExporter> exp (project.createExporter (i));
 
-        if (exp != 0)
+        if (exp != nullptr)
         {
             panel = new PropertiesWithHelpComponent (project, index++);
             configTabBox.addTab (exp->getName(), Colours::lightsteelblue, panel, true, -1);
         }
     }
 
-    lastProjectType = project.getProjectType().getValue();
+    lastProjectType = project.getProjectTypeValue().getValue();
 }
 
 void ProjectInformationComponent::updateConfigTabs()
 {
     if (configTabBox.getNumTabs() != project.getNumConfigurations() + project.getNumExporters() + 2
-         || lastProjectType != project.getProjectType().getValue())
+         || lastProjectType != project.getProjectTypeValue().getValue())
     {
         rebuildConfigTabs();
     }
@@ -298,7 +298,7 @@ void ProjectInformationComponent::showConfigMenu()
     }
     else if (r == 1)
     {
-        project.addNewConfiguration (0);
+        project.addNewConfiguration (nullptr);
     }
 }
 
@@ -313,7 +313,7 @@ void ProjectInformationComponent::showExporterMenu()
     {
         ScopedPointer<ProjectExporter> exp (project.createExporter (i));
 
-        if (exp != 0)
+        if (exp != nullptr)
             removeMenu.addItem (i + 20000, "Delete " + exp->getName());
     }
 

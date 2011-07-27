@@ -57,8 +57,8 @@ public:
     */
     RelativePoint (const String& stringVersion);
 
-    bool operator== (const RelativePoint& other) const throw();
-    bool operator!= (const RelativePoint& other) const throw();
+    bool operator== (const RelativePoint& other) const noexcept;
+    bool operator!= (const RelativePoint& other) const noexcept;
 
     /** Calculates the absolute position of this point.
 
@@ -80,7 +80,7 @@ public:
         coordinates, see the RelativeCoordinate constructor notes.
         The string that is returned can be passed to the RelativePoint constructor to recreate the point.
     */
-    const String toString() const;
+    String toString() const;
 
     /** Returns true if this point depends on any other coordinates for its position. */
     bool isDynamic() const;

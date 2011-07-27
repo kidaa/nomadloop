@@ -28,13 +28,12 @@
 BEGIN_JUCE_NAMESPACE
 
 #include "juce_TimeSliceThread.h"
-#include "juce_ScopedLock.h"
 
 
 //==============================================================================
 TimeSliceThread::TimeSliceThread (const String& threadName)
     : Thread (threadName),
-      clientBeingCalled (0)
+      clientBeingCalled (nullptr)
 {
 }
 
@@ -46,7 +45,7 @@ TimeSliceThread::~TimeSliceThread()
 //==============================================================================
 void TimeSliceThread::addTimeSliceClient (TimeSliceClient* const client, int millisecondsBeforeStarting)
 {
-    if (client != 0)
+    if (client != nullptr)
     {
         const ScopedLock sl (listLock);
         client->nextCallTime = Time::getCurrentTime() + RelativeTime::milliseconds (millisecondsBeforeStarting);
@@ -91,13 +90,13 @@ TimeSliceClient* TimeSliceThread::getClient (const int i) const
 TimeSliceClient* TimeSliceThread::getNextClient (int index) const
 {
     Time soonest;
-    TimeSliceClient* client = 0;
+    TimeSliceClient* client = nullptr;
 
     for (int i = clients.size(); --i >= 0;)
     {
         TimeSliceClient* const c = clients.getUnchecked ((i + index) % clients.size());
 
-        if (client == 0 || c->nextCallTime < soonest)
+        if (client == nullptr || c->nextCallTime < soonest)
         {
             client = c;
             soonest = c->nextCallTime;
@@ -124,7 +123,7 @@ void TimeSliceThread::run()
                 index = clients.size() > 0 ? ((index + 1) % clients.size()) : 0;
 
                 TimeSliceClient* const firstClient = getNextClient (index);
-                if (firstClient != 0)
+                if (firstClient != nullptr)
                     nextClientTime = firstClient->nextCallTime;
             }
 
@@ -145,7 +144,7 @@ void TimeSliceThread::run()
                     clientBeingCalled = getNextClient (index);
                 }
 
-                if (clientBeingCalled != 0)
+                if (clientBeingCalled != nullptr)
                 {
                     const int msUntilNextCall = clientBeingCalled->useTimeSlice();
 
@@ -156,7 +155,7 @@ void TimeSliceThread::run()
                     else
                         clients.removeValue (clientBeingCalled);
 
-                    clientBeingCalled = 0;
+                    clientBeingCalled = nullptr;
                 }
             }
         }

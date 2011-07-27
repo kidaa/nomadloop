@@ -38,7 +38,6 @@ BEGIN_JUCE_NAMESPACE
 #include "../memory/juce_ScopedPointer.h"
 #include "../core/juce_SystemStats.h"
 #include "../threads/juce_InterProcessLock.h"
-#include "../threads/juce_ScopedLock.h"
 #include "../text/juce_XmlDocument.h"
 
 
@@ -55,29 +54,101 @@ namespace PropertyFileConstants
 }
 
 //==============================================================================
-PropertiesFile::PropertiesFile (const File& f, const int millisecondsBeforeSaving,
-                                const int options_, InterProcessLock* const processLock_)
-    : PropertySet (ignoreCaseOfKeyNames),
-      file (f),
-      timerInterval (millisecondsBeforeSaving),
-      options (options_),
-      loadedOk (false),
-      needsWriting (false),
-      processLock (processLock_)
+PropertiesFile::Options::Options()
+    : commonToAllUsers (false),
+      ignoreCaseOfKeyNames (false),
+      millisecondsBeforeSaving (3000),
+      storageFormat (PropertiesFile::storeAsXML),
+      processLock (nullptr)
+{
+}
+
+File PropertiesFile::Options::getDefaultFile() const
+{
+    // mustn't have illegal characters in this name..
+    jassert (applicationName == File::createLegalFileName (applicationName));
+
+  #if JUCE_MAC || JUCE_IOS
+    File dir (commonToAllUsers ?  "/Library/"
+                               : "~/Library/");
+
+    if (osxLibrarySubFolder != "Preferences" && osxLibrarySubFolder != "Application Support")
+    {
+        /* The PropertiesFile class always used to put its settings files in "Library/Preferences", but Apple
+           have changed their advice, and now stipulate that settings should go in "Library/Application Support".
+
+           Because older apps would be broken by a silent change in this class's behaviour, you must now
+           explicitly set the osxLibrarySubFolder value to indicate which path you want to use.
+
+           In newer apps, you should always set this to "Application Support".
+
+           If your app needs to load settings files that were created by older versions of juce and
+           you want to maintain backwards-compatibility, then you can set this to "Preferences".
+           But.. for better Apple-compliance, the recommended approach would be to write some code that
+           finds your old settings files in ~/Library/Preferences, moves them to ~/Library/Application Support,
+           and then uses the new path.
+        */
+        jassertfalse;
+
+        dir = dir.getChildFile ("Application Support");
+    }
+    else
+    {
+        dir = dir.getChildFile (osxLibrarySubFolder);
+    }
+
+    if (folderName.isNotEmpty())
+        dir = dir.getChildFile (folderName);
+
+  #elif JUCE_LINUX || JUCE_ANDROID
+    const File dir ((commonToAllUsers ? "/var/" : "~/")
+                        + (folderName.isNotEmpty() ? folderName
+                                                   : ("." + applicationName)));
+
+  #elif JUCE_WINDOWS
+    File dir (File::getSpecialLocation (commonToAllUsers ? File::commonApplicationDataDirectory
+                                                         : File::userApplicationDataDirectory));
+
+    if (dir == File::nonexistent)
+        return File::nonexistent;
+
+    dir = dir.getChildFile (folderName.isNotEmpty() ? folderName
+                                                    : applicationName);
+  #endif
+
+    return dir.getChildFile (applicationName)
+              .withFileExtension (filenameSuffix);
+}
+
+
+//==============================================================================
+PropertiesFile::PropertiesFile (const File& file_, const Options& options_)
+    : PropertySet (options_.ignoreCaseOfKeyNames),
+      file (file_), options (options_),
+      loadedOk (false), needsWriting (false)
+{
+    initialise();
+}
+
+PropertiesFile::PropertiesFile (const Options& options_)
+    : PropertySet (options_.ignoreCaseOfKeyNames),
+      file (options_.getDefaultFile()), options (options_),
+      loadedOk (false), needsWriting (false)
+{
+    initialise();
+}
+
+void PropertiesFile::initialise()
 {
     // You need to correctly specify just one storage format for the file
-    jassert ((options_ & (storeAsBinary | storeAsCompressedBinary | storeAsXML)) == storeAsBinary
-             || (options_ & (storeAsBinary | storeAsCompressedBinary | storeAsXML)) == storeAsCompressedBinary
-             || (options_ & (storeAsBinary | storeAsCompressedBinary | storeAsXML)) == storeAsXML);
-
     ProcessScopedLock pl (createProcessLock());
 
-    if (pl != 0 && ! pl->isLocked())
+    if (pl != nullptr && ! pl->isLocked())
         return; // locking failure..
 
-    ScopedPointer<InputStream> fileStream (f.createInputStream());
+    ScopedPointer<InputStream> fileStream (file.createInputStream());
 
-    if (fileStream != 0)
+    if (fileStream != nullptr)
     {
         int magicNumber = fileStream->readInt();
 
@@ -107,16 +178,16 @@ PropertiesFile::PropertiesFile (const File& f, const int millisecondsBeforeSavin
         else
         {
             // Not a binary props file - let's see if it's XML..
-            fileStream = 0;
+            fileStream = nullptr;
 
-            XmlDocument parser (f);
+            XmlDocument parser (file);
             ScopedPointer<XmlElement> doc (parser.getDocumentElement (true));
 
-            if (doc != 0 && doc->hasTagName (PropertyFileConstants::fileTag))
+            if (doc != nullptr && doc->hasTagName (PropertyFileConstants::fileTag))
             {
                 doc = parser.getDocumentElement();
 
-                if (doc != 0)
+                if (doc != nullptr)
                 {
                     loadedOk = true;
 
@@ -127,7 +198,7 @@ PropertiesFile::PropertiesFile (const File& f, const int millisecondsBeforeSavin
                         if (name.isNotEmpty())
                         {
                             getAllProperties().set (name,
-                                                    e->getFirstChildElement() != 0
+                                                    e->getFirstChildElement() != nullptr
                                                         ? e->getFirstChildElement()->createDocument (String::empty, true)
                                                         : e->getStringAttribute (PropertyFileConstants::valueAttribute));
                         }
@@ -145,7 +216,7 @@ PropertiesFile::PropertiesFile (const File& f, const int millisecondsBeforeSavin
     }
     else
     {
-        loadedOk = ! f.exists();
+        loadedOk = ! file.exists();
     }
 }
 
@@ -157,7 +228,7 @@ PropertiesFile::~PropertiesFile()
 
 InterProcessLock::ScopedLockType* PropertiesFile::createProcessLock() const
 {
-    return processLock != 0 ? new InterProcessLock::ScopedLockType (*processLock) : 0;
+    return options.processLock != nullptr ? new InterProcessLock::ScopedLockType (*options.processLock) : nullptr;
 }
 
 bool PropertiesFile::saveIfNeeded()
@@ -189,7 +260,7 @@ bool PropertiesFile::save()
          || ! file.getParentDirectory().createDirectory())
         return false;
 
-    if ((options & storeAsXML) != 0)
+    if (options.storageFormat == storeAsXML)
     {
         XmlElement doc (PropertyFileConstants::fileTag);
 
@@ -201,7 +272,7 @@ bool PropertiesFile::save()
             // if the value seems to contain xml, store it as such..
             XmlElement* const childElement = XmlDocument::parse (getAllProperties().getAllValues() [i]);
 
-            if (childElement != 0)
+            if (childElement != nullptr)
                 e->addChildElement (childElement);
             else
                 e->setAttribute (PropertyFileConstants::valueAttribute,
@@ -210,7 +281,7 @@ bool PropertiesFile::save()
 
         ProcessScopedLock pl (createProcessLock());
 
-        if (pl != 0 && ! pl->isLocked())
+        if (pl != nullptr && ! pl->isLocked())
             return false; // locking failure..
 
         if (doc.writeToFile (file, String::empty))
@@ -223,15 +294,15 @@ bool PropertiesFile::save()
     {
         ProcessScopedLock pl (createProcessLock());
 
-        if (pl != 0 && ! pl->isLocked())
+        if (pl != nullptr && ! pl->isLocked())
             return false; // locking failure..
 
         TemporaryFile tempFile (file);
         ScopedPointer <OutputStream> out (tempFile.getFile().createOutputStream());
 
-        if (out != 0)
+        if (out != nullptr)
         {
-            if ((options & storeAsCompressedBinary) != 0)
+            if (options.storageFormat == storeAsCompressedBinary)
             {
                 out->writeInt (PropertyFileConstants::magicNumberCompressed);
                 out->flush();
@@ -241,7 +312,7 @@ bool PropertiesFile::save()
             else
             {
                 // have you set up the storage option flags correctly?
-                jassert ((options & storeAsBinary) != 0);
+                jassert (options.storageFormat == storeAsBinary);
 
                 out->writeInt (PropertyFileConstants::magicNumber);
             }
@@ -256,7 +327,7 @@ bool PropertiesFile::save()
                 out->writeString (getAllProperties().getAllValues() [i]);
             }
 
-            out = 0;
+            out = nullptr;
 
             if (tempFile.overwriteTargetFileWithTemporary())
             {
@@ -280,65 +351,10 @@ void PropertiesFile::propertyChanged()
 
     needsWriting = true;
 
-    if (timerInterval > 0)
-        startTimer (timerInterval);
-    else if (timerInterval == 0)
+    if (options.millisecondsBeforeSaving > 0)
+        startTimer (options.millisecondsBeforeSaving);
+    else if (options.millisecondsBeforeSaving == 0)
         saveIfNeeded();
-}
-
-//==============================================================================
-const File PropertiesFile::getDefaultAppSettingsFile (const String& applicationName,
-                                                      const String& fileNameSuffix,
-                                                      const String& folderName,
-                                                      const bool commonToAllUsers)
-{
-    // mustn't have illegal characters in this name..
-    jassert (applicationName == File::createLegalFileName (applicationName));
-
-  #if JUCE_MAC || JUCE_IOS
-    File dir (commonToAllUsers ? "/Library/Preferences"
-                               : "~/Library/Preferences");
-
-    if (folderName.isNotEmpty())
-        dir = dir.getChildFile (folderName);
-  #elif JUCE_LINUX || JUCE_ANDROID
-    const File dir ((commonToAllUsers ? "/var/" : "~/")
-                        + (folderName.isNotEmpty() ? folderName
-                                                   : ("." + applicationName)));
-  #elif JUCE_WINDOWS
-    File dir (File::getSpecialLocation (commonToAllUsers ? File::commonApplicationDataDirectory
-                                                         : File::userApplicationDataDirectory));
-
-    if (dir == File::nonexistent)
-        return File::nonexistent;
-
-    dir = dir.getChildFile (folderName.isNotEmpty() ? folderName
-                                                    : applicationName);
-  #endif
-
-    return dir.getChildFile (applicationName)
-              .withFileExtension (fileNameSuffix);
-}
-
-PropertiesFile* PropertiesFile::createDefaultAppPropertiesFile (const String& applicationName,
-                                                                const String& fileNameSuffix,
-                                                                const String& folderName,
-                                                                const bool commonToAllUsers,
-                                                                const int millisecondsBeforeSaving,
-                                                                const int propertiesFileOptions,
-                                                                InterProcessLock* processLock_)
-{
-    const File file (getDefaultAppSettingsFile (applicationName,
-                                                fileNameSuffix,
-                                                folderName,
-                                                commonToAllUsers));
-
-    jassert (file != File::nonexistent);
-
-    if (file == File::nonexistent)
-        return 0;
-
-    return new PropertiesFile (file, millisecondsBeforeSaving, propertiesFileOptions,processLock_);
 }
 
 

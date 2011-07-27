@@ -32,8 +32,8 @@ BEGIN_JUCE_NAMESPACE
 #include "juce_OpenGLComponent.h"
 #include "../windows/juce_ComponentPeer.h"
 #include "../layout/juce_ComponentMovementWatcher.h"
-#include "../../../threads/juce_ScopedLock.h"
-
+#include "../../../threads/juce_Thread.h"
+#include "../../../events/juce_MessageManager.h"
 
 //==============================================================================
 extern void juce_glViewport (const int w, const int h);
@@ -107,7 +107,7 @@ bool OpenGLPixelFormat::operator== (const OpenGLPixelFormat& other) const
 //==============================================================================
 static Array<OpenGLContext*> knownContexts;
 
-OpenGLContext::OpenGLContext() throw()
+OpenGLContext::OpenGLContext() noexcept
 {
     knownContexts.add (this);
 }
@@ -127,9 +127,8 @@ OpenGLContext* OpenGLContext::getCurrentContext()
             return oglc;
     }
 
-    return 0;
+    return nullptr;
 }
-
 
 //==============================================================================
 class OpenGLComponent::OpenGLComponentWatcher  : public ComponentMovementWatcher
@@ -150,17 +149,13 @@ public:
 
     void componentPeerChanged()
     {
-        const ScopedLock sl (owner->getContextLock());
-        owner->deleteContext();
+        owner->recreateContextAsync();
     }
 
     void componentVisibilityChanged()
     {
         if (! owner->isShowing())
-        {
-            const ScopedLock sl (owner->getContextLock());
-            owner->deleteContext();
-        }
+            owner->stopBackgroundThread();
     }
 
     //==============================================================================
@@ -171,10 +166,80 @@ private:
 };
 
 //==============================================================================
-OpenGLComponent::OpenGLComponent (const OpenGLType type_)
+class OpenGLComponent::OpenGLComponentRenderThread  : public Thread
+{
+public:
+    OpenGLComponentRenderThread (OpenGLComponent& owner_)
+        : Thread ("OpenGL Render"),
+          owner (owner_)
+    {
+    }
+
+    void run()
+    {
+       #if JUCE_LINUX
+        {
+            MessageManagerLock mml (this);
+
+            if (! mml.lockWasGained())
+                return;
+
+            owner.updateContext();
+            owner.updateContextPosition();
+        }
+       #endif
+
+        while (! threadShouldExit())
+        {
+            const uint32 startOfRendering = Time::getMillisecondCounter();
+
+            if (! owner.renderAndSwapBuffers())
+                break;
+
+            const int elapsed = Time::getMillisecondCounter() - startOfRendering;
+            Thread::sleep (jmax (1, 20 - elapsed));
+        }
+
+       #if JUCE_LINUX
+        owner.deleteContext();
+       #endif
+    }
+
+private:
+    OpenGLComponent& owner;
+
+    JUCE_DECLARE_NON_COPYABLE (OpenGLComponentRenderThread);
+};
+
+void OpenGLComponent::startRenderThread()
+{
+    if (renderThread == nullptr)
+        renderThread = new OpenGLComponentRenderThread (*this);
+
+    renderThread->startThread (6);
+}
+
+void OpenGLComponent::stopRenderThread()
+{
+    if (renderThread != nullptr)
+    {
+        renderThread->stopThread (5000);
+        renderThread = nullptr;
+    }
+
+   #if ! JUCE_LINUX
+    deleteContext();
+   #endif
+}
+
+//==============================================================================
+OpenGLComponent::OpenGLComponent (const OpenGLType type_, const bool useBackgroundThread)
     : type (type_),
-      contextToShareListsWith (0),
-      needToUpdateViewport (true)
+      contextToShareListsWith (nullptr),
+      needToUpdateViewport (true),
+      needToDeleteContext (false),
+      threadStarted (false),
+      useThread (useBackgroundThread)
 {
     setOpaque (true);
     componentWatcher = new OpenGLComponentWatcher (this);
@@ -182,36 +247,8 @@ OpenGLComponent::OpenGLComponent (const OpenGLType type_)
 
 OpenGLComponent::~OpenGLComponent()
 {
-    deleteContext();
-    componentWatcher = 0;
-}
-
-void OpenGLComponent::deleteContext()
-{
-    const ScopedLock sl (contextLock);
-    context = 0;
-}
-
-void OpenGLComponent::updateContextPosition()
-{
-    needToUpdateViewport = true;
-
-    if (getWidth() > 0 && getHeight() > 0)
-    {
-        Component* const topComp = getTopLevelComponent();
-
-        if (topComp->getPeer() != 0)
-        {
-            const ScopedLock sl (contextLock);
-
-            if (context != 0)
-                context->updateWindowPosition (getScreenX() - topComp->getScreenX(),
-                                               getScreenY() - topComp->getScreenY(),
-                                               getWidth(),
-                                               getHeight(),
-                                               topComp->getHeight());
-        }
-    }
+    stopBackgroundThread();
+    componentWatcher = nullptr;
 }
 
 const OpenGLPixelFormat OpenGLComponent::getPixelFormat() const
@@ -219,7 +256,7 @@ const OpenGLPixelFormat OpenGLComponent::getPixelFormat() const
     OpenGLPixelFormat pf;
 
     const ScopedLock sl (contextLock);
-    if (context != 0)
+    if (context != nullptr)
         pf = context->getPixelFormat();
 
     return pf;
@@ -230,8 +267,8 @@ void OpenGLComponent::setPixelFormat (const OpenGLPixelFormat& formatToUse)
     if (! (preferredPixelFormat == formatToUse))
     {
         const ScopedLock sl (contextLock);
-        deleteContext();
         preferredPixelFormat = formatToUse;
+        recreateContextAsync();
     }
 }
 
@@ -240,62 +277,145 @@ void OpenGLComponent::shareWith (OpenGLContext* c)
     if (contextToShareListsWith != c)
     {
         const ScopedLock sl (contextLock);
-        deleteContext();
         contextToShareListsWith = c;
+        recreateContextAsync();
     }
+}
+
+void OpenGLComponent::recreateContextAsync()
+{
+    const ScopedLock sl (contextLock);
+    needToDeleteContext = true;
+    repaint();
 }
 
 bool OpenGLComponent::makeCurrentContextActive()
 {
-    if (context == 0)
-    {
-        const ScopedLock sl (contextLock);
-
-        if (isShowing() && getTopLevelComponent()->getPeer() != 0)
-        {
-            context = createContext();
-
-            if (context != 0)
-            {
-                updateContextPosition();
-
-                if (context->makeActive())
-                    newOpenGLContextCreated();
-            }
-        }
-    }
-
-    return context != 0 && context->makeActive();
+    return context != nullptr && context->makeActive();
 }
 
 void OpenGLComponent::makeCurrentContextInactive()
 {
-    if (context != 0)
+    if (context != nullptr)
         context->makeInactive();
 }
 
-bool OpenGLComponent::isActiveContext() const throw()
+bool OpenGLComponent::isActiveContext() const noexcept
 {
-    return context != 0 && context->isActive();
+    return context != nullptr && context->isActive();
 }
 
 void OpenGLComponent::swapBuffers()
 {
-    if (context != 0)
+    if (context != nullptr)
         context->swapBuffers();
+}
+
+void OpenGLComponent::updateContext()
+{
+    if (needToDeleteContext)
+        deleteContext();
+
+    if (context == nullptr)
+    {
+        const ScopedLock sl (contextLock);
+
+        if (context == nullptr)
+        {
+            context = createContext();
+
+            if (context != nullptr)
+            {
+               #if JUCE_LINUX
+                if (! useThread)
+               #endif
+                    updateContextPosition();
+
+                if (context->makeActive())
+                {
+                    newOpenGLContextCreated();
+                    context->makeInactive();
+                }
+            }
+        }
+    }
+}
+
+void OpenGLComponent::deleteContext()
+{
+    const ScopedLock sl (contextLock);
+    if (context != nullptr)
+    {
+        if (context->makeActive())
+        {
+            releaseOpenGLContext();
+            context->makeInactive();
+        }
+
+        context = nullptr;
+    }
+
+    needToDeleteContext = false;
+}
+
+void OpenGLComponent::updateContextPosition()
+{
+    needToUpdateViewport = true;
+
+    if (getWidth() > 0 && getHeight() > 0)
+    {
+        Component* const topComp = getTopLevelComponent();
+
+        if (topComp->getPeer() != nullptr)
+        {
+            const ScopedLock sl (contextLock);
+
+            if (context != nullptr)
+                context->updateWindowPosition (topComp->getLocalArea (this, getLocalBounds()));
+        }
+    }
+}
+
+void OpenGLComponent::stopBackgroundThread()
+{
+    if (threadStarted)
+    {
+        stopRenderThread();
+        threadStarted = false;
+    }
 }
 
 void OpenGLComponent::paint (Graphics&)
 {
-    if (renderAndSwapBuffers())
-    {
-        ComponentPeer* const peer = getPeer();
+    ComponentPeer* const peer = getPeer();
 
-        if (peer != 0)
+    if (useThread)
+    {
+        if (peer != nullptr && isShowing())
         {
-            const Point<int> topLeft (getScreenPosition() - peer->getScreenPosition());
-            peer->addMaskedRegion (topLeft.getX(), topLeft.getY(), getWidth(), getHeight());
+           #if ! JUCE_LINUX
+            updateContext();
+           #endif
+
+            if (! threadStarted)
+            {
+                threadStarted = true;
+                startRenderThread();
+            }
         }
+    }
+    else
+    {
+        updateContext();
+
+        if (! renderAndSwapBuffers())
+            return;
+    }
+
+    if (peer != nullptr)
+    {
+        const Point<int> topLeft (getScreenPosition() - peer->getScreenPosition());
+        peer->addMaskedRegion (topLeft.getX(), topLeft.getY(), getWidth(), getHeight());
     }
 }
 
@@ -303,17 +423,24 @@ bool OpenGLComponent::renderAndSwapBuffers()
 {
     const ScopedLock sl (contextLock);
 
-    if (! makeCurrentContextActive())
-        return false;
+   #if JUCE_LINUX
+    updateContext();
+   #endif
 
-    if (needToUpdateViewport)
+    if (context != nullptr)
     {
-        needToUpdateViewport = false;
-        juce_glViewport (getWidth(), getHeight());
-    }
+        if (! makeCurrentContextActive())
+            return false;
 
-    renderOpenGL();
-    swapBuffers();
+        if (needToUpdateViewport)
+        {
+            needToUpdateViewport = false;
+            juce_glViewport (getWidth(), getHeight());
+        }
+
+        renderOpenGL();
+        swapBuffers();
+    }
 
     return true;
 }
@@ -322,7 +449,7 @@ void OpenGLComponent::internalRepaint (int x, int y, int w, int h)
 {
     Component::internalRepaint (x, y, w, h);
 
-    if (context != 0)
+    if (context != nullptr)
         context->repaint();
 }
 

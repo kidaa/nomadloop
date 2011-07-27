@@ -60,7 +60,7 @@ static int numDOWID = 0, numJuceSO = 0;
 
 //==============================================================================
 static void juceVarToVariant (const var& v, VARIANT& dest);
-static const var variantTojuceVar (const VARIANT& v);
+static var variantTojuceVar (const VARIANT& v);
 
 //==============================================================================
 // Takes care of the logic in invoking var methods from IDispatch callbacks.
@@ -93,15 +93,17 @@ public:
     {
         const Identifier memberId (getStringFromDISPID (dispIdMember));
 
-        if (memberId.toString().isEmpty() || v.getObject() == 0)
+        DynamicObject* const object = v.getDynamicObject();
+
+        if (memberId.toString().isEmpty() || object == nullptr)
             return DISP_E_MEMBERNOTFOUND;
 
         if ((wFlags & DISPATCH_METHOD) != 0)
         {
-            if (! v.getObject()->hasMethod (memberId))
+            if (! object->hasMethod (memberId))
                 return DISP_E_MEMBERNOTFOUND;
 
-            const int numArgs = pDispParams == 0 ? 0 : pDispParams->cArgs;
+            const int numArgs = pDispParams == nullptr ? 0 : pDispParams->cArgs;
             var result;
 
             if (numArgs == 0)
@@ -114,30 +116,30 @@ public:
                 for (int j = numArgs; --j >= 0;)
                     args.add (variantTojuceVar (pDispParams->rgvarg[j]));
 
-                result = v.invoke (memberId, args.getRawDataPointer(), numArgs);
+                result = v.invoke (memberId, numArgs == 0 ? 0 : args.getRawDataPointer(), numArgs);
             }
 
-            if (pVarResult != 0)
+            if (pVarResult != nullptr)
                 juceVarToVariant (result, *pVarResult);
 
             return S_OK;
         }
         else if ((wFlags & DISPATCH_PROPERTYGET) != 0)
         {
-            if (! v.getObject()->hasProperty (memberId))
+            if (! object->hasProperty (memberId))
                 return DISP_E_MEMBERNOTFOUND;
 
-            if (pVarResult != 0)
+            if (pVarResult != nullptr)
             {
-                juceVarToVariant (v.getObject()->getProperty (memberId), *pVarResult);
+                juceVarToVariant (object->getProperty (memberId), *pVarResult);
                 return S_OK;
             }
         }
         else if ((wFlags & DISPATCH_PROPERTYPUT) != 0)
         {
-            if (pDispParams != 0 && pDispParams->cArgs > 0)
+            if (pDispParams != nullptr && pDispParams->cArgs > 0)
             {
-                v.getObject()->setProperty (memberId, variantTojuceVar (pDispParams->rgvarg[0]));
+                object->setProperty (memberId, variantTojuceVar (pDispParams->rgvarg[0]));
                 return S_OK;
             }
         }
@@ -148,7 +150,7 @@ public:
 private:
     StringPool identifierPool;
 
-    static DISPID getHashFromString (const String::CharPointerType& s) throw()
+    static DISPID getHashFromString (const String::CharPointerType& s) noexcept
     {
         return (DISPID) (pointer_sized_int) s.getAddress();
     }
@@ -231,7 +233,7 @@ public:
         log ("num IDispatch wrapper objs: " + String (--numDOWID));
     }
 
-    const var getProperty (const Identifier& propertyName) const
+    var getProperty (const Identifier& propertyName) const
     {
         const String nameCopy (propertyName.toString());
         LPCOLESTR name = nameCopy.toUTF16();
@@ -310,7 +312,7 @@ public:
         return source->GetIDsOfNames (IID_NULL, (LPOLESTR*) &name, 1, 0, &id) == S_OK;
     }
 
-    const var invokeMethod (const Identifier& methodName, const var* parameters, int numParameters)
+    var invokeMethod (const Identifier& methodName, const var* parameters, int numParameters)
     {
         var returnValue;
         const String nameCopy (methodName.toString());
@@ -376,7 +378,7 @@ void juceVarToVariant (const var& v, VARIANT& dest)
         dest.vt = VT_BSTR;
         dest.bstrVal = SysAllocString (v.toString().toUTF16());
     }
-    else if (v.isObject())
+    else if (v.getDynamicObject() != nullptr)
     {
         dest.vt = VT_DISPATCH;
         dest.pdispVal = new IDispatchWrappingDynamicObject (v);
@@ -387,7 +389,7 @@ void juceVarToVariant (const var& v, VARIANT& dest)
     }
 }
 
-const var variantTojuceVar (const VARIANT& v)
+var variantTojuceVar (const VARIANT& v)
 {
     if ((v.vt & VT_ARRAY) != 0)
     {
@@ -397,25 +399,25 @@ const var variantTojuceVar (const VARIANT& v)
     {
         switch (v.vt & ~VT_BYREF)
         {
-        case VT_VOID:
-        case VT_EMPTY:      return var::null;
-        case VT_I1:         return var ((int) v.cVal);
-        case VT_I2:         return var ((int) v.iVal);
-        case VT_I4:         return var ((int) v.lVal);
-        case VT_I8:         return var (String (v.llVal));
-        case VT_UI1:        return var ((int) v.bVal);
-        case VT_UI2:        return var ((int) v.uiVal);
-        case VT_UI4:        return var ((int) v.ulVal);
-        case VT_UI8:        return var (String (v.ullVal));
-        case VT_INT:        return var ((int) v.intVal);
-        case VT_UINT:       return var ((int) v.uintVal);
-        case VT_R4:         return var ((double) v.fltVal);
-        case VT_R8:         return var ((double) v.dblVal);
-        case VT_BSTR:       return var (String (v.bstrVal));
-        case VT_BOOL:       return var (v.boolVal ? true : false);
-        case VT_DISPATCH:   return var (new DynamicObjectWrappingIDispatch (v.pdispVal));
-        default:
-            break;
+            case VT_VOID:
+            case VT_EMPTY:      return var::null;
+            case VT_I1:         return var ((int) v.cVal);
+            case VT_I2:         return var ((int) v.iVal);
+            case VT_I4:         return var ((int) v.lVal);
+            case VT_I8:         return var (String (v.llVal));
+            case VT_UI1:        return var ((int) v.bVal);
+            case VT_UI2:        return var ((int) v.uiVal);
+            case VT_UI4:        return var ((int) v.ulVal);
+            case VT_UI8:        return var (String (v.ullVal));
+            case VT_INT:        return var ((int) v.intVal);
+            case VT_UINT:       return var ((int) v.uintVal);
+            case VT_R4:         return var ((double) v.fltVal);
+            case VT_R8:         return var ((double) v.dblVal);
+            case VT_BSTR:       return var (String (v.bstrVal));
+            case VT_BOOL:       return var (v.boolVal ? true : false);
+            case VT_DISPATCH:   return var (new DynamicObjectWrappingIDispatch (v.pdispVal));
+            default:
+                break;
         }
     }
 
@@ -430,54 +432,54 @@ public:
     //==============================================================================
     AXBrowserPluginHolderComponent()
         : parentHWND (0),
-          browser (0)
+          browser (nullptr)
     {
         setOpaque (true);
         setWantsKeyboardFocus (false);
 
         addAndMakeVisible (child = createBrowserPlugin());
-        jassert (child != 0);   // You have to create one of these!
+        jassert (child != nullptr);   // You have to create one of these!
     }
 
     ~AXBrowserPluginHolderComponent()
     {
-        setWindow (0);
-        child = 0;
+        setWindow (nullptr);
+        child = nullptr;
     }
 
     //==============================================================================
     void paint (Graphics& g)
     {
-        if (child == 0 || ! child->isOpaque())
+        if (child == nullptr || ! child->isOpaque())
             g.fillAll (Colours::white);
     }
 
     void resized()
     {
-        if (child != 0)
+        if (child != nullptr)
             child->setBounds (0, 0, getWidth(), getHeight());
     }
 
-    const var getObject()   { return child->getJavascriptObject(); }
+    var getObject()   { return child->getJavascriptObject(); }
 
     void setWindow (IOleInPlaceSite* site)
     {
-        if (browser != 0)
+        if (browser != nullptr)
         {
             browser->Release();
-            browser = 0;
+            browser = nullptr;
         }
 
         HWND newHWND = 0;
 
-        if (site != 0)
+        if (site != nullptr)
         {
             site->GetWindow (&newHWND);
 
-            IServiceProvider* sp = 0;
+            IServiceProvider* sp = nullptr;
             site->QueryInterface (IID_IServiceProvider, (void**) &sp);
 
-            if (sp != 0)
+            if (sp != nullptr)
             {
                 sp->QueryService (IID_IWebBrowserApp, IID_IWebBrowser2, (void**) &browser);
                 sp->Release();
@@ -505,16 +507,16 @@ public:
             }
         }
 
-        if (site != 0)
+        if (site != nullptr)
             site->OnInPlaceActivate();
     }
 
-    const String getBrowserURL() const
+    String getBrowserURL() const
     {
-        if (browser == 0)
+        if (browser == nullptr)
             return String::empty;
 
-        BSTR url = 0;
+        BSTR url = nullptr;
         browser->get_LocationURL (&url);
         return URL::removeEscapeChars (url);
     }
@@ -529,15 +531,14 @@ private:
 //==============================================================================
 extern String browserVersionDesc;
 
-static const String getExePath()
+static String getExePath()
 {
-    TCHAR moduleFile [2048];
-    moduleFile[0] = 0;
+    TCHAR moduleFile [2048] = { 0 };
     GetModuleFileName (0, moduleFile, 2048);
     return moduleFile;
 }
 
-static const String getExeVersion (const String& exeFileName, const String& fieldName)
+static String getExeVersion (const String& exeFileName, const String& fieldName)
 {
     String resultString;
     DWORD pointlessWin32Variable;
@@ -550,7 +551,7 @@ static const String getExeVersion (const String& exeFileName, const String& fiel
 
         if (GetFileVersionInfo (exeFileName.toUTF16(), 0, size, exeInfo))
         {
-            TCHAR* result = 0;
+            TCHAR* result = nullptr;
             unsigned int resultLen = 0;
 
             // try the 1200 codepage (Unicode)
@@ -580,7 +581,7 @@ class JuceActiveXObject     : public IUnknown,
 {
 public:
     JuceActiveXObject()
-        : site (0), refCount (0)
+        : site (nullptr), refCount (0)
     {
         log ("JuceActiveXObject");
     }
@@ -588,7 +589,7 @@ public:
     ~JuceActiveXObject()
     {
         log ("~JuceActiveXObject");
-        holderComp = 0;
+        holderComp = nullptr;
     }
 
     HRESULT __stdcall QueryInterface (REFIID id, void __RPC_FAR* __RPC_FAR* result)
@@ -620,7 +621,7 @@ public:
                               DISPPARAMS* pDispParams, VARIANT* pVarResult,
                               EXCEPINFO* pExcepInfo, UINT* puArgErr)
     {
-        if (holderComp == 0)
+        if (holderComp == nullptr)
             return DISP_E_MEMBERNOTFOUND;
 
         return iDispatchHelper.doInvoke (holderComp->getObject(),
@@ -632,19 +633,19 @@ public:
     {
         if (newSite != site)
         {
-            if (site != 0)
+            if (site != nullptr)
                 site->Release();
 
             site = newSite;
 
-            if (site != 0)
+            if (site != nullptr)
             {
                 site->AddRef();
 
-                IOleInPlaceSite* inPlaceSite = 0;
+                IOleInPlaceSite* inPlaceSite = nullptr;
                 site->QueryInterface (IID_IOleInPlaceSite, (void**) &inPlaceSite);
 
-                if (inPlaceSite != 0)
+                if (inPlaceSite != nullptr)
                 {
                     createHolderComp();
 
@@ -667,7 +668,7 @@ public:
 
     void createHolderComp()
     {
-        if (holderComp == 0)
+        if (holderComp == nullptr)
         {
             if (numActivePlugins++ == 0)
             {
@@ -683,9 +684,9 @@ public:
 
     void deleteHolderComp()
     {
-        if (holderComp != 0)
+        if (holderComp != nullptr)
         {
-            holderComp = 0;
+            holderComp = nullptr;
 
             if (--numActivePlugins == 0)
             {
@@ -704,7 +705,7 @@ public:
     //==============================================================================
     HRESULT __stdcall SetObjectRects (LPCRECT r, LPCRECT c)
     {
-        if (holderComp != 0)
+        if (holderComp != nullptr)
             holderComp->setBounds (r->left, r->top, r->right - r->left, r->bottom - r->top);
 
         return S_OK;
@@ -712,7 +713,7 @@ public:
 
     HRESULT __stdcall GetWindow (HWND* phwnd)
     {
-        if (holderComp == 0)
+        if (holderComp == nullptr)
             return E_NOTIMPL;
 
         *phwnd = (HWND) holderComp->getWindowHandle();
@@ -766,9 +767,9 @@ public:
 
     HRESULT __stdcall CreateInstance (IUnknown* pUnkOuter, REFIID riid, void** ppvObject)
     {
-        *ppvObject = 0;
+        *ppvObject = nullptr;
 
-        if (pUnkOuter != 0 && riid != IID_IUnknown)
+        if (pUnkOuter != nullptr && riid != IID_IUnknown)
             return CLASS_E_NOAGGREGATION;
 
         JuceActiveXObject* ax = new JuceActiveXObject();
@@ -788,7 +789,7 @@ private:
 const String getActiveXBrowserURL (const BrowserPluginComponent* comp)
 {
     AXBrowserPluginHolderComponent* const ax = dynamic_cast <AXBrowserPluginHolderComponent*> (comp->getParentComponent());
-    return ax != 0 ? ax->getBrowserURL() : String::empty;
+    return ax != nullptr ? ax->getBrowserURL() : String::empty;
 }
 
 //==============================================================================
@@ -800,7 +801,7 @@ extern "C" BOOL WINAPI DllMain (HANDLE instance, DWORD reason, LPVOID)
     {
     case DLL_PROCESS_ATTACH:
         log ("DLL_PROCESS_ATTACH");
-        PlatformUtilities::setCurrentModuleInstanceHandle (instance);
+        Process::setCurrentModuleInstanceHandle (instance);
         break;
 
     case DLL_PROCESS_DETACH:
@@ -820,18 +821,18 @@ extern "C" BOOL WINAPI DllMain (HANDLE instance, DWORD reason, LPVOID)
     return TRUE;
 }
 
-static const String CLSIDToJuceString (REFCLSID clsid)
+static String CLSIDToJuceString (REFCLSID clsid)
 {
-    LPWSTR s = 0;
+    LPWSTR s = nullptr;
     StringFromIID (clsid, &s);
 
-    if (s == 0)
+    if (s == nullptr)
         return String::empty;
 
     const String result (s);
     LPMALLOC malloc;
     CoGetMalloc (1, &malloc);
-    if (malloc != 0)
+    if (malloc != nullptr)
     {
         malloc->Free (s);
         malloc->Release();
@@ -844,7 +845,7 @@ STDAPI DllGetClassObject (REFCLSID rclsid, REFIID riid, LPVOID* ppv)
 {
     #pragma EXPORTED_FUNCTION
 
-    *ppv = 0;
+    *ppv = nullptr;
 
     if (CLSIDToJuceString (rclsid).equalsIgnoreCase (String (JuceBrowserPlugin_ActiveXCLSID)))
     {
@@ -865,7 +866,7 @@ STDAPI DllCanUnloadNow()
 }
 
 //==============================================================================
-static const String makeLegalRegistryName (const String& s)
+static String makeLegalRegistryName (const String& s)
 {
     return s.retainCharacters ("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_.");
 }
@@ -904,26 +905,26 @@ static HRESULT doRegistration (const bool unregister)
     if (unregister)
     {
         for (int i = 0; i < settings.getAllKeys().size(); ++i)
-            PlatformUtilities::deleteRegistryValue (settings.getAllKeys()[i]);
+            WindowsRegistry::deleteValue (settings.getAllKeys()[i]);
 
-        PlatformUtilities::deleteRegistryKey (root + companyDotPluginCur);
-        PlatformUtilities::deleteRegistryKey (root + companyDotPlugin);
-        PlatformUtilities::deleteRegistryKey (clsIDRoot);
+        WindowsRegistry::deleteKey (root + companyDotPluginCur);
+        WindowsRegistry::deleteKey (root + companyDotPlugin);
+        WindowsRegistry::deleteKey (clsIDRoot);
 
-        if (PlatformUtilities::registryValueExists (clsIDRoot + "InProcServer32"))
+        if (WindowsRegistry::valueExists (clsIDRoot + "InProcServer32"))
             return SELFREG_E_CLASS;
     }
     else
     {
-        PlatformUtilities::deleteRegistryKey (clsIDRoot);
+        WindowsRegistry::deleteKey (clsIDRoot);
 
         for (int i = 0; i < settings.getAllKeys().size(); ++i)
-            PlatformUtilities::setRegistryValue (settings.getAllKeys()[i],
-                                                 settings [settings.getAllKeys()[i]]);
+            WindowsRegistry::setValue (settings.getAllKeys()[i],
+                                       settings [settings.getAllKeys()[i]]);
 
         // check whether the registration actually worked - if not, we probably don't have
         // enough privileges to write to the registry..
-        if (PlatformUtilities::getRegistryValue (clsIDRoot + "InProcServer32\\") != dllPath)
+        if (WindowsRegistry::getValue (clsIDRoot + "InProcServer32\\") != dllPath)
             return SELFREG_E_CLASS;
     }
 

@@ -27,6 +27,7 @@
 #define __JUCE_READWRITELOCK_JUCEHEADER__
 
 #include "juce_CriticalSection.h"
+#include "juce_SpinLock.h"
 #include "juce_WaitableEvent.h"
 #include "juce_Thread.h"
 #include "../containers/juce_Array.h"
@@ -58,14 +59,14 @@ public:
     /**
         Creates a ReadWriteLock object.
     */
-    ReadWriteLock() throw();
+    ReadWriteLock() noexcept;
 
     /** Destructor.
 
         If the object is deleted whilst locked, any subsequent behaviour
         is unpredictable.
     */
-    ~ReadWriteLock() throw();
+    ~ReadWriteLock() noexcept;
 
     //==============================================================================
     /** Locks this object for reading.
@@ -76,7 +77,7 @@ public:
 
         @see exitRead, ScopedReadLock
     */
-    void enterRead() const throw();
+    void enterRead() const noexcept;
 
     /** Releases the read-lock.
 
@@ -88,7 +89,7 @@ public:
 
         @see enterRead, ScopedReadLock
     */
-    void exitRead() const throw();
+    void exitRead() const noexcept;
 
     //==============================================================================
     /** Locks this object for writing.
@@ -98,7 +99,7 @@ public:
 
         @see exitWrite, ScopedWriteLock
     */
-    void enterWrite() const throw();
+    void enterWrite() const noexcept;
 
     /** Tries to lock this object for writing.
 
@@ -107,7 +108,7 @@ public:
 
         @see enterWrite
     */
-    bool tryEnterWrite() const throw();
+    bool tryEnterWrite() const noexcept;
 
     /** Releases the write-lock.
 
@@ -119,12 +120,12 @@ public:
 
         @see enterWrite, ScopedWriteLock
     */
-    void exitWrite() const throw();
+    void exitWrite() const noexcept;
 
 
 private:
     //==============================================================================
-    CriticalSection accessLock;
+    SpinLock accessLock;
     WaitableEvent waitEvent;
     mutable int numWaitingWriters, numWriters;
     mutable Thread::ThreadID writerThreadId;

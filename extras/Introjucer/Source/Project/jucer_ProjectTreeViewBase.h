@@ -49,11 +49,11 @@ public:
     virtual bool acceptsDragItems (const OwnedArray <Project::Item>& selectedNodes) = 0;
 
     //==============================================================================
-    virtual const String getDisplayName() const;
-    virtual const String getRenamingName() const        { return getDisplayName(); }
+    virtual String getDisplayName() const;
+    virtual String getRenamingName() const              { return getDisplayName(); }
     virtual void setName (const String& newName);
     virtual bool isMissing()                            { return isFileMissing; }
-    virtual const File getFile() const;
+    virtual File getFile() const;
 
     virtual void deleteItem();
     virtual void deleteAllSelectedItems();
@@ -65,6 +65,7 @@ public:
     virtual void addFiles (const StringArray& files, int insertIndex);
     virtual void moveSelectedItemsTo (OwnedArray <Project::Item>& selectedNodes, int insertIndex);
     virtual void showMultiSelectionPopupMenu();
+    void invokeShowDocument();
 
     virtual ProjectTreeViewBase* findTreeViewItem (const Project::Item& itemToFind);
 
@@ -85,20 +86,23 @@ public:
     void itemDoubleClicked (const MouseEvent& e);
     void itemSelectionChanged (bool isNowSelected);
     const String getTooltip();
-    const String getDragSourceDescription();
+    const var getDragSourceDescription();
 
     //==============================================================================
     // Drag-and-drop stuff..
     bool isInterestedInFileDrag (const StringArray& files);
     void filesDropped (const StringArray& files, int insertIndex);
-    bool isInterestedInDragSource (const String& sourceDescription, Component* sourceComponent);
-    void itemDropped (const String& sourceDescription, Component* sourceComponent, int insertIndex);
+    bool isInterestedInDragSource (const DragAndDropTarget::SourceDetails& dragSourceDetails);
+    void itemDropped (const DragAndDropTarget::SourceDetails& dragSourceDetails, int insertIndex);
+
+    static void getAllSelectedNodesInTree (Component* componentInTree, OwnedArray <Project::Item>& selectedNodes);
 
     //==============================================================================
     Project::Item item;
 
 protected:
     bool isFileMissing;
+    ScopedPointer<Timer> delayedSelectionTimer;
 
     //==============================================================================
     void treeChildrenChanged (const ValueTree& parentTree);

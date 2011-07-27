@@ -37,6 +37,8 @@ JUCE_JNI_CALLBACK (JuceAppActivity, launchApp, void, (JNIEnv* env, jobject activ
 {
     android.initialise (env, activity, appFile, appDataDir);
 
+    DBG (SystemStats::getJUCEVersion());
+
     JUCEApplication::createInstance = &juce_CreateApplication;
 
     initialiseJuce_GUI();
@@ -49,33 +51,35 @@ JUCE_JNI_CALLBACK (JuceAppActivity, quitApp, void, (JNIEnv* env, jobject activit
 {
     JUCEApplication::appWillTerminateByForce();
 
-    android.shutdown();
+    android.shutdown (env);
 }
 
 //==============================================================================
-void PlatformUtilities::beep()
+void LookAndFeel::playAlertSound()
 {
 }
 
 //==============================================================================
 void Logger::outputDebugString (const String& text)
 {
-    getEnv()->CallStaticVoidMethod (android.activityClass, android.printToConsole,
-                                    javaString (text).get());
+    JNIEnv* const env = getEnv();
+
+    if (env != nullptr)
+        env->CallStaticVoidMethod (JuceAppActivity, JuceAppActivity.printToConsole,
+                                   javaString (text).get());
 }
 
 //==============================================================================
 void SystemClipboard::copyTextToClipboard (const String& text)
 {
     const LocalRef<jstring> t (javaString (text));
-    android.activity.callVoidMethod (android.setClipboardContent, t.get());
+    android.activity.callVoidMethod (JuceAppActivity.setClipboardContent, t.get());
 }
 
-const String SystemClipboard::getTextFromClipboard()
+String SystemClipboard::getTextFromClipboard()
 {
-    const LocalRef<jstring> text ((jstring) android.activity.callObjectMethod (android.getClipboardContent));
+    const LocalRef<jstring> text ((jstring) android.activity.callObjectMethod (JuceAppActivity.getClipboardContent));
     return juceString (text);
 }
-
 
 #endif

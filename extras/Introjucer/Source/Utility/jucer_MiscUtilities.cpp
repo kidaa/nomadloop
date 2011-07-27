@@ -27,16 +27,16 @@
 
 
 //==============================================================================
-const int64 hashCode64 (const String& s)
+int64 hashCode64 (const String& s)
 {
     return s.hashCode64() + s.length() * s.hashCode() + s.toUpperCase().hashCode();
 }
 
-const String createAlphaNumericUID()
+String createAlphaNumericUID()
 {
     String uid;
     static const char chars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-    Random r (Random::getSystemRandom().nextInt64());
+    Random r;
 
     uid << chars [r.nextInt (52)]; // make sure the first character is always a letter
 
@@ -49,23 +49,23 @@ const String createAlphaNumericUID()
     return uid;
 }
 
-const String randomHexString (Random& random, int numChars)
+String randomHexString (Random& random, int numChars)
 {
     String s;
     const char hexChars[] = "0123456789ABCDEF";
 
     while (--numChars >= 0)
-        s << hexChars [random.nextInt (16)];
+        s << hexChars [random.nextInt() & 15];
 
     return s;
 }
 
-const String hexString8Digits (int value)
+String hexString8Digits (int value)
 {
     return String::toHexString (value).paddedLeft ('0', 8);
 }
 
-const String createGUID (const String& seed)
+String createGUID (const String& seed)
 {
     String guid;
     Random r (hashCode64 (seed + "_jucersalt"));
@@ -77,13 +77,13 @@ const String createGUID (const String& seed)
     return guid;
 }
 
-const String escapeSpaces (const String& s)
+String escapeSpaces (const String& s)
 {
     return s.replace (" ", "\\ ");
 }
 
 //==============================================================================
-const StringPairArray parsePreprocessorDefs (const String& text)
+StringPairArray parsePreprocessorDefs (const String& text)
 {
     StringPairArray result;
     String::CharPointerType s (text.getCharPointer());
@@ -126,7 +126,7 @@ const StringPairArray parsePreprocessorDefs (const String& text)
     return result;
 }
 
-const StringPairArray mergePreprocessorDefs (StringPairArray inheritedDefs, const StringPairArray& overridingDefs)
+StringPairArray mergePreprocessorDefs (StringPairArray inheritedDefs, const StringPairArray& overridingDefs)
 {
     for (int i = 0; i < overridingDefs.size(); ++i)
         inheritedDefs.set (overridingDefs.getAllKeys()[i], overridingDefs.getAllValues()[i]);
@@ -134,7 +134,7 @@ const StringPairArray mergePreprocessorDefs (StringPairArray inheritedDefs, cons
     return inheritedDefs;
 }
 
-const String createGCCPreprocessorFlags (const StringPairArray& defs)
+String createGCCPreprocessorFlags (const StringPairArray& defs)
 {
     String s;
 
@@ -151,7 +151,7 @@ const String createGCCPreprocessorFlags (const StringPairArray& defs)
     return s;
 }
 
-const String replacePreprocessorDefs (const StringPairArray& definitions, String sourceString)
+String replacePreprocessorDefs (const StringPairArray& definitions, String sourceString)
 {
     for (int i = 0; i < definitions.size(); ++i)
     {
@@ -169,7 +169,7 @@ void autoScrollForMouseEvent (const MouseEvent& e, bool scrollX, bool scrollY)
 {
     Viewport* const viewport = e.eventComponent->findParentComponentOfClass ((Viewport*) 0);
 
-    if (viewport != 0)
+    if (viewport != nullptr)
     {
         const MouseEvent e2 (e.getEventRelativeTo (viewport));
         viewport->autoScroll (scrollX ? e2.x : 20, scrollY ? e2.y : 20, 8, 16);
@@ -235,7 +235,7 @@ int indexOfLineStartingWith (const StringArray& lines, const String& text, int s
 
 //==============================================================================
 PropertyPanelWithTooltips::PropertyPanelWithTooltips()
-    : lastComp (0)
+    : lastComp (nullptr)
 {
     addAndMakeVisible (&panel);
     startTimer (150);
@@ -270,8 +270,8 @@ void PropertyPanelWithTooltips::timerCallback()
 {
     Component* newComp = Desktop::getInstance().getMainMouseSource().getComponentUnderMouse();
 
-    if (newComp != 0 && newComp->getTopLevelComponent() != getTopLevelComponent())
-        newComp = 0;
+    if (newComp != nullptr && newComp->getTopLevelComponent() != getTopLevelComponent())
+        newComp = nullptr;
 
     if (newComp != lastComp)
     {
@@ -287,12 +287,12 @@ void PropertyPanelWithTooltips::timerCallback()
     }
 }
 
-const String PropertyPanelWithTooltips::findTip (Component* c)
+String PropertyPanelWithTooltips::findTip (Component* c)
 {
-    while (c != 0 && c != this)
+    while (c != nullptr && c != this)
     {
         TooltipClient* const tc = dynamic_cast <TooltipClient*> (c);
-        if (tc != 0)
+        if (tc != nullptr)
         {
             const String tip (tc->getTooltip());
 
@@ -315,7 +315,7 @@ FloatingLabelComponent::FloatingLabelComponent()
 
 void FloatingLabelComponent::remove()
 {
-    if (getParentComponent() != 0)
+    if (getParentComponent() != nullptr)
         getParentComponent()->removeChildComponent (this);
 }
 

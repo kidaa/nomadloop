@@ -30,7 +30,6 @@ BEGIN_JUCE_NAMESPACE
 #include "juce_FileLogger.h"
 #include "../io/files/juce_FileOutputStream.h"
 #include "../io/files/juce_FileInputStream.h"
-#include "../threads/juce_ScopedLock.h"
 #include "../memory/juce_ScopedPointer.h"
 #include "juce_SystemStats.h"
 
@@ -56,7 +55,7 @@ FileLogger::FileLogger (const File& logFile_,
             << welcomeMessage << newLine
             << "Log started: " << Time::getCurrentTime().toString (true, true) << newLine;
 
-    logMessage (welcome);
+    FileLogger::logMessage (welcome);
 }
 
 FileLogger::~FileLogger()
@@ -88,9 +87,9 @@ void FileLogger::trimFileSize (int maxFileSizeBytes) const
         if (fileSize > maxFileSizeBytes)
         {
             ScopedPointer <FileInputStream> in (logFile.createInputStream());
-            jassert (in != 0);
+            jassert (in != nullptr);
 
-            if (in != 0)
+            if (in != nullptr)
             {
                 in->setPosition (fileSize - maxFileSizeBytes);
                 String content;
@@ -101,7 +100,7 @@ void FileLogger::trimFileSize (int maxFileSizeBytes) const
                     contentToSave.fillWith (0);
 
                     in->read (contentToSave.getData(), maxFileSizeBytes);
-                    in = 0;
+                    in = nullptr;
 
                     content = contentToSave.toString();
                 }

@@ -53,7 +53,7 @@ namespace MouseCursorHelpers
             return createFromImage (im, hx * im.getWidth(), hy * im.getHeight());
 
         jassertfalse;
-        return 0;
+        return nullptr;
     }
 }
 
@@ -64,8 +64,8 @@ void* MouseCursor::createMouseCursorFromImage (const Image& image, int hotspotX,
 
 void* MouseCursor::createStandardMouseCursor (MouseCursor::StandardCursorType type)
 {
-    const ScopedAutoReleasePool pool;
-    NSCursor* c = 0;
+    JUCE_AUTORELEASEPOOL
+    NSCursor* c = nil;
 
     switch (type)
     {
@@ -113,14 +113,14 @@ void MouseCursor::deleteMouseCursor (void* const cursorHandle, const bool /*isSt
 
 void MouseCursor::showInAllWindows() const
 {
-    showInWindow (0);
+    showInWindow (nullptr);
 }
 
 void MouseCursor::showInWindow (ComponentPeer*) const
 {
     NSCursor* c = (NSCursor*) getHandle();
 
-    if (c == 0)
+    if (c == nil)
         c = [NSCursor arrowCursor];
 
     [c set];
@@ -128,8 +128,8 @@ void MouseCursor::showInWindow (ComponentPeer*) const
 
 #else
 
-void* MouseCursor::createMouseCursorFromImage (const Image& image, int hotspotX, int hotspotY)  { return 0; }
-void* MouseCursor::createStandardMouseCursor (MouseCursor::StandardCursorType type)             { return 0; }
+void* MouseCursor::createMouseCursorFromImage (const Image& image, int hotspotX, int hotspotY)  { return nullptr; }
+void* MouseCursor::createStandardMouseCursor (MouseCursor::StandardCursorType type)             { return nullptr; }
 void MouseCursor::deleteMouseCursor (void* const cursorHandle, const bool isStandard)           {}
 void MouseCursor::showInAllWindows() const                                                      {}
 void MouseCursor::showInWindow (ComponentPeer*) const                                           {}

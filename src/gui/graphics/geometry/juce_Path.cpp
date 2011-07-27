@@ -28,10 +28,8 @@
 BEGIN_JUCE_NAMESPACE
 
 #include "juce_PathIterator.h"
-#include "juce_Line.h"
 #include "../../../io/streams/juce_MemoryInputStream.h"
 #include "../../../io/streams/juce_MemoryOutputStream.h"
-#include "../imaging/juce_Image.h"
 
 
 // tests that some co-ords aren't NaNs
@@ -43,7 +41,7 @@ namespace PathHelpers
 {
     const float ellipseAngularIncrement = 0.05f;
 
-    const String nextToken (String::CharPointerType& t)
+    String nextToken (String::CharPointerType& t)
     {
         t = t.findEndOfWhitespace();
 
@@ -59,7 +57,7 @@ namespace PathHelpers
         return String (start, numChars);
     }
 
-    inline double lengthOf (float x1, float y1, float x2, float y2) throw()
+    inline double lengthOf (float x1, float y1, float x2, float y2) noexcept
     {
         return juce_hypot ((double) (x1 - x2), (double) (y1 - y2));
     }
@@ -123,12 +121,12 @@ Path& Path::operator= (const Path& other)
     return *this;
 }
 
-bool Path::operator== (const Path& other) const throw()
+bool Path::operator== (const Path& other) const noexcept
 {
     return ! operator!= (other);
 }
 
-bool Path::operator!= (const Path& other) const throw()
+bool Path::operator!= (const Path& other) const noexcept
 {
     if (numElements != other.numElements || useNonZeroWinding != other.useNonZeroWinding)
         return true;
@@ -140,7 +138,7 @@ bool Path::operator!= (const Path& other) const throw()
     return false;
 }
 
-void Path::clear() throw()
+void Path::clear() noexcept
 {
     numElements = 0;
     pathXMin = 0;
@@ -149,7 +147,7 @@ void Path::clear() throw()
     pathXMax = 0;
 }
 
-void Path::swapWithPath (Path& other) throw()
+void Path::swapWithPath (Path& other) noexcept
 {
     data.swapWith (other.data);
     swapVariables <size_t> (numElements, other.numElements);
@@ -161,19 +159,19 @@ void Path::swapWithPath (Path& other) throw()
 }
 
 //==============================================================================
-void Path::setUsingNonZeroWinding (const bool isNonZero) throw()
+void Path::setUsingNonZeroWinding (const bool isNonZero) noexcept
 {
     useNonZeroWinding = isNonZero;
 }
 
 void Path::scaleToFit (const float x, const float y, const float w, const float h,
-                       const bool preserveProportions) throw()
+                       const bool preserveProportions) noexcept
 {
     applyTransform (getTransformToScaleToFit (x, y, w, h, preserveProportions));
 }
 
 //==============================================================================
-bool Path::isEmpty() const throw()
+bool Path::isEmpty() const noexcept
 {
     size_t i = 0;
 
@@ -196,14 +194,14 @@ bool Path::isEmpty() const throw()
     return true;
 }
 
-const Rectangle<float> Path::getBounds() const throw()
+Rectangle<float> Path::getBounds() const noexcept
 {
     return Rectangle<float> (pathXMin, pathYMin,
                              pathXMax - pathXMin,
                              pathYMax - pathYMin);
 }
 
-const Rectangle<float> Path::getBoundsTransformed (const AffineTransform& transform) const throw()
+Rectangle<float> Path::getBoundsTransformed (const AffineTransform& transform) const noexcept
 {
     return getBounds().transformed (transform);
 }
@@ -338,7 +336,7 @@ void Path::closeSubPath()
     }
 }
 
-const Point<float> Path::getCurrentPosition() const
+Point<float> Path::getCurrentPosition() const
 {
     int i = (int) numElements - 1;
 
@@ -497,7 +495,7 @@ void Path::addCentredArc (const float centreX, const float centreY,
                           const float radiusX, const float radiusY,
                           const float rotationOfEllipse,
                           const float fromRadians,
-                          const float toRadians,
+                          float toRadians,
                           const bool startAsNewSubPath)
 {
     if (radiusX > 0.0f && radiusY > 0.0f)
@@ -845,7 +843,7 @@ void Path::addPath (const Path& other,
 }
 
 //==============================================================================
-void Path::applyTransform (const AffineTransform& transform) throw()
+void Path::applyTransform (const AffineTransform& transform) noexcept
 {
     size_t i = 0;
     pathYMin = pathXMin = 0;
@@ -917,10 +915,10 @@ void Path::applyTransform (const AffineTransform& transform) throw()
 
 
 //==============================================================================
-const AffineTransform Path::getTransformToScaleToFit (const float x, const float y,
-                                                      const float w, const float h,
-                                                      const bool preserveProportions,
-                                                      const Justification& justification) const
+AffineTransform Path::getTransformToScaleToFit (const float x, const float y,
+                                                const float w, const float h,
+                                                const bool preserveProportions,
+                                                const Justification& justification) const
 {
     Rectangle<float> bounds (getBounds());
 
@@ -1022,7 +1020,7 @@ bool Path::intersectsLine (const Line<float>& line, const float tolerance)
     return false;
 }
 
-const Line<float> Path::getClippedLine (const Line<float>& line, const bool keepSectionOutsidePath) const
+Line<float> Path::getClippedLine (const Line<float>& line, const bool keepSectionOutsidePath) const
 {
     Line<float> result (line);
     const bool startInside = contains (line.getStart());
@@ -1064,7 +1062,7 @@ float Path::getLength (const AffineTransform& transform) const
     return length;
 }
 
-const Point<float> Path::getPointAlongPath (float distanceFromStart, const AffineTransform& transform) const
+Point<float> Path::getPointAlongPath (float distanceFromStart, const AffineTransform& transform) const
 {
     PathFlatteningIterator i (*this, transform);
 
@@ -1109,7 +1107,7 @@ float Path::getNearestPoint (const Point<float>& targetPoint, Point<float>& poin
 }
 
 //==============================================================================
-const Path Path::createPathWithRoundedCorners (const float cornerRadius) const
+Path Path::createPathWithRoundedCorners (const float cornerRadius) const
 {
     if (cornerRadius <= 0.01f)
         return *this;
@@ -1381,7 +1379,7 @@ void Path::writePathToStream (OutputStream& dest) const
     dest.writeByte ('e'); // marks the end-of-path
 }
 
-const String Path::toString() const
+String Path::toString() const
 {
     MemoryOutputStream s (2048);
     if (! useNonZeroWinding)

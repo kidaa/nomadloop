@@ -79,10 +79,10 @@ public:
 
     //==============================================================================
     /** Changes the URL that the button will trigger. */
-    void setURL (const URL& newURL) throw();
+    void setURL (const URL& newURL) noexcept;
 
     /** Returns the URL that the button will trigger. */
-    const URL& getURL() const throw()                           { return url; }
+    const URL& getURL() const noexcept                          { return url; }
 
     //==============================================================================
     /** Resizes the button horizontally to fit snugly around the text.
@@ -110,7 +110,7 @@ private:
     bool resizeFont;
     Justification justification;
 
-    const Font getFontToUse() const;
+    Font getFontToUse() const;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (HyperlinkButton);
 };

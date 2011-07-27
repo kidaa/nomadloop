@@ -27,21 +27,19 @@
 // compiled on its own).
 #if JUCE_INCLUDED_FILE
 
-#if ! JUCE_ONLY_BUILD_CORE_LIBRARY
- extern HWND juce_messageWindowHandle;
-#endif
+HWND juce_messageWindowHandle = 0;  // (this is used by other parts of the codebase)
 
 //==============================================================================
 #if ! JUCE_USE_INTRINSICS
 // In newer compilers, the inline versions of these are used (in juce_Atomic.h), but in
 // older ones we have to actually call the ops as win32 functions..
-long juce_InterlockedExchange (volatile long* a, long b) throw()                 { return InterlockedExchange (a, b); }
-long juce_InterlockedIncrement (volatile long* a) throw()                        { return InterlockedIncrement (a); }
-long juce_InterlockedDecrement (volatile long* a) throw()                        { return InterlockedDecrement (a); }
-long juce_InterlockedExchangeAdd (volatile long* a, long b) throw()              { return InterlockedExchangeAdd (a, b); }
-long juce_InterlockedCompareExchange (volatile long* a, long b, long c) throw()  { return InterlockedCompareExchange (a, b, c); }
+long juce_InterlockedExchange (volatile long* a, long b) noexcept                { return InterlockedExchange (a, b); }
+long juce_InterlockedIncrement (volatile long* a) noexcept                       { return InterlockedIncrement (a); }
+long juce_InterlockedDecrement (volatile long* a) noexcept                       { return InterlockedDecrement (a); }
+long juce_InterlockedExchangeAdd (volatile long* a, long b) noexcept             { return InterlockedExchangeAdd (a, b); }
+long juce_InterlockedCompareExchange (volatile long* a, long b, long c) noexcept { return InterlockedCompareExchange (a, b, c); }
 
-__int64 juce_InterlockedCompareExchange64 (volatile __int64* value, __int64 newValue, __int64 valueToCompare) throw()
+__int64 juce_InterlockedCompareExchange64 (volatile __int64* value, __int64 newValue, __int64 valueToCompare) noexcept
 {
     jassertfalse; // This operation isn't available in old MS compiler versions!
 
@@ -55,7 +53,7 @@ __int64 juce_InterlockedCompareExchange64 (volatile __int64* value, __int64 newV
 #endif
 
 //==============================================================================
-CriticalSection::CriticalSection() throw()
+CriticalSection::CriticalSection() noexcept
 {
     // (just to check the MS haven't changed this structure and broken things...)
   #if JUCE_VC7_OR_EARLIER
@@ -67,48 +65,48 @@ CriticalSection::CriticalSection() throw()
     InitializeCriticalSection ((CRITICAL_SECTION*) internal);
 }
 
-CriticalSection::~CriticalSection() throw()
+CriticalSection::~CriticalSection() noexcept
 {
     DeleteCriticalSection ((CRITICAL_SECTION*) internal);
 }
 
-void CriticalSection::enter() const throw()
+void CriticalSection::enter() const noexcept
 {
     EnterCriticalSection ((CRITICAL_SECTION*) internal);
 }
 
-bool CriticalSection::tryEnter() const throw()
+bool CriticalSection::tryEnter() const noexcept
 {
     return TryEnterCriticalSection ((CRITICAL_SECTION*) internal) != FALSE;
 }
 
-void CriticalSection::exit() const throw()
+void CriticalSection::exit() const noexcept
 {
     LeaveCriticalSection ((CRITICAL_SECTION*) internal);
 }
 
 //==============================================================================
-WaitableEvent::WaitableEvent (const bool manualReset) throw()
+WaitableEvent::WaitableEvent (const bool manualReset) noexcept
     : internal (CreateEvent (0, manualReset ? TRUE : FALSE, FALSE, 0))
 {
 }
 
-WaitableEvent::~WaitableEvent() throw()
+WaitableEvent::~WaitableEvent() noexcept
 {
     CloseHandle (internal);
 }
 
-bool WaitableEvent::wait (const int timeOutMillisecs) const throw()
+bool WaitableEvent::wait (const int timeOutMillisecs) const noexcept
 {
     return WaitForSingleObject (internal, timeOutMillisecs) == WAIT_OBJECT_0;
 }
 
-void WaitableEvent::signal() const throw()
+void WaitableEvent::signal() const noexcept
 {
     SetEvent (internal);
 }
 
-void WaitableEvent::reset() const throw()
+void WaitableEvent::reset() const noexcept
 {
     ResetEvent (internal);
 }
@@ -118,10 +116,9 @@ void JUCE_API juce_threadEntryPoint (void*);
 
 static unsigned int __stdcall threadEntryProc (void* userData)
 {
-  #if ! JUCE_ONLY_BUILD_CORE_LIBRARY
-    AttachThreadInput (GetWindowThreadProcessId (juce_messageWindowHandle, 0),
-                       GetCurrentThreadId(), TRUE);
-  #endif
+    if (juce_messageWindowHandle != 0)
+        AttachThreadInput (GetWindowThreadProcessId (juce_messageWindowHandle, 0),
+                           GetCurrentThreadId(), TRUE);
 
     juce_threadEntryPoint (userData);
 
@@ -147,16 +144,16 @@ void Thread::killThread()
 {
     if (threadHandle_ != 0)
     {
-      #if JUCE_DEBUG
+       #if JUCE_DEBUG
         OutputDebugString (_T("** Warning - Forced thread termination **\n"));
-      #endif
+       #endif
         TerminateThread (threadHandle_, 0);
     }
 }
 
 void Thread::setCurrentThreadName (const String& name)
 {
-  #if JUCE_DEBUG && JUCE_MSVC
+   #if JUCE_DEBUG && JUCE_MSVC
     struct
     {
         DWORD dwType;
@@ -176,9 +173,9 @@ void Thread::setCurrentThreadName (const String& name)
     }
     __except (EXCEPTION_CONTINUE_EXECUTION)
     {}
-  #else
+   #else
     (void) name;
-  #endif
+   #endif
 }
 
 Thread::ThreadID Thread::getCurrentThreadId()
@@ -289,8 +286,28 @@ bool JUCE_CALLTYPE Process::isRunningUnderDebugger()
     return juce_isRunningUnderDebugger();
 }
 
+String JUCE_CALLTYPE Process::getCurrentCommandLineParams()
+{
+    return CharacterFunctions::findEndOfToken (CharPointer_UTF16 (GetCommandLineW()),
+                                               CharPointer_UTF16 (L" "),
+                                               CharPointer_UTF16 (L"\"")).findEndOfWhitespace();
+}
 
-//==============================================================================
+static void* currentModuleHandle = nullptr;
+
+void* Process::getCurrentModuleInstanceHandle() noexcept
+{
+    if (currentModuleHandle == nullptr)
+        currentModuleHandle = GetModuleHandle (0);
+
+    return currentModuleHandle;
+}
+
+void Process::setCurrentModuleInstanceHandle (void* const newHandle) noexcept
+{
+    currentModuleHandle = newHandle;
+}
+
 void Process::raisePrivilege()
 {
     jassertfalse; // xxx not implemented
@@ -311,33 +328,43 @@ void Process::terminate()
     ExitProcess (0);
 }
 
+bool juce_IsRunningInWine()
+{
+    HMODULE ntdll = GetModuleHandle (_T("ntdll.dll"));
+    return ntdll != 0 && GetProcAddress (ntdll, "wine_get_version") != 0;
+}
+
 //==============================================================================
-void* PlatformUtilities::loadDynamicLibrary (const String& name)
+bool DynamicLibrary::open (const String& name)
 {
-    void* result = 0;
+    close();
 
     JUCE_TRY
     {
-        result = LoadLibrary (name.toWideCharPointer());
+        handle = LoadLibrary (name.toWideCharPointer());
     }
     JUCE_CATCH_ALL
 
-    return result;
+    return handle != nullptr;
 }
 
-void PlatformUtilities::freeDynamicLibrary (void* h)
+void DynamicLibrary::close()
 {
     JUCE_TRY
     {
-        if (h != 0)
-            FreeLibrary ((HMODULE) h);
+        if (handle != nullptr)
+        {
+            FreeLibrary ((HMODULE) handle);
+            handle = nullptr;
+        }
     }
     JUCE_CATCH_ALL
 }
 
-void* PlatformUtilities::getProcedureEntryPoint (void* h, const String& name)
+void* DynamicLibrary::getFunction (const String& functionName) noexcept
 {
-    return (h != 0) ? (void*) GetProcAddress ((HMODULE) h, name.toUTF8()) : 0; // (void* cast is required for mingw)
+    return handle != nullptr ? (void*) GetProcAddress ((HMODULE) handle, functionName.toUTF8()) // (void* cast is required for mingw)
+                             : nullptr;
 }
 
 
@@ -411,19 +438,19 @@ bool InterProcessLock::enter (const int timeOutMillisecs)
 {
     const ScopedLock sl (lock);
 
-    if (pimpl == 0)
+    if (pimpl == nullptr)
     {
         pimpl = new Pimpl (name, timeOutMillisecs);
 
         if (pimpl->handle == 0)
-            pimpl = 0;
+            pimpl = nullptr;
     }
     else
     {
         pimpl->refCount++;
     }
 
-    return pimpl != 0;
+    return pimpl != nullptr;
 }
 
 void InterProcessLock::exit()
@@ -431,10 +458,10 @@ void InterProcessLock::exit()
     const ScopedLock sl (lock);
 
     // Trying to release the lock too many times!
-    jassert (pimpl != 0);
+    jassert (pimpl != nullptr);
 
-    if (pimpl != 0 && --(pimpl->refCount) == 0)
-        pimpl = 0;
+    if (pimpl != nullptr && --(pimpl->refCount) == 0)
+        pimpl = nullptr;
 }
 
 

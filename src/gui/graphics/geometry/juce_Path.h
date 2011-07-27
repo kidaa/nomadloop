@@ -30,10 +30,11 @@
 #include "juce_Line.h"
 #include "juce_Rectangle.h"
 #include "../contexts/juce_Justification.h"
-#include "../../../containers/juce_Array.h"
-#include "../../../io/streams/juce_InputStream.h"
-#include "../../../io/streams/juce_OutputStream.h"
+#include "../../../containers/juce_ArrayAllocationBase.h"
 class Image;
+class InputStream;
+class OutputStream;
+
 
 //==============================================================================
 /**
@@ -84,21 +85,21 @@ public:
     /** Copies this path from another one. */
     Path& operator= (const Path& other);
 
-    bool operator== (const Path& other) const throw();
-    bool operator!= (const Path& other) const throw();
+    bool operator== (const Path& other) const noexcept;
+    bool operator!= (const Path& other) const noexcept;
 
     //==============================================================================
     /** Returns true if the path doesn't contain any lines or curves. */
-    bool isEmpty() const throw();
+    bool isEmpty() const noexcept;
 
     /** Returns the smallest rectangle that contains all points within the path.
     */
-    const Rectangle<float> getBounds() const throw();
+    Rectangle<float> getBounds() const noexcept;
 
     /** Returns the smallest rectangle that contains all points within the path
         after it's been transformed with the given tranasform matrix.
     */
-    const Rectangle<float> getBoundsTransformed (const AffineTransform& transform) const throw();
+    Rectangle<float> getBoundsTransformed (const AffineTransform& transform) const noexcept;
 
     /** Checks whether a point lies within the path.
 
@@ -157,7 +158,7 @@ public:
                                         that will be kept; if false its the section inside
                                         the path
     */
-    const Line<float> getClippedLine (const Line<float>& line, bool keepSectionOutsidePath) const;
+    Line<float> getClippedLine (const Line<float>& line, bool keepSectionOutsidePath) const;
 
     /** Returns the length of the path.
         @see getPointAlongPath
@@ -169,8 +170,8 @@ public:
         end point.
         @see getLength
     */
-    const Point<float> getPointAlongPath (float distanceFromStart,
-                                          const AffineTransform& transform = AffineTransform::identity) const;
+    Point<float> getPointAlongPath (float distanceFromStart,
+                                    const AffineTransform& transform = AffineTransform::identity) const;
 
     /** Finds the point along the path which is nearest to a given position.
         This sets pointOnPath to the nearest point, and returns the distance of this point from the start
@@ -182,7 +183,7 @@ public:
 
     //==============================================================================
     /** Removes all lines and curves, resetting the path completely. */
-    void clear() throw();
+    void clear() noexcept;
 
     /** Begins a new subpath with a given starting position.
 
@@ -303,7 +304,7 @@ public:
 
     /** Returns the last point that was added to the path by one of the drawing methods.
     */
-    const Point<float> getCurrentPosition() const;
+    Point<float> getCurrentPosition() const;
 
     //==============================================================================
     /** Adds a rectangle to the path.
@@ -560,14 +561,14 @@ public:
         The internal data of the two paths is swapped over, so this is much faster than
         copying it to a temp variable and back.
     */
-    void swapWithPath (Path& other) throw();
+    void swapWithPath (Path& other) noexcept;
 
     //==============================================================================
     /** Applies a 2D transform to all the vertices in the path.
 
         @see AffineTransform, scaleToFit, getTransformToScaleToFit
     */
-    void applyTransform (const AffineTransform& transform) throw();
+    void applyTransform (const AffineTransform& transform) noexcept;
 
     /** Rescales this path to make it fit neatly into a given space.
 
@@ -585,7 +586,7 @@ public:
         @see applyTransform, getTransformToScaleToFit
     */
     void scaleToFit (float x, float y, float width, float height,
-                     bool preserveProportions) throw();
+                     bool preserveProportions) noexcept;
 
     /** Returns a transform that can be used to rescale the path to fit into a given space.
 
@@ -604,16 +605,16 @@ public:
         @see applyTransform, scaleToFit
 
     */
-    const AffineTransform getTransformToScaleToFit (float x, float y, float width, float height,
-                                                    bool preserveProportions,
-                                                    const Justification& justificationType = Justification::centred) const;
+    AffineTransform getTransformToScaleToFit (float x, float y, float width, float height,
+                                              bool preserveProportions,
+                                              const Justification& justificationType = Justification::centred) const;
 
     /** Creates a version of this path where all sharp corners have been replaced by curves.
 
         Wherever two lines meet at an angle, this will replace the corner with a curve
         of the given radius.
     */
-    const Path createPathWithRoundedCorners (float cornerRadius) const;
+    Path createPathWithRoundedCorners (float cornerRadius) const;
 
     //==============================================================================
     /** Changes the winding-rule to be used when filling the path.
@@ -631,7 +632,7 @@ public:
 
         @see isUsingNonZeroWinding
     */
-    void setUsingNonZeroWinding (bool isNonZeroWinding) throw();
+    void setUsingNonZeroWinding (bool isNonZeroWinding) noexcept;
 
     /** Returns the flag that indicates whether the path should use a non-zero winding rule.
 
@@ -719,7 +720,7 @@ public:
     /** Creates a string containing a textual representation of this path.
         @see restoreFromString
     */
-    const String toString() const;
+    String toString() const;
 
     /** Restores this path from a string that was created with the toString() method.
         @see toString()

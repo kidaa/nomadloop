@@ -28,7 +28,6 @@
 BEGIN_JUCE_NAMESPACE
 
 #include "juce_OutputStream.h"
-#include "../../threads/juce_ScopedLock.h"
 #include "../../containers/juce_Array.h"
 #include "../../memory/juce_ScopedPointer.h"
 #include "../files/juce_FileInputStream.h"
@@ -36,34 +35,42 @@ BEGIN_JUCE_NAMESPACE
 
 //==============================================================================
 #if JUCE_DEBUG
-static Array<void*, CriticalSection> activeStreams;
 
-void juce_CheckForDanglingStreams()
+struct DanglingStreamChecker
 {
-    /*
-        It's always a bad idea to leak any object, but if you're leaking output
-        streams, then there's a good chance that you're failing to flush a file
-        to disk properly, which could result in corrupted data and other similar
-        nastiness..
-    */
-    jassert (activeStreams.size() == 0);
+    DanglingStreamChecker() {}
+
+    ~DanglingStreamChecker()
+    {
+        /*
+            It's always a bad idea to leak any object, but if you're leaking output
+            streams, then there's a good chance that you're failing to flush a file
+            to disk properly, which could result in corrupted data and other similar
+            nastiness..
+        */
+        jassert (activeStreams.size() == 0);
+    }
+
+    Array<void*, CriticalSection> activeStreams;
 };
+
+static DanglingStreamChecker danglingStreamChecker;
 #endif
 
 //==============================================================================
 OutputStream::OutputStream()
     : newLineString (NewLine::getDefault())
 {
-  #if JUCE_DEBUG
-    activeStreams.add (this);
-  #endif
+   #if JUCE_DEBUG
+    danglingStreamChecker.activeStreams.add (this);
+   #endif
 }
 
 OutputStream::~OutputStream()
 {
-  #if JUCE_DEBUG
-    activeStreams.removeValue (this);
-  #endif
+   #if JUCE_DEBUG
+    danglingStreamChecker.activeStreams.removeValue (this);
+   #endif
 }
 
 //==============================================================================
@@ -301,7 +308,7 @@ OutputStream& JUCE_CALLTYPE operator<< (OutputStream& stream, const File& fileTo
 {
     const ScopedPointer<FileInputStream> in (fileToRead.createInputStream());
 
-    if (in != 0)
+    if (in != nullptr)
         stream.writeFromInputStream (*in, -1);
 
     return stream;

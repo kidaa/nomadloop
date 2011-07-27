@@ -26,7 +26,6 @@
 #ifndef __JUCE_SPARSESET_JUCEHEADER__
 #define __JUCE_SPARSESET_JUCEHEADER__
 
-#include "juce_ArrayAllocationBase.h"
 #include "../maths/juce_Range.h"
 #include "../threads/juce_CriticalSection.h"
 
@@ -69,7 +68,7 @@ public:
 
         This is much quicker than using (size() == 0).
     */
-    bool isEmpty() const throw()
+    bool isEmpty() const noexcept
     {
         return values.size() == 0;
     }
@@ -125,7 +124,7 @@ public:
     /** Returns the number of contiguous blocks of values.
         @see getRange
     */
-    int getNumRanges() const throw()
+    int getNumRanges() const noexcept
     {
         return values.size() >> 1;
     }
@@ -270,12 +269,12 @@ public:
     }
 
     //==============================================================================
-    bool operator== (const SparseSet<Type>& other) throw()
+    bool operator== (const SparseSet<Type>& other) noexcept
     {
         return values == other.values;
     }
 
-    bool operator!= (const SparseSet<Type>& other) throw()
+    bool operator!= (const SparseSet<Type>& other) noexcept
     {
         return values != other.values;
     }

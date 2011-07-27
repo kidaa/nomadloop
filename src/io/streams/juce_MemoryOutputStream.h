@@ -73,16 +73,16 @@ public:
 
         @see getDataSize
     */
-    const void* getData() const throw();
+    const void* getData() const noexcept;
 
     /** Returns the number of bytes of data that have been written to the stream.
 
         @see getData
     */
-    size_t getDataSize() const throw()                  { return size; }
+    size_t getDataSize() const noexcept                 { return size; }
 
     /** Resets the stream, clearing any data that has been written to it so far. */
-    void reset() throw();
+    void reset() noexcept;
 
     /** Increases the internal storage capacity to be able to contain at least the specified
         amount of data without needing to be resized.
@@ -90,12 +90,12 @@ public:
     void preallocate (size_t bytesToPreallocate);
 
     /** Returns a String created from the (UTF8) data that has been written to the stream. */
-    const String toUTF8() const;
+    String toUTF8() const;
 
     /** Attempts to detect the encoding of the data and convert it to a string.
         @see String::createStringFromData
     */
-    const String toString() const;
+    String toString() const;
 
     //==============================================================================
     /** If the stream is writing to a user-supplied MemoryBlock, this will trim any excess
@@ -108,13 +108,16 @@ public:
     int64 getPosition()                                 { return position; }
     bool setPosition (int64 newPosition);
     int writeFromInputStream (InputStream& source, int64 maxNumBytesToWrite);
-
+    void writeRepeatedByte (uint8 byte, int numTimesToRepeat);
 
 private:
     //==============================================================================
     MemoryBlock& data;
     MemoryBlock internalBlock;
     size_t position, size;
+
+    void trimExternalBlockSize();
+    void prepareToWrite (int numBytes);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MemoryOutputStream);
 };

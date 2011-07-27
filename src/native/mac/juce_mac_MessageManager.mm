@@ -27,6 +27,12 @@
 // compiled on its own).
 #if JUCE_INCLUDED_FILE
 
+//==============================================================================
+typedef void (*AppFocusChangeCallback)();
+AppFocusChangeCallback appFocusChangeCallback = nullptr;
+
+typedef bool (*CheckEventBlockedByModalComps) (NSEvent*);
+CheckEventBlockedByModalComps isEventBlockedByModalComps = nullptr;
 
 //==============================================================================
 /* When you use multiple DLLs which share similarly-named obj-c classes - like
@@ -52,7 +58,7 @@ public:
 
     virtual NSApplicationTerminateReply shouldTerminate()
     {
-        if (JUCEApplication::getInstance() != 0)
+        if (JUCEApplication::getInstance() != nullptr)
         {
             JUCEApplication::getInstance()->systemRequestedQuit();
 
@@ -70,7 +76,7 @@ public:
 
     virtual BOOL openFile (NSString* filename)
     {
-        if (JUCEApplication::getInstance() != 0)
+        if (JUCEApplication::getInstance() != nullptr)
         {
             JUCEApplication::getInstance()->anotherInstanceStarted (quotedIfContainsSpaces (filename));
             return YES;
@@ -85,13 +91,14 @@ public:
         for (unsigned int i = 0; i < [filenames count]; ++i)
             files.add (quotedIfContainsSpaces ((NSString*) [filenames objectAtIndex: i]));
 
-        if (files.size() > 0 && JUCEApplication::getInstance() != 0)
+        if (files.size() > 0 && JUCEApplication::getInstance() != nullptr)
             JUCEApplication::getInstance()->anotherInstanceStarted (files.joinIntoString (" "));
     }
 
     virtual void focusChanged()
     {
-        juce_HandleProcessFocusChange();
+        if (appFocusChangeCallback != nullptr)
+            (*appFocusChangeCallback)();
     }
 
     struct CallbackMessagePayload
@@ -190,7 +197,7 @@ using namespace JUCE_NAMESPACE;
     }
     else
     {
-        oldDelegate = 0;
+        oldDelegate = nil;
         [center addObserver: self selector: @selector (applicationDidResignActive:)
                        name: NSApplicationDidResignActiveNotification object: NSApp];
 
@@ -206,7 +213,7 @@ using namespace JUCE_NAMESPACE;
 
 - (void) dealloc
 {
-    if (oldDelegate != 0)
+    if (oldDelegate != nil)
         [NSApp setDelegate: oldDelegate];
 
     [[NSDistributedNotificationCenter defaultCenter] removeObserver: self
@@ -266,7 +273,7 @@ using namespace JUCE_NAMESPACE;
         AppDelegateRedirector::CallbackMessagePayload* pl
             = (AppDelegateRedirector::CallbackMessagePayload*) [((NSData*) info) bytes];
 
-        if (pl != 0)
+        if (pl != nullptr)
             redirector->performCallback (pl);
     }
     else
@@ -278,7 +285,7 @@ using namespace JUCE_NAMESPACE;
 - (void) broadcastMessageCallback: (NSNotification*) n
 {
     NSDictionary* dict = (NSDictionary*) [n userInfo];
-    const String messageString (nsStringToJuce ((NSString*) [dict valueForKey: @"message"]));
+    const String messageString (nsStringToJuce ((NSString*) [dict valueForKey: nsStringLiteral ("message")]));
     MessageManager::getInstance()->deliverBroadcastMessage (messageString);
 }
 
@@ -289,13 +296,13 @@ using namespace JUCE_NAMESPACE;
 //==============================================================================
 BEGIN_JUCE_NAMESPACE
 
-static JuceAppDelegate* juceAppDelegate = 0;
+static JuceAppDelegate* juceAppDelegate = nil;
 
 void MessageManager::runDispatchLoop()
 {
     if (! quitMessagePosted) // check that the quit message wasn't already posted..
     {
-        const ScopedAutoReleasePool pool;
+        JUCE_AUTORELEASEPOOL
 
         // must only be called by the message thread!
         jassert (isThisTheMessageThread());
@@ -328,93 +335,6 @@ void MessageManager::stopDispatchLoop()
     [NSEvent startPeriodicEventsAfterDelay: 0 withPeriod: 0.1];
 }
 
-namespace
-{
-    bool isEventBlockedByModalComps (NSEvent* e)
-    {
-        if (Component::getNumCurrentlyModalComponents() == 0)
-            return false;
-
-        NSWindow* const w = [e window];
-        if (w == 0 || [w worksWhenModal])
-            return false;
-
-        bool isKey = false, isInputAttempt = false;
-
-        switch ([e type])
-        {
-            case NSKeyDown:
-            case NSKeyUp:
-                isKey = isInputAttempt = true;
-                break;
-
-            case NSLeftMouseDown:
-            case NSRightMouseDown:
-            case NSOtherMouseDown:
-                isInputAttempt = true;
-                break;
-
-            case NSLeftMouseDragged:
-            case NSRightMouseDragged:
-            case NSLeftMouseUp:
-            case NSRightMouseUp:
-            case NSOtherMouseUp:
-            case NSOtherMouseDragged:
-                if (Desktop::getInstance().getDraggingMouseSource(0) != 0)
-                    return false;
-                break;
-
-            case NSMouseMoved:
-            case NSMouseEntered:
-            case NSMouseExited:
-            case NSCursorUpdate:
-            case NSScrollWheel:
-            case NSTabletPoint:
-            case NSTabletProximity:
-                break;
-
-            default:
-                return false;
-        }
-
-        for (int i = ComponentPeer::getNumPeers(); --i >= 0;)
-        {
-            ComponentPeer* const peer = ComponentPeer::getPeer (i);
-            NSView* const compView = (NSView*) peer->getNativeHandle();
-
-            if ([compView window] == w)
-            {
-                if (isKey)
-                {
-                    if (compView == [w firstResponder])
-                        return false;
-                }
-                else
-                {
-                    NSViewComponentPeer* nsViewPeer = dynamic_cast<NSViewComponentPeer*> (peer);
-
-                    if ((nsViewPeer == 0 || ! nsViewPeer->isSharedWindow)
-                            ? NSPointInRect ([e locationInWindow], NSMakeRect (0, 0, [w frame].size.width, [w frame].size.height))
-                            : NSPointInRect ([compView convertPoint: [e locationInWindow] fromView: nil], [compView bounds]))
-                        return false;
-                }
-            }
-        }
-
-        if (isInputAttempt)
-        {
-            if (! [NSApp isActive])
-                [NSApp activateIgnoringOtherApps: YES];
-
-            Component* const modal = Component::getCurrentlyModalComponent (0);
-            if (modal != 0)
-                modal->inputAttemptWhenModal();
-        }
-
-        return true;
-    }
-}
-
 #if JUCE_MODAL_LOOPS_PERMITTED
 bool MessageManager::runDispatchLoopUntil (int millisecondsToRunFor)
 {
@@ -424,7 +344,7 @@ bool MessageManager::runDispatchLoopUntil (int millisecondsToRunFor)
 
     while (! quitMessagePosted)
     {
-        const ScopedAutoReleasePool pool;
+        JUCE_AUTORELEASEPOOL
 
         CFRunLoopRunInMode (kCFRunLoopDefaultMode, 0.001, true);
 
@@ -433,7 +353,7 @@ bool MessageManager::runDispatchLoopUntil (int millisecondsToRunFor)
                                            inMode: NSDefaultRunLoopMode
                                           dequeue: YES];
 
-        if (e != 0 && ! isEventBlockedByModalComps (e))
+        if (e != nil && (isEventBlockedByModalComps == nullptr || ! (*isEventBlockedByModalComps) (e)))
             [NSApp sendEvent: e];
 
         if (Time::getMillisecondCounter() >= endTime)
@@ -445,9 +365,17 @@ bool MessageManager::runDispatchLoopUntil (int millisecondsToRunFor)
 #endif
 
 //==============================================================================
+void initialiseNSApplication()
+{
+   #if JUCE_MAC
+    JUCE_AUTORELEASEPOOL
+    [NSApplication sharedApplication];
+   #endif
+}
+
 void MessageManager::doPlatformSpecificInitialisation()
 {
-    if (juceAppDelegate == 0)
+    if (juceAppDelegate == nil)
         juceAppDelegate = [[JuceAppDelegate alloc] init];
 
     // This launches a dummy thread, which forces Cocoa to initialise NSThreads
@@ -460,12 +388,12 @@ void MessageManager::doPlatformSpecificInitialisation()
 
 void MessageManager::doPlatformSpecificShutdown()
 {
-    if (juceAppDelegate != 0)
+    if (juceAppDelegate != nil)
     {
         [[NSRunLoop currentRunLoop] cancelPerformSelectorsWithTarget: juceAppDelegate];
         [[NSNotificationCenter defaultCenter] removeObserver: juceAppDelegate];
         [juceAppDelegate release];
-        juceAppDelegate = 0;
+        juceAppDelegate = nil;
     }
 }
 
@@ -478,7 +406,7 @@ bool MessageManager::postMessageToSystemQueue (Message* message)
 void MessageManager::broadcastMessage (const String& message)
 {
     NSDictionary* info = [NSDictionary dictionaryWithObject: juceStringToNS (message)
-                                                     forKey: @"message"];
+                                                     forKey: nsStringLiteral ("message")];
 
     [[NSDistributedNotificationCenter defaultCenter] postNotificationName: AppDelegateRedirector::getBroacastEventName()
                                                                    object: nil
@@ -498,7 +426,7 @@ void* MessageManager::callFunctionOnMessageThread (MessageCallbackFunction* call
         // call your function..
         jassert (! MessageManager::getInstance()->currentThreadHasLockedMessageManager());
 
-        const ScopedAutoReleasePool pool;
+        JUCE_AUTORELEASEPOOL
 
         AppDelegateRedirector::CallbackMessagePayload cmp;
         cmp.function = callback;

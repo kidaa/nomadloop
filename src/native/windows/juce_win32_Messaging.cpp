@@ -27,129 +27,146 @@
 // compiled on its own).
 #if JUCE_INCLUDED_FILE
 
+extern HWND juce_messageWindowHandle;
 
 //==============================================================================
-static const unsigned int specialId             = WM_APP + 0x4400;
-static const unsigned int broadcastId           = WM_APP + 0x4403;
-static const unsigned int specialCallbackId     = WM_APP + 0x4402;
-
-static const TCHAR* const messageWindowName = _T("JUCEWindow");
-static ATOM messageWindowClassAtom = 0;
-static LPCTSTR getMessageWindowClassName() throw()      { return (LPCTSTR) MAKELONG (messageWindowClassAtom, 0); }
-
-HWND juce_messageWindowHandle = 0;
-
-extern long improbableWindowNumber; // defined in windowing.cpp
-
-#ifndef WM_APPCOMMAND
- #define WM_APPCOMMAND 0x0319
-#endif
-
-
-//==============================================================================
-static LRESULT CALLBACK juce_MessageWndProc (HWND h,
-                                             const UINT message,
-                                             const WPARAM wParam,
-                                             const LPARAM lParam) throw()
+namespace WindowsMessageHelpers
 {
-    JUCE_TRY
+    const unsigned int specialId             = WM_APP + 0x4400;
+    const unsigned int broadcastId           = WM_APP + 0x4403;
+    const unsigned int specialCallbackId     = WM_APP + 0x4402;
+
+    const TCHAR messageWindowName[] = _T("JUCEWindow");
+    ScopedPointer<HiddenMessageWindow> messageWindow;
+
+    //==============================================================================
+    LRESULT CALLBACK messageWndProc (HWND h, const UINT message, const WPARAM wParam, const LPARAM lParam) noexcept
     {
-        if (h == juce_messageWindowHandle)
+        JUCE_TRY
         {
-            if (message == specialCallbackId)
+            if (h == juce_messageWindowHandle)
             {
-                MessageCallbackFunction* const func = (MessageCallbackFunction*) wParam;
-                return (LRESULT) (*func) ((void*) lParam);
-            }
-            else if (message == specialId)
-            {
-                // these are trapped early in the dispatch call, but must also be checked
-                // here in case there are windows modal dialog boxes doing their own
-                // dispatch loop and not calling our version
+                if (message == specialCallbackId)
+                {
+                    MessageCallbackFunction* const func = (MessageCallbackFunction*) wParam;
+                    return (LRESULT) (*func) ((void*) lParam);
+                }
+                else if (message == specialId)
+                {
+                    // these are trapped early in the dispatch call, but must also be checked
+                    // here in case there are windows modal dialog boxes doing their own
+                    // dispatch loop and not calling our version
 
-                Message* const message = reinterpret_cast <Message*> (lParam);
-                MessageManager::getInstance()->deliverMessage (message);
-                message->decReferenceCount();
-                return 0;
-            }
-            else if (message == broadcastId)
-            {
-                const ScopedPointer <String> messageString ((String*) lParam);
-                MessageManager::getInstance()->deliverBroadcastMessage (*messageString);
-                return 0;
-            }
-            else if (message == WM_COPYDATA && ((const COPYDATASTRUCT*) lParam)->dwData == broadcastId)
-            {
-                const COPYDATASTRUCT* data = (COPYDATASTRUCT*) lParam;
+                    Message* const message = reinterpret_cast <Message*> (lParam);
+                    MessageManager::getInstance()->deliverMessage (message);
+                    message->decReferenceCount();
+                    return 0;
+                }
+                else if (message == broadcastId)
+                {
+                    const ScopedPointer <String> messageString ((String*) lParam);
+                    MessageManager::getInstance()->deliverBroadcastMessage (*messageString);
+                    return 0;
+                }
+                else if (message == WM_COPYDATA && ((const COPYDATASTRUCT*) lParam)->dwData == broadcastId)
+                {
+                    const COPYDATASTRUCT* data = (COPYDATASTRUCT*) lParam;
 
-                const String messageString (CharPointer_UTF32 ((const CharPointer_UTF32::CharType*) data->lpData),
-                                            data->cbData / sizeof (CharPointer_UTF32::CharType));
+                    const String messageString (CharPointer_UTF32 ((const CharPointer_UTF32::CharType*) data->lpData),
+                                                data->cbData / sizeof (CharPointer_UTF32::CharType));
 
-                PostMessage (juce_messageWindowHandle, broadcastId, 0, (LPARAM) new String (messageString));
-                return 0;
+                    PostMessage (juce_messageWindowHandle, broadcastId, 0, (LPARAM) new String (messageString));
+                    return 0;
+                }
             }
         }
+        JUCE_CATCH_EXCEPTION
+
+        return DefWindowProc (h, message, wParam, lParam);
     }
-    JUCE_CATCH_EXCEPTION
 
-    return DefWindowProc (h, message, wParam, lParam);
-}
+    bool isHWNDBlockedByModalComponents (HWND h) noexcept
+    {
+        for (int i = Desktop::getInstance().getNumComponents(); --i >= 0;)
+        {
+            Component* const c = Desktop::getInstance().getComponent (i);
 
-static bool isEventBlockedByModalComps (MSG& m)
-{
-    if (Component::getNumCurrentlyModalComponents() == 0
-         || GetWindowLong (m.hwnd, GWLP_USERDATA) == improbableWindowNumber)
+            if (c != nullptr
+                  && (! c->isCurrentlyBlockedByAnotherModalComponent())
+                  && IsChild ((HWND) c->getWindowHandle(), h))
+                return false;
+        }
+
+        return true;
+    }
+
+    bool isEventBlockedByModalComps (MSG& m)
+    {
+        if (Component::getNumCurrentlyModalComponents() == 0 || JuceWindowIdentifier::isJUCEWindow (m.hwnd))
+            return false;
+
+        switch (m.message)
+        {
+            case WM_MOUSEMOVE:
+            case WM_NCMOUSEMOVE:
+            case 0x020A: /* WM_MOUSEWHEEL */
+            case 0x020E: /* WM_MOUSEHWHEEL */
+            case WM_KEYUP:
+            case WM_SYSKEYUP:
+            case WM_CHAR:
+            case WM_APPCOMMAND:
+            case WM_LBUTTONUP:
+            case WM_MBUTTONUP:
+            case WM_RBUTTONUP:
+            case WM_MOUSEACTIVATE:
+            case WM_NCMOUSEHOVER:
+            case WM_MOUSEHOVER:
+                return isHWNDBlockedByModalComponents (m.hwnd);
+
+            case WM_NCLBUTTONDOWN:
+            case WM_NCLBUTTONDBLCLK:
+            case WM_NCRBUTTONDOWN:
+            case WM_NCRBUTTONDBLCLK:
+            case WM_NCMBUTTONDOWN:
+            case WM_NCMBUTTONDBLCLK:
+            case WM_LBUTTONDOWN:
+            case WM_LBUTTONDBLCLK:
+            case WM_MBUTTONDOWN:
+            case WM_MBUTTONDBLCLK:
+            case WM_RBUTTONDOWN:
+            case WM_RBUTTONDBLCLK:
+            case WM_KEYDOWN:
+            case WM_SYSKEYDOWN:
+                if (isHWNDBlockedByModalComponents (m.hwnd))
+                {
+                    Component* const modal = Component::getCurrentlyModalComponent (0);
+                    if (modal != nullptr)
+                        modal->inputAttemptWhenModal();
+
+                    return true;
+                }
+                break;
+
+            default:
+                break;
+        }
+
         return false;
-
-    switch (m.message)
-    {
-        case WM_MOUSEMOVE:
-        case WM_NCMOUSEMOVE:
-        case 0x020A: /* WM_MOUSEWHEEL */
-        case 0x020E: /* WM_MOUSEHWHEEL */
-        case WM_KEYUP:
-        case WM_SYSKEYUP:
-        case WM_CHAR:
-        case WM_APPCOMMAND:
-        case WM_LBUTTONUP:
-        case WM_MBUTTONUP:
-        case WM_RBUTTONUP:
-        case WM_MOUSEACTIVATE:
-        case WM_NCMOUSEHOVER:
-        case WM_MOUSEHOVER:
-            return true;
-
-        case WM_NCLBUTTONDOWN:
-        case WM_NCLBUTTONDBLCLK:
-        case WM_NCRBUTTONDOWN:
-        case WM_NCRBUTTONDBLCLK:
-        case WM_NCMBUTTONDOWN:
-        case WM_NCMBUTTONDBLCLK:
-        case WM_LBUTTONDOWN:
-        case WM_LBUTTONDBLCLK:
-        case WM_MBUTTONDOWN:
-        case WM_MBUTTONDBLCLK:
-        case WM_RBUTTONDOWN:
-        case WM_RBUTTONDBLCLK:
-        case WM_KEYDOWN:
-        case WM_SYSKEYDOWN:
-        {
-            Component* const modal = Component::getCurrentlyModalComponent (0);
-            if (modal != 0)
-                modal->inputAttemptWhenModal();
-
-            return true;
-        }
-
-        default:
-            break;
     }
 
-    return false;
+    BOOL CALLBACK broadcastEnumWindowProc (HWND hwnd, LPARAM lParam)
+    {
+        if (hwnd != juce_messageWindowHandle)
+            reinterpret_cast <Array<HWND>*> (lParam)->add (hwnd);
+
+        return TRUE;
+    }
 }
 
+//==============================================================================
 bool MessageManager::dispatchNextMessageOnSystemQueue (const bool returnIfNoPendingMessages)
 {
+    using namespace WindowsMessageHelpers;
     MSG m;
 
     if (returnIfNoPendingMessages && ! PeekMessage (&m, (HWND) 0, 0, 0, 0))
@@ -165,19 +182,19 @@ bool MessageManager::dispatchNextMessageOnSystemQueue (const bool returnIfNoPend
         }
         else if (m.message == WM_QUIT)
         {
-            if (JUCEApplication::getInstance() != 0)
+            if (JUCEApplication::getInstance() != nullptr)
                 JUCEApplication::getInstance()->systemRequestedQuit();
         }
-        else if (! isEventBlockedByModalComps (m))
+        else if (! WindowsMessageHelpers::isEventBlockedByModalComps (m))
         {
             if ((m.message == WM_LBUTTONDOWN || m.message == WM_RBUTTONDOWN)
-                 && GetWindowLong (m.hwnd, GWLP_USERDATA) != improbableWindowNumber)
+                 && ! JuceWindowIdentifier::isJUCEWindow (m.hwnd))
             {
                 // if it's someone else's window being clicked on, and the focus is
                 // currently on a juce window, pass the kb focus over..
                 HWND currentFocus = GetFocus();
 
-                if (currentFocus == 0 || GetWindowLong (currentFocus, GWLP_USERDATA) == improbableWindowNumber)
+                if (currentFocus == 0 || JuceWindowIdentifier::isJUCEWindow (currentFocus))
                     SetFocus (m.hwnd);
             }
 
@@ -189,14 +206,12 @@ bool MessageManager::dispatchNextMessageOnSystemQueue (const bool returnIfNoPend
     return true;
 }
 
-//==============================================================================
 bool MessageManager::postMessageToSystemQueue (Message* message)
 {
     message->incReferenceCount();
-    return PostMessage (juce_messageWindowHandle, specialId, 0, (LPARAM) message) != 0;
+    return PostMessage (juce_messageWindowHandle, WindowsMessageHelpers::specialId, 0, (LPARAM) message) != 0;
 }
 
-//==============================================================================
 void* MessageManager::callFunctionOnMessageThread (MessageCallbackFunction* callback,
                                                    void* userData)
 {
@@ -212,30 +227,21 @@ void* MessageManager::callFunctionOnMessageThread (MessageCallbackFunction* call
         jassert (! MessageManager::getInstance()->currentThreadHasLockedMessageManager());
 
         return (void*) SendMessage (juce_messageWindowHandle,
-                                    specialCallbackId,
+                                    WindowsMessageHelpers::specialCallbackId,
                                     (WPARAM) callback,
                                     (LPARAM) userData);
     }
 }
 
-//==============================================================================
-static BOOL CALLBACK broadcastEnumWindowProc (HWND hwnd, LPARAM lParam)
-{
-    if (hwnd != juce_messageWindowHandle)
-        reinterpret_cast <Array<HWND>*> (lParam)->add (hwnd);
-
-    return TRUE;
-}
-
 void MessageManager::broadcastMessage (const String& value)
 {
     Array<HWND> windows;
-    EnumWindows (&broadcastEnumWindowProc, (LPARAM) &windows);
+    EnumWindows (&WindowsMessageHelpers::broadcastEnumWindowProc, (LPARAM) &windows);
 
     const String localCopy (value);
 
     COPYDATASTRUCT data;
-    data.dwData = broadcastId;
+    data.dwData = WindowsMessageHelpers::broadcastId;
     data.cbData = (localCopy.length() + 1) * sizeof (CharPointer_UTF32::CharType);
     data.lpData = (void*) localCopy.toUTF32().getAddress();
 
@@ -247,7 +253,7 @@ void MessageManager::broadcastMessage (const String& value)
         GetWindowText (hwnd, windowName, 64);
         windowName [63] = 0;
 
-        if (String (windowName) == messageWindowName)
+        if (String (windowName) == WindowsMessageHelpers::messageWindowName)
         {
             DWORD_PTR result;
             SendMessageTimeout (hwnd, WM_COPYDATA,
@@ -263,34 +269,15 @@ void MessageManager::doPlatformSpecificInitialisation()
 {
     OleInitialize (0);
 
-    // this name has to be different for each app/dll instance because otherwise
-    // poor old Win32 can get a bit confused (even despite it not being a process-global
-    // window class).
-
-    String className ("JUCEcs_");
-    className << (int) (Time::getHighResolutionTicks() & 0x7fffffff);
-
-    HMODULE moduleHandle = (HMODULE) PlatformUtilities::getCurrentModuleInstanceHandle();
-
-    WNDCLASSEX wc = { 0 };
-    wc.cbSize         = sizeof (wc);
-    wc.lpfnWndProc    = (WNDPROC) juce_MessageWndProc;
-    wc.cbWndExtra     = 4;
-    wc.hInstance      = moduleHandle;
-    wc.lpszClassName  = className.toWideCharPointer();
-
-    messageWindowClassAtom = RegisterClassEx (&wc);
-    jassert (messageWindowClassAtom != 0);
-
-    juce_messageWindowHandle = CreateWindow (getMessageWindowClassName(), messageWindowName,
-                                             0, 0, 0, 0, 0, 0, 0, moduleHandle, 0);
-    jassert (juce_messageWindowHandle != 0);
+    using namespace WindowsMessageHelpers;
+    messageWindow = new HiddenMessageWindow (messageWindowName, (WNDPROC) messageWndProc);
+    juce_messageWindowHandle = messageWindow->getHWND();
 }
 
 void MessageManager::doPlatformSpecificShutdown()
 {
-    DestroyWindow (juce_messageWindowHandle);
-    UnregisterClass (getMessageWindowClassName(), 0);
+    WindowsMessageHelpers::messageWindow = nullptr;
+
     OleUninitialize();
 }
 

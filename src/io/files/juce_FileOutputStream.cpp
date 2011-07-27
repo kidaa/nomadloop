@@ -35,7 +35,8 @@ int64 juce_fileSetPosition (void* handle, int64 pos);
 //==============================================================================
 FileOutputStream::FileOutputStream (const File& f, const int bufferSize_)
     : file (f),
-      fileHandle (0),
+      fileHandle (nullptr),
+      status (Result::ok()),
       currentPosition (0),
       bufferSize (bufferSize_),
       bytesInBuffer (0),
@@ -46,7 +47,8 @@ FileOutputStream::FileOutputStream (const File& f, const int bufferSize_)
 
 FileOutputStream::~FileOutputStream()
 {
-    flush();
+    flushBuffer();
+    flushInternal();
     closeHandle();
 }
 
@@ -59,21 +61,29 @@ bool FileOutputStream::setPosition (int64 newPosition)
 {
     if (newPosition != currentPosition)
     {
-        flush();
+        flushBuffer();
         currentPosition = juce_fileSetPosition (fileHandle, newPosition);
     }
 
     return newPosition == currentPosition;
 }
 
-void FileOutputStream::flush()
+bool FileOutputStream::flushBuffer()
 {
+    bool ok = true;
+
     if (bytesInBuffer > 0)
     {
-        writeInternal (buffer, bytesInBuffer);
+        ok = (writeInternal (buffer, bytesInBuffer) == bytesInBuffer);
         bytesInBuffer = 0;
     }
 
+    return ok;
+}
+
+void FileOutputStream::flush()
+{
+    flushBuffer();
     flushInternal();
 }
 
@@ -87,15 +97,8 @@ bool FileOutputStream::write (const void* const src, const int numBytes)
     }
     else
     {
-        if (bytesInBuffer > 0)
-        {
-            // flush the reservoir
-            const bool wroteOk = (writeInternal (buffer, bytesInBuffer) == bytesInBuffer);
-            bytesInBuffer = 0;
-
-            if (! wroteOk)
-                return false;
-        }
+        if (! flushBuffer())
+            return false;
 
         if (numBytes < bufferSize)
         {
@@ -117,5 +120,20 @@ bool FileOutputStream::write (const void* const src, const int numBytes)
 
     return true;
 }
+
+void FileOutputStream::writeRepeatedByte (uint8 byte, int numBytes)
+{
+    if (bytesInBuffer + numBytes < bufferSize)
+    {
+        memset (buffer + bytesInBuffer, byte, numBytes);
+        bytesInBuffer += numBytes;
+        currentPosition += numBytes;
+    }
+    else
+    {
+        OutputStream::writeRepeatedByte (byte, numBytes);
+    }
+}
+
 
 END_JUCE_NAMESPACE

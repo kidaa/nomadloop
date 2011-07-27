@@ -74,6 +74,9 @@
 #ifndef __JUCE_AUDIOTHUMBNAILCACHE_JUCEHEADER__
  #include "audio/audio_file_formats/juce_AudioThumbnailCache.h"
 #endif
+#ifndef __JUCE_COREAUDIOFORMAT_JUCEHEADER__
+ #include "audio/audio_file_formats/juce_CoreAudioFormat.h"
+#endif
 #ifndef __JUCE_FLACAUDIOFORMAT_JUCEHEADER__
  #include "audio/audio_file_formats/juce_FlacAudioFormat.h"
 #endif
@@ -116,6 +119,9 @@
 #ifndef __JUCE_RESAMPLINGAUDIOSOURCE_JUCEHEADER__
  #include "audio/audio_sources/juce_ResamplingAudioSource.h"
 #endif
+#ifndef __JUCE_REVERBAUDIOSOURCE_JUCEHEADER__
+ #include "audio/audio_sources/juce_ReverbAudioSource.h"
+#endif
 #ifndef __JUCE_TONEGENERATORAUDIOSOURCE_JUCEHEADER__
  #include "audio/audio_sources/juce_ToneGeneratorAudioSource.h"
 #endif
@@ -139,6 +145,9 @@
 #endif
 #ifndef __JUCE_IIRFILTER_JUCEHEADER__
  #include "audio/dsp/juce_IIRFilter.h"
+#endif
+#ifndef __JUCE_REVERB_JUCEHEADER__
+ #include "audio/dsp/juce_Reverb.h"
 #endif
 #ifndef __JUCE_MIDIBUFFER_JUCEHEADER__
  #include "audio/midi/juce_MidiBuffer.h"
@@ -165,40 +174,38 @@
  #include "audio/midi/juce_MidiOutput.h"
 #endif
 #ifndef __JUCE_AUDIOUNITPLUGINFORMAT_JUCEHEADER__
- #include "audio/plugins/formats/juce_AudioUnitPluginFormat.h"
+ #include "audio/plugin_host/formats/juce_AudioUnitPluginFormat.h"
 #endif
 #ifndef __JUCE_DIRECTXPLUGINFORMAT_JUCEHEADER__
- #include "audio/plugins/formats/juce_DirectXPluginFormat.h"
+ #include "audio/plugin_host/formats/juce_DirectXPluginFormat.h"
 #endif
 #ifndef __JUCE_LADSPAPLUGINFORMAT_JUCEHEADER__
- #include "audio/plugins/formats/juce_LADSPAPluginFormat.h"
+ #include "audio/plugin_host/formats/juce_LADSPAPluginFormat.h"
 #endif
-#ifndef __JUCE_VSTMIDIEVENTLIST_JUCEHEADER__
- #include "audio/plugins/formats/juce_VSTMidiEventList.h"
-#endif
+#include "audio/plugin_host/formats/juce_VSTMidiEventList.h"
 #ifndef __JUCE_VSTPLUGINFORMAT_JUCEHEADER__
- #include "audio/plugins/formats/juce_VSTPluginFormat.h"
+ #include "audio/plugin_host/formats/juce_VSTPluginFormat.h"
 #endif
 #ifndef __JUCE_AUDIOPLUGINFORMAT_JUCEHEADER__
- #include "audio/plugins/juce_AudioPluginFormat.h"
+ #include "audio/plugin_host/juce_AudioPluginFormat.h"
 #endif
 #ifndef __JUCE_AUDIOPLUGINFORMATMANAGER_JUCEHEADER__
- #include "audio/plugins/juce_AudioPluginFormatManager.h"
+ #include "audio/plugin_host/juce_AudioPluginFormatManager.h"
 #endif
 #ifndef __JUCE_AUDIOPLUGININSTANCE_JUCEHEADER__
- #include "audio/plugins/juce_AudioPluginInstance.h"
+ #include "audio/plugin_host/juce_AudioPluginInstance.h"
 #endif
 #ifndef __JUCE_KNOWNPLUGINLIST_JUCEHEADER__
- #include "audio/plugins/juce_KnownPluginList.h"
+ #include "audio/plugin_host/juce_KnownPluginList.h"
 #endif
 #ifndef __JUCE_PLUGINDESCRIPTION_JUCEHEADER__
- #include "audio/plugins/juce_PluginDescription.h"
+ #include "audio/plugin_host/juce_PluginDescription.h"
 #endif
 #ifndef __JUCE_PLUGINDIRECTORYSCANNER_JUCEHEADER__
- #include "audio/plugins/juce_PluginDirectoryScanner.h"
+ #include "audio/plugin_host/juce_PluginDirectoryScanner.h"
 #endif
 #ifndef __JUCE_PLUGINLISTCOMPONENT_JUCEHEADER__
- #include "audio/plugins/juce_PluginListComponent.h"
+ #include "audio/plugin_host/juce_PluginListComponent.h"
 #endif
 #ifndef __JUCE_AUDIOPLAYHEAD_JUCEHEADER__
  #include "audio/processors/juce_AudioPlayHead.h"
@@ -232,6 +239,9 @@
 #endif
 #ifndef __JUCE_ACTIONLISTENER_JUCEHEADER__
  #include "events/juce_ActionListener.h"
+#endif
+#ifndef __JUCE_APPLEREMOTE_JUCEHEADER__
+ #include "events/juce_AppleRemote.h"
 #endif
 #ifndef __JUCE_ASYNCUPDATER_JUCEHEADER__
  #include "events/juce_AsyncUpdater.h"
@@ -310,6 +320,9 @@
 #endif
 #ifndef __JUCE_COMBOBOX_JUCEHEADER__
  #include "gui/components/controls/juce_ComboBox.h"
+#endif
+#ifndef __JUCE_IMAGECOMPONENT_JUCEHEADER__
+ #include "gui/components/controls/juce_ImageComponent.h"
 #endif
 #ifndef __JUCE_LABEL_JUCEHEADER__
  #include "gui/components/controls/juce_Label.h"
@@ -421,6 +434,9 @@
 #endif
 #ifndef __JUCE_MODIFIERKEYS_JUCEHEADER__
  #include "gui/components/keyboard/juce_ModifierKeys.h"
+#endif
+#ifndef __JUCE_TEXTEDITORKEYMAPPER_JUCEHEADER__
+ #include "gui/components/keyboard/juce_TextEditorKeyMapper.h"
 #endif
 #ifndef __JUCE_TEXTINPUTTARGET_JUCEHEADER__
  #include "gui/components/keyboard/juce_TextInputTarget.h"
@@ -575,6 +591,9 @@
 #ifndef __JUCE_COLOURSELECTOR_JUCEHEADER__
  #include "gui/components/special/juce_ColourSelector.h"
 #endif
+#ifndef __JUCE_DIRECTSHOWCOMPONENT_JUCEHEADER__
+ #include "gui/components/special/juce_DirectShowComponent.h"
+#endif
 #ifndef __JUCE_DROPSHADOWER_JUCEHEADER__
  #include "gui/components/special/juce_DropShadower.h"
 #endif
@@ -592,6 +611,9 @@
 #endif
 #ifndef __JUCE_QUICKTIMEMOVIECOMPONENT_JUCEHEADER__
  #include "gui/components/special/juce_QuickTimeMovieComponent.h"
+#endif
+#ifndef __JUCE_SCOPEDXLOCK_JUCEHEADER__
+ #include "gui/components/special/juce_ScopedXLock.h"
 #endif
 #ifndef __JUCE_SYSTEMTRAYICONCOMPONENT_JUCEHEADER__
  #include "gui/components/special/juce_SystemTrayIconComponent.h"
@@ -613,6 +635,9 @@
 #endif
 #ifndef __JUCE_DOCUMENTWINDOW_JUCEHEADER__
  #include "gui/components/windows/juce_DocumentWindow.h"
+#endif
+#ifndef __JUCE_NATIVEMESSAGEBOX_JUCEHEADER__
+ #include "gui/components/windows/juce_NativeMessageBox.h"
 #endif
 #ifndef __JUCE_RESIZABLEWINDOW_JUCEHEADER__
  #include "gui/components/windows/juce_ResizableWindow.h"
@@ -647,8 +672,8 @@
 #ifndef __JUCE_FILLTYPE_JUCEHEADER__
  #include "gui/graphics/contexts/juce_FillType.h"
 #endif
-#ifndef __JUCE_GRAPHICS_JUCEHEADER__
- #include "gui/graphics/contexts/juce_Graphics.h"
+#ifndef __JUCE_GRAPHICSCONTEXT_JUCEHEADER__
+ #include "gui/graphics/contexts/juce_GraphicsContext.h"
 #endif
 #ifndef __JUCE_JUSTIFICATION_JUCEHEADER__
  #include "gui/graphics/contexts/juce_Justification.h"
@@ -694,6 +719,9 @@
 #endif
 #ifndef __JUCE_IMAGEEFFECTFILTER_JUCEHEADER__
  #include "gui/graphics/effects/juce_ImageEffectFilter.h"
+#endif
+#ifndef __JUCE_CUSTOMTYPEFACE_JUCEHEADER__
+ #include "gui/graphics/fonts/juce_CustomTypeface.h"
 #endif
 #ifndef __JUCE_FONT_JUCEHEADER__
  #include "gui/graphics/fonts/juce_Font.h"
@@ -775,6 +803,9 @@
 #endif
 #ifndef __JUCE_UNITTEST_JUCEHEADER__
  #include "utilities/juce_UnitTest.h"
+#endif
+#ifndef __JUCE_WINDOWSREGISTRY_JUCEHEADER__
+ #include "utilities/juce_WindowsRegistry.h"
 #endif
 
 #endif

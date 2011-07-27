@@ -27,8 +27,6 @@
 #define __JUCE_APPLICATIONPROPERTIES_JUCEHEADER__
 
 #include "../utilities/juce_PropertiesFile.h"
-#include "../utilities/juce_DeletedAtShutdown.h"
-#include "../core/juce_Singleton.h"
 #include "../memory/juce_ScopedPointer.h"
 
 
@@ -36,8 +34,7 @@
 /**
     Manages a collection of properties.
 
-    This is a slightly higher-level wrapper for PropertiesFile, which can be used
-    as a singleton.
+    This is a slightly higher-level wrapper for managing PropertiesFile objects.
 
     It holds two different PropertiesFile objects internally, one for user-specific
     settings (stored in your user directory), and one for settings that are common to
@@ -47,13 +44,13 @@
     getUserSettings() and getCommonSettings() methods. It also has a few handy
     methods like testWriteAccess() to check that the files can be saved.
 
-    If you're using one of these as a singleton, then your app's start-up code should
-    first of all call setStorageParameters() to tell it the parameters to use to create
-    the properties files.
+    After creating an instance of an ApplicationProperties object, you should first
+    of all call setStorageParameters() to tell it the parameters to use to create
+    its files.
 
     @see PropertiesFile
 */
-class JUCE_API  ApplicationProperties   : public DeletedAtShutdown
+class JUCE_API  ApplicationProperties
 {
 public:
     //==============================================================================
@@ -69,20 +66,10 @@ public:
     ~ApplicationProperties();
 
     //==============================================================================
-    juce_DeclareSingleton (ApplicationProperties, false)
-
-    //==============================================================================
     /** Gives the object the information it needs to create the appropriate properties files.
-
-        See the comments for PropertiesFile::createDefaultAppPropertiesFile() for more
-        info about how these parameters are used.
+        See the PropertiesFile::Options class for details about what options you need to set.
     */
-    void setStorageParameters (const String& applicationName,
-                               const String& fileNameSuffix,
-                               const String& folderName,
-                               int millisecondsBeforeSaving,
-                               int propertiesFileOptions,
-                               InterProcessLock* processLock = 0);
+    void setStorageParameters (const PropertiesFile::Options& options);
 
     /** Tests whether the files can be successfully written to, and can show
         an error message if not.
@@ -146,12 +133,9 @@ public:
 
 private:
     //==============================================================================
+    PropertiesFile::Options options;
     ScopedPointer <PropertiesFile> userProps, commonProps;
-
-    String appName, fileSuffix, folderName;
-    int msBeforeSaving, options;
     int commonSettingsAreReadOnly;
-    InterProcessLock* processLock;
 
     void openFiles();
 

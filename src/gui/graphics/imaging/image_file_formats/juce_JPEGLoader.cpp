@@ -26,15 +26,15 @@
 #include "../../../../core/juce_StandardHeader.h"
 
 #if JUCE_MSVC
-  #pragma warning (push)
+ #pragma warning (push)
 #endif
 
 namespace jpeglibNamespace
 {
-#if JUCE_INCLUDE_JPEGLIB_CODE
-  #if JUCE_MINGW
+#if JUCE_INCLUDE_JPEGLIB_CODE || ! defined (JUCE_INCLUDE_JPEGLIB_CODE)
+   #if JUCE_MINGW
     typedef unsigned char boolean;
-  #endif
+   #endif
     #define JPEG_INTERNALS
     #undef FAR
     #include "jpglib/jpeglib.h"
@@ -118,7 +118,7 @@ namespace jpeglibNamespace
 #undef min
 
 #if JUCE_MSVC
-  #pragma warning (pop)
+ #pragma warning (pop)
 #endif
 
 BEGIN_JUCE_NAMESPACE
@@ -133,17 +133,13 @@ namespace JPEGHelpers
 {
     using namespace jpeglibNamespace;
 
-    #if ! JUCE_MSVC
-     using jpeglibNamespace::boolean;
-    #endif
+   #if ! JUCE_MSVC
+    using jpeglibNamespace::boolean;
+   #endif
 
     struct JPEGDecodingFailure {};
 
-    void fatalErrorHandler (j_common_ptr)
-    {
-        throw JPEGDecodingFailure();
-    }
-
+    void fatalErrorHandler (j_common_ptr)            { throw JPEGDecodingFailure(); }
     void silentErrorCallback1 (j_common_ptr)         {}
     void silentErrorCallback2 (j_common_ptr, int)    {}
     void silentErrorCallback3 (j_common_ptr, char*)  {}
@@ -152,18 +148,15 @@ namespace JPEGHelpers
     {
         zerostruct (err);
 
-        err.error_exit = fatalErrorHandler;
-        err.emit_message = silentErrorCallback2;
-        err.output_message = silentErrorCallback1;
-        err.format_message = silentErrorCallback3;
+        err.error_exit      = fatalErrorHandler;
+        err.emit_message    = silentErrorCallback2;
+        err.output_message  = silentErrorCallback1;
+        err.format_message  = silentErrorCallback3;
         err.reset_error_mgr = silentErrorCallback1;
     }
 
-
     //==============================================================================
-    void dummyCallback1 (j_decompress_ptr)
-    {
-    }
+    void dummyCallback1 (j_decompress_ptr) {}
 
     void jpegSkip (j_decompress_ptr decompStruct, long num)
     {
@@ -187,9 +180,7 @@ namespace JPEGHelpers
         char* buffer;
     };
 
-    void jpegWriteInit (j_compress_ptr)
-    {
-    }
+    void jpegWriteInit (j_compress_ptr) {}
 
     void jpegWriteTerminate (j_compress_ptr cinfo)
     {
@@ -218,17 +209,14 @@ JPEGImageFormat::JPEGImageFormat()
 {
 }
 
-JPEGImageFormat::~JPEGImageFormat()     {}
+JPEGImageFormat::~JPEGImageFormat() {}
 
 void JPEGImageFormat::setQuality (const float newQuality)
 {
     quality = newQuality;
 }
 
-const String JPEGImageFormat::getFormatName()
-{
-    return "JPEG";
-}
+String JPEGImageFormat::getFormatName() { return "JPEG"; }
 
 bool JPEGImageFormat::canUnderstand (InputStream& in)
 {
@@ -247,10 +235,10 @@ bool JPEGImageFormat::canUnderstand (InputStream& in)
 }
 
 #if (JUCE_MAC || JUCE_IOS) && USE_COREGRAPHICS_RENDERING && ! DONT_USE_COREIMAGE_LOADER
-  const Image juce_loadWithCoreImage (InputStream& input);
+ Image juce_loadWithCoreImage (InputStream& input);
 #endif
 
-const Image JPEGImageFormat::decodeImage (InputStream& in)
+Image JPEGImageFormat::decodeImage (InputStream& in)
 {
 #if (JUCE_MAC || JUCE_IOS) && USE_COREGRAPHICS_RENDERING && ! DONT_USE_COREIMAGE_LOADER
     return juce_loadWithCoreImage (in);
@@ -397,7 +385,6 @@ bool JPEGImageFormat::writeImageToStream (const Image& image, OutputStream& out)
 
     jpegCompStruct.dct_method = JDCT_FLOAT;
     jpegCompStruct.optimize_coding = 1;
-    //jpegCompStruct.smoothing_factor = 10;
 
     if (quality < 0.0f)
         quality = 0.85f;

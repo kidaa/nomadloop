@@ -28,13 +28,12 @@
 BEGIN_JUCE_NAMESPACE
 
 #include "juce_AudioProcessor.h"
-#include "../../threads/juce_ScopedLock.h"
 #include "../../text/juce_XmlDocument.h"
 
 
 //==============================================================================
 AudioProcessor::AudioProcessor()
-    : playHead (0),
+    : playHead (nullptr),
       sampleRate (0),
       blockSize (0),
       numInputChannels (0),
@@ -49,16 +48,16 @@ AudioProcessor::~AudioProcessor()
 {
     // ooh, nasty - the editor should have been deleted before the filter
     // that it refers to is deleted..
-    jassert (activeEditor == 0);
+    jassert (activeEditor == nullptr);
 
-#if JUCE_DEBUG
+   #if JUCE_DEBUG
     // This will fail if you've called beginParameterChangeGesture() for one
     // or more parameters without having made a corresponding call to endParameterChangeGesture...
     jassert (changingParams.countNumberOfSetBits() == 0);
-#endif
+   #endif
 }
 
-void AudioProcessor::setPlayHead (AudioPlayHead* const newPlayHead) throw()
+void AudioProcessor::setPlayHead (AudioPlayHead* const newPlayHead) noexcept
 {
     playHead = newPlayHead;
 }
@@ -78,7 +77,7 @@ void AudioProcessor::removeListener (AudioProcessorListener* const listenerToRem
 void AudioProcessor::setPlayConfigDetails (const int numIns,
                                            const int numOuts,
                                            const double sampleRate_,
-                                           const int blockSize_) throw()
+                                           const int blockSize_) noexcept
 {
     numInputChannels = numIns;
     numOutputChannels = numOuts;
@@ -86,7 +85,7 @@ void AudioProcessor::setPlayConfigDetails (const int numIns,
     blockSize = blockSize_;
 }
 
-void AudioProcessor::setNonRealtime (const bool nonRealtime_) throw()
+void AudioProcessor::setNonRealtime (const bool nonRealtime_) noexcept
 {
     nonRealtime = nonRealtime_;
 }
@@ -120,7 +119,7 @@ void AudioProcessor::sendParamChangeMessageToListeners (const int parameterIndex
             l = listeners [i];
         }
 
-        if (l != 0)
+        if (l != nullptr)
             l->audioProcessorParameterChanged (this, parameterIndex, newValue);
     }
 }
@@ -129,12 +128,12 @@ void AudioProcessor::beginParameterChangeGesture (int parameterIndex)
 {
     jassert (isPositiveAndBelow (parameterIndex, getNumParameters()));
 
-#if JUCE_DEBUG
+   #if JUCE_DEBUG
     // This means you've called beginParameterChangeGesture twice in succession without a matching
     // call to endParameterChangeGesture. That might be fine in most hosts, but better to avoid doing it.
     jassert (! changingParams [parameterIndex]);
     changingParams.setBit (parameterIndex);
-#endif
+   #endif
 
     for (int i = listeners.size(); --i >= 0;)
     {
@@ -145,7 +144,7 @@ void AudioProcessor::beginParameterChangeGesture (int parameterIndex)
             l = listeners [i];
         }
 
-        if (l != 0)
+        if (l != nullptr)
             l->audioProcessorParameterChangeGestureBegin (this, parameterIndex);
     }
 }
@@ -154,13 +153,13 @@ void AudioProcessor::endParameterChangeGesture (int parameterIndex)
 {
     jassert (isPositiveAndBelow (parameterIndex, getNumParameters()));
 
-#if JUCE_DEBUG
+   #if JUCE_DEBUG
     // This means you've called endParameterChangeGesture without having previously called
     // endParameterChangeGesture. That might be fine in most hosts, but better to keep the
     // calls matched correctly.
     jassert (changingParams [parameterIndex]);
     changingParams.clearBit (parameterIndex);
-#endif
+   #endif
 
     for (int i = listeners.size(); --i >= 0;)
     {
@@ -171,7 +170,7 @@ void AudioProcessor::endParameterChangeGesture (int parameterIndex)
             l = listeners [i];
         }
 
-        if (l != 0)
+        if (l != nullptr)
             l->audioProcessorParameterChangeGestureEnd (this, parameterIndex);
     }
 }
@@ -187,7 +186,7 @@ void AudioProcessor::updateHostDisplay()
             l = listeners [i];
         }
 
-        if (l != 0)
+        if (l != nullptr)
             l->audioProcessorChanged (this);
     }
 }
@@ -213,25 +212,25 @@ void AudioProcessor::reset()
 }
 
 //==============================================================================
-void AudioProcessor::editorBeingDeleted (AudioProcessorEditor* const editor) throw()
+void AudioProcessor::editorBeingDeleted (AudioProcessorEditor* const editor) noexcept
 {
     const ScopedLock sl (callbackLock);
 
     if (activeEditor == editor)
-        activeEditor = 0;
+        activeEditor = nullptr;
 }
 
 AudioProcessorEditor* AudioProcessor::createEditorIfNeeded()
 {
-    if (activeEditor != 0)
+    if (activeEditor != nullptr)
         return activeEditor;
 
     AudioProcessorEditor* const ed = createEditor();
 
     // You must make your hasEditor() method return a consistent result!
-    jassert (hasEditor() == (ed != 0));
+    jassert (hasEditor() == (ed != nullptr));
 
-    if (ed != 0)
+    if (ed != nullptr)
     {
         // you must give your editor comp a size before returning it..
         jassert (ed->getWidth() > 0 && ed->getHeight() > 0);
@@ -286,7 +285,7 @@ XmlElement* AudioProcessor::getXmlFromBinary (const void* data,
                                                          jmin ((sizeInBytes - 8), stringLength)));
     }
 
-    return 0;
+    return nullptr;
 }
 
 //==============================================================================
@@ -294,7 +293,7 @@ void AudioProcessorListener::audioProcessorParameterChangeGestureBegin (AudioPro
 void AudioProcessorListener::audioProcessorParameterChangeGestureEnd (AudioProcessor*, int) {}
 
 //==============================================================================
-bool AudioPlayHead::CurrentPositionInfo::operator== (const CurrentPositionInfo& other) const throw()
+bool AudioPlayHead::CurrentPositionInfo::operator== (const CurrentPositionInfo& other) const noexcept
 {
     return timeInSeconds == other.timeInSeconds
         && ppqPosition == other.ppqPosition
@@ -308,7 +307,7 @@ bool AudioPlayHead::CurrentPositionInfo::operator== (const CurrentPositionInfo& 
         && timeSigDenominator == other.timeSigDenominator;
 }
 
-bool AudioPlayHead::CurrentPositionInfo::operator!= (const CurrentPositionInfo& other) const throw()
+bool AudioPlayHead::CurrentPositionInfo::operator!= (const CurrentPositionInfo& other) const noexcept
 {
     return ! operator== (other);
 }

@@ -106,12 +106,12 @@ namespace KeyboardFocusHelpers
     {
         Component* focusContainer = current->getParentComponent();
 
-        if (focusContainer != 0)
+        if (focusContainer != nullptr)
         {
-            while (focusContainer->getParentComponent() != 0 && ! focusContainer->isFocusContainer())
+            while (focusContainer->getParentComponent() != nullptr && ! focusContainer->isFocusContainer())
                 focusContainer = focusContainer->getParentComponent();
 
-            if (focusContainer != 0)
+            if (focusContainer != nullptr)
             {
                 Array <Component*> comps;
                 KeyboardFocusHelpers::findAllFocusableComponents (focusContainer, comps);
@@ -124,7 +124,7 @@ namespace KeyboardFocusHelpers
             }
         }
 
-        return 0;
+        return nullptr;
     }
 }
 
@@ -142,7 +142,7 @@ Component* KeyboardFocusTraverser::getDefaultComponent (Component* parentCompone
 {
     Array <Component*> comps;
 
-    if (parentComponent != 0)
+    if (parentComponent != nullptr)
         KeyboardFocusHelpers::findAllFocusableComponents (parentComponent, comps);
 
     return comps.getFirst();

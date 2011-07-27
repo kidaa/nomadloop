@@ -44,16 +44,16 @@ public:
     /** Returns the default new-line sequence that the library uses.
         @see OutputStream::setNewLineString()
     */
-    static const char* getDefault() throw()         { return "\r\n"; }
+    static const char* getDefault() noexcept        { return "\r\n"; }
 
     /** Returns the default new-line sequence that the library uses.
         @see getDefault()
     */
-    operator const String() const                   { return getDefault(); }
+    operator String() const                         { return getDefault(); }
 };
 
 //==============================================================================
-/** An predefined object representing a new-line, which can be written to a string or stream.
+/** A predefined object representing a new-line, which can be written to a string or stream.
 
     To write a new-line to a stream, you can use the predefined 'newLine' variable like this:
     @code

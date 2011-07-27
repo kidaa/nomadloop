@@ -73,7 +73,7 @@ using namespace JUCE_NAMESPACE;
         if (f.getFileName().matchesWildcard ((*filters)[i], true))
             return true;
 
-    return f.isDirectory();
+    return f.isDirectory() && ! [[NSWorkspace sharedWorkspace] isFilePackageAtPath: filename];
 }
 @end
 
@@ -91,7 +91,7 @@ void FileChooser::showPlatformDialog (Array<File>& results,
                                       bool selectMultipleFiles,
                                       FilePreviewComponent* /*extraInfoComponent*/)
 {
-    const ScopedAutoReleasePool pool;
+    JUCE_AUTORELEASEPOOL
 
     StringArray* filters = new StringArray();
     filters->addTokens (filter.replaceCharacters (",:", ";;"), ";", String::empty);
@@ -168,7 +168,7 @@ void FileChooser::showPlatformDialog (Array<File>& results,
                                       bool selectMultipleFiles,
                                       FilePreviewComponent* extraInfoComponent)
 {
-    const ScopedAutoReleasePool pool;
+    JUCE_AUTORELEASEPOOL
 
     jassertfalse; //xxx to do
 }

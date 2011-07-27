@@ -35,14 +35,14 @@ namespace
                                    StringArray& deviceNamesFound,
                                    const int deviceIndexToOpen)
     {
-        snd_seq_t* returnedHandle = 0;
-        snd_seq_t* seqHandle;
+        snd_seq_t* returnedHandle = nullptr;
+        snd_seq_t* seqHandle = nullptr;
 
         if (snd_seq_open (&seqHandle, "default", forInput ? SND_SEQ_OPEN_INPUT
                                                           : SND_SEQ_OPEN_OUTPUT, 0) == 0)
         {
-            snd_seq_system_info_t* systemInfo;
-            snd_seq_client_info_t* clientInfo;
+            snd_seq_system_info_t* systemInfo = nullptr;
+            snd_seq_client_info_t* clientInfo = nullptr;
 
             if (snd_seq_system_info_malloc (&systemInfo) == 0)
             {
@@ -80,19 +80,26 @@ namespace
 
                                             if (sourcePort != -1)
                                             {
-                                                snd_seq_set_client_name (seqHandle,
-                                                                         forInput ? "Juce Midi Input"
-                                                                                  : "Juce Midi Output");
+                                                if (forInput)
+                                                {
+                                                    snd_seq_set_client_name (seqHandle, "Juce Midi Input");
 
-                                                const int portId
-                                                    = snd_seq_create_simple_port (seqHandle,
-                                                                                  forInput ? "Juce Midi In Port"
-                                                                                           : "Juce Midi Out Port",
-                                                                                  forInput ? (SND_SEQ_PORT_CAP_WRITE | SND_SEQ_PORT_CAP_SUBS_WRITE)
-                                                                                           : (SND_SEQ_PORT_CAP_READ | SND_SEQ_PORT_CAP_SUBS_READ),
-                                                                                  SND_SEQ_PORT_TYPE_MIDI_GENERIC);
+                                                    const int portId = snd_seq_create_simple_port (seqHandle, "Juce Midi In Port",
+                                                                                                   SND_SEQ_PORT_CAP_WRITE | SND_SEQ_PORT_CAP_SUBS_WRITE,
+                                                                                                   SND_SEQ_PORT_TYPE_MIDI_GENERIC);
 
-                                                snd_seq_connect_from (seqHandle, portId, sourceClient, sourcePort);
+                                                    snd_seq_connect_from (seqHandle, portId, sourceClient, sourcePort);
+                                                }
+                                                else
+                                                {
+                                                    snd_seq_set_client_name (seqHandle, "Juce Midi Output");
+
+                                                    const int portId = snd_seq_create_simple_port (seqHandle, "Juce Midi Out Port",
+                                                                                                   SND_SEQ_PORT_CAP_READ | SND_SEQ_PORT_CAP_SUBS_READ,
+                                                                                                   SND_SEQ_PORT_TYPE_MIDI_GENERIC);
+
+                                                    snd_seq_connect_to (seqHandle, portId, sourceClient, sourcePort);
+                                                }
 
                                                 returnedHandle = seqHandle;
                                             }
@@ -122,7 +129,7 @@ namespace
 
     snd_seq_t* createMidiDevice (const bool forInput, const String& deviceNameToOpen)
     {
-        snd_seq_t* seqHandle = 0;
+        snd_seq_t* seqHandle = nullptr;
 
         if (snd_seq_open (&seqHandle, "default", forInput ? SND_SEQ_OPEN_INPUT
                                                           : SND_SEQ_OPEN_OUTPUT, 0) == 0)
@@ -142,7 +149,7 @@ namespace
             if (portId < 0)
             {
                 snd_seq_close (seqHandle);
-                seqHandle = 0;
+                seqHandle = nullptr;
             }
         }
 
@@ -208,7 +215,7 @@ private:
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MidiOutputDevice);
 };
 
-const StringArray MidiOutput::getDevices()
+StringArray MidiOutput::getDevices()
 {
     StringArray devices;
     iterateMidiDevices (false, devices, -1);
@@ -222,7 +229,7 @@ int MidiOutput::getDefaultDeviceIndex()
 
 MidiOutput* MidiOutput::openDevice (int deviceIndex)
 {
-    MidiOutput* newDevice = 0;
+    MidiOutput* newDevice = nullptr;
 
     StringArray devices;
     snd_seq_t* const handle = iterateMidiDevices (false, devices, deviceIndex);
@@ -238,7 +245,7 @@ MidiOutput* MidiOutput::openDevice (int deviceIndex)
 
 MidiOutput* MidiOutput::createNewDevice (const String& deviceName)
 {
-    MidiOutput* newDevice = 0;
+    MidiOutput* newDevice = nullptr;
 
     snd_seq_t* const handle = createMidiDevice (false, deviceName);
 
@@ -254,19 +261,6 @@ MidiOutput* MidiOutput::createNewDevice (const String& deviceName)
 MidiOutput::~MidiOutput()
 {
     delete static_cast <MidiOutputDevice*> (internal);
-}
-
-void MidiOutput::reset()
-{
-}
-
-bool MidiOutput::getVolume (float& leftVol, float& rightVol)
-{
-    return false;
-}
-
-void MidiOutput::setVolume (float leftVol, float rightVol)
-{
 }
 
 void MidiOutput::sendMessageNow (const MidiMessage& message)
@@ -313,7 +307,7 @@ public:
             {
                 if (poll (pfd, numPfds, 500) > 0)
                 {
-                    snd_seq_event_t* inputEvent = 0;
+                    snd_seq_event_t* inputEvent = nullptr;
 
                     snd_seq_nonblock (seqHandle, 1);
 
@@ -385,7 +379,7 @@ int MidiInput::getDefaultDeviceIndex()
     return 0;
 }
 
-const StringArray MidiInput::getDevices()
+StringArray MidiInput::getDevices()
 {
     StringArray devices;
     iterateMidiDevices (true, devices, -1);
@@ -394,7 +388,7 @@ const StringArray MidiInput::getDevices()
 
 MidiInput* MidiInput::openDevice (int deviceIndex, MidiInputCallback* callback)
 {
-    MidiInput* newDevice = 0;
+    MidiInput* newDevice = nullptr;
 
     StringArray devices;
     snd_seq_t* const handle = iterateMidiDevices (true, devices, deviceIndex);
@@ -410,7 +404,7 @@ MidiInput* MidiInput::openDevice (int deviceIndex, MidiInputCallback* callback)
 
 MidiInput* MidiInput::createNewDevice (const String& deviceName, MidiInputCallback* callback)
 {
-    MidiInput* newDevice = 0;
+    MidiInput* newDevice = nullptr;
 
     snd_seq_t* const handle = createMidiDevice (true, deviceName);
 
@@ -430,14 +424,11 @@ MidiInput* MidiInput::createNewDevice (const String& deviceName, MidiInputCallba
 
 // (These are just stub functions if ALSA is unavailable...)
 
-const StringArray MidiOutput::getDevices()                          { return StringArray(); }
+StringArray MidiOutput::getDevices()                                { return StringArray(); }
 int MidiOutput::getDefaultDeviceIndex()                             { return 0; }
-MidiOutput* MidiOutput::openDevice (int)                            { return 0; }
-MidiOutput* MidiOutput::createNewDevice (const String&)             { return 0; }
+MidiOutput* MidiOutput::openDevice (int)                            { return nullptr; }
+MidiOutput* MidiOutput::createNewDevice (const String&)             { return nullptr; }
 MidiOutput::~MidiOutput()   {}
-void MidiOutput::reset()    {}
-bool MidiOutput::getVolume (float&, float&)     { return false; }
-void MidiOutput::setVolume (float, float)       {}
 void MidiOutput::sendMessageNow (const MidiMessage&)    {}
 
 MidiInput::MidiInput (const String& name_) : name (name_), internal (0)  {}
@@ -445,9 +436,9 @@ MidiInput::~MidiInput() {}
 void MidiInput::start() {}
 void MidiInput::stop()  {}
 int MidiInput::getDefaultDeviceIndex()      { return 0; }
-const StringArray MidiInput::getDevices()   { return StringArray(); }
-MidiInput* MidiInput::openDevice (int, MidiInputCallback*)                  { return 0; }
-MidiInput* MidiInput::createNewDevice (const String&, MidiInputCallback*)   { return 0; }
+StringArray MidiInput::getDevices()         { return StringArray(); }
+MidiInput* MidiInput::openDevice (int, MidiInputCallback*)                  { return nullptr; }
+MidiInput* MidiInput::createNewDevice (const String&, MidiInputCallback*)   { return nullptr; }
 
 #endif
 #endif

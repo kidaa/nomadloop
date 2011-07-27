@@ -66,7 +66,7 @@ public:
 
     /** Returns true if QT is installed and working on this machine.
     */
-    static bool isQuickTimeAvailable() throw();
+    static bool isQuickTimeAvailable() noexcept;
 
     //==============================================================================
     /** Tries to load a QuickTime movie from a file into the player.
@@ -120,7 +120,7 @@ public:
 
         If there isn't one, this returns File::nonexistent
     */
-    const File getCurrentMovieFile() const;
+    File getCurrentMovieFile() const;
 
     /** Returns true if there's currently a movie open. */
     bool isMovieOpen() const;

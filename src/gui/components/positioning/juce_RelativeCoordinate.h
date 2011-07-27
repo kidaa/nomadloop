@@ -63,8 +63,8 @@ public:
     /** Destructor. */
     ~RelativeCoordinate();
 
-    bool operator== (const RelativeCoordinate& other) const throw();
-    bool operator!= (const RelativeCoordinate& other) const throw();
+    bool operator== (const RelativeCoordinate& other) const noexcept;
+    bool operator!= (const RelativeCoordinate& other) const noexcept;
 
     //==============================================================================
     /** Calculates the absolute position of this coordinate.
@@ -102,7 +102,7 @@ public:
     /** Returns a string which represents this coordinate.
         For details of the string syntax, see the constructor notes.
     */
-    const String toString() const;
+    String toString() const;
 
     //==============================================================================
     /** A set of static strings that are commonly used by the RelativeCoordinate class.
@@ -135,7 +135,7 @@ public:
             unknown
         };
 
-        static Type getTypeOf (const String& s) throw();
+        static Type getTypeOf (const String& s) noexcept;
     };
 
 private:

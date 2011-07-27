@@ -366,7 +366,7 @@ private:
             default:    jassertfalse; break; // unsupported format!
         }
 
-        return 0;
+        return nullptr;
     }
 
     //==============================================================================
@@ -461,7 +461,7 @@ public:
             if (outputDevice->error.isNotEmpty())
             {
                 error = outputDevice->error;
-                outputDevice = 0;
+                outputDevice = nullptr;
                 return;
             }
 
@@ -472,7 +472,7 @@ public:
                                                bufferSize))
             {
                 error = outputDevice->error;
-                outputDevice = 0;
+                outputDevice = nullptr;
                 return;
             }
 
@@ -486,7 +486,7 @@ public:
             if (inputDevice->error.isNotEmpty())
             {
                 error = inputDevice->error;
-                inputDevice = 0;
+                inputDevice = nullptr;
                 return;
             }
 
@@ -497,28 +497,28 @@ public:
                                               bufferSize))
             {
                 error = inputDevice->error;
-                inputDevice = 0;
+                inputDevice = nullptr;
                 return;
             }
 
             inputLatency = inputDevice->latency;
         }
 
-        if (outputDevice == 0 && inputDevice == 0)
+        if (outputDevice == nullptr && inputDevice == nullptr)
         {
             error = "no channels";
             return;
         }
 
-        if (outputDevice != 0 && inputDevice != 0)
+        if (outputDevice != nullptr && inputDevice != nullptr)
         {
             snd_pcm_link (outputDevice->handle, inputDevice->handle);
         }
 
-        if (inputDevice != 0 && failed (snd_pcm_prepare (inputDevice->handle)))
+        if (inputDevice != nullptr && failed (snd_pcm_prepare (inputDevice->handle)))
             return;
 
-        if (outputDevice != 0 && failed (snd_pcm_prepare (outputDevice->handle)))
+        if (outputDevice != nullptr && failed (snd_pcm_prepare (outputDevice->handle)))
             return;
 
         startThread (9);
@@ -541,8 +541,8 @@ public:
     {
         stopThread (6000);
 
-        inputDevice = 0;
-        outputDevice = 0;
+        inputDevice = nullptr;
+        outputDevice = nullptr;
 
         inputChannelBuffer.setSize (1, 1);
         outputChannelBuffer.setSize (1, 1);
@@ -550,7 +550,7 @@ public:
         numCallbacks = 0;
     }
 
-    void setCallback (AudioIODeviceCallback* const newCallback) throw()
+    void setCallback (AudioIODeviceCallback* const newCallback) noexcept
     {
         const ScopedLock sl (callbackLock);
         callback = newCallback;
@@ -560,7 +560,7 @@ public:
     {
         while (! threadShouldExit())
         {
-            if (inputDevice != 0)
+            if (inputDevice != nullptr)
             {
                 if (! inputDevice->readFromInputDevice (inputChannelBuffer, bufferSize))
                 {
@@ -576,7 +576,7 @@ public:
                 const ScopedLock sl (callbackLock);
                 ++numCallbacks;
 
-                if (callback != 0)
+                if (callback != nullptr)
                 {
                     callback->audioDeviceIOCallback ((const float**) inputChannelDataForCallback.getRawDataPointer(),
                                                      inputChannelDataForCallback.size(),
@@ -591,7 +591,7 @@ public:
                 }
             }
 
-            if (outputDevice != 0)
+            if (outputDevice != nullptr)
             {
                 failed (snd_pcm_wait (outputDevice->handle, 2000));
 
@@ -609,12 +609,12 @@ public:
         }
     }
 
-    int getBitDepth() const throw()
+    int getBitDepth() const noexcept
     {
-        if (outputDevice != 0)
+        if (outputDevice != nullptr)
             return outputDevice->bitDepth;
 
-        if (inputDevice != 0)
+        if (inputDevice != nullptr)
             return inputDevice->bitDepth;
 
         return 16;
@@ -701,8 +701,8 @@ public:
         close();
     }
 
-    const StringArray getOutputChannelNames()       { return internal.channelNamesOut; }
-    const StringArray getInputChannelNames()        { return internal.channelNamesIn; }
+    StringArray getOutputChannelNames()             { return internal.channelNamesOut; }
+    StringArray getInputChannelNames()              { return internal.channelNamesIn; }
 
     int getNumSampleRates()                         { return internal.sampleRates.size(); }
     double getSampleRate (int index)                { return internal.sampleRates [index]; }
@@ -775,14 +775,14 @@ public:
     void start (AudioIODeviceCallback* callback)
     {
         if (! isOpen_)
-            callback = 0;
+            callback = nullptr;
 
-        if (callback != 0)
+        if (callback != nullptr)
             callback->audioDeviceAboutToStart (this);
 
         internal.setCallback (callback);
 
-        isStarted = (callback != 0);
+        isStarted = (callback != nullptr);
     }
 
     void stop()
@@ -791,7 +791,7 @@ public:
 
         start (0);
 
-        if (oldCallback != 0)
+        if (oldCallback != nullptr)
             oldCallback->audioDeviceStopped();
     }
 
@@ -866,8 +866,8 @@ public:
             snd_device_name_free_hint (hints);
         }
 */
-        snd_ctl_t* handle = 0;
-        snd_ctl_card_info_t* info = 0;
+        snd_ctl_t* handle = nullptr;
+        snd_ctl_card_info_t* info = nullptr;
         snd_ctl_card_info_alloca (&info);
 
         int cardNum = -1;
@@ -930,7 +930,7 @@ public:
         outputNames.appendNumbersToDuplicates (false, true);
     }
 
-    const StringArray getDeviceNames (bool wantInputNames) const
+    StringArray getDeviceNames (bool wantInputNames) const
     {
         jassert (hasScanned); // need to call scanForDevices() before doing this
 
@@ -950,7 +950,7 @@ public:
         jassert (hasScanned); // need to call scanForDevices() before doing this
 
         ALSAAudioIODevice* d = dynamic_cast <ALSAAudioIODevice*> (device);
-        if (d == 0)
+        if (d == nullptr)
             return -1;
 
         return asInput ? inputIds.indexOf (d->inputId)
@@ -973,7 +973,7 @@ public:
                                           inputIds [inputIndex],
                                           outputIds [outputIndex]);
 
-        return 0;
+        return nullptr;
     }
 
     //==============================================================================
@@ -1000,7 +1000,7 @@ private:
         return (isInput || isOutput) && rates.size() > 0;
     }
 
-    /*static const String getHint (void* hint, const char* type)
+    /*static String getHint (void* hint, const char* type)
     {
         char* const n = snd_device_name_get_hint (hint, type);
         const String s ((const char*) n);

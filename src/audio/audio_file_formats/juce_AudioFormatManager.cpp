@@ -32,6 +32,7 @@ BEGIN_JUCE_NAMESPACE
 #include "juce_WavAudioFormat.h"
 #include "juce_FlacAudioFormat.h"
 #include "juce_OggVorbisAudioFormat.h"
+#include "juce_CoreAudioFormat.h"
 #include "../../io/files/juce_FileInputStream.h"
 #include "../../memory/juce_ScopedPointer.h"
 
@@ -49,9 +50,9 @@ AudioFormatManager::~AudioFormatManager()
 //==============================================================================
 void AudioFormatManager::registerFormat (AudioFormat* newFormat, const bool makeThisTheDefaultFormat)
 {
-    jassert (newFormat != 0);
+    jassert (newFormat != nullptr);
 
-    if (newFormat != 0)
+    if (newFormat != nullptr)
     {
       #if JUCE_DEBUG
         for (int i = getNumKnownFormats(); --i >= 0;)
@@ -75,6 +76,7 @@ void AudioFormatManager::registerBasicFormats()
   #if JUCE_MAC
     registerFormat (new AiffAudioFormat(), true);
     registerFormat (new WavAudioFormat(), false);
+    registerFormat (new CoreAudioFormat(), false);
   #else
     registerFormat (new WavAudioFormat(), true);
     registerFormat (new AiffAudioFormat(), false);
@@ -120,10 +122,10 @@ AudioFormat* AudioFormatManager::findFormatForFileExtension (const String& fileE
         if (getKnownFormat(i)->getFileExtensions().contains (e, true))
             return getKnownFormat(i);
 
-    return 0;
+    return nullptr;
 }
 
-const String AudioFormatManager::getWildcardForAllFormats() const
+String AudioFormatManager::getWildcardForAllFormats() const
 {
     StringArray allExtensions;
 
@@ -166,17 +168,17 @@ AudioFormatReader* AudioFormatManager::createReaderFor (const File& file)
         {
             InputStream* const in = file.createInputStream();
 
-            if (in != 0)
+            if (in != nullptr)
             {
                 AudioFormatReader* const r = af->createReaderFor (in, true);
 
-                if (r != 0)
+                if (r != nullptr)
                     return r;
             }
         }
     }
 
-    return 0;
+    return nullptr;
 }
 
 AudioFormatReader* AudioFormatManager::createReaderFor (InputStream* audioFileStream)
@@ -187,7 +189,7 @@ AudioFormatReader* AudioFormatManager::createReaderFor (InputStream* audioFileSt
 
     ScopedPointer <InputStream> in (audioFileStream);
 
-    if (in != 0)
+    if (in != nullptr)
     {
         const int64 originalStreamPos = in->getPosition();
 
@@ -195,7 +197,7 @@ AudioFormatReader* AudioFormatManager::createReaderFor (InputStream* audioFileSt
         {
             AudioFormatReader* const r = getKnownFormat(i)->createReaderFor (in, false);
 
-            if (r != 0)
+            if (r != nullptr)
             {
                 in.release();
                 return r;
@@ -209,7 +211,7 @@ AudioFormatReader* AudioFormatManager::createReaderFor (InputStream* audioFileSt
         }
     }
 
-    return 0;
+    return nullptr;
 }
 
 

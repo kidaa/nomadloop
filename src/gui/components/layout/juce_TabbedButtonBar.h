@@ -142,7 +142,7 @@ public:
 
         @see setOrientation
     */
-    Orientation getOrientation() const throw()                      { return orientation; }
+    Orientation getOrientation() const noexcept                     { return orientation; }
 
     /** Changes the minimum scale factor to which the tabs can be compressed when trying to
         fit a lot of tabs on-screen.
@@ -183,7 +183,7 @@ public:
     int getNumTabs() const;
 
     /** Returns a list of all the tab names in the bar. */
-    const StringArray getTabNames() const;
+    StringArray getTabNames() const;
 
     /** Changes the currently selected tab.
 
@@ -199,13 +199,13 @@ public:
 
         This could be an empty string if none are selected.
     */
-    const String getCurrentTabName() const;
+    String getCurrentTabName() const;
 
     /** Returns the index of the currently selected tab.
 
         This could return -1 if none are selected.
     */
-    int getCurrentTabIndex() const throw()                              { return currentTabIndex; }
+    int getCurrentTabIndex() const noexcept                             { return currentTabIndex; }
 
     /** Returns the button for a specific tab.
 

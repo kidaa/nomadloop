@@ -31,7 +31,6 @@ BEGIN_JUCE_NAMESPACE
 #include "../events/juce_MessageManager.h"
 #include "../core/juce_Initialisation.h"
 #include "../threads/juce_Process.h"
-#include "../core/juce_PlatformUtilities.h"
 #include "../text/juce_LocalisedStrings.h"
 
 #if JUCE_MAC
@@ -39,28 +38,44 @@ BEGIN_JUCE_NAMESPACE
 #endif
 
 //==============================================================================
+class AppBroadcastCallback  : public ActionListener
+{
+public:
+    AppBroadcastCallback()    { MessageManager::getInstance()->registerBroadcastListener (this); }
+    ~AppBroadcastCallback()   { MessageManager::getInstance()->deregisterBroadcastListener (this); }
+
+    void actionListenerCallback (const String& message)
+    {
+        JUCEApplication* const app = JUCEApplication::getInstance();
+
+        if (app != 0 && message.startsWith (app->getApplicationName() + "/"))
+            app->anotherInstanceStarted (message.substring (app->getApplicationName().length() + 1));
+    }
+};
+
+//==============================================================================
 JUCEApplication::JUCEApplication()
     : appReturnValue (0),
       stillInitialising (true)
 {
-    jassert (isStandaloneApp() && appInstance == 0);
+    jassert (isStandaloneApp() && appInstance == nullptr);
     appInstance = this;
 }
 
 JUCEApplication::~JUCEApplication()
 {
-    if (appLock != 0)
+    if (appLock != nullptr)
     {
         appLock->exit();
-        appLock = 0;
+        appLock = nullptr;
     }
 
     jassert (appInstance == this);
-    appInstance = 0;
+    appInstance = nullptr;
 }
 
 JUCEApplication::CreateInstanceFunction JUCEApplication::createInstance = 0;
-JUCEApplication* JUCEApplication::appInstance = 0;
+JUCEApplication* JUCEApplication::appInstance = nullptr;
 
 //==============================================================================
 bool JUCEApplication::moreThanOneInstanceAllowed()
@@ -82,15 +97,9 @@ void JUCEApplication::quit()
     MessageManager::getInstance()->stopDispatchLoop();
 }
 
-void JUCEApplication::setApplicationReturnValue (const int newReturnValue) throw()
+void JUCEApplication::setApplicationReturnValue (const int newReturnValue) noexcept
 {
     appReturnValue = newReturnValue;
-}
-
-void JUCEApplication::actionListenerCallback (const String& message)
-{
-    if (message.startsWith (getApplicationName() + "/"))
-        anotherInstanceStarted (message.substring (getApplicationName().length() + 1));
 }
 
 //==============================================================================
@@ -105,14 +114,14 @@ void JUCEApplication::sendUnhandledException (const std::exception* const e,
                                               const char* const sourceFile,
                                               const int lineNumber)
 {
-    if (appInstance != 0)
+    if (appInstance != nullptr)
         appInstance->unhandledException (e, sourceFile, lineNumber);
 }
 
 //==============================================================================
 ApplicationCommandTarget* JUCEApplication::getNextCommandTarget()
 {
-    return 0;
+    return nullptr;
 }
 
 void JUCEApplication::getAllCommands (Array <CommandID>& commands)
@@ -149,8 +158,8 @@ bool JUCEApplication::initialiseApp (const String& commandLine)
 {
     commandLineParameters = commandLine.trim();
 
-#if ! JUCE_IOS
-    jassert (appLock == 0); // initialiseApp must only be called once!
+   #if ! JUCE_IOS
+    jassert (appLock == nullptr); // initialiseApp must only be called once!
 
     if (! moreThanOneInstanceAllowed())
     {
@@ -158,24 +167,25 @@ bool JUCEApplication::initialiseApp (const String& commandLine)
 
         if (! appLock->enter(0))
         {
-            appLock = 0;
+            appLock = nullptr;
             MessageManager::broadcastMessage (getApplicationName() + "/" + commandLineParameters);
 
             DBG ("Another instance is running - quitting...");
             return false;
         }
     }
-#endif
+   #endif
 
     // let the app do its setting-up..
     initialise (commandLineParameters);
 
-#if JUCE_MAC
+   #if JUCE_MAC
     juce_initialiseMacMainMenu(); // needs to be called after the app object has created, to get its name
-#endif
+   #endif
 
-    // register for broadcast new app messages
-    MessageManager::getInstance()->registerBroadcastListener (this);
+   #if ! JUCE_IOS
+    broadcastCallback = new AppBroadcastCallback();
+   #endif
 
     stillInitialising = false;
     return true;
@@ -185,7 +195,7 @@ int JUCEApplication::shutdownApp()
 {
     jassert (appInstance == this);
 
-    MessageManager::getInstance()->deregisterBroadcastListener (this);
+    broadcastCallback = nullptr;
 
     JUCE_TRY
     {
@@ -203,7 +213,7 @@ void JUCEApplication::appWillTerminateByForce()
     {
         const ScopedPointer<JUCEApplication> app (JUCEApplication::getInstance());
 
-        if (app != 0)
+        if (app != nullptr)
             app->shutdownApp();
     }
 
@@ -215,7 +225,7 @@ void JUCEApplication::appWillTerminateByForce()
 int JUCEApplication::main (const String& commandLine)
 {
     ScopedJuceInitialiser_GUI libraryInitialiser;
-    jassert (createInstance != 0);
+    jassert (createInstance != nullptr);
     int returnCode = 0;
 
     {
@@ -245,24 +255,32 @@ int JUCEApplication::main (const String& commandLine)
  extern const char* juce_Argv0;
 #endif
 
+#if JUCE_MAC
+ extern void initialiseNSApplication();
+#endif
+
 int JUCEApplication::main (int argc, const char* argv[])
 {
     JUCE_AUTORELEASEPOOL
 
-  #if ! JUCE_WINDOWS
-    jassert (createInstance != 0);
-    juce_Argv0 = argv[0];
-  #endif
+   #if JUCE_MAC
+    initialiseNSApplication();
+   #endif
 
-  #if JUCE_IOS
+   #if ! JUCE_WINDOWS
+    jassert (createInstance != nullptr);
+    juce_Argv0 = argv[0];
+   #endif
+
+   #if JUCE_IOS
     return juce_iOSMain (argc, argv);
-  #else
+   #else
     String cmd;
     for (int i = 1; i < argc; ++i)
         cmd << argv[i] << ' ';
 
     return JUCEApplication::main (cmd);
-  #endif
+   #endif
 }
 #endif
 

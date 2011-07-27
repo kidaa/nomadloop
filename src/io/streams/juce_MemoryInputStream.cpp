@@ -28,6 +28,7 @@
 BEGIN_JUCE_NAMESPACE
 
 #include "juce_MemoryInputStream.h"
+#include "../../memory/juce_MemoryBlock.h"
 
 
 //==============================================================================
@@ -39,10 +40,7 @@ MemoryInputStream::MemoryInputStream (const void* const sourceData,
       position (0)
 {
     if (keepInternalCopy)
-    {
-        internalCopy.append (data, sourceDataSize);
-        data = static_cast <const char*> (internalCopy.getData());
-    }
+        createInternalCopy();
 }
 
 MemoryInputStream::MemoryInputStream (const MemoryBlock& sourceData,
@@ -52,10 +50,14 @@ MemoryInputStream::MemoryInputStream (const MemoryBlock& sourceData,
       position (0)
 {
     if (keepInternalCopy)
-    {
-        internalCopy = sourceData;
-        data = static_cast <const char*> (internalCopy.getData());
-    }
+        createInternalCopy();
+}
+
+void MemoryInputStream::createInternalCopy()
+{
+    internalCopy.malloc (dataSize);
+    memcpy (internalCopy, data, dataSize);
+    data = internalCopy;
 }
 
 MemoryInputStream::~MemoryInputStream()
@@ -71,6 +73,9 @@ int MemoryInputStream::read (void* const buffer, const int howMany)
 {
     jassert (howMany >= 0);
     const int num = jmin (howMany, (int) (dataSize - position));
+    if (num <= 0)
+        return 0;
+
     memcpy (buffer, data + position, num);
     position += num;
     return (int) num;
@@ -78,7 +83,7 @@ int MemoryInputStream::read (void* const buffer, const int howMany)
 
 bool MemoryInputStream::isExhausted()
 {
-    return (position >= dataSize);
+    return position >= dataSize;
 }
 
 bool MemoryInputStream::setPosition (const int64 pos)
@@ -93,6 +98,7 @@ int64 MemoryInputStream::getPosition()
 }
 
 
+//==============================================================================
 #if JUCE_UNIT_TESTS
 
 #include "../../utilities/juce_UnitTest.h"
@@ -107,10 +113,11 @@ public:
     void runTest()
     {
         beginTest ("Basics");
+        Random r;
 
-        int randomInt = Random::getSystemRandom().nextInt();
-        int64 randomInt64 = Random::getSystemRandom().nextInt64();
-        double randomDouble = Random::getSystemRandom().nextDouble();
+        int randomInt = r.nextInt();
+        int64 randomInt64 = r.nextInt64();
+        double randomDouble = r.nextDouble();
         String randomString (createRandomWideCharString());
 
         MemoryOutputStream mo;
@@ -134,22 +141,23 @@ public:
         expect (mi.readDoubleBigEndian() == randomDouble);
     }
 
-    static const String createRandomWideCharString()
+    static String createRandomWideCharString()
     {
         juce_wchar buffer [50] = { 0 };
+        Random r;
 
         for (int i = 0; i < numElementsInArray (buffer) - 1; ++i)
         {
-            if (Random::getSystemRandom().nextBool())
+            if (r.nextBool())
             {
                 do
                 {
-                    buffer[i] = (juce_wchar) (1 + Random::getSystemRandom().nextInt (0x10ffff - 1));
+                    buffer[i] = (juce_wchar) (1 + r.nextInt (0x10ffff - 1));
                 }
                 while (! CharPointer_UTF16::canRepresent (buffer[i]));
             }
             else
-                buffer[i] = (juce_wchar) (1 + Random::getSystemRandom().nextInt (0xff));
+                buffer[i] = (juce_wchar) (1 + r.nextInt (0xff));
         }
 
         return CharPointer_UTF32 (buffer);

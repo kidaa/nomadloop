@@ -49,12 +49,12 @@ public:
     ~OggVorbisAudioFormat();
 
     //==============================================================================
-    const Array <int> getPossibleSampleRates();
-    const Array <int> getPossibleBitDepths();
+    const Array<int> getPossibleSampleRates();
+    const Array<int> getPossibleBitDepths();
     bool canDoStereo();
     bool canDoMono();
     bool isCompressed();
-    const StringArray getQualityOptions();
+    StringArray getQualityOptions();
 
     //==============================================================================
     /** Tries to estimate the quality level of an ogg file based on its size.
@@ -80,7 +80,7 @@ public:
                                         int qualityOptionIndex);
 
 private:
-    JUCE_LEAK_DETECTOR (OggVorbisAudioFormat);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OggVorbisAudioFormat);
 };
 
 

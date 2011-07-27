@@ -47,10 +47,10 @@ public:
     //==============================================================================
     RecentlyOpenedFilesList recentFiles;
 
-    const Array<File> getLastProjects() const;
+    Array<File> getLastProjects() const;
     void setLastProjects (const Array<File>& files);
 
-    const File getLastKnownJuceFolder() const;
+    File getLastKnownJuceFolder() const;
     void setLastKnownJuceFolder (const File& file);
 
     const StringArray& getFontNames();
@@ -70,7 +70,7 @@ public:
 
 
     //==============================================================================
-    const Image getFallbackImage();
+    Image getFallbackImage();
     const Drawable* getImageFileIcon();
 
 

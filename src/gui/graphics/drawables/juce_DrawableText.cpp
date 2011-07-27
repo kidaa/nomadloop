@@ -130,12 +130,12 @@ void DrawableText::refreshBounds()
     }
 }
 
-bool DrawableText::registerCoordinates (RelativeCoordinatePositionerBase& positioner)
+bool DrawableText::registerCoordinates (RelativeCoordinatePositionerBase& pos)
 {
-    bool ok = positioner.addPoint (bounds.topLeft);
-    ok = positioner.addPoint (bounds.topRight) && ok;
-    ok = positioner.addPoint (bounds.bottomLeft) && ok;
-    return positioner.addPoint (fontSizeControlPoint) && ok;
+    bool ok = pos.addPoint (bounds.topLeft);
+    ok = pos.addPoint (bounds.topRight) && ok;
+    ok = pos.addPoint (bounds.bottomLeft) && ok;
+    return pos.addPoint (fontSizeControlPoint) && ok;
 }
 
 void DrawableText::recalculateCoordinates (Expression::Scope* scope)
@@ -181,7 +181,7 @@ void DrawableText::paint (Graphics& g)
     ga.draw (g, transform);
 }
 
-const Rectangle<float> DrawableText::getDrawableBounds() const
+Rectangle<float> DrawableText::getDrawableBounds() const
 {
     return RelativeParallelogram::getBoundingBox (resolvedPoints);
 }
@@ -210,7 +210,7 @@ DrawableText::ValueTreeWrapper::ValueTreeWrapper (const ValueTree& state_)
     jassert (state.hasType (valueTreeType));
 }
 
-const String DrawableText::ValueTreeWrapper::getText() const
+String DrawableText::ValueTreeWrapper::getText() const
 {
     return state [text].toString();
 }
@@ -225,7 +225,7 @@ Value DrawableText::ValueTreeWrapper::getTextValue (UndoManager* undoManager)
     return state.getPropertyAsValue (text, undoManager);
 }
 
-const Colour DrawableText::ValueTreeWrapper::getColour() const
+Colour DrawableText::ValueTreeWrapper::getColour() const
 {
     return Colour::fromString (state [colour].toString());
 }
@@ -235,7 +235,7 @@ void DrawableText::ValueTreeWrapper::setColour (const Colour& newColour, UndoMan
     state.setProperty (colour, newColour.toString(), undoManager);
 }
 
-const Justification DrawableText::ValueTreeWrapper::getJustification() const
+Justification DrawableText::ValueTreeWrapper::getJustification() const
 {
     return Justification ((int) state [justification]);
 }
@@ -245,7 +245,7 @@ void DrawableText::ValueTreeWrapper::setJustification (const Justification& newJ
     state.setProperty (justification, newJustification.getFlags(), undoManager);
 }
 
-const Font DrawableText::ValueTreeWrapper::getFont() const
+Font DrawableText::ValueTreeWrapper::getFont() const
 {
     return Font::fromString (state [font]);
 }
@@ -260,7 +260,7 @@ Value DrawableText::ValueTreeWrapper::getFontValue (UndoManager* undoManager)
     return state.getPropertyAsValue (font, undoManager);
 }
 
-const RelativeParallelogram DrawableText::ValueTreeWrapper::getBoundingBox() const
+RelativeParallelogram DrawableText::ValueTreeWrapper::getBoundingBox() const
 {
     return RelativeParallelogram (state [topLeft].toString(), state [topRight].toString(), state [bottomLeft].toString());
 }
@@ -272,7 +272,7 @@ void DrawableText::ValueTreeWrapper::setBoundingBox (const RelativeParallelogram
     state.setProperty (bottomLeft, newBounds.bottomLeft.toString(), undoManager);
 }
 
-const RelativePoint DrawableText::ValueTreeWrapper::getFontSizeControlPoint() const
+RelativePoint DrawableText::ValueTreeWrapper::getFontSizeControlPoint() const
 {
     return state [fontSizeAnchor].toString();
 }
@@ -307,18 +307,18 @@ void DrawableText::refreshFromValueTree (const ValueTree& tree, ComponentBuilder
     }
 }
 
-const ValueTree DrawableText::createValueTree (ComponentBuilder::ImageProvider*) const
+ValueTree DrawableText::createValueTree (ComponentBuilder::ImageProvider*) const
 {
     ValueTree tree (valueTreeType);
     ValueTreeWrapper v (tree);
 
     v.setID (getComponentID());
-    v.setText (text, 0);
-    v.setFont (font, 0);
-    v.setJustification (justification, 0);
-    v.setColour (colour, 0);
-    v.setBoundingBox (bounds, 0);
-    v.setFontSizeControlPoint (fontSizeControlPoint, 0);
+    v.setText (text, nullptr);
+    v.setFont (font, nullptr);
+    v.setJustification (justification, nullptr);
+    v.setColour (colour, nullptr);
+    v.setBoundingBox (bounds, nullptr);
+    v.setFontSizeControlPoint (fontSizeControlPoint, nullptr);
 
     return tree;
 }

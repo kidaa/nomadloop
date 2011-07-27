@@ -30,22 +30,23 @@
 #include "../Code Editor/jucer_SourceCodeEditor.h"
 #include "../Project/jucer_NewProjectWizard.h"
 
-ApplicationCommandManager* commandManager = 0;
+ApplicationCommandManager* commandManager = nullptr;
 
 
 //==============================================================================
 MainWindow::MainWindow()
     : DocumentWindow (JUCEApplication::getInstance()->getApplicationName(),
                       Colour::greyLevel (0.6f),
-                      DocumentWindow::allButtons)
+                      DocumentWindow::allButtons,
+                      false)
 {
     setUsingNativeTitleBar (true);
     setContentOwned (new ProjectContentComponent(), false);
 
-#if ! JUCE_MAC
+   #if ! JUCE_MAC
     JucerApplication* app = static_cast<JucerApplication*> (JUCEApplication::getInstance());
     setMenuBar (app->menuModel);
-#endif
+   #endif
 
     setResizable (true, false);
 
@@ -59,7 +60,7 @@ MainWindow::MainWindow()
         ProjectContentComponent pcc;
         commandManager->registerAllCommandsForTarget (&pcc);
 
-        DocumentEditorComponent dec (0);
+        DocumentEditorComponent dec (nullptr);
         commandManager->registerAllCommandsForTarget (&dec);
     }
 
@@ -67,7 +68,7 @@ MainWindow::MainWindow()
 
     ScopedPointer <XmlElement> keys (StoredSettings::getInstance()->getProps().getXmlValue ("keyMappings"));
 
-    if (keys != 0)
+    if (keys != nullptr)
         commandManager->getKeyMappings()->restoreFromXml (*keys);
 
     addKeyListener (commandManager->getKeyMappings());
@@ -81,9 +82,9 @@ MainWindow::MainWindow()
 
 MainWindow::~MainWindow()
 {
-#if ! JUCE_MAC
-    setMenuBar (0);
-#endif
+   #if ! JUCE_MAC
+    setMenuBar (nullptr);
+   #endif
 
     removeKeyListener (commandManager->getKeyMappings());
 
@@ -92,7 +93,16 @@ MainWindow::~MainWindow()
         .setValue ("lastMainWindowPos", getWindowStateAsString());
 
     clearContentComponent();
-    currentProject = 0;
+    currentProject = nullptr;
+}
+
+void MainWindow::makeVisible()
+{
+    setVisible (true);
+    restoreWindowPosition();
+    addToDesktop();
+
+    getContentComponent()->grabKeyboardFocus();
 }
 
 ProjectContentComponent* MainWindow::getProjectContentComponent() const
@@ -111,9 +121,9 @@ void MainWindow::closeButtonPressed()
 
 bool MainWindow::closeProject (Project* project)
 {
-    jassert (project == currentProject && project != 0);
+    jassert (project == currentProject && project != nullptr);
 
-    if (project == 0)
+    if (project == nullptr)
         return true;
 
     StoredSettings::getInstance()->getProps()
@@ -126,7 +136,7 @@ bool MainWindow::closeProject (Project* project)
 
     if (r == FileBasedDocument::savedOk)
     {
-        setProject (0);
+        setProject (nullptr);
         return true;
     }
 
@@ -135,7 +145,7 @@ bool MainWindow::closeProject (Project* project)
 
 bool MainWindow::closeCurrentProject()
 {
-    return currentProject == 0 || closeProject (currentProject);
+    return currentProject == nullptr || closeProject (currentProject);
 }
 
 void MainWindow::setProject (Project* newProject)
@@ -146,7 +156,7 @@ void MainWindow::setProject (Project* newProject)
 
     // (mustn't do this when the project is 0, because that'll happen on shutdown,
     // which will erase the list of recent projects)
-    if (newProject != 0)
+    if (newProject != nullptr)
         static_cast<JucerApplication*> (JUCEApplication::getInstance())->updateRecentProjectList();
 }
 
@@ -154,7 +164,7 @@ void MainWindow::restoreWindowPosition()
 {
     String windowState;
 
-    if (currentProject != 0)
+    if (currentProject != nullptr)
         windowState = StoredSettings::getInstance()->getProps().getValue (getProjectWindowPosName());
 
     if (windowState.isEmpty())
@@ -175,14 +185,11 @@ bool MainWindow::openFile (const File& file)
     {
         ScopedPointer <Project> newDoc (new Project (file));
 
-        if (file == File::nonexistent ? newDoc->loadFromUserSpecifiedFile (true)
-                                      : newDoc->loadFrom (file, true))
+        if (newDoc->loadFrom (file, true)
+             && closeCurrentProject())
         {
-            if (closeCurrentProject())
-            {
-                setProject (newDoc.release());
-                return true;
-            }
+            setProject (newDoc.release());
+            return true;
         }
     }
     else if (file.exists())
@@ -217,7 +224,7 @@ void MainWindow::activeWindowStatusChanged()
 {
     DocumentWindow::activeWindowStatusChanged();
 
-    if (getProjectContentComponent() != 0)
+    if (getProjectContentComponent() != nullptr)
         getProjectContentComponent()->updateMissingFileStatuses();
 
     OpenDocumentManager::getInstance()->reloadModifiedFiles();
@@ -226,6 +233,10 @@ void MainWindow::activeWindowStatusChanged()
 void MainWindow::updateTitle (const String& documentName)
 {
     String name (JUCEApplication::getInstance()->getApplicationName());
+
+    if (currentProject != nullptr)
+        name = currentProject->getDocumentTitle() + " - " + name;
+
     if (documentName.isNotEmpty())
         name = documentName + " - " + name;
 

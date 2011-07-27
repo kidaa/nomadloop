@@ -160,7 +160,7 @@ namespace XSHMHelpers
         return 0;
     }
 
-    static bool isShmAvailable() throw()
+    static bool isShmAvailable() noexcept
     {
         static bool isChecked = false;
         static bool isAvailable = false;
@@ -275,7 +275,7 @@ namespace XRender
     {
         ScopedXLock xlock;
 
-        XRenderPictFormat* pictFormat = 0;
+        XRenderPictFormat* pictFormat = nullptr;
 
         if (isAvailable())
         {
@@ -316,11 +316,11 @@ namespace XRender
 //==============================================================================
 namespace Visuals
 {
-    static Visual* findVisualWithDepth (const int desiredDepth) throw()
+    static Visual* findVisualWithDepth (const int desiredDepth) noexcept
     {
         ScopedXLock xlock;
 
-        Visual* visual = 0;
+        Visual* visual = nullptr;
         int numVisuals = 0;
         long desiredMask = VisualNoMask;
         XVisualInfo desiredVisual;
@@ -367,16 +367,16 @@ namespace Visuals
         return visual;
     }
 
-    static Visual* findVisualFormat (const int desiredDepth, int& matchedDepth) throw()
+    static Visual* findVisualFormat (const int desiredDepth, int& matchedDepth) noexcept
     {
-        Visual* visual = 0;
+        Visual* visual = nullptr;
 
         if (desiredDepth == 32)
         {
-#if JUCE_USE_XSHM
+           #if JUCE_USE_XSHM
             if (XSHMHelpers::isShmAvailable())
             {
-#if JUCE_USE_XRENDER
+               #if JUCE_USE_XRENDER
                 if (XRender::isAvailable())
                 {
                     XRenderPictFormat* pictFormat = XRender::findPictureFormat();
@@ -412,7 +412,7 @@ namespace Visuals
                         }
                     }
                 }
-#endif
+               #endif
                 if (visual == 0)
                 {
                     visual = findVisualWithDepth (32);
@@ -420,7 +420,7 @@ namespace Visuals
                         matchedDepth = 32;
                 }
             }
-#endif
+           #endif
         }
 
         if (visual == 0 && desiredDepth >= 24)
@@ -459,7 +459,7 @@ public:
 
         ScopedXLock xlock;
 
-#if JUCE_USE_XSHM
+       #if JUCE_USE_XSHM
         usingXShm = false;
 
         if ((imageDepth > 16) && XSHMHelpers::isShmAvailable())
@@ -504,12 +504,12 @@ public:
         }
 
         if (! usingXShm)
-#endif
+       #endif
         {
             imageDataAllocated.allocate (lineStride * h, format_ == Image::ARGB && clearImage);
             imageData = imageDataAllocated;
 
-            xImage = (XImage*) juce_calloc (sizeof (XImage));
+            xImage = (XImage*) ::calloc (1, sizeof (XImage));
 
             xImage->width = w;
             xImage->height = h;
@@ -555,7 +555,7 @@ public:
         if (gc != None)
             XFreeGC (display, gc);
 
-#if JUCE_USE_XSHM
+       #if JUCE_USE_XSHM
         if (usingXShm)
         {
             XShmDetach (display, &segmentInfo);
@@ -567,9 +567,9 @@ public:
             shmctl (segmentInfo.shmid, IPC_RMID, 0);
         }
         else
-#endif
+       #endif
         {
-            xImage->data = 0;
+            xImage->data = nullptr;
             XDestroyImage (xImage);
         }
     }
@@ -592,7 +592,7 @@ public:
     SharedImage* clone()
     {
         jassertfalse;
-        return 0;
+        return nullptr;
     }
 
     void blitToWindow (Window window, int dx, int dy, int dw, int dh, int sx, int sy)
@@ -646,11 +646,11 @@ public:
         }
 
         // blit results to screen.
-#if JUCE_USE_XSHM
+       #if JUCE_USE_XSHM
         if (usingXShm)
             XShmPutImage (display, (::Drawable) window, gc, xImage, sx, sy, dx, dy, dw, dh, True);
         else
-#endif
+       #endif
             XPutImage (display, (::Drawable) window, gc, xImage, sx, sy, dx, dy, dw, dh);
     }
 
@@ -662,15 +662,14 @@ private:
     HeapBlock <char> imageData16Bit;
     int pixelStride, lineStride;
     uint8* imageData;
-
     GC gc;
 
-#if JUCE_USE_XSHM
+   #if JUCE_USE_XSHM
     XShmSegmentInfo segmentInfo;
     bool usingXShm;
-#endif
+   #endif
 
-    static int getShiftNeeded (const uint32 mask) throw()
+    static int getShiftNeeded (const uint32 mask) noexcept
     {
         for (int i = 32; --i >= 0;)
             if (((mask >> i) & 1) != 0)
@@ -781,14 +780,14 @@ public:
         return (void*) windowH;
     }
 
-    static LinuxComponentPeer* getPeerFor (Window windowHandle) throw()
+    static LinuxComponentPeer* getPeerFor (Window windowHandle) noexcept
     {
         XPointer peer = 0;
 
         ScopedXLock xlock;
         if (! XFindContext (display, (XID) windowHandle, windowHandleXContext, &peer))
         {
-            if (peer != 0 && ! ComponentPeer::isValidPeer ((LinuxComponentPeer*) peer))
+            if (peer != nullptr && ! ComponentPeer::isValidPeer ((LinuxComponentPeer*) peer))
                 peer = 0;
         }
 
@@ -958,7 +957,7 @@ public:
 
     bool isChildWindowOf (Window possibleParent) const
     {
-        Window* windowList = 0;
+        Window* windowList = nullptr;
         uint32 windowListSize = 0;
         Window parent, root;
 
@@ -976,7 +975,7 @@ public:
 
     bool isFrontWindow() const
     {
-        Window* windowList = 0;
+        Window* windowList = nullptr;
         uint32 windowListSize = 0;
         bool result = false;
 
@@ -1091,9 +1090,9 @@ public:
     void toBehind (ComponentPeer* other)
     {
         LinuxComponentPeer* const otherPeer = dynamic_cast <LinuxComponentPeer*> (other);
-        jassert (otherPeer != 0); // wrong type of window?
+        jassert (otherPeer != nullptr); // wrong type of window?
 
-        if (otherPeer != 0)
+        if (otherPeer != nullptr)
         {
             setMinimised (false);
 
@@ -1438,14 +1437,14 @@ public:
         {
             lastMousePos = mousePos;
 
-            if (parentWindow != 0 && (styleFlags & windowHasTitleBar) == 0)
+            if (parentWindow != nullptr && (styleFlags & windowHasTitleBar) == 0)
             {
                 Window wRoot = 0, wParent = 0;
 
                 {
                     ScopedXLock xlock;
                     unsigned int numChildren;
-                    Window* wChild = 0;
+                    Window* wChild = nullptr;
                     XQueryTree (display, windowH, &wRoot, &wParent, &wChild, &numChildren);
                 }
 
@@ -1562,7 +1561,7 @@ public:
     {
         parentWindow = 0;
         Window wRoot = 0;
-        Window* wChild = 0;
+        Window* wChild = nullptr;
         unsigned int numChildren;
 
         {
@@ -1653,7 +1652,7 @@ public:
     }
 
     //==============================================================================
-    void showMouseCursor (Cursor cursor) throw()
+    void showMouseCursor (Cursor cursor) noexcept
     {
         ScopedXLock xlock;
         XDefineCursor (display, windowH, cursor);
@@ -1716,7 +1715,7 @@ public:
         XFree (hints);
     }
 
-    const Image& getTaskbarIcon() const throw()           { return taskbarImage; }
+    const Image& getTaskbarIcon() const noexcept          { return taskbarImage; }
 
     //==============================================================================
     bool dontRepaint;
@@ -1733,7 +1732,7 @@ private:
             : peer (peer_),
               lastTimeImageUsed (0)
         {
-          #if JUCE_USE_XSHM
+           #if JUCE_USE_XSHM
             shmCompletedDrawing = true;
 
             useARGBImagesForRendering = XSHMHelpers::isShmAvailable();
@@ -1750,15 +1749,15 @@ private:
                 useARGBImagesForRendering = (testImage->bits_per_pixel == 32);
                 XDestroyImage (testImage);
             }
-          #endif
+           #endif
         }
 
         void timerCallback()
         {
-          #if JUCE_USE_XSHM
+           #if JUCE_USE_XSHM
             if (! shmCompletedDrawing)
                 return;
-          #endif
+           #endif
             if (! regionsNeedingRepaint.isEmpty())
             {
                 stopTimer();
@@ -1781,13 +1780,13 @@ private:
 
         void performAnyPendingRepaintsNow()
         {
-          #if JUCE_USE_XSHM
+           #if JUCE_USE_XSHM
             if (! shmCompletedDrawing)
             {
                 startTimer (repaintTimerPeriod);
                 return;
             }
-          #endif
+           #endif
 
             peer->clearMaskedRegion();
 
@@ -1800,12 +1799,12 @@ private:
                 if (image.isNull() || image.getWidth() < totalArea.getWidth()
                      || image.getHeight() < totalArea.getHeight())
                 {
-                  #if JUCE_USE_XSHM
+                   #if JUCE_USE_XSHM
                     image = Image (new XBitmapImage (useARGBImagesForRendering ? Image::ARGB
                                                                                : Image::RGB,
-                  #else
+                   #else
                     image = Image (new XBitmapImage (Image::RGB,
-                  #endif
+                   #endif
                                                      (totalArea.getWidth() + 31) & ~31,
                                                      (totalArea.getHeight() + 31) & ~31,
                                                      false, peer->depth, peer->visual));
@@ -1832,9 +1831,9 @@ private:
 
                 for (RectangleList::Iterator i (originalRepaintRegion); i.next();)
                 {
-                  #if JUCE_USE_XSHM
+                   #if JUCE_USE_XSHM
                     shmCompletedDrawing = false;
-                  #endif
+                   #endif
                     const Rectangle<int>& r = *i.getRectangle();
 
                     static_cast<XBitmapImage*> (image.getSharedImage())
@@ -1848,9 +1847,9 @@ private:
             startTimer (repaintTimerPeriod);
         }
 
-      #if JUCE_USE_XSHM
+       #if JUCE_USE_XSHM
         void notifyPaintCompleted()                 { shmCompletedDrawing = true; }
-      #endif
+       #endif
 
     private:
         enum { repaintTimerPeriod = 1000 / 100 };
@@ -1860,9 +1859,9 @@ private:
         uint32 lastTimeImageUsed;
         RectangleList regionsNeedingRepaint;
 
-      #if JUCE_USE_XSHM
+       #if JUCE_USE_XSHM
         bool useARGBImagesForRendering, shmCompletedDrawing;
-      #endif
+       #endif
         JUCE_DECLARE_NON_COPYABLE (LinuxRepaintManager);
     };
 
@@ -1886,7 +1885,7 @@ private:
         unsigned long status;
     };
 
-    static void updateKeyStates (const int keycode, const bool press) throw()
+    static void updateKeyStates (const int keycode, const bool press) noexcept
     {
         const int keybyte = keycode >> 3;
         const int keybit = (1 << (keycode & 7));
@@ -1897,13 +1896,13 @@ private:
             Keys::keyStates [keybyte] &= ~keybit;
     }
 
-    static void updateKeyModifiers (const int status) throw()
+    static void updateKeyModifiers (const int status) noexcept
     {
         int keyMods = 0;
 
-        if (status & ShiftMask)     keyMods |= ModifierKeys::shiftModifier;
-        if (status & ControlMask)   keyMods |= ModifierKeys::ctrlModifier;
-        if (status & Keys::AltMask)       keyMods |= ModifierKeys::altModifier;
+        if ((status & ShiftMask) != 0)     keyMods |= ModifierKeys::shiftModifier;
+        if ((status & ControlMask) != 0)   keyMods |= ModifierKeys::ctrlModifier;
+        if ((status & Keys::AltMask) != 0) keyMods |= ModifierKeys::altModifier;
 
         currentModifiers = currentModifiers.withOnlyMouseButtons().withFlags (keyMods);
 
@@ -1911,7 +1910,7 @@ private:
         Keys::capsLock = ((status & LockMask) != 0);
     }
 
-    static bool updateKeyModifiersFromSym (KeySym sym, const bool press) throw()
+    static bool updateKeyModifiersFromSym (KeySym sym, const bool press) noexcept
     {
         int modifier = 0;
         bool isModifier = true;
@@ -1966,7 +1965,7 @@ private:
 
     // Alt and Num lock are not defined by standard X
     // modifier constants: check what they're mapped to
-    static void updateModifierMappings() throw()
+    static void updateModifierMappings() noexcept
     {
         ScopedXLock xlock;
         const int altLeftCode = XKeysymToKeycode (display, XK_Alt_L);
@@ -2265,7 +2264,7 @@ private:
         {}
     }
 
-    static int getAllEventsMask() throw()
+    static int getAllEventsMask() noexcept
     {
         return NoEventMask | KeyPressMask | KeyReleaseMask | ButtonPressMask | ButtonReleaseMask
                  | EnterWindowMask | LeaveWindowMask | PointerMotionMask | KeymapStateMask
@@ -2296,7 +2295,7 @@ private:
 
             if (hints != None)
             {
-                unsigned char* data = 0;
+                unsigned char* data = nullptr;
                 unsigned long nitems, bytesLeft;
                 Atom actualType;
                 int actualFormat;
@@ -2592,7 +2591,7 @@ private:
     static int pointerMap[5];
     static Point<int> lastMousePos;
 
-    static void clearLastMousePos() throw()
+    static void clearLastMousePos() noexcept
     {
         lastMousePos = Point<int> (0x100000, 0x100000);
     }
@@ -2612,12 +2611,12 @@ bool Process::isForegroundProcess()
 }
 
 //==============================================================================
-void ModifierKeys::updateCurrentModifiers() throw()
+void ModifierKeys::updateCurrentModifiers() noexcept
 {
     currentModifiers = LinuxComponentPeer::currentModifiers;
 }
 
-const ModifierKeys ModifierKeys::getCurrentModifiersRealtime() throw()
+ModifierKeys ModifierKeys::getCurrentModifiersRealtime() noexcept
 {
     Window root, child;
     int x, y, winx, winy;
@@ -2759,7 +2758,7 @@ void Desktop::getCurrentMonitorPositions (Array <Rectangle<int> >& monitorCoords
                 unsigned long nitems, bytesLeft;
                 Atom actualType;
                 int actualFormat;
-                unsigned char* data = 0;
+                unsigned char* data = nullptr;
 
                 if (XGetWindowProperty (display, root, hints, 0, 4, False,
                                         XA_CARDINAL, &actualType, &actualFormat, &nitems, &bytesLeft,
@@ -2790,7 +2789,7 @@ void Desktop::createMouseInputSources()
     mouseSources.add (new MouseInputSource (0, true));
 }
 
-bool Desktop::canUseSemiTransparentWindows() throw()
+bool Desktop::canUseSemiTransparentWindows() noexcept
 {
     int matchedDepth = 0;
     const int desiredDepth = 32;
@@ -2799,7 +2798,7 @@ bool Desktop::canUseSemiTransparentWindows() throw()
              && (matchedDepth == desiredDepth);
 }
 
-const Point<int> MouseInputSource::getCurrentMousePosition()
+Point<int> MouseInputSource::getCurrentMousePosition()
 {
     Window root, child;
     int x, y, winx, winy;
@@ -2928,7 +2927,7 @@ void* MouseCursor::createMouseCursorFromImage (const Image& image, int hotspotX,
     Window root = RootWindow (display, DefaultScreen (display));
     unsigned int cursorW, cursorH;
     if (! XQueryBestCursor (display, root, imageW, imageH, &cursorW, &cursorH))
-        return 0;
+        return nullptr;
 
     Image im (Image::ARGB, cursorW, cursorH, true);
 
@@ -3066,7 +3065,7 @@ void MouseCursor::showInAllWindows() const
 }
 
 //==============================================================================
-const Image juce_createIconForFile (const File& file)
+Image juce_createIconForFile (const File& file)
 {
     return Image::null;
 }
@@ -3075,215 +3074,6 @@ Image::SharedImage* Image::SharedImage::createNativeImage (PixelFormat format, i
 {
     return createSoftwareImage (format, width, height, clearImage);
 }
-
-
-//==============================================================================
-#if JUCE_OPENGL
-
-
-//==============================================================================
-class WindowedGLContext     : public OpenGLContext
-{
-public:
-    WindowedGLContext (Component* const component,
-                       const OpenGLPixelFormat& pixelFormat_,
-                       GLXContext sharedContext)
-        : renderContext (0),
-          embeddedWindow (0),
-          pixelFormat (pixelFormat_),
-          swapInterval (0)
-    {
-        jassert (component != 0);
-        LinuxComponentPeer* const peer = dynamic_cast <LinuxComponentPeer*> (component->getTopLevelComponent()->getPeer());
-        if (peer == 0)
-            return;
-
-        ScopedXLock xlock;
-        XSync (display, False);
-
-        GLint attribs [64];
-        int n = 0;
-        attribs[n++] = GLX_RGBA;
-        attribs[n++] = GLX_DOUBLEBUFFER;
-        attribs[n++] = GLX_RED_SIZE;
-        attribs[n++] = pixelFormat.redBits;
-        attribs[n++] = GLX_GREEN_SIZE;
-        attribs[n++] = pixelFormat.greenBits;
-        attribs[n++] = GLX_BLUE_SIZE;
-        attribs[n++] = pixelFormat.blueBits;
-        attribs[n++] = GLX_ALPHA_SIZE;
-        attribs[n++] = pixelFormat.alphaBits;
-        attribs[n++] = GLX_DEPTH_SIZE;
-        attribs[n++] = pixelFormat.depthBufferBits;
-        attribs[n++] = GLX_STENCIL_SIZE;
-        attribs[n++] = pixelFormat.stencilBufferBits;
-        attribs[n++] = GLX_ACCUM_RED_SIZE;
-        attribs[n++] = pixelFormat.accumulationBufferRedBits;
-        attribs[n++] = GLX_ACCUM_GREEN_SIZE;
-        attribs[n++] = pixelFormat.accumulationBufferGreenBits;
-        attribs[n++] = GLX_ACCUM_BLUE_SIZE;
-        attribs[n++] = pixelFormat.accumulationBufferBlueBits;
-        attribs[n++] = GLX_ACCUM_ALPHA_SIZE;
-        attribs[n++] = pixelFormat.accumulationBufferAlphaBits;
-
-        // xxx not sure how to do fullSceneAntiAliasingNumSamples on linux..
-
-        attribs[n++] = None;
-
-        XVisualInfo* const bestVisual = glXChooseVisual (display, DefaultScreen (display), attribs);
-
-        if (bestVisual == 0)
-            return;
-
-        renderContext = glXCreateContext (display, bestVisual, sharedContext, GL_TRUE);
-
-        Window windowH = (Window) peer->getNativeHandle();
-
-        Colormap colourMap = XCreateColormap (display, windowH, bestVisual->visual, AllocNone);
-        XSetWindowAttributes swa;
-        swa.colormap = colourMap;
-        swa.border_pixel = 0;
-        swa.event_mask = ExposureMask | StructureNotifyMask;
-
-        embeddedWindow = XCreateWindow (display, windowH,
-                                        0, 0, 1, 1, 0,
-                                        bestVisual->depth,
-                                        InputOutput,
-                                        bestVisual->visual,
-                                        CWBorderPixel | CWColormap | CWEventMask,
-                                        &swa);
-
-        XSaveContext (display, (XID) embeddedWindow, windowHandleXContext, (XPointer) peer);
-
-        XMapWindow (display, embeddedWindow);
-        XFreeColormap (display, colourMap);
-
-        XFree (bestVisual);
-        XSync (display, False);
-    }
-
-    ~WindowedGLContext()
-    {
-        ScopedXLock xlock;
-        deleteContext();
-
-        XUnmapWindow (display, embeddedWindow);
-        XDestroyWindow (display, embeddedWindow);
-    }
-
-    void deleteContext()
-    {
-        makeInactive();
-
-        if (renderContext != 0)
-        {
-            ScopedXLock xlock;
-            glXDestroyContext (display, renderContext);
-            renderContext = 0;
-        }
-    }
-
-    bool makeActive() const throw()
-    {
-        jassert (renderContext != 0);
-
-        ScopedXLock xlock;
-        return glXMakeCurrent (display, embeddedWindow, renderContext)
-                && XSync (display, False);
-    }
-
-    bool makeInactive() const throw()
-    {
-        ScopedXLock xlock;
-        return (! isActive()) || glXMakeCurrent (display, None, 0);
-    }
-
-    bool isActive() const throw()
-    {
-        ScopedXLock xlock;
-        return glXGetCurrentContext() == renderContext;
-    }
-
-    const OpenGLPixelFormat getPixelFormat() const
-    {
-        return pixelFormat;
-    }
-
-    void* getRawContext() const throw()
-    {
-        return renderContext;
-    }
-
-    void updateWindowPosition (int x, int y, int w, int h, int)
-    {
-        ScopedXLock xlock;
-        XMoveResizeWindow (display, embeddedWindow,
-                           x, y, jmax (1, w), jmax (1, h));
-    }
-
-    void swapBuffers()
-    {
-        ScopedXLock xlock;
-        glXSwapBuffers (display, embeddedWindow);
-    }
-
-    bool setSwapInterval (const int numFramesPerSwap)
-    {
-        static PFNGLXSWAPINTERVALSGIPROC GLXSwapIntervalSGI = (PFNGLXSWAPINTERVALSGIPROC) glXGetProcAddress ((const GLubyte*) "glXSwapIntervalSGI");
-
-        if (GLXSwapIntervalSGI != 0)
-        {
-            swapInterval = numFramesPerSwap;
-            GLXSwapIntervalSGI (numFramesPerSwap);
-            return true;
-        }
-
-        return false;
-    }
-
-    int getSwapInterval() const
-    {
-        return swapInterval;
-    }
-
-    void repaint()
-    {
-    }
-
-    //==============================================================================
-    GLXContext renderContext;
-
-private:
-    Window embeddedWindow;
-    OpenGLPixelFormat pixelFormat;
-    int swapInterval;
-
-    //==============================================================================
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (WindowedGLContext);
-};
-
-//==============================================================================
-OpenGLContext* OpenGLComponent::createContext()
-{
-    ScopedPointer<WindowedGLContext> c (new WindowedGLContext (this, preferredPixelFormat,
-                                                               contextToShareListsWith != 0 ? (GLXContext) contextToShareListsWith->getRawContext() : 0));
-
-    return (c->renderContext != 0) ? c.release() : 0;
-}
-
-void juce_glViewport (const int w, const int h)
-{
-    glViewport (0, 0, w, h);
-}
-
-void OpenGLPixelFormat::getAvailablePixelFormats (Component* component,
-                                                  OwnedArray <OpenGLPixelFormat>& results)
-{
-    results.add (new OpenGLPixelFormat()); // xxx
-}
-
-#endif
-
 
 //==============================================================================
 bool DragAndDropContainer::performExternalDragDropOfFiles (const StringArray& files, const bool canMoveFiles)
@@ -3335,25 +3125,46 @@ void SystemTrayIconComponent::setIconTooltip (const String& tooltip)
 
 
 //==============================================================================
-void PlatformUtilities::beep()
+void LookAndFeel::playAlertSound()
 {
     std::cout << "\a" << std::flush;
 }
 
 
 //==============================================================================
-bool AlertWindow::showNativeDialogBox (const String& title,
-                                       const String& bodyText,
-                                       bool isOkCancel)
+void JUCE_CALLTYPE NativeMessageBox::showMessageBox (AlertWindow::AlertIconType iconType,
+                                                     const String& title, const String& message,
+                                                     Component* associatedComponent)
 {
-    // use a non-native one for the time being..
-    if (isOkCancel)
-        return AlertWindow::showOkCancelBox (AlertWindow::NoIcon, title, bodyText);
-    else
-        AlertWindow::showMessageBox (AlertWindow::NoIcon, title, bodyText);
-
-    return true;
+    AlertWindow::showMessageBox (AlertWindow::NoIcon, title, message);
 }
+
+void JUCE_CALLTYPE NativeMessageBox::showMessageBoxAsync (AlertWindow::AlertIconType iconType,
+                                                          const String& title, const String& message,
+                                                          Component* associatedComponent)
+{
+    AlertWindow::showMessageBoxAsync (AlertWindow::NoIcon, title, message);
+}
+
+bool JUCE_CALLTYPE NativeMessageBox::showOkCancelBox (AlertWindow::AlertIconType iconType,
+                                                      const String& title, const String& message,
+                                                      Component* associatedComponent,
+                                                      ModalComponentManager::Callback* callback)
+{
+    return AlertWindow::showOkCancelBox (iconType, title, message, String::empty, String::empty,
+                                         associatedComponent, callback);
+}
+
+int JUCE_CALLTYPE NativeMessageBox::showYesNoCancelBox (AlertWindow::AlertIconType iconType,
+                                                        const String& title, const String& message,
+                                                        Component* associatedComponent,
+                                                        ModalComponentManager::Callback* callback)
+{
+    return AlertWindow::showYesNoCancelBox (iconType, title, message,
+                                            String::empty, String::empty, String::empty,
+                                            associatedComponent, callback);
+}
+
 
 //==============================================================================
 const int KeyPress::spaceKey                = XK_space & 0xff;

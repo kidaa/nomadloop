@@ -81,7 +81,7 @@ public:
 
         @see ValueTree::invalid
     */
-    ValueTree() throw();
+    ValueTree() noexcept;
 
     /** Creates an empty ValueTree with the given type name.
         Like an XmlElement, each ValueTree node has a type, which you can access with
@@ -102,13 +102,13 @@ public:
         Note that this isn't a value comparison - two independently-created trees which
         contain identical data are not considered equal.
     */
-    bool operator== (const ValueTree& other) const throw();
+    bool operator== (const ValueTree& other) const noexcept;
 
     /** Returns true if this and the other node refer to different underlying structures.
         Note that this isn't a value comparison - two independently-created trees which
         contain identical data are not considered equal.
     */
-    bool operator!= (const ValueTree& other) const throw();
+    bool operator!= (const ValueTree& other) const noexcept;
 
     /** Performs a deep comparison between the properties and children of two trees.
         If all the properties and children of the two trees are the same (recursively), this
@@ -123,7 +123,7 @@ public:
         It's hard to create an invalid node, but you might get one returned, e.g. by an out-of-range
         call to getChild().
     */
-    bool isValid() const                            { return object != 0; }
+    bool isValid() const                            { return object != nullptr; }
 
     /** Returns a deep copy of this tree and all its sub-nodes. */
     ValueTree createCopy() const;
@@ -133,7 +133,7 @@ public:
         The type is specified when the ValueTree is created.
         @see hasType
     */
-    const Identifier getType() const;
+    Identifier getType() const;
 
     /** Returns true if the node has this type.
         The comparison is case-sensitive.
@@ -153,7 +153,7 @@ public:
         You can also use operator[] and getProperty to get a property.
         @see var, getProperty, setProperty, hasProperty
     */
-    const var getProperty (const Identifier& name, const var& defaultReturnValue) const;
+    var getProperty (const Identifier& name, const var& defaultReturnValue) const;
 
     /** Returns the value of a named property.
         If no such property has been set, this will return a void variant. This is the same as
@@ -192,7 +192,7 @@ public:
     /** Returns the identifier of the property with a given index.
         @see getNumProperties
     */
-    const Identifier getPropertyName (int index) const;
+    Identifier getPropertyName (int index) const;
 
     /** Returns a Value object that can be used to control and respond to one of the tree's properties.
 
@@ -450,7 +450,7 @@ public:
     template <typename ElementComparator>
     void sort (ElementComparator& comparator, UndoManager* undoManager, bool retainOrderOfEquivalentItems)
     {
-        if (object != 0)
+        if (object != nullptr)
         {
             ReferenceCountedArray <SharedObject> sortedList (object->children);
             ComparatorAdapter <ElementComparator> adapter (comparator);
@@ -466,14 +466,11 @@ public:
 
 private:
     //==============================================================================
-    class SetPropertyAction;
-    friend class SetPropertyAction;
-    class AddOrRemoveChildAction;
-    friend class AddOrRemoveChildAction;
-    class MoveChildAction;
-    friend class MoveChildAction;
+    class SetPropertyAction;        friend class SetPropertyAction;
+    class AddOrRemoveChildAction;   friend class AddOrRemoveChildAction;
+    class MoveChildAction;          friend class MoveChildAction;
 
-    class JUCE_API  SharedObject    : public ReferenceCountedObject
+    class JUCE_API  SharedObject    : public SingleThreadedReferenceCountedObject
     {
     public:
         explicit SharedObject (const Identifier& type);
@@ -496,7 +493,7 @@ private:
         void sendChildOrderChangedMessage();
         void sendParentChangeMessage();
         const var& getProperty (const Identifier& name) const;
-        const var getProperty (const Identifier& name, const var& defaultReturnValue) const;
+        var getProperty (const Identifier& name, const var& defaultReturnValue) const;
         void setProperty (const Identifier& name, const var& newValue, UndoManager*);
         bool hasProperty (const Identifier& name) const;
         void removeProperty (const Identifier& name, UndoManager*);
@@ -523,7 +520,7 @@ private:
     class ComparatorAdapter
     {
     public:
-        ComparatorAdapter (ElementComparator& comparator_) throw()  : comparator (comparator_) {}
+        ComparatorAdapter (ElementComparator& comparator_) noexcept : comparator (comparator_) {}
 
         int compareElements (SharedObject* const first, SharedObject* const second)
         {

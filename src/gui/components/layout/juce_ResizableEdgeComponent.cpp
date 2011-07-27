@@ -49,7 +49,7 @@ ResizableEdgeComponent::~ResizableEdgeComponent()
 }
 
 //==============================================================================
-bool ResizableEdgeComponent::isVertical() const throw()
+bool ResizableEdgeComponent::isVertical() const noexcept
 {
     return edge == leftEdge || edge == rightEdge;
 }
@@ -62,7 +62,7 @@ void ResizableEdgeComponent::paint (Graphics& g)
 
 void ResizableEdgeComponent::mouseDown (const MouseEvent&)
 {
-    if (component == 0)
+    if (component == nullptr)
     {
         jassertfalse; // You've deleted the component that this resizer was supposed to be using!
         return;
@@ -70,32 +70,32 @@ void ResizableEdgeComponent::mouseDown (const MouseEvent&)
 
     originalBounds = component->getBounds();
 
-    if (constrainer != 0)
+    if (constrainer != nullptr)
         constrainer->resizeStart();
 }
 
 void ResizableEdgeComponent::mouseDrag (const MouseEvent& e)
 {
-    if (component == 0)
+    if (component == nullptr)
     {
         jassertfalse; // You've deleted the component that this resizer was supposed to be using!
         return;
     }
 
-    Rectangle<int> bounds (originalBounds);
+    Rectangle<int> newBounds (originalBounds);
 
     switch (edge)
     {
-        case leftEdge:      bounds.setLeft (jmin (bounds.getRight(), bounds.getX() + e.getDistanceFromDragStartX())); break;
-        case rightEdge:     bounds.setWidth (jmax (0, bounds.getWidth() + e.getDistanceFromDragStartX())); break;
-        case topEdge:       bounds.setTop (jmin (bounds.getBottom(), bounds.getY() + e.getDistanceFromDragStartY())); break;
-        case bottomEdge:    bounds.setHeight (jmax (0, bounds.getHeight() + e.getDistanceFromDragStartY())); break;
+        case leftEdge:      newBounds.setLeft (jmin (newBounds.getRight(), newBounds.getX() + e.getDistanceFromDragStartX())); break;
+        case rightEdge:     newBounds.setWidth (jmax (0, newBounds.getWidth() + e.getDistanceFromDragStartX())); break;
+        case topEdge:       newBounds.setTop (jmin (newBounds.getBottom(), newBounds.getY() + e.getDistanceFromDragStartY())); break;
+        case bottomEdge:    newBounds.setHeight (jmax (0, newBounds.getHeight() + e.getDistanceFromDragStartY())); break;
         default:            jassertfalse; break;
     }
 
-    if (constrainer != 0)
+    if (constrainer != nullptr)
     {
-        constrainer->setBoundsForComponent (component, bounds,
+        constrainer->setBoundsForComponent (component, newBounds,
                                             edge == topEdge,
                                             edge == leftEdge,
                                             edge == bottomEdge,
@@ -103,18 +103,18 @@ void ResizableEdgeComponent::mouseDrag (const MouseEvent& e)
     }
     else
     {
-        Component::Positioner* const positioner = component->getPositioner();
+        Component::Positioner* const pos = component->getPositioner();
 
-        if (positioner != 0)
-            positioner->applyNewBounds (bounds);
+        if (pos != nullptr)
+            pos->applyNewBounds (newBounds);
         else
-            component->setBounds (bounds);
+            component->setBounds (newBounds);
     }
 }
 
 void ResizableEdgeComponent::mouseUp (const MouseEvent&)
 {
-    if (constrainer != 0)
+    if (constrainer != nullptr)
         constrainer->resizeEnd();
 }
 

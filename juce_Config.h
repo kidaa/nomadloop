@@ -32,14 +32,6 @@
 */
 
 //=============================================================================
-/** The name of the namespace that all Juce classes and functions will be
-    put inside. If this is not defined, no namespace will be used.
-*/
-#ifndef JUCE_NAMESPACE
-  #define JUCE_NAMESPACE juce
-#endif
-
-//=============================================================================
 /** JUCE_FORCE_DEBUG: Normally, JUCE_DEBUG is set to 1 or 0 based on compiler and
     project settings, but if you define this value, you can override this to force
     it to be true or false.
@@ -84,6 +76,23 @@
 */
 #ifndef JUCE_DIRECTSOUND
   #define JUCE_DIRECTSOUND 1
+#endif
+
+/** JUCE_DIRECTSHOW: Enables DirectShow media-streaming architecture (MS Windows only).
+*/
+#ifndef JUCE_DIRECTSHOW
+  #define JUCE_DIRECTSHOW 0
+#endif
+
+/** JUCE_MEDIAFOUNDATION: Enables Media Foundation multimedia platform (Windows Vista and above).
+*/
+#ifndef JUCE_MEDIAFOUNDATION
+  #define JUCE_MEDIAFOUNDATION 0
+#endif
+
+#if ! JUCE_WINDOWS
+  #undef JUCE_DIRECTSHOW
+  #undef JUCE_MEDIAFOUNDATION
 #endif
 
 /** JUCE_ALSA: Enables ALSA audio devices (Linux only). */

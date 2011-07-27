@@ -85,10 +85,9 @@
         START_JUCE_APPLICATION (MyJUCEApp)
     @endcode
 
-    @see MessageManager, DeletedAtShutdown
+    @see MessageManager
 */
-class JUCE_API  JUCEApplication  : public ApplicationCommandTarget,
-                                   private ActionListener
+class JUCE_API  JUCEApplication  : public ApplicationCommandTarget
 {
 protected:
     //==============================================================================
@@ -111,7 +110,7 @@ public:
 
     //==============================================================================
     /** Returns the global instance of the application object being run. */
-    static JUCEApplication* getInstance() throw()           { return appInstance; }
+    static JUCEApplication* getInstance() noexcept          { return appInstance; }
 
     //==============================================================================
     /** Called when the application starts.
@@ -139,7 +138,7 @@ public:
         This is handy for things like splash screens to know when the app's up-and-running
         properly.
     */
-    bool isInitialising() const throw()                     { return stillInitialising; }
+    bool isInitialising() const noexcept                    { return stillInitialising; }
 
     /* Called to allow the application to clear up before exiting.
 
@@ -221,7 +220,7 @@ public:
         and maybe cancel the quit, you'll need to handle this in the systemRequestedQuit()
         method - see that method's help for more info.
 
-        @see MessageManager, DeletedAtShutdown
+        @see MessageManager
     */
     static void quit();
 
@@ -233,31 +232,21 @@ public:
 
         @see getApplicationReturnValue
     */
-    void setApplicationReturnValue (int newReturnValue) throw();
+    void setApplicationReturnValue (int newReturnValue) noexcept;
 
     /** Returns the value that has been set as the application's exit code.
         @see setApplicationReturnValue
     */
-    int getApplicationReturnValue() const throw()                   { return appReturnValue; }
+    int getApplicationReturnValue() const noexcept                  { return appReturnValue; }
 
-    /** Returns the application's command line params.
-    */
-    const String getCommandLineParameters() const throw()           { return commandLineParameters; }
-
-    //==============================================================================
-    // These are used by the START_JUCE_APPLICATION() macro and aren't for public use.
-
-    /** @internal */
-    static int main (const String& commandLine);
-    /** @internal */
-    static int main (int argc, const char* argv[]);
-    /** @internal */
-    static void sendUnhandledException (const std::exception* e, const char* sourceFile, int lineNumber);
+    /** Returns the application's command line parameters. */
+    const String& getCommandLineParameters() const noexcept         { return commandLineParameters; }
 
     /** Returns true if this executable is running as an app (as opposed to being a plugin
         or other kind of shared library. */
-    static inline bool isStandaloneApp() throw()    { return createInstance != 0; }
+    static inline bool isStandaloneApp() noexcept                   { return createInstance != 0; }
 
+    //==============================================================================
     /** @internal */
     ApplicationCommandTarget* getNextCommandTarget();
     /** @internal */
@@ -266,26 +255,29 @@ public:
     void getAllCommands (Array <CommandID>& commands);
     /** @internal */
     bool perform (const InvocationInfo& info);
-    /** @internal */
-    void actionListenerCallback (const String& message);
-    /** @internal */
+
+    //==============================================================================
+   #ifndef DOXYGEN
+    // The following methods are internal calls - not for public use.
+    static int main (const String& commandLine);
+    static int main (int argc, const char* argv[]);
+    static void sendUnhandledException (const std::exception* e, const char* sourceFile, int lineNumber);
     bool initialiseApp (const String& commandLine);
-    /** @internal */
     int shutdownApp();
-    /** @internal */
     static void appWillTerminateByForce();
-    /** @internal */
     typedef JUCEApplication* (*CreateInstanceFunction)();
-    /** @internal */
     static CreateInstanceFunction createInstance;
+   #endif
 
 private:
     //==============================================================================
+    static JUCEApplication* appInstance;
+
     String commandLineParameters;
+    ScopedPointer<InterProcessLock> appLock;
+    ScopedPointer<ActionListener> broadcastCallback;
     int appReturnValue;
     bool stillInitialising;
-    ScopedPointer<InterProcessLock> appLock;
-    static JUCEApplication* appInstance;
 
     JUCE_DECLARE_NON_COPYABLE (JUCEApplication);
 };

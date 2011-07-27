@@ -97,12 +97,12 @@ public:
     bool isDragging() const;
 
     /** Returns the last-known screen position of this source. */
-    const Point<int> getScreenPosition() const;
+    Point<int> getScreenPosition() const;
 
     /** Returns a set of modifiers that indicate which buttons are currently
         held down on this device.
     */
-    const ModifierKeys getCurrentModifiers() const;
+    ModifierKeys getCurrentModifiers() const;
 
     /** Returns the component that was last known to be under this pointer. */
     Component* getComponentUnderMouse() const;
@@ -117,21 +117,21 @@ public:
         So the mouse is currently down and it's the second click of a double-click, this
         will return 2.
     */
-    int getNumberOfMultipleClicks() const throw();
+    int getNumberOfMultipleClicks() const noexcept;
 
     /** Returns the time at which the last mouse-down occurred. */
-    const Time getLastMouseDownTime() const throw();
+    Time getLastMouseDownTime() const noexcept;
 
     /** Returns the screen position at which the last mouse-down occurred. */
-    const Point<int> getLastMouseDownPosition() const throw();
+    Point<int> getLastMouseDownPosition() const noexcept;
 
     /** Returns true if this mouse is currently down, and if it has been dragged more
         than a couple of pixels from the place it was pressed.
     */
-    bool hasMouseMovedSignificantlySincePressed() const throw();
+    bool hasMouseMovedSignificantlySincePressed() const noexcept;
 
     /** Returns true if this input source uses a visible mouse cursor. */
-    bool hasMouseCursor() const throw();
+    bool hasMouseCursor() const noexcept;
 
     /** Changes the mouse cursor, (if there is one). */
     void showMouseCursor (const MouseCursor& cursor);
@@ -146,7 +146,7 @@ public:
     void forceMouseCursorUpdate();
 
     /** Returns true if this mouse can be moved indefinitely in any direction without running out of space. */
-    bool canDoUnboundedMovement() const throw();
+    bool canDoUnboundedMovement() const noexcept;
 
     /** Allows the mouse to move beyond the edges of the screen.
 
@@ -180,7 +180,7 @@ private:
     friend class MouseInputSourceInternal;
     ScopedPointer<MouseInputSourceInternal> pimpl;
 
-    static const Point<int> getCurrentMousePosition();
+    static Point<int> getCurrentMousePosition();
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MouseInputSource);
 };

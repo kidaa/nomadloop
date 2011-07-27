@@ -28,8 +28,9 @@
 BEGIN_JUCE_NAMESPACE
 
 #include "juce_Thread.h"
-#include "juce_ScopedLock.h"
+#include "juce_SpinLock.h"
 #include "../core/juce_Time.h"
+#include "../containers/juce_Array.h"
 
 
 //==============================================================================
@@ -40,28 +41,35 @@ public:
     {
     }
 
+    ~RunningThreadsList()
+    {
+        // Some threads are still running! Make sure you stop all your
+        // threads cleanly before your app quits!
+        jassert (threads.size() == 0);
+    }
+
     void add (Thread* const thread)
     {
-        const ScopedLock sl (lock);
+        const SpinLock::ScopedLockType sl (lock);
         jassert (! threads.contains (thread));
         threads.add (thread);
     }
 
     void remove (Thread* const thread)
     {
-        const ScopedLock sl (lock);
+        const SpinLock::ScopedLockType sl (lock);
         jassert (threads.contains (thread));
         threads.removeValue (thread);
     }
 
-    int size() const throw()
+    int size() const noexcept
     {
         return threads.size();
     }
 
-    Thread* getThreadWithID (const Thread::ThreadID targetID) const throw()
+    Thread* getThreadWithID (const Thread::ThreadID targetID) const noexcept
     {
-        const ScopedLock sl (lock);
+        const SpinLock::ScopedLockType sl (lock);
 
         for (int i = threads.size(); --i >= 0;)
         {
@@ -71,7 +79,7 @@ public:
                 return t;
         }
 
-        return 0;
+        return nullptr;
     }
 
     void stopAll (const int timeOutMilliseconds)
@@ -82,7 +90,7 @@ public:
         {
             Thread* firstThread = getFirstThread();
 
-            if (firstThread != 0)
+            if (firstThread != nullptr)
                 firstThread->stopThread (timeOutMilliseconds);
             else
                 break;
@@ -97,11 +105,11 @@ public:
 
 private:
     Array<Thread*> threads;
-    CriticalSection lock;
+    SpinLock lock;
 
     void signalAllThreadsToStop()
     {
-        const ScopedLock sl (lock);
+        const SpinLock::ScopedLockType sl (lock);
 
         for (int i = threads.size(); --i >= 0;)
             threads.getUnchecked(i)->signalThreadShouldExit();
@@ -109,7 +117,7 @@ private:
 
     Thread* getFirstThread() const
     {
-        const ScopedLock sl (lock);
+        const SpinLock::ScopedLockType sl (lock);
         return threads.getFirst();
     }
 };
@@ -151,7 +159,7 @@ void JUCE_API juce_threadEntryPoint (void* userData)
 //==============================================================================
 Thread::Thread (const String& threadName)
     : threadName_ (threadName),
-      threadHandle_ (0),
+      threadHandle_ (nullptr),
       threadId_ (0),
       threadPriority_ (5),
       affinityMask_ (0),
@@ -180,7 +188,7 @@ void Thread::startThread()
 
     threadShouldExit_ = false;
 
-    if (threadHandle_ == 0)
+    if (threadHandle_ == nullptr)
     {
         launchThread();
         setThreadPriority (threadHandle_, threadPriority_);
@@ -192,7 +200,7 @@ void Thread::startThread (const int priority)
 {
     const ScopedLock sl (startStopLock);
 
-    if (threadHandle_ == 0)
+    if (threadHandle_ == nullptr)
     {
         threadPriority_ = priority;
         startThread();
@@ -205,7 +213,7 @@ void Thread::startThread (const int priority)
 
 bool Thread::isThreadRunning() const
 {
-    return threadHandle_ != 0;
+    return threadHandle_ != nullptr;
 }
 
 //==============================================================================
@@ -217,7 +225,7 @@ void Thread::signalThreadShouldExit()
 bool Thread::waitForThreadToExit (const int timeOutMilliseconds) const
 {
     // Doh! So how exactly do you expect this thread to wait for itself to stop??
-    jassert (getThreadId() != getCurrentThreadId());
+    jassert (getThreadId() != getCurrentThreadId() || getCurrentThreadId() == 0);
 
     const int sleepMsPerIteration = 5;
     int count = timeOutMilliseconds / sleepMsPerIteration;
@@ -259,7 +267,7 @@ void Thread::stopThread (const int timeOutMilliseconds)
             killThread();
 
             RunningThreadsList::getInstance().remove (this);
-            threadHandle_ = 0;
+            threadHandle_ = nullptr;
             threadId_ = 0;
         }
     }
@@ -316,5 +324,125 @@ void Thread::stopAllThreads (const int timeOutMilliseconds)
     RunningThreadsList::getInstance().stopAll (timeOutMilliseconds);
 }
 
+//==============================================================================
+void SpinLock::enter() const noexcept
+{
+    if (! tryEnter())
+    {
+        for (int i = 20; --i >= 0;)
+            if (tryEnter())
+                return;
+
+        while (! tryEnter())
+            Thread::yield();
+    }
+}
+
+//==============================================================================
+#if JUCE_UNIT_TESTS
+
+#include "../utilities/juce_UnitTest.h"
+
+class AtomicTests  : public UnitTest
+{
+public:
+    AtomicTests() : UnitTest ("Atomics") {}
+
+    void runTest()
+    {
+        beginTest ("Misc");
+
+        char a1[7];
+        expect (numElementsInArray(a1) == 7);
+        int a2[3];
+        expect (numElementsInArray(a2) == 3);
+
+        expect (ByteOrder::swap ((uint16) 0x1122) == 0x2211);
+        expect (ByteOrder::swap ((uint32) 0x11223344) == 0x44332211);
+        expect (ByteOrder::swap ((uint64) literal64bit (0x1122334455667788)) == literal64bit (0x8877665544332211));
+
+        beginTest ("Atomic int");
+        AtomicTester <int>::testInteger (*this);
+        beginTest ("Atomic unsigned int");
+        AtomicTester <unsigned int>::testInteger (*this);
+        beginTest ("Atomic int32");
+        AtomicTester <int32>::testInteger (*this);
+        beginTest ("Atomic uint32");
+        AtomicTester <uint32>::testInteger (*this);
+        beginTest ("Atomic long");
+        AtomicTester <long>::testInteger (*this);
+        beginTest ("Atomic void*");
+        AtomicTester <void*>::testInteger (*this);
+        beginTest ("Atomic int*");
+        AtomicTester <int*>::testInteger (*this);
+        beginTest ("Atomic float");
+        AtomicTester <float>::testFloat (*this);
+      #if ! JUCE_64BIT_ATOMICS_UNAVAILABLE  // 64-bit intrinsics aren't available on some old platforms
+        beginTest ("Atomic int64");
+        AtomicTester <int64>::testInteger (*this);
+        beginTest ("Atomic uint64");
+        AtomicTester <uint64>::testInteger (*this);
+        beginTest ("Atomic double");
+        AtomicTester <double>::testFloat (*this);
+      #endif
+    }
+
+    template <typename Type>
+    class AtomicTester
+    {
+    public:
+        AtomicTester() {}
+
+        static void testInteger (UnitTest& test)
+        {
+            Atomic<Type> a, b;
+            a.set ((Type) 10);
+            test.expect (a.value == (Type) 10);
+            test.expect (a.get() == (Type) 10);
+            a += (Type) 15;
+            test.expect (a.get() == (Type) 25);
+            a.memoryBarrier();
+            a -= (Type) 5;
+            test.expect (a.get() == (Type) 20);
+            test.expect (++a == (Type) 21);
+            ++a;
+            test.expect (--a == (Type) 21);
+            test.expect (a.get() == (Type) 21);
+            a.memoryBarrier();
+
+            testFloat (test);
+        }
+
+        static void testFloat (UnitTest& test)
+        {
+            Atomic<Type> a, b;
+            a = (Type) 21;
+            a.memoryBarrier();
+
+            /*  These are some simple test cases to check the atomics - let me know
+                if any of these assertions fail on your system!
+            */
+            test.expect (a.get() == (Type) 21);
+            test.expect (a.compareAndSetValue ((Type) 100, (Type) 50) == (Type) 21);
+            test.expect (a.get() == (Type) 21);
+            test.expect (a.compareAndSetValue ((Type) 101, a.get()) == (Type) 21);
+            test.expect (a.get() == (Type) 101);
+            test.expect (! a.compareAndSetBool ((Type) 300, (Type) 200));
+            test.expect (a.get() == (Type) 101);
+            test.expect (a.compareAndSetBool ((Type) 200, a.get()));
+            test.expect (a.get() == (Type) 200);
+
+            test.expect (a.exchange ((Type) 300) == (Type) 200);
+            test.expect (a.get() == (Type) 300);
+
+            b = a;
+            test.expect (b.get() == a.get());
+        }
+    };
+};
+
+static AtomicTests atomicUnitTests;
+
+#endif
 
 END_JUCE_NAMESPACE

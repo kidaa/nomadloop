@@ -52,7 +52,7 @@ DrawableComposite::DrawableComposite (const DrawableComposite& other)
     {
         const Drawable* const d = dynamic_cast <const Drawable*> (other.getChildComponent(i));
 
-        if (d != 0)
+        if (d != nullptr)
             addAndMakeVisible (d->createCopy());
     }
 }
@@ -68,7 +68,7 @@ Drawable* DrawableComposite::createCopy() const
 }
 
 //==============================================================================
-const Rectangle<float> DrawableComposite::getDrawableBounds() const
+Rectangle<float> DrawableComposite::getDrawableBounds() const
 {
     Rectangle<float> r;
 
@@ -76,7 +76,7 @@ const Rectangle<float> DrawableComposite::getDrawableBounds() const
     {
         const Drawable* const d = dynamic_cast <const Drawable*> (getChildComponent(i));
 
-        if (d != 0)
+        if (d != nullptr)
             r = r.getUnion (d->isTransformed() ? d->getDrawableBounds().transformed (d->getTransform())
                                                : d->getDrawableBounds());
     }
@@ -89,7 +89,7 @@ MarkerList* DrawableComposite::getMarkers (bool xAxis)
     return xAxis ? &markersX : &markersY;
 }
 
-const RelativeRectangle DrawableComposite::getContentArea() const
+RelativeRectangle DrawableComposite::getContentArea() const
 {
     jassert (markersX.getNumMarkers() >= 2 && markersX.getMarker (0)->name == contentLeftMarkerName && markersX.getMarker (1)->name == contentRightMarkerName);
     jassert (markersY.getNumMarkers() >= 2 && markersY.getMarker (0)->name == contentTopMarkerName && markersY.getMarker (1)->name == contentBottomMarkerName);
@@ -120,8 +120,8 @@ void DrawableComposite::setBoundingBox (const RelativeParallelogram& newBounds)
         }
         else
         {
-            setPositioner (0);
-            recalculateCoordinates (0);
+            setPositioner (nullptr);
+            recalculateCoordinates (nullptr);
         }
     }
 }
@@ -146,11 +146,11 @@ void DrawableComposite::resetContentAreaAndBoundingBoxToFitChildren()
     resetBoundingBoxToContentArea();
 }
 
-bool DrawableComposite::registerCoordinates (RelativeCoordinatePositionerBase& positioner)
+bool DrawableComposite::registerCoordinates (RelativeCoordinatePositionerBase& pos)
 {
-    bool ok = positioner.addPoint (bounds.topLeft);
-    ok = positioner.addPoint (bounds.topRight) && ok;
-    return positioner.addPoint (bounds.bottomLeft) && ok;
+    bool ok = pos.addPoint (bounds.topLeft);
+    ok = pos.addPoint (bounds.topRight) && ok;
+    return pos.addPoint (bounds.bottomLeft) && ok;
 }
 
 void DrawableComposite::recalculateCoordinates (Expression::Scope* scope)
@@ -173,7 +173,7 @@ void DrawableComposite::recalculateCoordinates (Expression::Scope* scope)
 void DrawableComposite::parentHierarchyChanged()
 {
     DrawableComposite* parent = getParent();
-    if (parent != 0)
+    if (parent != nullptr)
         originRelativeToComponent = parent->originRelativeToComponent - getPosition();
 }
 
@@ -211,7 +211,7 @@ void DrawableComposite::updateBoundsToFitChildren()
                 {
                     Component* const c = getChildComponent(i);
 
-                    if (c != 0)
+                    if (c != nullptr)
                         c->setBounds (c->getBounds() - delta);
                 }
             }
@@ -254,7 +254,7 @@ ValueTree DrawableComposite::ValueTreeWrapper::getChildListCreating (UndoManager
     return state.getOrCreateChildWithName (childGroupTag, undoManager);
 }
 
-const RelativeParallelogram DrawableComposite::ValueTreeWrapper::getBoundingBox() const
+RelativeParallelogram DrawableComposite::ValueTreeWrapper::getBoundingBox() const
 {
     return RelativeParallelogram (state.getProperty (topLeft, "0, 0"),
                                   state.getProperty (topRight, "100, 0"),
@@ -277,7 +277,7 @@ void DrawableComposite::ValueTreeWrapper::resetBoundingBoxToContentArea (UndoMan
                                            RelativePoint (content.left, content.bottom)), undoManager);
 }
 
-const RelativeRectangle DrawableComposite::ValueTreeWrapper::getContentArea() const
+RelativeRectangle DrawableComposite::ValueTreeWrapper::getContentArea() const
 {
     MarkerList::ValueTreeWrapper markersX (getMarkerList (true));
     MarkerList::ValueTreeWrapper markersY (getMarkerList (false));
@@ -290,8 +290,8 @@ const RelativeRectangle DrawableComposite::ValueTreeWrapper::getContentArea() co
 
 void DrawableComposite::ValueTreeWrapper::setContentArea (const RelativeRectangle& newArea, UndoManager* undoManager)
 {
-    MarkerList::ValueTreeWrapper markersX (getMarkerListCreating (true, 0));
-    MarkerList::ValueTreeWrapper markersY (getMarkerListCreating (false, 0));
+    MarkerList::ValueTreeWrapper markersX (getMarkerListCreating (true, nullptr));
+    MarkerList::ValueTreeWrapper markersY (getMarkerListCreating (false, nullptr));
 
     markersX.setMarker (MarkerList::Marker (contentLeftMarkerName, newArea.left), undoManager);
     markersX.setMarker (MarkerList::Marker (contentRightMarkerName, newArea.right), undoManager);
@@ -323,26 +323,26 @@ void DrawableComposite::refreshFromValueTree (const ValueTree& tree, ComponentBu
     builder.updateChildComponents (*this, wrapper.getChildList());
 }
 
-const ValueTree DrawableComposite::createValueTree (ComponentBuilder::ImageProvider* imageProvider) const
+ValueTree DrawableComposite::createValueTree (ComponentBuilder::ImageProvider* imageProvider) const
 {
     ValueTree tree (valueTreeType);
     ValueTreeWrapper v (tree);
 
     v.setID (getComponentID());
-    v.setBoundingBox (bounds, 0);
+    v.setBoundingBox (bounds, nullptr);
 
-    ValueTree childList (v.getChildListCreating (0));
+    ValueTree childList (v.getChildListCreating (nullptr));
 
     for (int i = 0; i < getNumChildComponents(); ++i)
     {
         const Drawable* const d = dynamic_cast <const Drawable*> (getChildComponent(i));
-        jassert (d != 0); // You can't save a mix of Drawables and normal components!
+        jassert (d != nullptr); // You can't save a mix of Drawables and normal components!
 
-        childList.addChild (d->createValueTree (imageProvider), -1, 0);
+        childList.addChild (d->createValueTree (imageProvider), -1, nullptr);
     }
 
-    v.getMarkerListCreating (true, 0).readFrom (markersX, 0);
-    v.getMarkerListCreating (false, 0).readFrom (markersY, 0);
+    v.getMarkerListCreating (true, nullptr).readFrom (markersX, nullptr);
+    v.getMarkerListCreating (false, nullptr).readFrom (markersY, nullptr);
 
     return tree;
 }

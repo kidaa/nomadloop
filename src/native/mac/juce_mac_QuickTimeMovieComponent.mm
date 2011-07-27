@@ -88,10 +88,10 @@ QuickTimeMovieComponent::QuickTimeMovieComponent()
 QuickTimeMovieComponent::~QuickTimeMovieComponent()
 {
     closeMovie();
-    setView (0);
+    setView (nil);
 }
 
-bool QuickTimeMovieComponent::isQuickTimeAvailable() throw()
+bool QuickTimeMovieComponent::isQuickTimeAvailable() noexcept
 {
     return true;
 }
@@ -101,11 +101,11 @@ static QTMovie* openMovieFromStream (InputStream* movieStream, File& movieFile)
     // unfortunately, QTMovie objects can only be created on the main thread..
     jassert (MessageManager::getInstance()->isThisTheMessageThread());
 
-    QTMovie* movie = 0;
+    QTMovie* movie = nil;
 
     FileInputStream* const fin = dynamic_cast <FileInputStream*> (movieStream);
 
-    if (fin != 0)
+    if (fin != nullptr)
     {
         movieFile = fin->getFile();
         movie = [QTMovie movieWithFile: juceStringToNS (movieFile.getFullPathName())
@@ -123,7 +123,7 @@ static QTMovie* openMovieFromStream (InputStream* movieStream, File& movieFile)
             movie = [QTMovie movieWithDataReference: [QTDataReference dataReferenceWithReferenceToData: [NSData dataWithBytes: temp.getData()
                                                                                                                        length: temp.getSize()]
                                                                                                   name: [NSString stringWithUTF8String: suffixesToTry[i]]
-                                                                                              MIMEType: @""]
+                                                                                              MIMEType: nsEmptyString()]
                                               error: nil];
 
             if (movie != 0)
@@ -145,7 +145,7 @@ bool QuickTimeMovieComponent::loadMovie (InputStream* movieStream,
 {
     closeMovie();
 
-    if (getPeer() == 0)
+    if (getPeer() == nullptr)
     {
         // To open a movie, this component must be visible inside a functioning window, so that
         // the QT control can be assigned to the window.
@@ -172,7 +172,7 @@ bool QuickTimeMovieComponent::loadMovie (const URL& movieURL,
 
     closeMovie();
 
-    if (getPeer() == 0)
+    if (getPeer() == nullptr)
     {
         // To open a movie, this component must be visible inside a functioning window, so that
         // the QT control can be assigned to the window.
@@ -209,7 +209,7 @@ bool QuickTimeMovieComponent::isMovieOpen() const
     return movie != nil;
 }
 
-const File QuickTimeMovieComponent::getCurrentMovieFile() const
+File QuickTimeMovieComponent::getCurrentMovieFile() const
 {
     return movieFile;
 }
@@ -338,7 +338,7 @@ void QuickTimeMovieComponent::setBoundsWithCorrectAspectRatio (const Rectangle<i
 
 bool juce_OpenQuickTimeMovieFromStream (InputStream* movieStream, Movie& result, Handle& dataHandle)
 {
-    if (movieStream == 0)
+    if (movieStream == nullptr)
         return false;
 
     File file;

@@ -52,7 +52,7 @@ public:
 
         @see getDefaultDeviceIndex, openDevice
     */
-    static const StringArray getDevices();
+    static StringArray getDevices();
 
     /** Returns the index of the default midi output device to use.
 
@@ -96,19 +96,6 @@ public:
     */
     virtual void sendMessageNow (const MidiMessage& message);
 
-    /** Sends a midi reset to the device. */
-    virtual void reset();
-
-
-    //==============================================================================
-    /** Returns the current volume setting for this device.  */
-    virtual bool getVolume (float& leftVol,
-                            float& rightVol);
-
-    /** Changes the overall volume for this device.  */
-    virtual void setVolume (float leftVol,
-                            float rightVol);
-
     //==============================================================================
     /** This lets you supply a block of messages that will be sent out at some point
         in the future.
@@ -151,16 +138,8 @@ public:
 protected:
     //==============================================================================
     void* internal;
-
-    struct PendingMessage
-    {
-        PendingMessage (const void* data, int len, double timeStamp);
-
-        MidiMessage message;
-        PendingMessage* next;
-    };
-
     CriticalSection lock;
+    struct PendingMessage;
     PendingMessage* firstMessage;
 
     MidiOutput();

@@ -28,7 +28,6 @@
 BEGIN_JUCE_NAMESPACE
 
 #include "juce_BufferingAudioSource.h"
-#include "../../threads/juce_ScopedLock.h"
 #include "../../core/juce_Singleton.h"
 #include "../../containers/juce_Array.h"
 #include "../../utilities/juce_DeletedAtShutdown.h"
@@ -52,7 +51,7 @@ public:
         clearSingletonInstance();
     }
 
-    juce_DeclareSingleton (SharedBufferingAudioSourceThread, false)
+    juce_DeclareSingleton (SharedBufferingAudioSourceThread, false);
 
     void addSource (BufferingAudioSource* source)
     {
@@ -97,7 +96,7 @@ private:
 
                 BufferingAudioSource* const b = sources[i];
 
-                if (b != 0 && b->readNextBufferChunk())
+                if (b != nullptr && b->readNextBufferChunk())
                     busy = true;
             }
 
@@ -121,18 +120,19 @@ juce_ImplementSingleton (SharedBufferingAudioSourceThread)
 
 //==============================================================================
 BufferingAudioSource::BufferingAudioSource (PositionableAudioSource* source_,
-                                            const bool deleteSourceWhenDeleted_,
-                                            int numberOfSamplesToBuffer_)
-    : source (source_),
-      deleteSourceWhenDeleted (deleteSourceWhenDeleted_),
+                                            const bool deleteSourceWhenDeleted,
+                                            const int numberOfSamplesToBuffer_,
+                                            const int numberOfChannels_)
+    : source (source_, deleteSourceWhenDeleted),
       numberOfSamplesToBuffer (jmax (1024, numberOfSamplesToBuffer_)),
-      buffer (2, 0),
+      numberOfChannels (numberOfChannels_),
+      buffer (numberOfChannels_, 0),
       bufferValidStart (0),
       bufferValidEnd (0),
       nextPlayPos (0),
       wasSourceLooping (false)
 {
-    jassert (source_ != 0);
+    jassert (source_ != nullptr);
 
     jassert (numberOfSamplesToBuffer_ > 1024); // not much point using this class if you're
                                                //  not using a larger buffer..
@@ -142,11 +142,8 @@ BufferingAudioSource::~BufferingAudioSource()
 {
     SharedBufferingAudioSourceThread* const thread = SharedBufferingAudioSourceThread::getInstanceWithoutCreating();
 
-    if (thread != 0)
+    if (thread != nullptr)
         thread->removeSource (this);
-
-    if (deleteSourceWhenDeleted)
-        delete source;
 }
 
 //==============================================================================
@@ -156,7 +153,7 @@ void BufferingAudioSource::prepareToPlay (int samplesPerBlockExpected, double sa
 
     sampleRate = sampleRate_;
 
-    buffer.setSize (2, jmax (samplesPerBlockExpected * 2, numberOfSamplesToBuffer));
+    buffer.setSize (numberOfChannels, jmax (samplesPerBlockExpected * 2, numberOfSamplesToBuffer));
     buffer.clear();
 
     bufferValidStart = 0;
@@ -176,10 +173,10 @@ void BufferingAudioSource::releaseResources()
 {
     SharedBufferingAudioSourceThread* const thread = SharedBufferingAudioSourceThread::getInstanceWithoutCreating();
 
-    if (thread != 0)
+    if (thread != nullptr)
         thread->removeSource (this);
 
-    buffer.setSize (2, 0);
+    buffer.setSize (numberOfChannels, 0);
     source->releaseResources();
 }
 
@@ -206,10 +203,10 @@ void BufferingAudioSource::getNextAudioBlock (const AudioSourceChannelInfo& info
 
         if (validStart < validEnd)
         {
-            for (int chan = jmin (2, info.buffer->getNumChannels()); --chan >= 0;)
+            for (int chan = jmin (numberOfChannels, info.buffer->getNumChannels()); --chan >= 0;)
             {
-                const int startBufferIndex = (validStart + nextPlayPos) % buffer.getNumSamples();
-                const int endBufferIndex = (validEnd + nextPlayPos) % buffer.getNumSamples();
+                const int startBufferIndex = (int) ((validStart + nextPlayPos) % buffer.getNumSamples());
+                const int endBufferIndex = (int) ((validEnd + nextPlayPos) % buffer.getNumSamples());
 
                 if (startBufferIndex < endBufferIndex)
                 {
@@ -243,7 +240,7 @@ void BufferingAudioSource::getNextAudioBlock (const AudioSourceChannelInfo& info
 
     SharedBufferingAudioSourceThread* const thread = SharedBufferingAudioSourceThread::getInstanceWithoutCreating();
 
-    if (thread != 0)
+    if (thread != nullptr)
         thread->notify();
 }
 
@@ -262,7 +259,7 @@ void BufferingAudioSource::setNextReadPosition (int64 newPosition)
 
     SharedBufferingAudioSourceThread* const thread = SharedBufferingAudioSourceThread::getInstanceWithoutCreating();
 
-    if (thread != 0)
+    if (thread != nullptr)
         thread->notify();
 }
 
@@ -312,8 +309,8 @@ bool BufferingAudioSource::readNextBufferChunk()
 
     if (sectionToReadStart != sectionToReadEnd)
     {
-        const int bufferIndexStart = sectionToReadStart % buffer.getNumSamples();
-        const int bufferIndexEnd = sectionToReadEnd % buffer.getNumSamples();
+        const int bufferIndexStart = (int) (sectionToReadStart % buffer.getNumSamples());
+        const int bufferIndexEnd = (int) (sectionToReadEnd % buffer.getNumSamples());
 
         if (bufferIndexStart < bufferIndexEnd)
         {

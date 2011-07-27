@@ -35,6 +35,7 @@ BEGIN_JUCE_NAMESPACE
 #include "../../../text/juce_LocalisedStrings.h"
 #include "../../../io/streams/juce_MemoryOutputStream.h"
 #include "../lookandfeel/juce_LookAndFeel.h"
+#include "../keyboard/juce_TextEditorKeyMapper.h"
 
 
 //==============================================================================
@@ -50,7 +51,7 @@ struct TextAtom
     bool isWhitespace() const       { return CharacterFunctions::isWhitespace (atomText[0]); }
     bool isNewLine() const          { return atomText[0] == '\r' || atomText[0] == '\n'; }
 
-    const String getText (const juce_wchar passwordCharacter) const
+    String getText (const juce_wchar passwordCharacter) const
     {
         if (passwordCharacter == 0)
             return atomText;
@@ -59,7 +60,7 @@ struct TextAtom
                                            atomText.length());
     }
 
-    const String getTrimmedText (const juce_wchar passwordCharacter) const
+    String getTrimmedText (const juce_wchar passwordCharacter) const
     {
         if (passwordCharacter == 0)
             return atomText.substring (0, numChars);
@@ -114,7 +115,7 @@ public:
         return atoms.size();
     }
 
-    TextAtom* getAtom (const int index) const throw()
+    TextAtom* getAtom (const int index) const noexcept
     {
         return atoms.getUnchecked (index);
     }
@@ -126,7 +127,7 @@ public:
             TextAtom* const lastAtom = atoms.getLast();
             int i = 0;
 
-            if (lastAtom != 0)
+            if (lastAtom != nullptr)
             {
                 if (! CharacterFunctions::isWhitespace (lastAtom->atomText.getLastCharacter()))
                 {
@@ -347,7 +348,7 @@ public:
         atomX (0),
         atomRight (0),
         atom (0),
-        currentSection (0),
+        currentSection (nullptr),
         sections (sections_),
         sectionIndex (0),
         atomIndex (0),
@@ -360,7 +361,7 @@ public:
         {
             currentSection = sections.getUnchecked (sectionIndex);
 
-            if (currentSection != 0)
+            if (currentSection != nullptr)
                 beginNewLine();
         }
     }
@@ -484,7 +485,7 @@ public:
             }
         }
 
-        if (atom != 0)
+        if (atom != nullptr)
         {
             atomX = atomRight;
             indexInText += atom->numChars;
@@ -541,7 +542,7 @@ public:
         lineHeight = section->font.getHeight();
         maxDescent = section->font.getDescent();
 
-        float x = (atom != 0) ? atom->width : 0;
+        float x = (atom != nullptr) ? atom->width : 0;
 
         while (! shouldWrap (x))
         {
@@ -562,7 +563,7 @@ public:
 
             const TextAtom* const nextAtom = section->getAtom (tempAtomIndex);
 
-            if (nextAtom == 0)
+            if (nextAtom == nullptr)
                 break;
 
             x += nextAtom->width;
@@ -741,7 +742,7 @@ private:
 
     void moveToEndOfLastAtom()
     {
-        if (atom != 0)
+        if (atom != nullptr)
         {
             atomX = atomRight;
 
@@ -1015,14 +1016,14 @@ TextEditor::~TextEditor()
     if (wasFocused)
     {
         ComponentPeer* const peer = getPeer();
-        if (peer != 0)
+        if (peer != nullptr)
             peer->dismissPendingTextInput();
     }
 
     textValue.referTo (Value());
     clearInternal (0);
-    viewport = 0;
-    textHolder = 0;
+    viewport = nullptr;
+    textHolder = nullptr;
 }
 
 //==============================================================================
@@ -1032,19 +1033,27 @@ void TextEditor::newTransaction()
     undoManager.beginNewTransaction();
 }
 
-void TextEditor::doUndoRedo (const bool isRedo)
+bool TextEditor::undoOrRedo (const bool shouldUndo)
 {
     if (! isReadOnly())
     {
-        if (isRedo ? undoManager.redo()
-                   : undoManager.undo())
+        newTransaction();
+
+        if (shouldUndo ? undoManager.undo()
+                       : undoManager.redo())
         {
             scrollToMakeSureCursorIsVisible();
             repaint();
             textChanged();
+            return true;
         }
     }
+
+    return false;
 }
+
+bool TextEditor::undo()     { return undoOrRedo (true); }
+bool TextEditor::redo()     { return undoOrRedo (false); }
 
 //==============================================================================
 void TextEditor::setMultiLine (const bool shouldBeMultiLine,
@@ -1119,7 +1128,7 @@ void TextEditor::setSelectAllWhenFocused (const bool b)
 }
 
 //==============================================================================
-const Font TextEditor::getFont() const
+const Font& TextEditor::getFont() const
 {
     return currentFont;
 }
@@ -1168,12 +1177,12 @@ void TextEditor::setCaretVisible (const bool shouldCaretBeVisible)
 {
     if (shouldCaretBeVisible && ! isReadOnly())
     {
-        if (caret == 0)
+        if (caret == nullptr)
             textHolder->addChildComponent (caret = getLookAndFeel().createCaretComponent (this));
     }
     else
     {
-        caret = 0;
+        caret = nullptr;
     }
 
     setMouseCursor (shouldCaretBeVisible ? MouseCursor::IBeamCursor
@@ -1182,7 +1191,7 @@ void TextEditor::setCaretVisible (const bool shouldCaretBeVisible)
 
 void TextEditor::updateCaretPosition()
 {
-    if (caret != 0)
+    if (caret != nullptr)
         caret->setCaretPosition (getCaretRectangle().translated (leftIndent, topIndent));
 }
 
@@ -1261,14 +1270,18 @@ void TextEditor::setText (const String& newText,
 }
 
 //==============================================================================
-Value& TextEditor::getTextValue()
+void TextEditor::updateValueFromText()
 {
     if (valueTextNeedsUpdating)
     {
         valueTextNeedsUpdating = false;
         textValue = getText();
     }
+}
 
+Value& TextEditor::getTextValue()
+{
+    updateValueFromText();
     return textValue;
 }
 
@@ -1688,7 +1701,7 @@ void TextEditor::drawContent (Graphics& g)
             }
         }
 
-        const UniformTextSection* lastSection = 0;
+        const UniformTextSection* lastSection = nullptr;
 
         while (i.next() && i.lineY < clip.getBottom())
         {
@@ -1697,7 +1710,7 @@ void TextEditor::drawContent (Graphics& g)
                 if (selection.intersects (Range<int> (i.indexInText, i.indexInText + i.atom->numChars)))
                 {
                     i.drawSelectedText (g, selection, selectedTextColour);
-                    lastSection = 0;
+                    lastSection = nullptr;
                 }
                 else
                 {
@@ -1706,9 +1719,9 @@ void TextEditor::drawContent (Graphics& g)
             }
         }
 
-        for (int i = underlinedSections.size(); --i >= 0;)
+        for (int j = underlinedSections.size(); --j >= 0;)
         {
-            const Range<int>& underlinedSection = underlinedSections.getReference (i);
+            const Range<int>& underlinedSection = underlinedSections.getReference (j);
 
             Iterator i2 (sections, wordWrapWidth, passwordCharacter);
 
@@ -1760,7 +1773,7 @@ void TextEditor::paintOverChildren (Graphics& g)
 //==============================================================================
 static void textEditorMenuCallback (int menuResult, TextEditor* editor)
 {
-    if (editor != 0 && menuResult != 0)
+    if (editor != nullptr && menuResult != 0)
         editor->performPopupMenuAction (menuResult);
 }
 
@@ -1885,163 +1898,199 @@ void TextEditor::mouseWheelMove (const MouseEvent& e, float wheelIncrementX, flo
 }
 
 //==============================================================================
+bool TextEditor::moveCaretWithTransation (const int newPos, const bool selecting)
+{
+    newTransaction();
+    moveCaretTo (newPos, selecting);
+    return true;
+}
+
+bool TextEditor::moveCaretLeft (bool moveInWholeWordSteps, bool selecting)
+{
+    int pos = getCaretPosition();
+
+    if (moveInWholeWordSteps)
+        pos = findWordBreakBefore (pos);
+    else
+        --pos;
+
+    return moveCaretWithTransation (pos, selecting);
+}
+
+bool TextEditor::moveCaretRight (bool moveInWholeWordSteps, bool selecting)
+{
+    int pos = getCaretPosition();
+
+    if (moveInWholeWordSteps)
+        pos = findWordBreakAfter (pos);
+    else
+        ++pos;
+
+    return moveCaretWithTransation (pos, selecting);
+}
+
+bool TextEditor::moveCaretUp (bool selecting)
+{
+    if (! isMultiLine())
+        return moveCaretToStartOfLine (selecting);
+
+    const Rectangle<float> caretPos (getCaretRectangle().toFloat());
+    return moveCaretWithTransation (indexAtPosition (caretPos.getX(), caretPos.getY() - 1.0f), selecting);
+}
+
+bool TextEditor::moveCaretDown (bool selecting)
+{
+    if (! isMultiLine())
+        return moveCaretToEndOfLine (selecting);
+
+    const Rectangle<float> caretPos (getCaretRectangle().toFloat());
+    return moveCaretWithTransation (indexAtPosition (caretPos.getX(), caretPos.getBottom() + 1.0f), selecting);
+}
+
+bool TextEditor::pageUp (bool selecting)
+{
+    if (! isMultiLine())
+        return moveCaretToStartOfLine (selecting);
+
+    const Rectangle<float> caretPos (getCaretRectangle().toFloat());
+    return moveCaretWithTransation (indexAtPosition (caretPos.getX(), caretPos.getY() - viewport->getViewHeight()), selecting);
+}
+
+bool TextEditor::pageDown (bool selecting)
+{
+    if (! isMultiLine())
+        return moveCaretToEndOfLine (selecting);
+
+    const Rectangle<float> caretPos (getCaretRectangle().toFloat());
+    return moveCaretWithTransation (indexAtPosition (caretPos.getX(), caretPos.getBottom() + viewport->getViewHeight()), selecting);
+}
+
+void TextEditor::scrollByLines (int deltaLines)
+{
+    ScrollBar* scrollbar = viewport->getVerticalScrollBar();
+
+    if (scrollbar != nullptr)
+        scrollbar->moveScrollbarInSteps (deltaLines);
+}
+
+bool TextEditor::scrollDown()
+{
+    scrollByLines (-1);
+    return true;
+}
+
+bool TextEditor::scrollUp()
+{
+    scrollByLines (1);
+    return true;
+}
+
+bool TextEditor::moveCaretToTop (bool selecting)
+{
+    return moveCaretWithTransation (0, selecting);
+}
+
+bool TextEditor::moveCaretToStartOfLine (bool selecting)
+{
+    const Rectangle<float> caretPos (getCaretRectangle().toFloat());
+    return moveCaretWithTransation (indexAtPosition (0.0f, caretPos.getY()), selecting);
+}
+
+bool TextEditor::moveCaretToEnd (bool selecting)
+{
+    return moveCaretWithTransation (getTotalNumChars(), selecting);
+}
+
+bool TextEditor::moveCaretToEndOfLine (bool selecting)
+{
+    const Rectangle<float> caretPos (getCaretRectangle().toFloat());
+    return moveCaretWithTransation (indexAtPosition ((float) textHolder->getWidth(), caretPos.getY()), selecting);
+}
+
+bool TextEditor::deleteBackwards (bool moveInWholeWordSteps)
+{
+    if (moveInWholeWordSteps)
+        moveCaretTo (findWordBreakBefore (getCaretPosition()), true);
+    else if (selection.isEmpty() && selection.getStart() > 0)
+        selection.setStart (selection.getEnd() - 1);
+
+    cut();
+    return true;
+}
+
+bool TextEditor::deleteForwards (bool /*moveInWholeWordSteps*/)
+{
+    if (selection.isEmpty() && selection.getStart() < getTotalNumChars())
+        selection.setEnd (selection.getStart() + 1);
+
+    cut();
+    return true;
+}
+
+bool TextEditor::copyToClipboard()
+{
+    newTransaction();
+    copy();
+    return true;
+}
+
+bool TextEditor::cutToClipboard()
+{
+    newTransaction();
+    copy();
+    cut();
+    return true;
+}
+
+bool TextEditor::pasteFromClipboard()
+{
+    newTransaction();
+    paste();
+    return true;
+}
+
+bool TextEditor::selectAll()
+{
+    newTransaction();
+    moveCaretTo (getTotalNumChars(), false);
+    moveCaretTo (0, true);
+    return true;
+}
+
+//==============================================================================
 bool TextEditor::keyPressed (const KeyPress& key)
 {
     if (isReadOnly() && key != KeyPress ('c', ModifierKeys::commandModifier, 0))
         return false;
 
-    const bool moveInWholeWordSteps = key.getModifiers().isCtrlDown() || key.getModifiers().isAltDown();
-    const Rectangle<float> caretPos (getCaretRectangle().toFloat());
-
-    if (key.isKeyCode (KeyPress::leftKey)
-         || key.isKeyCode (KeyPress::upKey))
+    if (! TextEditorKeyMapper<TextEditor>::invokeKeyFunction (*this, key))
     {
-        newTransaction();
-
-        int newPos;
-
-        if (isMultiLine() && key.isKeyCode (KeyPress::upKey))
-            newPos = indexAtPosition (caretPos.getX(), caretPos.getY() - 1.0f);
-        else if (moveInWholeWordSteps)
-            newPos = findWordBreakBefore (getCaretPosition());
-        else
-            newPos = getCaretPosition() - 1;
-
-        moveCaretTo (newPos, key.getModifiers().isShiftDown());
-    }
-    else if (key.isKeyCode (KeyPress::rightKey)
-              || key.isKeyCode (KeyPress::downKey))
-    {
-        newTransaction();
-
-        int newPos;
-
-        if (isMultiLine() && key.isKeyCode (KeyPress::downKey))
-            newPos = indexAtPosition (caretPos.getX(), caretPos.getBottom() + 1.0f);
-        else if (moveInWholeWordSteps)
-            newPos = findWordBreakAfter (getCaretPosition());
-        else
-            newPos = getCaretPosition() + 1;
-
-        moveCaretTo (newPos, key.getModifiers().isShiftDown());
-    }
-    else if (key.isKeyCode (KeyPress::pageDownKey) && isMultiLine())
-    {
-        newTransaction();
-
-        moveCaretTo (indexAtPosition (caretPos.getX(), caretPos.getBottom() + viewport->getViewHeight()),
-                     key.getModifiers().isShiftDown());
-    }
-    else if (key.isKeyCode (KeyPress::pageUpKey) && isMultiLine())
-    {
-        newTransaction();
-
-        moveCaretTo (indexAtPosition (caretPos.getX(), caretPos.getY() - viewport->getViewHeight()),
-                     key.getModifiers().isShiftDown());
-    }
-    else if (key.isKeyCode (KeyPress::homeKey))
-    {
-        newTransaction();
-
-        if (isMultiLine() && ! moveInWholeWordSteps)
-            moveCaretTo (indexAtPosition (0.0f, caretPos.getY()),
-                         key.getModifiers().isShiftDown());
-        else
-            moveCaretTo (0, key.getModifiers().isShiftDown());
-    }
-    else if (key.isKeyCode (KeyPress::endKey))
-    {
-        newTransaction();
-
-        if (isMultiLine() && ! moveInWholeWordSteps)
-            moveCaretTo (indexAtPosition ((float) textHolder->getWidth(), caretPos.getY()),
-                         key.getModifiers().isShiftDown());
-        else
-            moveCaretTo (getTotalNumChars(), key.getModifiers().isShiftDown());
-    }
-    else if (key.isKeyCode (KeyPress::backspaceKey))
-    {
-        if (moveInWholeWordSteps)
+        if (key == KeyPress::returnKey)
         {
-            moveCaretTo (findWordBreakBefore (getCaretPosition()), true);
+            newTransaction();
+
+            if (returnKeyStartsNewLine)
+                insertTextAtCaret ("\n");
+            else
+                returnPressed();
+        }
+        else if (key.isKeyCode (KeyPress::escapeKey))
+        {
+            newTransaction();
+            moveCaretTo (getCaretPosition(), false);
+            escapePressed();
+        }
+        else if (key.getTextCharacter() >= ' '
+                  || (tabKeyUsed && (key.getTextCharacter() == '\t')))
+        {
+            insertTextAtCaret (String::charToString (key.getTextCharacter()));
+
+            lastTransactionTime = Time::getApproximateMillisecondCounter();
         }
         else
         {
-            if (selection.isEmpty() && selection.getStart() > 0)
-                selection.setStart (selection.getEnd() - 1);
+            return false;
         }
-
-        cut();
-    }
-    else if (key.isKeyCode (KeyPress::deleteKey))
-    {
-        if (key.getModifiers().isShiftDown())
-            copy();
-
-        if (selection.isEmpty() && selection.getStart() < getTotalNumChars())
-            selection.setEnd (selection.getStart() + 1);
-
-        cut();
-    }
-    else if (key == KeyPress ('c', ModifierKeys::commandModifier, 0)
-              || key == KeyPress (KeyPress::insertKey, ModifierKeys::ctrlModifier, 0))
-    {
-        newTransaction();
-        copy();
-    }
-    else if (key == KeyPress ('x', ModifierKeys::commandModifier, 0))
-    {
-        newTransaction();
-        copy();
-        cut();
-    }
-    else if (key == KeyPress ('v', ModifierKeys::commandModifier, 0)
-              || key == KeyPress (KeyPress::insertKey, ModifierKeys::shiftModifier, 0))
-    {
-        newTransaction();
-        paste();
-    }
-    else if (key == KeyPress ('z', ModifierKeys::commandModifier, 0))
-    {
-        newTransaction();
-        doUndoRedo (false);
-    }
-    else if (key == KeyPress ('y', ModifierKeys::commandModifier, 0))
-    {
-        newTransaction();
-        doUndoRedo (true);
-    }
-    else if (key == KeyPress ('a', ModifierKeys::commandModifier, 0))
-    {
-        newTransaction();
-        moveCaretTo (getTotalNumChars(), false);
-        moveCaretTo (0, true);
-    }
-    else if (key == KeyPress::returnKey)
-    {
-        newTransaction();
-
-        if (returnKeyStartsNewLine)
-            insertTextAtCaret ("\n");
-        else
-            returnPressed();
-    }
-    else if (key.isKeyCode (KeyPress::escapeKey))
-    {
-        newTransaction();
-        moveCaretTo (getCaretPosition(), false);
-        escapePressed();
-    }
-    else if (key.getTextCharacter() >= ' '
-              || (tabKeyUsed && (key.getTextCharacter() == '\t')))
-    {
-        insertTextAtCaret (String::charToString (key.getTextCharacter()));
-
-        lastTransactionTime = Time::getApproximateMillisecondCounter();
-    }
-    else
-    {
-        return false;
     }
 
     return true;
@@ -2052,10 +2101,10 @@ bool TextEditor::keyStateChanged (const bool isKeyDown)
     if (! isKeyDown)
         return false;
 
-#if JUCE_WINDOWS
+   #if JUCE_WINDOWS
     if (KeyPress (KeyPress::F4Key, ModifierKeys::altModifier, 0).isCurrentlyDown())
         return false;  // We need to explicitly allow alt-F4 to pass through on Windows
-#endif
+   #endif
 
     // (overridden to avoid forwarding key events to the parent)
     return ! ModifierKeys::getCurrentModifiers().isCommandDown();
@@ -2080,7 +2129,7 @@ void TextEditor::addPopupMenuItems (PopupMenu& m, const MouseEvent*)
     m.addItem (baseMenuItemID + 5, TRANS("select all"));
     m.addSeparator();
 
-    if (getUndoManager() != 0)
+    if (getUndoManager() != nullptr)
     {
         m.addItem (baseMenuItemID + 6, TRANS("undo"), undoManager.canUndo());
         m.addItem (baseMenuItemID + 7, TRANS("redo"), undoManager.canRedo());
@@ -2091,38 +2140,14 @@ void TextEditor::performPopupMenuAction (const int menuItemID)
 {
     switch (menuItemID)
     {
-    case baseMenuItemID + 1:
-        copy();
-        cut();
-        break;
-
-    case baseMenuItemID + 2:
-        copy();
-        break;
-
-    case baseMenuItemID + 3:
-        paste();
-        break;
-
-    case baseMenuItemID + 4:
-        cut();
-        break;
-
-    case baseMenuItemID + 5:
-        moveCaretTo (getTotalNumChars(), false);
-        moveCaretTo (0, true);
-        break;
-
-    case baseMenuItemID + 6:
-        doUndoRedo (false);
-        break;
-
-    case baseMenuItemID + 7:
-        doUndoRedo (true);
-        break;
-
-    default:
-        break;
+        case baseMenuItemID + 1:    cutToClipboard(); break;
+        case baseMenuItemID + 2:    copyToClipboard(); break;
+        case baseMenuItemID + 3:    pasteFromClipboard(); break;
+        case baseMenuItemID + 4:    cut(); break;
+        case baseMenuItemID + 5:    selectAll(); break;
+        case baseMenuItemID + 6:    undo(); break;
+        case baseMenuItemID + 7:    redo(); break;
+        default: break;
     }
 }
 
@@ -2141,7 +2166,7 @@ void TextEditor::focusGained (FocusChangeType)
     updateCaretPosition();
 
     ComponentPeer* const peer = getPeer();
-    if (peer != 0 && ! isReadOnly())
+    if (peer != nullptr && ! isReadOnly())
         peer->textInputRequired (getScreenPosition() - peer->getScreenPosition());
 }
 
@@ -2155,7 +2180,7 @@ void TextEditor::focusLost (FocusChangeType)
     underlinedSections.clear();
 
     ComponentPeer* const peer = getPeer();
-    if (peer != 0)
+    if (peer != nullptr)
         peer->dismissPendingTextInput();
 
     updateCaretPosition();
@@ -2201,6 +2226,7 @@ void TextEditor::handleCommandMessage (const int commandId)
         break;
 
     case TextEditorDefs::focusLossMessageId:
+        updateValueFromText();
         listeners.callChecked (checker, &TextEditorListener::textEditorFocusLost, (TextEditor&) *this);
         break;
 
@@ -2224,7 +2250,7 @@ void TextEditor::setTemporaryUnderlining (const Array <Range<int> >& newUnderlin
 }
 
 //==============================================================================
-UndoManager* TextEditor::getUndoManager() throw()
+UndoManager* TextEditor::getUndoManager() noexcept
 {
     return isReadOnly() ? 0 : &undoManager;
 }
@@ -2243,7 +2269,7 @@ void TextEditor::insert (const String& text,
 {
     if (text.isNotEmpty())
     {
-        if (um != 0)
+        if (um != nullptr)
         {
             if (um->getNumActionsInCurrentTransaction() > TextEditorDefs::maxActionsPerTransaction)
                 newTransaction();
@@ -2291,6 +2317,7 @@ void TextEditor::insert (const String& text,
             totalNumChars = -1;
             valueTextNeedsUpdating = true;
 
+            updateTextHolderSize();
             moveCaretTo (caretPositionToMoveTo, false);
 
             repaintText (Range<int> (insertIndex, getTotalNumChars()));
@@ -2372,7 +2399,7 @@ void TextEditor::remove (const Range<int>& range,
 
         index = 0;
 
-        if (um != 0)
+        if (um != nullptr)
         {
             Array <UniformTextSection*> removedSections;
 
@@ -2437,7 +2464,7 @@ void TextEditor::remove (const Range<int>& range,
 }
 
 //==============================================================================
-const String TextEditor::getText() const
+String TextEditor::getText() const
 {
     MemoryOutputStream mo;
     mo.preallocate (getTotalNumChars());
@@ -2477,7 +2504,7 @@ const String TextEditor::getTextInRange (const Range<int>& range) const
     return mo.toString();
 }
 
-const String TextEditor::getHighlightedText() const
+String TextEditor::getHighlightedText() const
 {
     return getTextInRange (selection);
 }
@@ -2595,7 +2622,7 @@ int TextEditor::findWordBreakBefore (const int position) const
 void TextEditor::splitSection (const int sectionIndex,
                                const int charToSplitAt)
 {
-    jassert (sections[sectionIndex] != 0);
+    jassert (sections[sectionIndex] != nullptr);
 
     sections.insert (sectionIndex + 1,
                      sections.getUnchecked (sectionIndex)->split (charToSplitAt, passwordCharacter));

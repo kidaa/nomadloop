@@ -31,6 +31,7 @@
 #include "../core/juce_Time.h"
 class TimeSliceThread;
 
+
 //==============================================================================
 /**
     Used by the TimeSliceThread class.
@@ -123,8 +124,9 @@ public:
     TimeSliceClient* getClient (int index) const;
 
     //==============================================================================
-    /** @internal */
+   #ifndef DOXYGEN
     void run();
+   #endif
 
     //==============================================================================
 private:

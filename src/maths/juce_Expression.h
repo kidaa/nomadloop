@@ -72,24 +72,24 @@ public:
     explicit Expression (const String& stringToParse);
 
     /** Returns a string version of the expression. */
-    const String toString() const;
+    String toString() const;
 
     /** Returns an expression which is an addtion operation of two existing expressions. */
-    const Expression operator+ (const Expression& other) const;
+    Expression operator+ (const Expression& other) const;
     /** Returns an expression which is a subtraction operation of two existing expressions. */
-    const Expression operator- (const Expression& other) const;
+    Expression operator- (const Expression& other) const;
     /** Returns an expression which is a multiplication operation of two existing expressions. */
-    const Expression operator* (const Expression& other) const;
+    Expression operator* (const Expression& other) const;
     /** Returns an expression which is a division operation of two existing expressions. */
-    const Expression operator/ (const Expression& other) const;
+    Expression operator/ (const Expression& other) const;
     /** Returns an expression which performs a negation operation on an existing expression. */
-    const Expression operator-() const;
+    Expression operator-() const;
 
     /** Returns an Expression which is an identifier reference. */
-    static const Expression symbol (const String& symbol);
+    static Expression symbol (const String& symbol);
 
     /** Returns an Expression which is a function call. */
-    static const Expression function (const String& functionName, const Array<Expression>& parameters);
+    static Expression function (const String& functionName, const Array<Expression>& parameters);
 
     /** Returns an Expression which parses a string from a character pointer, and updates the pointer
         to indicate where it finished.
@@ -100,7 +100,7 @@ public:
         If there's a syntax error in the string, this will throw a ParseError exception.
         @throws ParseError
     */
-    static const Expression parse (String::CharPointerType& stringToParse);
+    static Expression parse (String::CharPointerType& stringToParse);
 
     //==============================================================================
     /** When evaluating an Expression object, this class is used to resolve symbols and
@@ -113,7 +113,7 @@ public:
         virtual ~Scope();
 
         /** Returns some kind of globally unique ID that identifies this scope. */
-        virtual const String getScopeUID() const;
+        virtual String getScopeUID() const;
 
         /** Returns the value of a symbol.
             If the symbol is unknown, this can throw an Expression::EvaluationError exception.
@@ -121,7 +121,7 @@ public:
             one, e.g. for "foo.bar", symbol = "foo" and member = "bar".
             @throws Expression::EvaluationError
         */
-        virtual const Expression getSymbolValue (const String& symbol) const;
+        virtual Expression getSymbolValue (const String& symbol) const;
 
         /** Executes a named function.
             If the function name is unknown, this can throw an Expression::EvaluationError exception.
@@ -180,21 +180,21 @@ public:
 
         @throws Expression::EvaluationError
     */
-    const Expression adjustedToGiveNewResult (double targetValue, const Scope& scope) const;
+    Expression adjustedToGiveNewResult (double targetValue, const Scope& scope) const;
 
     /** Represents a symbol that is used in an Expression. */
     struct Symbol
     {
         Symbol (const String& scopeUID, const String& symbolName);
-        bool operator== (const Symbol&) const throw();
-        bool operator!= (const Symbol&) const throw();
+        bool operator== (const Symbol&) const noexcept;
+        bool operator!= (const Symbol&) const noexcept;
 
         String scopeUID;    /**< The unique ID of the Scope that contains this symbol. */
         String symbolName;  /**< The name of the symbol. */
     };
 
     /** Returns a copy of this expression in which all instances of a given symbol have been renamed. */
-    const Expression withRenamedSymbol (const Symbol& oldSymbol, const String& newName, const Scope& scope) const;
+    Expression withRenamedSymbol (const Symbol& oldSymbol, const String& newName, const Scope& scope) const;
 
     /** Returns true if this expression makes use of the specified symbol.
         If a suitable scope is supplied, the search will dereference and recursively check
@@ -235,10 +235,10 @@ public:
     };
 
     /** Returns the type of this expression. */
-    Type getType() const throw();
+    Type getType() const noexcept;
 
     /** If this expression is a symbol, function or operator, this returns its identifier. */
-    const String getSymbolOrFunction() const;
+    String getSymbolOrFunction() const;
 
     /** Returns the number of inputs to this expression.
         @see getInput
@@ -248,7 +248,7 @@ public:
     /** Retrieves one of the inputs to this expression.
         @see getNumInputs
     */
-    const Expression getInput (int index) const;
+    Expression getInput (int index) const;
 
 private:
     //==============================================================================

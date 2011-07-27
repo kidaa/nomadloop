@@ -58,8 +58,6 @@
 BEGIN_JUCE_NAMESPACE
 
 #include "juce_Socket.h"
-#include "../../threads/juce_ScopedLock.h"
-#include "../../threads/juce_Thread.h"
 
 #if JUCE_WINDOWS
  typedef int       juce_socklen_t;
@@ -86,7 +84,7 @@ namespace SocketHelpers
        #endif
     }
 
-    bool resetSocketOptions (const int handle, const bool isDatagram, const bool allowBroadcast) throw()
+    bool resetSocketOptions (const int handle, const bool isDatagram, const bool allowBroadcast) noexcept
     {
         const int sndBufSize = 65536;
         const int rcvBufSize = 65536;
@@ -99,7 +97,7 @@ namespace SocketHelpers
                                : (setsockopt (handle, IPPROTO_TCP, TCP_NODELAY, (const char*) &one, sizeof (one)) == 0));
     }
 
-    bool bindSocketToPort (const int handle, const int port) throw()
+    bool bindSocketToPort (const int handle, const int port) noexcept
     {
         if (handle <= 0 || port <= 0)
             return false;
@@ -115,7 +113,7 @@ namespace SocketHelpers
     int readSocket (const int handle,
                     void* const destBuffer, const int maxBytesToRead,
                     bool volatile& connected,
-                    const bool blockUntilSpecifiedAmountHasArrived) throw()
+                    const bool blockUntilSpecifiedAmountHasArrived) noexcept
     {
         int bytesRead = 0;
 
@@ -150,7 +148,7 @@ namespace SocketHelpers
         return bytesRead;
     }
 
-    int waitForReadiness (const int handle, const bool forReading, const int timeoutMsecs) throw()
+    int waitForReadiness (const int handle, const bool forReading, const int timeoutMsecs) noexcept
     {
         struct timeval timeout;
         struct timeval* timeoutp;
@@ -172,8 +170,8 @@ namespace SocketHelpers
         FD_ZERO (&wset);
         FD_SET (handle, &wset);
 
-        fd_set* const prset = forReading ? &rset : 0;
-        fd_set* const pwset = forReading ? 0 : &wset;
+        fd_set* const prset = forReading ? &rset : nullptr;
+        fd_set* const pwset = forReading ? nullptr : &wset;
 
        #if JUCE_WINDOWS
         if (select (handle + 1, prset, pwset, 0, timeoutp) < 0)
@@ -203,7 +201,7 @@ namespace SocketHelpers
         return FD_ISSET (handle, forReading ? &rset : &wset) ? 1 : 0;
     }
 
-    bool setSocketBlockingState (const int handle, const bool shouldBlock) throw()
+    bool setSocketBlockingState (const int handle, const bool shouldBlock) noexcept
     {
        #if JUCE_WINDOWS
         u_long nonBlocking = shouldBlock ? 0 : 1;
@@ -228,14 +226,14 @@ namespace SocketHelpers
                         void** serverAddress,
                         const String& hostName,
                         const int portNumber,
-                        const int timeOutMillisecs) throw()
+                        const int timeOutMillisecs) noexcept
     {
         struct addrinfo hints = { 0 };
         hints.ai_family = AF_UNSPEC;
         hints.ai_socktype = isDatagram ? SOCK_DGRAM : SOCK_STREAM;
         hints.ai_flags = AI_NUMERICSERV;
 
-        struct addrinfo* info = 0;
+        struct addrinfo* info = nullptr;
         if (getaddrinfo (hostName.toUTF8(), String (portNumber).toUTF8(), &hints, &info) != 0 || info == 0)
             return false;
 
@@ -259,7 +257,7 @@ namespace SocketHelpers
         }
 
         setSocketBlockingState (handle, false);
-        const int result = ::connect (handle, info->ai_addr, info->ai_addrlen);
+        const int result = ::connect (handle, info->ai_addr, (int) info->ai_addrlen);
         freeaddrinfo (info);
 
         if (result < 0)
@@ -466,10 +464,10 @@ StreamingSocket* StreamingSocket::waitForNextConnection() const
                                         portNumber, newSocket);
     }
 
-    return 0;
+    return nullptr;
 }
 
-bool StreamingSocket::isLocal() const throw()
+bool StreamingSocket::isLocal() const noexcept
 {
     return hostName == "127.0.0.1";
 }
@@ -573,7 +571,7 @@ DatagramSocket* DatagramSocket::waitForNextConnection() const
         }
     }
 
-    return 0;
+    return nullptr;
 }
 
 //==============================================================================
@@ -602,7 +600,7 @@ int DatagramSocket::write (const void* sourceBuffer, const int numBytesToWrite)
                      : -1;
 }
 
-bool DatagramSocket::isLocal() const throw()
+bool DatagramSocket::isLocal() const noexcept
 {
     return hostName == "127.0.0.1";
 }

@@ -38,31 +38,34 @@ typedef BOOL (WINAPI * PFNWGLCHOOSEPIXELFORMATARBPROC) (HDC hdc, const int* piAt
 typedef BOOL (WINAPI * PFNWGLSWAPINTERVALEXTPROC) (int interval);
 typedef int (WINAPI * PFNWGLGETSWAPINTERVALEXTPROC) (void);
 
-#define WGL_NUMBER_PIXEL_FORMATS_ARB    0x2000
-#define WGL_DRAW_TO_WINDOW_ARB          0x2001
-#define WGL_ACCELERATION_ARB            0x2003
-#define WGL_SWAP_METHOD_ARB             0x2007
-#define WGL_SUPPORT_OPENGL_ARB          0x2010
-#define WGL_PIXEL_TYPE_ARB              0x2013
-#define WGL_DOUBLE_BUFFER_ARB           0x2011
-#define WGL_COLOR_BITS_ARB              0x2014
-#define WGL_RED_BITS_ARB                0x2015
-#define WGL_GREEN_BITS_ARB              0x2017
-#define WGL_BLUE_BITS_ARB               0x2019
-#define WGL_ALPHA_BITS_ARB              0x201B
-#define WGL_DEPTH_BITS_ARB              0x2022
-#define WGL_STENCIL_BITS_ARB            0x2023
-#define WGL_FULL_ACCELERATION_ARB       0x2027
-#define WGL_ACCUM_RED_BITS_ARB          0x201E
-#define WGL_ACCUM_GREEN_BITS_ARB        0x201F
-#define WGL_ACCUM_BLUE_BITS_ARB         0x2020
-#define WGL_ACCUM_ALPHA_BITS_ARB        0x2021
-#define WGL_STEREO_ARB                  0x2012
-#define WGL_SAMPLE_BUFFERS_ARB          0x2041
-#define WGL_SAMPLES_ARB                 0x2042
-#define WGL_TYPE_RGBA_ARB               0x202B
+enum
+{
+    WGL_NUMBER_PIXEL_FORMATS_ARB    = 0x2000,
+    WGL_DRAW_TO_WINDOW_ARB          = 0x2001,
+    WGL_ACCELERATION_ARB            = 0x2003,
+    WGL_SWAP_METHOD_ARB             = 0x2007,
+    WGL_SUPPORT_OPENGL_ARB          = 0x2010,
+    WGL_PIXEL_TYPE_ARB              = 0x2013,
+    WGL_DOUBLE_BUFFER_ARB           = 0x2011,
+    WGL_COLOR_BITS_ARB              = 0x2014,
+    WGL_RED_BITS_ARB                = 0x2015,
+    WGL_GREEN_BITS_ARB              = 0x2017,
+    WGL_BLUE_BITS_ARB               = 0x2019,
+    WGL_ALPHA_BITS_ARB              = 0x201B,
+    WGL_DEPTH_BITS_ARB              = 0x2022,
+    WGL_STENCIL_BITS_ARB            = 0x2023,
+    WGL_FULL_ACCELERATION_ARB       = 0x2027,
+    WGL_ACCUM_RED_BITS_ARB          = 0x201E,
+    WGL_ACCUM_GREEN_BITS_ARB        = 0x201F,
+    WGL_ACCUM_BLUE_BITS_ARB         = 0x2020,
+    WGL_ACCUM_ALPHA_BITS_ARB        = 0x2021,
+    WGL_STEREO_ARB                  = 0x2012,
+    WGL_SAMPLE_BUFFERS_ARB          = 0x2041,
+    WGL_SAMPLES_ARB                 = 0x2042,
+    WGL_TYPE_RGBA_ARB               = 0x202B
+};
 
-static void getWglExtensions (HDC dc, StringArray& result) throw()
+static void getWglExtensions (HDC dc, StringArray& result) noexcept
 {
     PFNWGLGETEXTENSIONSSTRINGARBPROC wglGetExtensionsStringARB = 0;
 
@@ -84,7 +87,7 @@ public:
           component (component_),
           dc (0)
     {
-        jassert (component != 0);
+        jassert (component != nullptr);
 
         createNativeWindow();
 
@@ -115,7 +118,7 @@ public:
     {
         deleteContext();
         ReleaseDC ((HWND) nativeWindow->getNativeHandle(), dc);
-        nativeWindow = 0;
+        nativeWindow = nullptr;
     }
 
     void deleteContext()
@@ -129,18 +132,18 @@ public:
         }
     }
 
-    bool makeActive() const throw()
+    bool makeActive() const noexcept
     {
         jassert (renderContext != 0);
         return wglMakeCurrent (dc, renderContext) != 0;
     }
 
-    bool makeInactive() const throw()
+    bool makeInactive() const noexcept
     {
         return (! isActive()) || (wglMakeCurrent (0, 0) != 0);
     }
 
-    bool isActive() const throw()
+    bool isActive() const noexcept
     {
         return wglGetCurrentContext() == renderContext;
     }
@@ -157,7 +160,7 @@ public:
         return pf;
     }
 
-    void* getRawContext() const throw()
+    void* getRawContext() const noexcept
     {
         return renderContext;
     }
@@ -267,7 +270,7 @@ public:
             // old one and create a new one..
             jassert (nativeWindow != 0);
             ReleaseDC ((HWND) nativeWindow->getNativeHandle(), dc);
-            nativeWindow = 0;
+            nativeWindow = nullptr;
 
             createNativeWindow();
 
@@ -284,10 +287,10 @@ public:
         return false;
     }
 
-    void updateWindowPosition (int x, int y, int w, int h, int)
+    void updateWindowPosition (const Rectangle<int>& bounds)
     {
         SetWindowPos ((HWND) nativeWindow->getNativeHandle(), 0,
-                      x, y, w, h,
+                      bounds.getX(), bounds.getY(), bounds.getWidth(), bounds.getHeight(),
                       SWP_NOACTIVATE | SWP_NOZORDER | SWP_NOOWNERZORDER);
     }
 
@@ -373,7 +376,7 @@ public:
 
     void* getNativeWindowHandle() const
     {
-        return nativeWindow != 0 ? nativeWindow->getNativeHandle() : 0;
+        return nativeWindow != nullptr ? nativeWindow->getNativeHandle() : nullptr;
     }
 
     //==============================================================================
@@ -390,7 +393,7 @@ private:
         Win32ComponentPeer* topLevelPeer = dynamic_cast <Win32ComponentPeer*> (component->getTopLevelComponent()->getPeer());
 
         nativeWindow = new Win32ComponentPeer (component, ComponentPeer::windowIgnoresMouseClicks,
-                                               topLevelPeer == 0 ? 0 : (HWND) topLevelPeer->getNativeHandle());
+                                               topLevelPeer == nullptr ? 0 : (HWND) topLevelPeer->getNativeHandle());
         nativeWindow->dontRepaint = true;
         nativeWindow->setVisible (true);
 
@@ -399,7 +402,7 @@ private:
 
     bool fillInPixelFormatDetails (const int pixelFormatIndex,
                                    OpenGLPixelFormat& result,
-                                   const StringArray& availableExtensions) const throw()
+                                   const StringArray& availableExtensions) const noexcept
     {
         PFNWGLGETPIXELFORMATATTRIBIVARBPROC wglGetPixelFormatAttribivARB = 0;
 
@@ -493,15 +496,15 @@ private:
 OpenGLContext* OpenGLComponent::createContext()
 {
     ScopedPointer<WindowedGLContext> c (new WindowedGLContext (this,
-                                                               contextToShareListsWith != 0 ? (HGLRC) contextToShareListsWith->getRawContext() : 0,
+                                                               contextToShareListsWith != nullptr ? (HGLRC) contextToShareListsWith->getRawContext() : 0,
                                                                preferredPixelFormat));
 
-    return (c->renderContext != 0) ? c.release() : 0;
+    return (c->renderContext != 0) ? c.release() : nullptr;
 }
 
 void* OpenGLComponent::getNativeWindowHandle() const
 {
-    return context != 0 ? static_cast<WindowedGLContext*> (static_cast<OpenGLContext*> (context))->getNativeWindowHandle() : 0;
+    return context != nullptr ? static_cast<WindowedGLContext*> (static_cast<OpenGLContext*> (context))->getNativeWindowHandle() : nullptr;
 }
 
 void juce_glViewport (const int w, const int h)

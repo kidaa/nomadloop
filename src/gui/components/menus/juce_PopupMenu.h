@@ -105,8 +105,7 @@ public:
                                 zero, because that's used to indicate that the user didn't
                                 select anything.
         @param itemText         the text to show.
-        @param isActive         if false, the item will be shown 'greyed-out' and can't be
-                                picked
+        @param isEnabled        if false, the item will be shown 'greyed-out' and can't be picked
         @param isTicked         if true, the item will be shown with a tick next to it
         @param iconToUse        if this is non-zero, it should be an image that will be
                                 displayed to the left of the item. This method will take its
@@ -117,7 +116,7 @@ public:
     */
     void addItem (int itemResultId,
                   const String& itemText,
-                  bool isActive = true,
+                  bool isEnabled = true,
                   bool isTicked = false,
                   const Image& iconToUse = Image::null);
 
@@ -143,7 +142,7 @@ public:
     void addColouredItem (int itemResultId,
                           const String& itemText,
                           const Colour& itemTextColour,
-                          bool isActive = true,
+                          bool isEnabled = true,
                           bool isTicked = false,
                           const Image& iconToUse = Image::null);
 
@@ -173,7 +172,7 @@ public:
     */
     void addSubMenu (const String& subMenuName,
                      const PopupMenu& subMenu,
-                     bool isActive = true,
+                     bool isEnabled = true,
                      const Image& iconToUse = Image::null,
                      bool isTicked = false);
 
@@ -197,13 +196,13 @@ public:
 
         (This doesn't count separators).
     */
-    int getNumItems() const throw();
+    int getNumItems() const noexcept;
 
     /** Returns true if the menu contains a command item that triggers the given command. */
     bool containsCommandItem (int commandID) const;
 
     /** Returns true if the menu contains any items that can be used. */
-    bool containsAnyActiveItems() const throw();
+    bool containsAnyActiveItems() const noexcept;
 
     //==============================================================================
     /** Class used to create a set of options to pass to the show() method.
@@ -275,7 +274,7 @@ public:
               int minimumWidth = 0,
               int maximumNumColumns = 0,
               int standardItemHeight = 0,
-              ModalComponentManager::Callback* callback = 0);
+              ModalComponentManager::Callback* callback = nullptr);
 
 
     /** Displays the menu at a specific location.
@@ -296,7 +295,7 @@ public:
                 int minimumWidth = 0,
                 int maximumNumColumns = 0,
                 int standardItemHeight = 0,
-                ModalComponentManager::Callback* callback = 0);
+                ModalComponentManager::Callback* callback = nullptr);
 
     /** Displays the menu as if it's attached to a component such as a button.
 
@@ -309,7 +308,7 @@ public:
                 int minimumWidth = 0,
                 int maximumNumColumns = 0,
                 int standardItemHeight = 0,
-                ModalComponentManager::Callback* callback = 0);
+                ModalComponentManager::Callback* callback = nullptr);
 
     /** Displays and runs the menu modally, with a set of options.
     */
@@ -415,7 +414,7 @@ public:
         @see PopupMenu::addCustomItem
     */
     class JUCE_API  CustomComponent  : public Component,
-                                       public ReferenceCountedObject
+                                       public SingleThreadedReferenceCountedObject
     {
     public:
         /** Creates a custom item.
@@ -446,10 +445,10 @@ public:
             You can call this method in your paint() method to find out whether
             to draw a highlight.
         */
-        bool isItemHighlighted() const throw()                  { return isHighlighted; }
+        bool isItemHighlighted() const noexcept                 { return isHighlighted; }
 
         /** @internal */
-        bool isTriggeredAutomatically() const throw()           { return triggeredAutomatically; }
+        bool isTriggeredAutomatically() const noexcept          { return triggeredAutomatically; }
         /** @internal */
         void setHighlighted (bool shouldBeHighlighted);
 

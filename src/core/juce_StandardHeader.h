@@ -32,8 +32,8 @@
     See also SystemStats::getJUCEVersion() for a string version.
 */
 #define JUCE_MAJOR_VERSION      1
-#define JUCE_MINOR_VERSION      53
-#define JUCE_BUILDNUMBER        59
+#define JUCE_MINOR_VERSION      54
+#define JUCE_BUILDNUMBER        27
 
 /** Current Juce version number.
 
@@ -52,13 +52,12 @@
 #include "../../juce_Config.h"
 
 //==============================================================================
-#ifdef JUCE_NAMESPACE
-  #define BEGIN_JUCE_NAMESPACE    namespace JUCE_NAMESPACE {
-  #define END_JUCE_NAMESPACE      }
-#else
-  #define BEGIN_JUCE_NAMESPACE
-  #define END_JUCE_NAMESPACE
+#ifndef JUCE_NAMESPACE
+ #define JUCE_NAMESPACE juce
 #endif
+
+#define BEGIN_JUCE_NAMESPACE    namespace JUCE_NAMESPACE {
+#define END_JUCE_NAMESPACE      }
 
 //==============================================================================
 #include "juce_PlatformDefs.h"
@@ -96,6 +95,7 @@
 #include <cstring>
 #include <cstdio>
 #include <iostream>
+#include <vector>
 
 #if JUCE_USE_INTRINSICS
   #include <intrin.h>
@@ -124,10 +124,6 @@
 #if JUCE_MSVC
   #include <malloc.h>
   #pragma warning (pop)
-
-  #if ! JUCE_PUBLIC_INCLUDES
-    #pragma warning (4: 4511 4512 4100)  // (enable some warnings that are turned off in VC8)
-  #endif
 #endif
 
 #if JUCE_ANDROID
@@ -176,7 +172,7 @@ BEGIN_JUCE_NAMESPACE
 extern JUCE_API bool JUCE_CALLTYPE juce_isRunningUnderDebugger();
 
 #if JUCE_LOG_ASSERTIONS
-  extern JUCE_API void juce_LogAssertion (const char* filename, int lineNum) throw();
+  extern JUCE_API void juce_LogAssertion (const char* filename, int lineNum) noexcept;
 #endif
 
 #include "../memory/juce_Memory.h"
@@ -185,6 +181,30 @@ extern JUCE_API bool JUCE_CALLTYPE juce_isRunningUnderDebugger();
 #include "juce_Logger.h"
 #include "../memory/juce_LeakedObjectDetector.h"
 
+#undef TYPE_BOOL  // (stupidly-named CoreServices definition which interferes with other libraries).
+
+//==============================================================================
+#if JUCE_MAC || JUCE_IOS || DOXYGEN
+
+ /** A handy C++ wrapper that creates and deletes an NSAutoreleasePool object using RAII. */
+ class JUCE_API  ScopedAutoReleasePool
+ {
+ public:
+     ScopedAutoReleasePool();
+     ~ScopedAutoReleasePool();
+
+ private:
+     void* pool;
+
+     JUCE_DECLARE_NON_COPYABLE (ScopedAutoReleasePool);
+ };
+
+ /** A macro that can be used to easily declare a local ScopedAutoReleasePool object for RAII-based obj-C autoreleasing. */
+ #define JUCE_AUTORELEASEPOOL  const JUCE_NAMESPACE::ScopedAutoReleasePool JUCE_JOIN_MACRO (autoReleasePool_, __LINE__);
+
+#else
+ #define JUCE_AUTORELEASEPOOL
+#endif
 
 END_JUCE_NAMESPACE
 

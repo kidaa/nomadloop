@@ -40,6 +40,15 @@
 */
 
 //==============================================================================
+/* This line is here as a sanity-check to catch syntax errors caused by mistakes in 3rd-party
+   header files that have been included before this one. If you hit an error at this line, there
+   must be some kind of syntax problem in whatever code immediately precedes this header.
+
+   It also causes an error if you attempt to build using a C or obj-C compiler rather than a C++ one.
+*/
+namespace JuceDummyNamespace {}
+
+//==============================================================================
 #if (defined (_WIN32) || defined (_WIN64))
   #define       JUCE_WIN32 1
   #define       JUCE_WINDOWS 1
@@ -49,7 +58,9 @@
 #elif defined (LINUX) || defined (__linux__)
   #define     JUCE_LINUX 1
 #elif defined (__APPLE_CPP__) || defined(__APPLE_CC__)
+  #define Point CarbonDummyPointName // (workaround to avoid definition of "Point" by old Carbon headers)
   #include <CoreFoundation/CoreFoundation.h> // (needed to find out what platform we're using)
+  #undef Point
 
   #if TARGET_OS_IPHONE || TARGET_IPHONE_SIMULATOR
     #define     JUCE_IPHONE 1
@@ -174,7 +185,7 @@
     #endif
   #endif
 
-  #if ! JUCE_VC7_OR_EARLIER && ! defined (__INTEL_COMPILER)
+  #if ! JUCE_VC7_OR_EARLIER
     #define JUCE_USE_INTRINSICS 1
   #endif
 #else

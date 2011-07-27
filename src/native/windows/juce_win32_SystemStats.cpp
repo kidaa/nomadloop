@@ -35,19 +35,20 @@ void Logger::outputDebugString (const String& text)
 }
 
 //==============================================================================
-static int64 hiResTicksPerSecond;
-static double hiResTicksScaleFactor;
-
+#ifdef JUCE_DLL
+ JUCE_API void* juceDLL_malloc (size_t sz)    { return ::malloc (sz); }
+ JUCE_API void  juceDLL_free (void* block)    { ::free (block); }
+#endif
 
 //==============================================================================
-#if JUCE_USE_INTRINSICS
+#if JUCE_USE_INTRINSICS || JUCE_64BIT
 
 // CPU info functions using intrinsics...
 
 #pragma intrinsic (__cpuid)
 #pragma intrinsic (__rdtsc)
 
-const String SystemStats::getCpuVendor()
+String SystemStats::getCpuVendor()
 {
     int info [4];
     __cpuid (info, 0);
@@ -69,16 +70,14 @@ static void juce_getCpuVendor (char* const v)
 {
     int vendor[4] = { 0 };
 
-#ifdef JUCE_64BIT
-#else
   #ifndef __MINGW32__
     __try
   #endif
     {
-  #if JUCE_GCC
+       #if JUCE_GCC
         unsigned int dummy = 0;
         __asm__ ("cpuid" : "=a" (dummy), "=b" (vendor[0]), "=c" (vendor[2]),"=d" (vendor[1]) : "a" (0));
-  #else
+       #else
         __asm
         {
             mov eax, 0
@@ -87,20 +86,19 @@ static void juce_getCpuVendor (char* const v)
             mov [vendor + 4], edx
             mov [vendor + 8], ecx
         }
-  #endif
+       #endif
     }
-  #ifndef __MINGW32__
+   #ifndef __MINGW32__
     __except (EXCEPTION_EXECUTE_HANDLER)
     {
         *v = 0;
     }
-  #endif
-#endif
+   #endif
 
     memcpy (v, vendor, 16);
 }
 
-const String SystemStats::getCpuVendor()
+String SystemStats::getCpuVendor()
 {
     char v [16];
     juce_getCpuVendor (v);
@@ -110,38 +108,33 @@ const String SystemStats::getCpuVendor()
 
 
 //==============================================================================
-void SystemStats::initialiseStats()
+SystemStats::CPUFlags::CPUFlags()
 {
-    cpuFlags.hasMMX   = IsProcessorFeaturePresent (PF_MMX_INSTRUCTIONS_AVAILABLE) != 0;
-    cpuFlags.hasSSE   = IsProcessorFeaturePresent (PF_XMMI_INSTRUCTIONS_AVAILABLE) != 0;
-    cpuFlags.hasSSE2  = IsProcessorFeaturePresent (PF_XMMI64_INSTRUCTIONS_AVAILABLE) != 0;
-#ifdef PF_AMD3D_INSTRUCTIONS_AVAILABLE
-    cpuFlags.has3DNow = IsProcessorFeaturePresent (PF_AMD3D_INSTRUCTIONS_AVAILABLE) != 0;
-#else
-    cpuFlags.has3DNow = IsProcessorFeaturePresent (PF_3DNOW_INSTRUCTIONS_AVAILABLE) != 0;
-#endif
+    hasMMX   = IsProcessorFeaturePresent (PF_MMX_INSTRUCTIONS_AVAILABLE) != 0;
+    hasSSE   = IsProcessorFeaturePresent (PF_XMMI_INSTRUCTIONS_AVAILABLE) != 0;
+    hasSSE2  = IsProcessorFeaturePresent (PF_XMMI64_INSTRUCTIONS_AVAILABLE) != 0;
+   #ifdef PF_AMD3D_INSTRUCTIONS_AVAILABLE
+    has3DNow = IsProcessorFeaturePresent (PF_AMD3D_INSTRUCTIONS_AVAILABLE) != 0;
+   #else
+    has3DNow = IsProcessorFeaturePresent (PF_3DNOW_INSTRUCTIONS_AVAILABLE) != 0;
+   #endif
 
-    {
-        SYSTEM_INFO systemInfo;
-        GetSystemInfo (&systemInfo);
-        cpuFlags.numCpus = systemInfo.dwNumberOfProcessors;
-    }
-
-    LARGE_INTEGER f;
-    QueryPerformanceFrequency (&f);
-    hiResTicksPerSecond = f.QuadPart;
-    hiResTicksScaleFactor = 1000.0 / hiResTicksPerSecond;
-
-    String s (SystemStats::getJUCEVersion());
-
-    const MMRESULT res = timeBeginPeriod (1);
-    (void) res;
-    jassert (res == TIMERR_NOERROR);
-
-  #if JUCE_MSVC && JUCE_CHECK_MEMORY_LEAKS
-    _CrtSetDbgFlag (_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
-  #endif
+    SYSTEM_INFO systemInfo;
+    GetSystemInfo (&systemInfo);
+    numCpus = systemInfo.dwNumberOfProcessors;
 }
+
+#if JUCE_MSVC && JUCE_CHECK_MEMORY_LEAKS
+struct DebugFlagsInitialiser
+{
+    DebugFlagsInitialiser()
+    {
+        _CrtSetDbgFlag (_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
+    }
+};
+
+static DebugFlagsInitialiser debugFlagsInitialiser;
+#endif
 
 //==============================================================================
 SystemStats::OperatingSystemType SystemStats::getOperatingSystemType()
@@ -168,7 +161,7 @@ SystemStats::OperatingSystemType SystemStats::getOperatingSystemType()
     return UnknownOS;
 }
 
-const String SystemStats::getOperatingSystemName()
+String SystemStats::getOperatingSystemName()
 {
     const char* name = "Unknown OS";
 
@@ -187,21 +180,20 @@ const String SystemStats::getOperatingSystemName()
 
 bool SystemStats::isOperatingSystem64Bit()
 {
-#ifdef _WIN64
+   #ifdef _WIN64
     return true;
-#else
+   #else
     typedef BOOL (WINAPI* LPFN_ISWOW64PROCESS) (HANDLE, PBOOL);
 
-    LPFN_ISWOW64PROCESS fnIsWow64Process = (LPFN_ISWOW64PROCESS) GetProcAddress (GetModuleHandle (L"kernel32"), "IsWow64Process");
+    LPFN_ISWOW64PROCESS fnIsWow64Process = (LPFN_ISWOW64PROCESS) GetProcAddress (GetModuleHandle (_T("kernel32")), "IsWow64Process");
 
     BOOL isWow64 = FALSE;
 
-    return (fnIsWow64Process != 0)
+    return fnIsWow64Process != 0
             && fnIsWow64Process (GetCurrentProcess(), &isWow64)
             && (isWow64 != FALSE);
-#endif
+   #endif
 }
-
 
 //==============================================================================
 int SystemStats::getMemorySizeInMegabytes()
@@ -213,47 +205,69 @@ int SystemStats::getMemorySizeInMegabytes()
 }
 
 //==============================================================================
-uint32 juce_millisecondsSinceStartup() throw()
+uint32 juce_millisecondsSinceStartup() noexcept
 {
     return (uint32) timeGetTime();
 }
 
-int64 Time::getHighResolutionTicks() throw()
+//==============================================================================
+class HiResCounterHandler
 {
-    LARGE_INTEGER ticks;
-    QueryPerformanceCounter (&ticks);
+public:
+    HiResCounterHandler()
+        : hiResTicksOffset (0)
+    {
+        const MMRESULT res = timeBeginPeriod (1);
+        (void) res;
+        jassert (res == TIMERR_NOERROR);
 
-    const int64 mainCounterAsHiResTicks = (juce_millisecondsSinceStartup() * hiResTicksPerSecond) / 1000;
-    const int64 newOffset = mainCounterAsHiResTicks - ticks.QuadPart;
+        LARGE_INTEGER f;
+        QueryPerformanceFrequency (&f);
+        hiResTicksPerSecond = f.QuadPart;
+        hiResTicksScaleFactor = 1000.0 / hiResTicksPerSecond;
+    }
 
-    // fix for a very obscure PCI hardware bug that can make the counter
-    // sometimes jump forwards by a few seconds..
-    static int64 hiResTicksOffset = 0;
-    const int64 offsetDrift = abs64 (newOffset - hiResTicksOffset);
+    inline int64 getHighResolutionTicks() noexcept
+    {
+        LARGE_INTEGER ticks;
+        QueryPerformanceCounter (&ticks);
 
-    if (offsetDrift > (hiResTicksPerSecond >> 1))
-        hiResTicksOffset = newOffset;
+        const int64 mainCounterAsHiResTicks = (juce_millisecondsSinceStartup() * hiResTicksPerSecond) / 1000;
+        const int64 newOffset = mainCounterAsHiResTicks - ticks.QuadPart;
 
-    return ticks.QuadPart + hiResTicksOffset;
-}
+        // fix for a very obscure PCI hardware bug that can make the counter
+        // sometimes jump forwards by a few seconds..
+        const int64 offsetDrift = abs64 (newOffset - hiResTicksOffset);
 
-double Time::getMillisecondCounterHiRes() throw()
+        if (offsetDrift > (hiResTicksPerSecond >> 1))
+            hiResTicksOffset = newOffset;
+
+        return ticks.QuadPart + hiResTicksOffset;
+    }
+
+    inline double getMillisecondCounterHiRes() noexcept
+    {
+        return getHighResolutionTicks() * hiResTicksScaleFactor;
+    }
+
+    int64 hiResTicksPerSecond, hiResTicksOffset;
+    double hiResTicksScaleFactor;
+};
+
+static HiResCounterHandler hiResCounterHandler;
+
+int64  Time::getHighResolutionTicksPerSecond() noexcept  { return hiResCounterHandler.hiResTicksPerSecond; }
+int64  Time::getHighResolutionTicks() noexcept           { return hiResCounterHandler.getHighResolutionTicks(); }
+double Time::getMillisecondCounterHiRes() noexcept       { return hiResCounterHandler.getMillisecondCounterHiRes(); }
+
+//==============================================================================
+static int64 juce_getClockCycleCounter() noexcept
 {
-    return getHighResolutionTicks() * hiResTicksScaleFactor;
-}
-
-int64 Time::getHighResolutionTicksPerSecond() throw()
-{
-    return hiResTicksPerSecond;
-}
-
-static int64 juce_getClockCycleCounter() throw()
-{
-#if JUCE_USE_INTRINSICS
+   #if JUCE_USE_INTRINSICS
     // MS intrinsics version...
     return __rdtsc();
 
-#elif JUCE_GCC
+   #elif JUCE_GCC
     // GNU inline asm version...
     unsigned int hi = 0, lo = 0;
 
@@ -269,7 +283,7 @@ static int64 juce_getClockCycleCounter() throw()
          : "cc", "eax", "ebx", "ecx", "edx", "memory");
 
     return (int64) ((((uint64) hi) << 32) | lo);
-#else
+   #else
     // MSVC inline asm version...
     unsigned int hi = 0, lo = 0;
 
@@ -283,7 +297,7 @@ static int64 juce_getClockCycleCounter() throw()
     }
 
     return (int64) ((((uint64) hi) << 32) | lo);
-#endif
+   #endif
 }
 
 int SystemStats::getCpuSpeedInMegaherz()
@@ -342,18 +356,25 @@ int SystemStats::getPageSize()
 }
 
 //==============================================================================
-const String SystemStats::getLogonName()
+String SystemStats::getLogonName()
 {
     TCHAR text [256] = { 0 };
-    DWORD len = numElementsInArray (text) - 2;
+    DWORD len = numElementsInArray (text) - 1;
     GetUserName (text, &len);
     return String (text, len);
 }
 
-const String SystemStats::getFullUserName()
+String SystemStats::getFullUserName()
 {
     return getLogonName();
 }
 
+String SystemStats::getComputerName()
+{
+    TCHAR text [MAX_COMPUTERNAME_LENGTH + 1] = { 0 };
+    DWORD len = numElementsInArray (text) - 1;
+    GetComputerName (text, &len);
+    return String (text, len);
+}
 
 #endif

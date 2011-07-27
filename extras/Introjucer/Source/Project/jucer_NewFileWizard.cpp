@@ -27,25 +27,30 @@
 
 
 //==============================================================================
-static bool fillInNewCppFileTemplate (const File& file, const Project::Item& item, const char* templateName)
+namespace
 {
-    String s = item.getProject().getFileTemplate (templateName)
-                  .replace ("FILENAME", file.getFileName(), false)
-                  .replace ("DATE", Time::getCurrentTime().toString (true, true, true), false)
-                  .replace ("AUTHOR", SystemStats::getFullUserName(), false)
-                  .replace ("HEADERGUARD", CodeHelpers::makeHeaderGuardName (file), false);
+    bool fillInNewCppFileTemplate (const File& file, const Project::Item& item, const char* templateName)
+    {
+        String s = item.getProject().getFileTemplate (templateName)
+                      .replace ("FILENAME", file.getFileName(), false)
+                      .replace ("DATE", Time::getCurrentTime().toString (true, true, true), false)
+                      .replace ("AUTHOR", SystemStats::getFullUserName(), false)
+                      .replace ("HEADERGUARD", CodeHelpers::makeHeaderGuardName (file), false);
 
-    return FileHelpers::overwriteFileWithNewDataIfDifferent (file, s);
+        return FileHelpers::overwriteFileWithNewDataIfDifferent (file, s);
+    }
+
+    const int menuBaseID = 0x12d83f0;
 }
+
 
 //==============================================================================
 class NewCppFileWizard  : public NewFileWizard::Type
 {
 public:
     NewCppFileWizard() {}
-    ~NewCppFileWizard() {}
 
-    const String getName()  { return "CPP File"; }
+    String getName()  { return "CPP File"; }
 
     void createNewFile (Project::Item parent)
     {
@@ -73,9 +78,8 @@ class NewHeaderFileWizard  : public NewFileWizard::Type
 {
 public:
     NewHeaderFileWizard() {}
-    ~NewHeaderFileWizard() {}
 
-    const String getName()  { return "Header File"; }
+    String getName()  { return "Header File"; }
 
     void createNewFile (Project::Item parent)
     {
@@ -103,9 +107,8 @@ class NewCppAndHeaderFileWizard  : public NewFileWizard::Type
 {
 public:
     NewCppAndHeaderFileWizard() {}
-    ~NewCppAndHeaderFileWizard() {}
 
-    const String getName()  { return "CPP & Header File"; }
+    String getName()  { return "CPP & Header File"; }
 
     void createNewFile (Project::Item parent)
     {
@@ -127,8 +130,8 @@ void NewFileWizard::Type::showFailedToWriteMessage (const File& file)
                                  "Couldn't write to the file: " + file.getFullPathName());
 }
 
-const File NewFileWizard::Type::askUserToChooseNewFile (const String& suggestedFilename, const String& wildcard,
-                                                               const Project::Item& projectGroupToAddTo)
+File NewFileWizard::Type::askUserToChooseNewFile (const String& suggestedFilename, const String& wildcard,
+                                                  const Project::Item& projectGroupToAddTo)
 {
     FileChooser fc ("Select File to Create",
                     projectGroupToAddTo.determineGroupFolder()
@@ -157,8 +160,6 @@ NewFileWizard::~NewFileWizard()
 
 juce_ImplementSingleton_SingleThreaded (NewFileWizard)
 
-static const int menuBaseID = 0x12d83f0;
-
 void NewFileWizard::addWizardsToMenu (PopupMenu& m) const
 {
     for (int i = 0; i < wizards.size(); ++i)
@@ -169,7 +170,7 @@ bool NewFileWizard::runWizardFromMenu (int chosenMenuItemID, const Project::Item
 {
     Type* wiz = wizards [chosenMenuItemID - menuBaseID];
 
-    if (wiz != 0)
+    if (wiz != nullptr)
     {
         wiz->createNewFile (projectGroupToAddTo);
         return true;

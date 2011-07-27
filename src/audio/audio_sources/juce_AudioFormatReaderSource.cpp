@@ -28,37 +28,23 @@
 BEGIN_JUCE_NAMESPACE
 
 #include "juce_AudioFormatReaderSource.h"
-#include "../../threads/juce_ScopedLock.h"
 
 
 //==============================================================================
 AudioFormatReaderSource::AudioFormatReaderSource (AudioFormatReader* const reader_,
                                                   const bool deleteReaderWhenThisIsDeleted)
-    : reader (reader_),
-      deleteReader (deleteReaderWhenThisIsDeleted),
+    : reader (reader_, deleteReaderWhenThisIsDeleted),
       nextPlayPos (0),
       looping (false)
 {
-    jassert (reader != 0);
+    jassert (reader != nullptr);
 }
 
-AudioFormatReaderSource::~AudioFormatReaderSource()
-{
-    releaseResources();
+AudioFormatReaderSource::~AudioFormatReaderSource() {}
 
-    if (deleteReader)
-        delete reader;
-}
-
-void AudioFormatReaderSource::setNextReadPosition (int64 newPosition)
-{
-    nextPlayPos = newPosition;
-}
-
-void AudioFormatReaderSource::setLooping (bool shouldLoop)
-{
-    looping = shouldLoop;
-}
+int64 AudioFormatReaderSource::getTotalLength() const                   { return reader->lengthInSamples; }
+void AudioFormatReaderSource::setNextReadPosition (int64 newPosition)   { nextPlayPos = newPosition; }
+void AudioFormatReaderSource::setLooping (bool shouldLoop)              { looping = shouldLoop; }
 
 int64 AudioFormatReaderSource::getNextReadPosition() const
 {
@@ -66,19 +52,8 @@ int64 AudioFormatReaderSource::getNextReadPosition() const
                    : nextPlayPos;
 }
 
-int64 AudioFormatReaderSource::getTotalLength() const
-{
-    return reader->lengthInSamples;
-}
-
-void AudioFormatReaderSource::prepareToPlay (int /*samplesPerBlockExpected*/,
-                                             double /*sampleRate*/)
-{
-}
-
-void AudioFormatReaderSource::releaseResources()
-{
-}
+void AudioFormatReaderSource::prepareToPlay (int /*samplesPerBlockExpected*/, double /*sampleRate*/) {}
+void AudioFormatReaderSource::releaseResources() {}
 
 void AudioFormatReaderSource::getNextAudioBlock (const AudioSourceChannelInfo& info)
 {
@@ -88,44 +63,31 @@ void AudioFormatReaderSource::getNextAudioBlock (const AudioSourceChannelInfo& i
 
         if (looping)
         {
-            const int newStart = start % (int) reader->lengthInSamples;
-            const int newEnd = (start + info.numSamples) % (int) reader->lengthInSamples;
+            const int newStart = (int) (start % (int) reader->lengthInSamples);
+            const int newEnd = (int) ((start + info.numSamples) % (int) reader->lengthInSamples);
 
             if (newEnd > newStart)
             {
-                info.buffer->readFromAudioReader (reader,
-                                                  info.startSample,
-                                                  newEnd - newStart,
-                                                  newStart,
-                                                  true, true);
+                info.buffer->readFromAudioReader (reader, info.startSample,
+                                                  newEnd - newStart, newStart, true, true);
             }
             else
             {
                 const int endSamps = (int) reader->lengthInSamples - newStart;
 
-                info.buffer->readFromAudioReader (reader,
-                                                  info.startSample,
-                                                  endSamps,
-                                                  newStart,
-                                                  true, true);
+                info.buffer->readFromAudioReader (reader, info.startSample,
+                                                  endSamps, newStart, true, true);
 
-                info.buffer->readFromAudioReader (reader,
-                                                  info.startSample + endSamps,
-                                                  newEnd,
-                                                  0,
-                                                  true, true);
+                info.buffer->readFromAudioReader (reader, info.startSample + endSamps,
+                                                  newEnd, 0, true, true);
             }
 
             nextPlayPos = newEnd;
         }
         else
         {
-            info.buffer->readFromAudioReader (reader,
-                                              info.startSample,
-                                              info.numSamples,
-                                              start,
-                                              true, true);
-
+            info.buffer->readFromAudioReader (reader, info.startSample,
+                                              info.numSamples, start, true, true);
             nextPlayPos += info.numSamples;
         }
     }

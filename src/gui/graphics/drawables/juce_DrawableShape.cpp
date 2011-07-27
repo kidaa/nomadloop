@@ -101,21 +101,21 @@ void DrawableShape::setStrokeFill (const FillType& newFill)
 }
 
 void DrawableShape::setFillInternal (RelativeFillType& fill, const RelativeFillType& newFill,
-                                     ScopedPointer<RelativeCoordinatePositionerBase>& positioner)
+                                     ScopedPointer<RelativeCoordinatePositionerBase>& pos)
 {
     if (fill != newFill)
     {
         fill = newFill;
-        positioner = 0;
+        pos = nullptr;
 
         if (fill.isDynamic())
         {
-            positioner = new RelativePositioner (*this, fill, true);
-            positioner->apply();
+            pos = new RelativePositioner (*this, fill, true);
+            pos->apply();
         }
         else
         {
-            fill.recalculateCoords (0);
+            fill.recalculateCoords (nullptr);
         }
 
         repaint();
@@ -146,7 +146,7 @@ void DrawableShape::setStrokeThickness (const float newThickness)
     setStrokeType (PathStrokeType (newThickness, strokeType.getJointStyle(), strokeType.getEndStyle()));
 }
 
-bool DrawableShape::isStrokeVisible() const throw()
+bool DrawableShape::isStrokeVisible() const noexcept
 {
     return strokeType.getStrokeThickness() > 0.0f && ! strokeFill.fill.isInvisible();
 }
@@ -193,7 +193,7 @@ void DrawableShape::strokeChanged()
     repaint();
 }
 
-const Rectangle<float> DrawableShape::getDrawableBounds() const
+Rectangle<float> DrawableShape::getDrawableBounds() const
 {
     if (isStrokeVisible())
         return strokePath.getBounds();
@@ -334,7 +334,7 @@ void DrawableShape::RelativeFillType::writeTo (ValueTree& v, ComponentBuilder::I
     {
         v.setProperty (FillAndStrokeState::type, "image", undoManager);
 
-        if (imageProvider != 0)
+        if (imageProvider != nullptr)
             v.setProperty (FillAndStrokeState::imageId, imageProvider->getIdentifierForImage (fill.image), undoManager);
 
         if (fill.getOpacity() < 1.0f)
@@ -381,7 +381,7 @@ bool DrawableShape::RelativeFillType::readFrom (const ValueTree& v, ComponentBui
     else if (newType == "image")
     {
         Image im;
-        if (imageProvider != 0)
+        if (imageProvider != nullptr)
             im = imageProvider->getImageForIdentifier (v [FillAndStrokeState::imageId]);
 
         fill.setTiledImage (im, AffineTransform::identity);
@@ -415,7 +415,7 @@ DrawableShape::FillAndStrokeState::FillAndStrokeState (const ValueTree& state_)
 {
 }
 
-const DrawableShape::RelativeFillType DrawableShape::FillAndStrokeState::getFill (const Identifier& fillOrStrokeType, ComponentBuilder::ImageProvider* imageProvider) const
+DrawableShape::RelativeFillType DrawableShape::FillAndStrokeState::getFill (const Identifier& fillOrStrokeType, ComponentBuilder::ImageProvider* imageProvider) const
 {
     DrawableShape::RelativeFillType f;
     f.readFrom (state.getChildWithName (fillOrStrokeType), imageProvider);
@@ -428,7 +428,7 @@ ValueTree DrawableShape::FillAndStrokeState::getFillState (const Identifier& fil
     if (v.isValid())
         return v;
 
-    setFill (fillOrStrokeType, FillType (Colours::black), 0, 0);
+    setFill (fillOrStrokeType, FillType (Colours::black), nullptr, nullptr);
     return getFillState (fillOrStrokeType);
 }
 
@@ -439,7 +439,7 @@ void DrawableShape::FillAndStrokeState::setFill (const Identifier& fillOrStrokeT
     newFill.writeTo (v, imageProvider, undoManager);
 }
 
-const PathStrokeType DrawableShape::FillAndStrokeState::getStrokeType() const
+PathStrokeType DrawableShape::FillAndStrokeState::getStrokeType() const
 {
     const String jointStyleString (state [jointStyle].toString());
     const String capStyleString (state [capStyle].toString());

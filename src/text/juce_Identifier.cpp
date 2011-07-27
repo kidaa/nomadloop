@@ -28,6 +28,7 @@
 BEGIN_JUCE_NAMESPACE
 
 #include "juce_Identifier.h"
+#include "../text/juce_StringPool.h"
 
 
 //==============================================================================
@@ -37,17 +38,17 @@ StringPool& Identifier::getPool()
     return pool;
 }
 
-Identifier::Identifier() throw()
-    : name (0)
+Identifier::Identifier() noexcept
+    : name (nullptr)
 {
 }
 
-Identifier::Identifier (const Identifier& other) throw()
+Identifier::Identifier (const Identifier& other) noexcept
     : name (other.name)
 {
 }
 
-Identifier& Identifier::operator= (const Identifier& other) throw()
+Identifier& Identifier::operator= (const Identifier& other) noexcept
 {
     name = other.name;
     return *this;
@@ -58,7 +59,7 @@ Identifier::Identifier (const String& name_)
 {
     /* An Identifier string must be suitable for use as a script variable or XML
        attribute, so it can only contain this limited set of characters.. */
-    jassert (name_.containsOnly ("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_") && name_.isNotEmpty());
+    jassert (isValidIdentifier (name_));
 }
 
 Identifier::Identifier (const char* const name_)
@@ -66,11 +67,17 @@ Identifier::Identifier (const char* const name_)
 {
     /* An Identifier string must be suitable for use as a script variable or XML
        attribute, so it can only contain this limited set of characters.. */
-    jassert (toString().containsOnly ("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_") && toString().isNotEmpty());
+    jassert (isValidIdentifier (toString()));
 }
 
 Identifier::~Identifier()
 {
+}
+
+bool Identifier::isValidIdentifier (const String& possibleIdentifier) noexcept
+{
+    return possibleIdentifier.isNotEmpty()
+            && possibleIdentifier.containsOnly ("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-:");
 }
 
 END_JUCE_NAMESPACE

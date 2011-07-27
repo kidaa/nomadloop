@@ -28,6 +28,7 @@
 BEGIN_JUCE_NAMESPACE
 
 #include "juce_MemoryOutputStream.h"
+#include "juce_InputStream.h"
 
 
 //==============================================================================
@@ -51,10 +52,15 @@ MemoryOutputStream::MemoryOutputStream (MemoryBlock& memoryBlockToWriteTo,
 
 MemoryOutputStream::~MemoryOutputStream()
 {
-    flush();
+    trimExternalBlockSize();
 }
 
 void MemoryOutputStream::flush()
+{
+    trimExternalBlockSize();
+}
+
+void MemoryOutputStream::trimExternalBlockSize()
 {
     if (&data != &internalBlock)
         data.setSize (size, false);
@@ -65,21 +71,25 @@ void MemoryOutputStream::preallocate (const size_t bytesToPreallocate)
     data.ensureSize (bytesToPreallocate + 1);
 }
 
-void MemoryOutputStream::reset() throw()
+void MemoryOutputStream::reset() noexcept
 {
     position = 0;
     size = 0;
+}
+
+void MemoryOutputStream::prepareToWrite (int numBytes)
+{
+    const size_t storageNeeded = position + numBytes;
+
+    if (storageNeeded >= data.getSize())
+        data.ensureSize ((storageNeeded + jmin ((int) (storageNeeded / 2), 1024 * 1024) + 32) & ~31);
 }
 
 bool MemoryOutputStream::write (const void* const buffer, int howMany)
 {
     if (howMany > 0)
     {
-        const size_t storageNeeded = position + howMany;
-
-        if (storageNeeded >= data.getSize())
-            data.ensureSize ((storageNeeded + jmin ((int) (storageNeeded / 2), 1024 * 1024) + 32) & ~31);
-
+        prepareToWrite (howMany);
         memcpy (static_cast<char*> (data.getData()) + position, buffer, howMany);
         position += howMany;
         size = jmax (size, position);
@@ -88,7 +98,18 @@ bool MemoryOutputStream::write (const void* const buffer, int howMany)
     return true;
 }
 
-const void* MemoryOutputStream::getData() const throw()
+void MemoryOutputStream::writeRepeatedByte (uint8 byte, int howMany)
+{
+    if (howMany > 0)
+    {
+        prepareToWrite (howMany);
+        memset (static_cast<char*> (data.getData()) + position, byte, howMany);
+        position += howMany;
+        size = jmax (size, position);
+    }
+}
+
+const void* MemoryOutputStream::getData() const noexcept
 {
     void* const d = data.getData();
 
@@ -129,13 +150,13 @@ int MemoryOutputStream::writeFromInputStream (InputStream& source, int64 maxNumB
     return OutputStream::writeFromInputStream (source, maxNumBytesToWrite);
 }
 
-const String MemoryOutputStream::toUTF8() const
+String MemoryOutputStream::toUTF8() const
 {
     const char* const d = static_cast <const char*> (getData());
     return String (CharPointer_UTF8 (d), CharPointer_UTF8 (d + getDataSize()));
 }
 
-const String MemoryOutputStream::toString() const
+String MemoryOutputStream::toString() const
 {
     return String::createStringFromData (getData(), (int) getDataSize());
 }

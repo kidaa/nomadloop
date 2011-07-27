@@ -73,7 +73,7 @@ public:
 
     void handleSysEx (MIDIHDR* const hdr, const uint32 timeStamp)
     {
-        if (isStarted)
+        if (isStarted && hdr->dwBytesRecorded > 0)
         {
             concatenator.pushMidiData (hdr->lpData, hdr->dwBytesRecorded, convertTimeStamp (timeStamp), input, callback);
             writeFinishedBlocks();
@@ -226,7 +226,7 @@ Array <MidiInCollector*, CriticalSection> MidiInCollector::activeMidiCollectors;
 
 
 //==============================================================================
-const StringArray MidiInput::getDevices()
+StringArray MidiInput::getDevices()
 {
     StringArray s;
     const int num = midiInGetNumDevs();
@@ -249,8 +249,8 @@ int MidiInput::getDefaultDeviceIndex()
 
 MidiInput* MidiInput::openDevice (const int index, MidiInputCallback* const callback)
 {
-    if (callback == 0)
-        return 0;
+    if (callback == nullptr)
+        return nullptr;
 
     UINT deviceId = MIDI_MAPPER;
     int n = 0;
@@ -291,7 +291,7 @@ MidiInput* MidiInput::openDevice (const int index, MidiInputCallback* const call
         return in.release();
     }
 
-    return 0;
+    return nullptr;
 }
 
 MidiInput::MidiInput (const String& name_)
@@ -332,7 +332,7 @@ private:
 Array<MidiOutHandle*> MidiOutHandle::activeHandles;
 
 //==============================================================================
-const StringArray MidiOutput::getDevices()
+StringArray MidiOutput::getDevices()
 {
     StringArray s;
     const int num = midiOutGetNumDevs();
@@ -400,7 +400,7 @@ MidiOutput* MidiOutput::openDevice (int index)
     {
         MidiOutHandle* const han = MidiOutHandle::activeHandles.getUnchecked(i);
 
-        if (han != 0 && han->deviceId == deviceId)
+        if (han->deviceId == deviceId)
         {
             han->refCount++;
 
@@ -437,7 +437,7 @@ MidiOutput* MidiOutput::openDevice (int index)
         }
     }
 
-    return 0;
+    return nullptr;
 }
 
 MidiOutput::~MidiOutput()
@@ -452,42 +452,6 @@ MidiOutput::~MidiOutput()
         MidiOutHandle::activeHandles.removeValue (h);
         delete h;
     }
-}
-
-void MidiOutput::reset()
-{
-    const MidiOutHandle* const h = static_cast <const MidiOutHandle*> (internal);
-    midiOutReset (h->handle);
-}
-
-bool MidiOutput::getVolume (float& leftVol, float& rightVol)
-{
-    const MidiOutHandle* const handle = static_cast <const MidiOutHandle*> (internal);
-
-    DWORD n;
-    if (midiOutGetVolume (handle->handle, &n) == MMSYSERR_NOERROR)
-    {
-        const unsigned short* const nn = reinterpret_cast<const unsigned short*> (&n);
-        rightVol = nn[0] / (float) 0xffff;
-        leftVol = nn[1] / (float) 0xffff;
-        return true;
-    }
-    else
-    {
-        rightVol = leftVol = 1.0f;
-        return false;
-    }
-}
-
-void MidiOutput::setVolume (float leftVol, float rightVol)
-{
-    const MidiOutHandle* const handle = static_cast <MidiOutHandle*> (internal);
-
-    DWORD n;
-    unsigned short* const nn = reinterpret_cast<unsigned short*> (&n);
-    nn[0] = (unsigned short) jlimit (0, 0xffff, (int) (rightVol * 0xffff));
-    nn[1] = (unsigned short) jlimit (0, 0xffff, (int) (leftVol * 0xffff));
-    midiOutSetVolume (handle->handle, n);
 }
 
 void MidiOutput::sendMessageNow (const MidiMessage& message)

@@ -49,7 +49,7 @@ namespace pnglibNamespace
 {
   using namespace zlibNamespace;
 
-#if JUCE_INCLUDE_PNGLIB_CODE
+#if JUCE_INCLUDE_PNGLIB_CODE || ! defined (JUCE_INCLUDE_PNGLIB_CODE)
 
   #if _MSC_VER != 1310
    using ::calloc; // (causes conflict in VS.NET 2003)
@@ -135,10 +135,7 @@ namespace PNGHelpers
 PNGImageFormat::PNGImageFormat()    {}
 PNGImageFormat::~PNGImageFormat()   {}
 
-const String PNGImageFormat::getFormatName()
-{
-    return "PNG";
-}
+String PNGImageFormat::getFormatName()  { return "PNG"; }
 
 bool PNGImageFormat::canUnderstand (InputStream& in)
 {
@@ -152,10 +149,10 @@ bool PNGImageFormat::canUnderstand (InputStream& in)
 }
 
 #if (JUCE_MAC || JUCE_IOS) && USE_COREGRAPHICS_RENDERING && ! DONT_USE_COREIMAGE_LOADER
-  const Image juce_loadWithCoreImage (InputStream& input);
+ Image juce_loadWithCoreImage (InputStream& input);
 #endif
 
-const Image PNGImageFormat::decodeImage (InputStream& in)
+Image PNGImageFormat::decodeImage (InputStream& in)
 {
 #if (JUCE_MAC || JUCE_IOS) && USE_COREGRAPHICS_RENDERING && ! DONT_USE_COREIMAGE_LOADER
     return juce_loadWithCoreImage (in);

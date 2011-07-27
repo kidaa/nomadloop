@@ -44,7 +44,7 @@ CaretComponent::~CaretComponent()
 
 void CaretComponent::paint (Graphics& g)
 {
-    g.fillAll (findColour (caretColourId));
+    g.fillAll (findColour (caretColourId, true));
 }
 
 void CaretComponent::timerCallback()
@@ -61,8 +61,8 @@ void CaretComponent::setCaretPosition (const Rectangle<int>& characterArea)
 
 bool CaretComponent::shouldBeShown() const
 {
-    return owner == 0 || (owner->hasKeyboardFocus (true)
-                            && ! owner->isCurrentlyBlockedByAnotherModalComponent());
+    return owner == nullptr || (owner->hasKeyboardFocus (true)
+                                 && ! owner->isCurrentlyBlockedByAnotherModalComponent());
 }
 
 

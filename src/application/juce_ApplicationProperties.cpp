@@ -33,38 +33,20 @@ BEGIN_JUCE_NAMESPACE
 
 
 //==============================================================================
-juce_ImplementSingleton (ApplicationProperties)
-
-
-//==============================================================================
 ApplicationProperties::ApplicationProperties()
-    : msBeforeSaving (3000),
-      options (PropertiesFile::storeAsBinary),
-      commonSettingsAreReadOnly (0),
-      processLock (0)
+    : commonSettingsAreReadOnly (0)
 {
 }
 
 ApplicationProperties::~ApplicationProperties()
 {
     closeFiles();
-    clearSingletonInstance();
 }
 
 //==============================================================================
-void ApplicationProperties::setStorageParameters (const String& applicationName,
-                                                  const String& fileNameSuffix,
-                                                  const String& folderName_,
-                                                  const int millisecondsBeforeSaving,
-                                                  const int propertiesFileOptions,
-                                                  InterProcessLock* processLock_)
+void ApplicationProperties::setStorageParameters (const PropertiesFile::Options& newOptions)
 {
-    appName = applicationName;
-    fileSuffix = fileNameSuffix;
-    folderName = folderName_;
-    msBeforeSaving = millisecondsBeforeSaving;
-    options = propertiesFileOptions;
-    processLock = processLock_;
+    options = newOptions;
 }
 
 bool ApplicationProperties::testWriteAccess (const bool testUserSettings,
@@ -80,16 +62,16 @@ bool ApplicationProperties::testWriteAccess (const bool testUserSettings,
         {
             String filenames;
 
-            if (userProps != 0 && ! userOk)
+            if (userProps != nullptr && ! userOk)
                 filenames << '\n' << userProps->getFile().getFullPathName();
 
-            if (commonProps != 0 && ! commonOk)
+            if (commonProps != nullptr && ! commonOk)
                 filenames << '\n' << commonProps->getFile().getFullPathName();
 
             AlertWindow::showMessageBoxAsync (AlertWindow::WarningIcon,
-                                              appName + TRANS(" - Unable to save settings"),
+                                              options.applicationName + TRANS(" - Unable to save settings"),
                                               TRANS("An error occurred when trying to save the application's settings file...\n\nIn order to save and restore its settings, ")
-                                                + appName + TRANS(" needs to be able to write to the following files:\n")
+                                                + options.applicationName + TRANS(" needs to be able to write to the following files:\n")
                                                 + filenames
                                                 + TRANS("\n\nMake sure that these files aren't read-only, and that the disk isn't full."));
         }
@@ -103,19 +85,24 @@ bool ApplicationProperties::testWriteAccess (const bool testUserSettings,
 //==============================================================================
 void ApplicationProperties::openFiles()
 {
-    // You need to call setStorageParameters() before trying to get hold of the
-    // properties!
-    jassert (appName.isNotEmpty());
+    // You need to call setStorageParameters() before trying to get hold of the properties!
+    jassert (options.applicationName.isNotEmpty());
 
-    if (appName.isNotEmpty())
+    if (options.applicationName.isNotEmpty())
     {
-        if (userProps == 0)
-            userProps = PropertiesFile::createDefaultAppPropertiesFile (appName, fileSuffix, folderName,
-                                                                        false, msBeforeSaving, options, processLock);
+        PropertiesFile::Options o (options);
 
-        if (commonProps == 0)
-            commonProps = PropertiesFile::createDefaultAppPropertiesFile (appName, fileSuffix, folderName,
-                                                                          true, msBeforeSaving, options, processLock);
+        if (userProps == nullptr)
+        {
+            o.commonToAllUsers = false;
+            userProps = new PropertiesFile (o);
+        }
+
+        if (commonProps == nullptr)
+        {
+            o.commonToAllUsers = true;
+            commonProps = new PropertiesFile (o);
+        }
 
         userProps->setFallbackPropertySet (commonProps);
     }
@@ -123,7 +110,7 @@ void ApplicationProperties::openFiles()
 
 PropertiesFile* ApplicationProperties::getUserSettings()
 {
-    if (userProps == 0)
+    if (userProps == nullptr)
         openFiles();
 
     return userProps;
@@ -131,7 +118,7 @@ PropertiesFile* ApplicationProperties::getUserSettings()
 
 PropertiesFile* ApplicationProperties::getCommonSettings (const bool returnUserPropsIfReadOnly)
 {
-    if (commonProps == 0)
+    if (commonProps == nullptr)
         openFiles();
 
     if (returnUserPropsIfReadOnly)
@@ -148,14 +135,14 @@ PropertiesFile* ApplicationProperties::getCommonSettings (const bool returnUserP
 
 bool ApplicationProperties::saveIfNeeded()
 {
-    return (userProps == 0 || userProps->saveIfNeeded())
-         && (commonProps == 0 || commonProps->saveIfNeeded());
+    return (userProps == nullptr || userProps->saveIfNeeded())
+         && (commonProps == nullptr || commonProps->saveIfNeeded());
 }
 
 void ApplicationProperties::closeFiles()
 {
-    userProps = 0;
-    commonProps = 0;
+    userProps = nullptr;
+    commonProps = nullptr;
 }
 
 

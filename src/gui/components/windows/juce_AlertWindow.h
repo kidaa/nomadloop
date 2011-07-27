@@ -80,7 +80,7 @@ public:
     AlertWindow (const String& title,
                  const String& message,
                  AlertIconType iconType,
-                 Component* associatedComponent = 0);
+                 Component* associatedComponent = nullptr);
 
     /** Destroys the AlertWindow */
     ~AlertWindow();
@@ -88,7 +88,7 @@ public:
     //==============================================================================
     /** Returns the type of alert icon that was specified when the window
         was created. */
-    AlertIconType getAlertType() const throw()              { return alertIconType; }
+    AlertIconType getAlertType() const noexcept             { return alertIconType; }
 
     //==============================================================================
     /** Changes the dialog box's message.
@@ -117,6 +117,14 @@ public:
     /** Invokes a click of one of the buttons. */
     void triggerButtonClick (const String& buttonName);
 
+    /** If set to true and the window contains no buttons, then pressing the escape key will make
+        the alert cancel its modal state.
+        By default this setting is true - turn it off if you don't want the box to respond to
+        the escape key. Note that it is ignored if you have any buttons, and in that case you
+        should give the buttons appropriate keypresses to trigger cancelling if you want to.
+    */
+    void setEscapeKeyCancels (bool shouldEscapeKeyCancel);
+
     //==============================================================================
     /** Adds a textbox to the window for entering strings.
 
@@ -143,7 +151,7 @@ public:
         @param nameOfTextEditor     the name of the text box that you're interested in
         @see addTextEditor
     */
-    const String getTextEditorContents (const String& nameOfTextEditor) const;
+    String getTextEditorContents (const String& nameOfTextEditor) const;
 
     /** Returns a pointer to a textbox that was added with addTextEditor(). */
     TextEditor* getTextEditor (const String& nameOfTextEditor) const;
@@ -253,7 +261,7 @@ public:
                                               const String& title,
                                               const String& message,
                                               const String& buttonText = String::empty,
-                                              Component* associatedComponent = 0);
+                                              Component* associatedComponent = nullptr);
    #endif
 
     /** Shows a dialog box that just has a message and a single button to get rid of it.
@@ -278,7 +286,7 @@ public:
                                                    const String& title,
                                                    const String& message,
                                                    const String& buttonText = String::empty,
-                                                   Component* associatedComponent = 0);
+                                                   Component* associatedComponent = nullptr);
 
     /** Shows a dialog box with two buttons.
 
@@ -321,8 +329,8 @@ public:
                                             #if JUCE_MODAL_LOOPS_PERMITTED
                                                const String& button1Text = String::empty,
                                                const String& button2Text = String::empty,
-                                               Component* associatedComponent = 0,
-                                               ModalComponentManager::Callback* callback = 0);
+                                               Component* associatedComponent = nullptr,
+                                               ModalComponentManager::Callback* callback = nullptr);
                                             #else
                                                const String& button1Text,
                                                const String& button2Text,
@@ -376,8 +384,8 @@ public:
                                                  const String& button1Text = String::empty,
                                                  const String& button2Text = String::empty,
                                                  const String& button3Text = String::empty,
-                                                 Component* associatedComponent = 0,
-                                                 ModalComponentManager::Callback* callback = 0);
+                                                 Component* associatedComponent = nullptr,
+                                                 ModalComponentManager::Callback* callback = nullptr);
                                                #else
                                                  const String& button1Text,
                                                  const String& button2Text,
@@ -395,9 +403,11 @@ public:
                             it'll show a box with just an ok button
         @returns true if the ok button was pressed, false if they pressed cancel.
     */
+   #if JUCE_MODAL_LOOPS_PERMITTED
     static bool JUCE_CALLTYPE showNativeDialogBox (const String& title,
                                                    const String& bodyText,
                                                    bool isOkCancel);
+   #endif
 
 
     //==============================================================================
@@ -452,6 +462,7 @@ private:
     StringArray textboxNames, comboBoxNames;
     Font font;
     Component* associatedComponent;
+    bool escapeKeyCancels;
 
     void updateLayout (bool onlyIncreaseSize);
 

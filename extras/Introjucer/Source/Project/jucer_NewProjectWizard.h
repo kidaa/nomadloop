@@ -37,18 +37,18 @@ public:
     virtual ~NewProjectWizard();
 
     //==============================================================================
-    static const StringArray getWizards();
+    static StringArray getWizards();
     static int getNumWizards();
     static NewProjectWizard* createWizard (int index);
 
     static Project* runNewProjectWizard (Component* ownerWindow);
 
     //==============================================================================
-    virtual const String getName() = 0;
-    virtual const String getDescription() = 0;
+    virtual String getName() = 0;
+    virtual String getDescription() = 0;
 
     virtual void addItemsToAlertWindow (AlertWindow& aw) = 0;
-    virtual const String processResultsFromAlertWindow (AlertWindow& aw) = 0;
+    virtual String processResultsFromAlertWindow (AlertWindow& aw) = 0;
     virtual bool initialiseProject (Project& project) = 0;
 
 protected:
@@ -61,7 +61,7 @@ protected:
     NewProjectWizard();
     Project* runWizard (Component* ownerWindow);
 
-    const File getSourceFilesFolder() const         { return projectFile.getSiblingFile ("Source"); }
+    File getSourceFilesFolder() const         { return projectFile.getSiblingFile ("Source"); }
 };
 
 

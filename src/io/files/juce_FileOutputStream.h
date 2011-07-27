@@ -67,21 +67,30 @@ public:
     */
     const File& getFile() const                         { return file; }
 
-    /** Returns true if the stream couldn't be opened for some reason.
+    /** Returns the status of the file stream.
+        The result will be ok if the file opened successfully. If an error occurs while
+        opening or writing to the file, this will contain an error message.
     */
-    bool failedToOpen() const                           { return fileHandle == 0; }
+    Result getStatus() const                            { return status; }
+
+    /** Returns true if the stream couldn't be opened for some reason.
+        @see getResult()
+    */
+    bool failedToOpen() const                           { return status.failed(); }
 
     //==============================================================================
     void flush();
     int64 getPosition();
     bool setPosition (int64 pos);
     bool write (const void* data, int numBytes);
+    void writeRepeatedByte (uint8 byte, int numTimesToRepeat);
 
 
 private:
     //==============================================================================
     File file;
     void* fileHandle;
+    Result status;
     int64 currentPosition;
     int bufferSize, bytesInBuffer;
     HeapBlock <char> buffer;
@@ -89,6 +98,7 @@ private:
     void openHandle();
     void closeHandle();
     void flushInternal();
+    bool flushBuffer();
     int64 setPositionInternal (int64 newPosition);
     int writeInternal (const void* data, int numBytes);
 

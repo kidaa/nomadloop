@@ -66,7 +66,7 @@ public:
 
     //==============================================================================
     /** Returns the code document that this component is editing. */
-    CodeDocument& getDocument() const throw()           { return document; }
+    CodeDocument& getDocument() const noexcept          { return document; }
 
     /** Loads the given content into the document.
         This will completely reset the CodeDocument object, clear its undo history,
@@ -76,21 +76,21 @@ public:
 
     //==============================================================================
     /** Returns the standard character width. */
-    float getCharWidth() const throw()                          { return charWidth; }
+    float getCharWidth() const noexcept                         { return charWidth; }
 
     /** Returns the height of a line of text, in pixels. */
-    int getLineHeight() const throw()                           { return lineHeight; }
+    int getLineHeight() const noexcept                          { return lineHeight; }
 
     /** Returns the number of whole lines visible on the screen,
         This doesn't include a cut-off line that might be visible at the bottom if the
         component's height isn't an exact multiple of the line-height.
     */
-    int getNumLinesOnScreen() const throw()                     { return linesOnScreen; }
+    int getNumLinesOnScreen() const noexcept                    { return linesOnScreen; }
 
     /** Returns the number of whole columns visible on the screen.
         This doesn't include any cut-off columns at the right-hand edge.
     */
-    int getNumColumnsOnScreen() const throw()                   { return columnsOnScreen; }
+    int getNumColumnsOnScreen() const noexcept                  { return columnsOnScreen; }
 
     /** Returns the current caret position. */
     const CodeDocument::Position getCaretPos() const            { return caretPos; }
@@ -116,40 +116,36 @@ public:
     const CodeDocument::Position getPositionAt (int x, int y);
 
     //==============================================================================
-    void cursorLeft (bool moveInWholeWordSteps, bool selecting);
-    void cursorRight (bool moveInWholeWordSteps, bool selecting);
-    void cursorDown (bool selecting);
-    void cursorUp (bool selecting);
+    bool moveCaretLeft (bool moveInWholeWordSteps, bool selecting);
+    bool moveCaretRight (bool moveInWholeWordSteps, bool selecting);
+    bool moveCaretUp (bool selecting);
+    bool moveCaretDown (bool selecting);
+    bool scrollDown();
+    bool scrollUp();
+    bool pageUp (bool selecting);
+    bool pageDown (bool selecting);
+    bool moveCaretToTop (bool selecting);
+    bool moveCaretToStartOfLine (bool selecting);
+    bool moveCaretToEnd (bool selecting);
+    bool moveCaretToEndOfLine (bool selecting);
+    bool deleteBackwards (bool moveInWholeWordSteps);
+    bool deleteForwards (bool moveInWholeWordSteps);
+    bool copyToClipboard();
+    bool cutToClipboard();
+    bool pasteFromClipboard();
+    bool undo();
+    bool redo();
 
-    void pageDown (bool selecting);
-    void pageUp (bool selecting);
+    bool selectAll();
+    void deselectAll();
 
-    void scrollDown();
-    void scrollUp();
     void scrollToLine (int newFirstLineOnScreen);
     void scrollBy (int deltaLines);
     void scrollToColumn (int newFirstColumnOnScreen);
     void scrollToKeepCaretOnScreen();
 
-    void goToStartOfDocument (bool selecting);
-    void goToStartOfLine (bool selecting);
-    void goToEndOfDocument (bool selecting);
-    void goToEndOfLine (bool selecting);
-
-    void deselectAll();
-    void selectAll();
-
     void insertTextAtCaret (const String& textToInsert);
     void insertTabAtCaret();
-    void cut();
-    void copy();
-    void copyThenCut();
-    void paste();
-    void backspace (bool moveInWholeWordSteps);
-    void deleteForward (bool moveInWholeWordSteps);
-
-    void undo();
-    void redo();
 
     //==============================================================================
     const Range<int> getHighlightedRegion() const;
@@ -166,7 +162,7 @@ public:
     /** Returns the current number of spaces per tab.
         @see setTabSize
     */
-    int getTabSize() const throw()                      { return spacesPerTab; }
+    int getTabSize() const noexcept                     { return spacesPerTab; }
 
     /** Returns true if the tab key will insert spaces instead of actual tab characters.
         @see setTabSize
@@ -179,7 +175,7 @@ public:
     void setFont (const Font& newFont);
 
     /** Returns the font that the editor is using. */
-    const Font& getFont() const throw()                 { return font; }
+    const Font& getFont() const noexcept                { return font; }
 
     /** Resets the syntax highlighting colours to the default ones provided by the
         code tokeniser.
@@ -223,7 +219,7 @@ public:
     void setScrollbarThickness (int thickness);
 
     /** Returns the thickness of the scrollbars. */
-    int getScrollbarThickness() const throw()           { return scrollbarThickness; }
+    int getScrollbarThickness() const noexcept          { return scrollbarThickness; }
 
     //==============================================================================
     /** @internal */
@@ -307,9 +303,10 @@ private:
     void scrollToLineInternal (int line);
     void scrollToColumnInternal (double column);
     void newTransaction();
+    void cut();
 
-    int indexToColumn (int line, int index) const throw();
-    int columnToIndex (int line, int column) const throw();
+    int indexToColumn (int line, int index) const noexcept;
+    int columnToIndex (int line, int column) const noexcept;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (CodeEditorComponent);
 };

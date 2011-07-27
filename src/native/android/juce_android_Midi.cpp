@@ -29,7 +29,7 @@
 
 
 //==============================================================================
-const StringArray MidiOutput::getDevices()
+StringArray MidiOutput::getDevices()
 {
     StringArray devices;
 
@@ -43,23 +43,10 @@ int MidiOutput::getDefaultDeviceIndex()
 
 MidiOutput* MidiOutput::openDevice (int index)
 {
-    return 0;
+    return nullptr;
 }
 
 MidiOutput::~MidiOutput()
-{
-}
-
-void MidiOutput::reset()
-{
-}
-
-bool MidiOutput::getVolume (float&, float&)
-{
-    return false;
-}
-
-void MidiOutput::setVolume (float, float)
 {
 }
 
@@ -91,7 +78,7 @@ int MidiInput::getDefaultDeviceIndex()
     return 0;
 }
 
-const StringArray MidiInput::getDevices()
+StringArray MidiInput::getDevices()
 {
     StringArray devs;
 
@@ -100,7 +87,7 @@ const StringArray MidiInput::getDevices()
 
 MidiInput* MidiInput::openDevice (int index, MidiInputCallback* callback)
 {
-    return 0;
+    return nullptr;
 }
 
 
