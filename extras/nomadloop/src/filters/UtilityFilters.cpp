@@ -327,7 +327,7 @@ void DefaultMidiOutputFilter::releaseResources()
 	if (output != 0)
 	{
 		output->stopBackgroundThread();
-		output->reset();
+		output->clearAllPendingMessages();
 		delete output;
 	}
 }

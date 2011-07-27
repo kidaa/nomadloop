@@ -277,7 +277,7 @@ const String FilterGraph::saveDocument (const File& file)
 const File FilterGraph::getLastDocumentOpened()
 {
     RecentlyOpenedFilesList recentFiles;
-    recentFiles.restoreFromString (ApplicationProperties::getInstance()->getUserSettings()
+    recentFiles.restoreFromString (appProperties->getUserSettings()
                                         ->getValue ("recentFilterGraphFiles"));
 
     return recentFiles.getFile (0);
@@ -286,12 +286,12 @@ const File FilterGraph::getLastDocumentOpened()
 void FilterGraph::setLastDocumentOpened (const File& file)
 {
     RecentlyOpenedFilesList recentFiles;
-    recentFiles.restoreFromString (ApplicationProperties::getInstance()->getUserSettings()
+    recentFiles.restoreFromString (appProperties->getUserSettings()
                                         ->getValue ("recentFilterGraphFiles"));
 
     recentFiles.addFile (file);
 
-    ApplicationProperties::getInstance()->getUserSettings()
+    appProperties->getUserSettings()
         ->setValue ("recentFilterGraphFiles", recentFiles.toString());
 }
 
@@ -307,7 +307,7 @@ static XmlElement* createNodeXml (AudioProcessorGraph::Node* const node) throw()
     }
 
     XmlElement* e = new XmlElement ("FILTER");
-    e->setAttribute (T("uid"), (int) node->id);
+    e->setAttribute (T("uid"), (int) node->nodeId);
     e->setAttribute (T("x"), node->properties ["x"].toString());
     e->setAttribute (T("y"), node->properties ["y"].toString());
     e->setAttribute (T("uiLastX"), node->properties ["uiLastX"].toString());

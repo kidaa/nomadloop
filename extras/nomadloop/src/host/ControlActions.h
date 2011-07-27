@@ -91,7 +91,7 @@ public:
 
 	inline int getBoundNodeId() const
 	{
-		return boundNode->id;
+		return boundNode->nodeId;
 	}
 
 	inline int getBoundParameterIndex() const

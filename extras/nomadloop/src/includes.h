@@ -3,3 +3,5 @@
 #include "../../../juce_amalgamated.h"
 using JUCE_NAMESPACE::uint32;
 
+extern ApplicationProperties* appProperties;
+

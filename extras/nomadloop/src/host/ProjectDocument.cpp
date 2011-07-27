@@ -64,7 +64,7 @@ const String ProjectDocument::saveDocument (const File& file)
 const File ProjectDocument::getLastDocumentOpened()
 {
 	RecentlyOpenedFilesList recentFiles;
-    recentFiles.restoreFromString (ApplicationProperties::getInstance()->getUserSettings()
+    recentFiles.restoreFromString (appProperties->getUserSettings()
                                         ->getValue ("recentNomadProjectFiles"));
 
     return recentFiles.getFile (0);
@@ -73,11 +73,11 @@ const File ProjectDocument::getLastDocumentOpened()
 void ProjectDocument::setLastDocumentOpened (const File& file)
 {
 	RecentlyOpenedFilesList recentFiles;
-    recentFiles.restoreFromString (ApplicationProperties::getInstance()->getUserSettings()
+    recentFiles.restoreFromString (appProperties->getUserSettings()
                                         ->getValue ("recentFilterGraphFiles"));
 
     recentFiles.addFile (file);
 
-    ApplicationProperties::getInstance()->getUserSettings()
+    appProperties->getUserSettings()
         ->setValue ("recentNomadProjectFiles", recentFiles.toString());
 }

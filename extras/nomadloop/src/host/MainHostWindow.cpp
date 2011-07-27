@@ -40,24 +40,24 @@ public:
     {
         currentPluginListWindow = this;
 
-        const File deadMansPedalFile (ApplicationProperties::getInstance()->getUserSettings()
+        const File deadMansPedalFile (appProperties->getUserSettings()
                                         ->getFile().getSiblingFile ("RecentlyCrashedPluginsList"));
 
         setContentComponent (new PluginListComponent (knownPluginList,
                                                       deadMansPedalFile,
-                                                      ApplicationProperties::getInstance()->getUserSettings()), true, true);
+                                                      appProperties->getUserSettings()), true, true);
 
         setResizable (true, false);
         setResizeLimits (300, 400, 800, 1500);
         setTopLeftPosition (60, 60);
 
-        restoreWindowStateFromString (ApplicationProperties::getInstance()->getUserSettings()->getValue ("listWindowPos"));
+        restoreWindowStateFromString (appProperties->getUserSettings()->getValue ("listWindowPos"));
         setVisible (true);
     }
 
     ~PluginListWindow()
     {
-        ApplicationProperties::getInstance()->getUserSettings()->setValue ("listWindowPos", getWindowStateAsString());
+        appProperties->getUserSettings()->setValue ("listWindowPos", getWindowStateAsString());
 
         setContentComponent (0);
 
@@ -146,7 +146,7 @@ MainHostWindow::MainHostWindow()
 : DocumentWindow (JUCEApplication::getInstance()->getApplicationName(), Colours::aliceblue,
 				  DocumentWindow::allButtons)
 {
-    XmlElement* const savedAudioState = ApplicationProperties::getInstance()->getUserSettings()
+    XmlElement* const savedAudioState = appProperties->getUserSettings()
                                             ->getXmlValue (T("audioDeviceState"));
 
     deviceManager.initialise (256, 256, savedAudioState, true);
@@ -161,14 +161,14 @@ MainHostWindow::MainHostWindow()
     setContentComponent (contentComp);
 	projectDocument = new ProjectDocument(contentComp->controlSurface, &(contentComp->graphDocument->graph));
 
-    restoreWindowStateFromString (ApplicationProperties::getInstance()->getUserSettings()->getValue ("mainWindowPos"));
+    restoreWindowStateFromString (appProperties->getUserSettings()->getValue ("mainWindowPos"));
 
     setVisible (true);
 
     InternalPluginFormat internalFormat;
     internalFormat.getAllTypes (internalTypes);
 
-    XmlElement* const savedPluginList = ApplicationProperties::getInstance()
+    XmlElement* const savedPluginList = appProperties
                                           ->getUserSettings()
                                           ->getXmlValue (T("pluginList"));
 
@@ -178,7 +178,7 @@ MainHostWindow::MainHostWindow()
         delete savedPluginList;
     }
 
-    pluginSortMethod = (KnownPluginList::SortMethod) ApplicationProperties::getInstance()->getUserSettings()
+    pluginSortMethod = (KnownPluginList::SortMethod) appProperties->getUserSettings()
                             ->getIntValue (T("pluginSortMethod"), KnownPluginList::sortByManufacturer);
 
     knownPluginList.addChangeListener (this);
@@ -206,7 +206,7 @@ MainHostWindow::~MainHostWindow()
 
     knownPluginList.removeChangeListener (this);
 
-    ApplicationProperties::getInstance()->getUserSettings()->setValue ("mainWindowPos", getWindowStateAsString());
+    appProperties->getUserSettings()->setValue ("mainWindowPos", getWindowStateAsString());
 	delete projectDocument;
     setContentComponent (0);	
 }
@@ -238,12 +238,12 @@ void MainHostWindow::changeListenerCallback (ChangeBroadcaster*)
 
     if (savedPluginList != 0)
     {
-        ApplicationProperties::getInstance()->getUserSettings()
+        appProperties->getUserSettings()
               ->setValue (T("pluginList"), savedPluginList);
 
         delete savedPluginList;
 
-        ApplicationProperties::getInstance()->saveIfNeeded();
+        appProperties->saveIfNeeded();
     }
 }
 
@@ -264,7 +264,7 @@ const PopupMenu MainHostWindow::getMenuForIndex (int topLevelMenuIndex, const St
         menu.addCommandItem (commandManager, CommandIDs::open);
 
         RecentlyOpenedFilesList recentFiles;
-        recentFiles.restoreFromString (ApplicationProperties::getInstance()->getUserSettings()
+        recentFiles.restoreFromString (appProperties->getUserSettings()
                                             ->getValue ("recentNomadProjectFiles"));
 
         PopupMenu recentFilesMenu;
@@ -326,7 +326,7 @@ void MainHostWindow::menuItemSelected (int menuItemID, int /*topLevelMenuIndex*/
     else if (menuItemID >= 100 && menuItemID < 200)
     {
         RecentlyOpenedFilesList recentFiles;
-        recentFiles.restoreFromString (ApplicationProperties::getInstance()->getUserSettings()
+        recentFiles.restoreFromString (appProperties->getUserSettings()
                                             ->getValue ("recentNomadProjectFiles"));
 
         if (graphEditor != 0 && projectDocument->saveIfNeededAndUserAgrees() == FileBasedDocument::savedOk)
@@ -345,7 +345,7 @@ void MainHostWindow::menuItemSelected (int menuItemID, int /*topLevelMenuIndex*/
         else if (menuItemID == 204)
             pluginSortMethod = KnownPluginList::sortByFileSystemLocation;
 
-        ApplicationProperties::getInstance()->getUserSettings()
+        appProperties->getUserSettings()
            ->setValue (T("pluginSortMethod"), (int) pluginSortMethod);
     }
     else
@@ -550,12 +550,12 @@ void MainHostWindow::showAudioSettings()
 
     XmlElement* const audioState = deviceManager.createStateXml();
 
-    ApplicationProperties::getInstance()->getUserSettings()
+    appProperties->getUserSettings()
         ->setValue (T("audioDeviceState"), audioState);
 
     delete audioState;
 
-    ApplicationProperties::getInstance()->getUserSettings()->saveIfNeeded();
+    appProperties->getUserSettings()->saveIfNeeded();
 
     GraphDocumentComponent* const graphEditor = getGraphEditor();
 

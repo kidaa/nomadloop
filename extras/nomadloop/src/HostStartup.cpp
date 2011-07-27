@@ -33,6 +33,7 @@
 
 
 ApplicationCommandManager* commandManager = 0;
+ApplicationProperties* appProperties = 0;
 
 
 //==============================================================================
@@ -54,10 +55,13 @@ public:
     void initialise (const String& /*commandLine*/)
     {
         // initialise our settings file..
-        ApplicationProperties::getInstance()
-            ->setStorageParameters (T("NomadLoop"),
-                                    T("settings"), String::empty, 1000,
-                                    PropertiesFile::storeAsXML);
+	PropertiesFile::Options options;
+	options.applicationName = "NomadLoop";
+	options.filenameSuffix = "settings";
+	options.osxLibrarySubFolder = "Preferences";
+
+	appProperties = new ApplicationProperties();
+        appProperties->setStorageParameters (options);
 
         commandManager = new ApplicationCommandManager();
 
@@ -77,9 +81,10 @@ public:
     {
         deleteAndZero (mainWindow);
 
-        ApplicationProperties::getInstance()->closeFiles();
+        appProperties->closeFiles();
 
         deleteAndZero (commandManager);
+	deleteAndZero (appProperties);
     }
 
     const String getApplicationName()
